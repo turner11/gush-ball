@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, HttpUrl
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -26,18 +26,8 @@ class PlayerUpdate(BaseModel):
     jersey_number: int | None = None
 
 
-class PlayerOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    team_id: int
-    name: str
-    name_en: str | None
-    jersey_number: int | None
-
-
 class PlayerImageCreate(BaseModel):
-    url: str
+    url: HttpUrl
 
 
 class PlayerImageOut(BaseModel):
@@ -46,6 +36,17 @@ class PlayerImageOut(BaseModel):
     id: int
     player_id: int
     url: str
+
+
+class PlayerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    team_id: int
+    name: str
+    name_en: str | None
+    jersey_number: int | None
+    images: list[PlayerImageOut]
 
 
 def _get_team_or_404(db: Session, team_id: int) -> Team:
@@ -123,7 +124,7 @@ def add_player_image(
     player_id: int, payload: PlayerImageCreate, db: DbSession, _admin_id: RequireAdmin
 ) -> PlayerImage:
     _get_player_or_404(db, player_id)
-    image = PlayerImage(player_id=player_id, url=payload.url)
+    image = PlayerImage(player_id=player_id, url=str(payload.url))
     db.add(image)
     db.commit()
     db.refresh(image)

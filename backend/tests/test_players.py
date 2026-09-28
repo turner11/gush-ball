@@ -131,6 +131,35 @@ def test_add_player_image_admin_only(admin_client: TestClient, team: Team) -> No
     assert response.json()["url"] == "https://example.com/dana.jpg"
 
 
+def test_add_player_image_rejects_malformed_url(admin_client: TestClient, team: Team) -> None:
+    created = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()
+    player_id = created["id"]
+
+    response = admin_client.post(f"/players/{player_id}/images", json={"url": "not-a-url"})
+    assert response.status_code == 422
+
+
+def test_player_out_includes_images(admin_client: TestClient, team: Team) -> None:
+    created = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()
+    player_id = created["id"]
+    assert created["images"] == []
+
+    admin_client.post(
+        f"/players/{player_id}/images", json={"url": "https://example.com/dana.jpg"}
+    )
+
+    list_response = admin_client.get(f"/teams/{team.id}/players")
+    player = list_response.json()[0]
+    assert [img["url"] for img in player["images"]] == ["https://example.com/dana.jpg"]
+
+    patch_response = admin_client.patch(
+        f"/teams/{team.id}/players/{player_id}", json={"jersey_number": 4}
+    )
+    assert [img["url"] for img in patch_response.json()["images"]] == [
+        "https://example.com/dana.jpg"
+    ]
+
+
 def test_delete_player_image(admin_client: TestClient, team: Team) -> None:
     created = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()
     player_id = created["id"]
