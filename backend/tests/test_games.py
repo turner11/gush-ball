@@ -102,6 +102,20 @@ def test_list_games_hides_games_needing_review(
     assert len(response.json()) == 1
 
 
+def test_list_and_get_game_do_not_expose_review_flags(
+    client: TestClient, admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    created = admin_client.post(f"/teams/{team.id}/games", json=_game_payload()).json()
+
+    list_body = client.get(f"/teams/{team.id}/games").json()
+    get_body = client.get(f"/teams/{team.id}/games/{created['id']}").json()
+
+    hidden_fields = {"is_scraped", "needs_review", "is_manually_overridden"}
+    assert hidden_fields.isdisjoint(list_body[0])
+    assert hidden_fields.isdisjoint(get_body)
+
+
 def test_get_game_by_id_is_public(client: TestClient, admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     created = admin_client.post(f"/teams/{team.id}/games", json=_game_payload()).json()
@@ -183,3 +197,96 @@ def test_delete_game_removes_it(admin_client: TestClient, db_session: Session) -
 
     get_response = admin_client.get(f"/teams/{team.id}/games/{created['id']}")
     assert get_response.status_code == 404
+
+
+def test_patch_game_sets_manually_overridden_and_clears_needs_review(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    game.needs_review = True
+    db_session.commit()
+
+    response = admin_client.patch(f"/teams/{team.id}/games/{game.id}", json={"status": "final"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["is_manually_overridden"] is True
+    assert body["needs_review"] is False
+
+
+def test_patch_game_on_already_live_game_still_sets_overridden(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    created = admin_client.post(f"/teams/{team.id}/games", json=_game_payload()).json()
+
+    response = admin_client.patch(
+        f"/teams/{team.id}/games/{created['id']}", json={"status": "final"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["is_manually_overridden"] is True
+    assert body["needs_review"] is False
+
+
+def test_approve_game_clears_needs_review_without_setting_override(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    game.is_scraped = True
+    game.needs_review = True
+    game.is_manually_overridden = False
+    db_session.commit()
+
+    response = admin_client.post(f"/teams/{team.id}/games/{game.id}/approve")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["needs_review"] is False
+    assert body["is_scraped"] is True
+    assert body["is_manually_overridden"] is False
+
+
+def test_approve_game_requires_admin(client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+
+    response = client.post(f"/teams/{team.id}/games/{game.id}/approve")
+
+    assert response.status_code == 401
+
+
+def test_approve_game_unknown_game_returns_404(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+
+    response = admin_client.post(f"/teams/{team.id}/games/999999/approve")
+
+    assert response.status_code == 404
+
+
+def test_list_pending_review_games_returns_only_needs_review(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    admin_client.post(f"/teams/{team.id}/games", json=_game_payload())
+    pending = _make_game(db_session, team)
+    pending.needs_review = True
+    db_session.commit()
+
+    response = admin_client.get(f"/teams/{team.id}/games/pending-review")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == pending.id
+
+
+def test_list_pending_review_games_requires_admin(client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+
+    response = client.get(f"/teams/{team.id}/games/pending-review")
+
+    assert response.status_code == 401

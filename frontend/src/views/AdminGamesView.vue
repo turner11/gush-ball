@@ -20,6 +20,7 @@ function emptyForm() {
 
 const teams = ref([])
 const games = ref([])
+const pendingGames = ref([])
 const editing = ref(null)
 const form = ref(emptyForm())
 const error = ref(null)
@@ -34,13 +35,25 @@ async function loadGames() {
   games.value = await apiFetch(`/teams/${selectedTeamId.value}/games`)
 }
 
+async function loadPendingGames() {
+  if (!selectedTeamId.value) {
+    pendingGames.value = []
+    return
+  }
+  pendingGames.value = await apiFetch(`/teams/${selectedTeamId.value}/games/pending-review`)
+}
+
 onMounted(async () => {
   teams.value = await apiFetch('/teams')
   ensureDefault(teams.value)
   await loadGames()
+  await loadPendingGames()
 })
 
-watch(selectedTeamId, loadGames)
+watch(selectedTeamId, () => {
+  loadGames()
+  loadPendingGames()
+})
 
 function resetForm() {
   editing.value = null
@@ -80,6 +93,8 @@ async function onSubmit() {
       })
       const idx = games.value.findIndex((g) => g.id === updated.id)
       if (idx !== -1) games.value[idx] = updated
+      else games.value.push(updated)
+      pendingGames.value = pendingGames.value.filter((g) => g.id !== updated.id)
     } else {
       const created = await apiFetch(`/teams/${selectedTeamId.value}/games`, {
         method: 'POST',
@@ -91,6 +106,19 @@ async function onSubmit() {
     resetForm()
   } catch {
     error.value = 'שגיאה בשמירת המשחק, נסה שוב'
+  }
+}
+
+async function approveGame(game) {
+  error.value = null
+  try {
+    const approved = await apiFetch(`/teams/${selectedTeamId.value}/games/${game.id}/approve`, {
+      method: 'POST',
+    })
+    pendingGames.value = pendingGames.value.filter((g) => g.id !== game.id)
+    games.value.push(approved)
+  } catch {
+    error.value = 'שגיאה באישור המשחק, נסה שוב'
   }
 }
 
@@ -114,6 +142,37 @@ async function onDelete(game) {
       <select id="team-select" v-model="selectedTeamId" class="field-input">
         <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
       </select>
+    </div>
+
+    <div v-if="pendingGames.length">
+      <h2 class="section-title">ממתינים לאישור</h2>
+      <table class="w-full text-start">
+        <thead>
+          <tr class="table-header-row">
+            <th class="py-2 text-start">יריבה</th>
+            <th class="py-2 text-start">תאריך</th>
+            <th class="py-2 text-start">בית/חוץ</th>
+            <th class="py-2 text-start">סטטוס</th>
+            <th class="py-2 text-start">תוצאה</th>
+            <th class="py-2 text-start"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="game in pendingGames" :key="game.id" class="table-row">
+            <td class="py-2">{{ game.opponent.name }}</td>
+            <td class="py-2">{{ game.scheduled_at }}</td>
+            <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
+            <td class="py-2">{{ game.status }}</td>
+            <td class="py-2">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
+            <td class="py-2">
+              <span class="inline-flex gap-2">
+                <button type="button" class="hover:underline" @click="startEdit(game)">ערוך</button>
+                <button type="button" class="hover:underline" @click="approveGame(game)">אשר</button>
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <table class="w-full text-start">
