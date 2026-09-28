@@ -8,9 +8,10 @@ import { useTeams } from '../composables/useTeams'
 const route = useRoute()
 const teamId = route.params.id
 
-const { error, list, update } = useTeams()
+const { error, get, update } = useTeams()
 
 const team = ref(null)
+const loading = ref(true)
 const submitting = ref(false)
 const form = reactive({
   name: '',
@@ -28,13 +29,13 @@ const form = reactive({
 })
 
 async function load() {
-  const teams = (await list()) ?? []
-  team.value = teams.find((t) => String(t.id) === String(teamId)) ?? null
+  team.value = (await get(teamId)) ?? null
   if (team.value) {
     for (const key of Object.keys(form)) {
       if (team.value[key] != null) form[key] = team.value[key]
     }
   }
+  loading.value = false
 }
 
 async function onSubmit() {
@@ -245,6 +246,7 @@ const contentSections = [
         :fields="section.fields"
       />
     </template>
-    <p v-else class="text-neutral-500">טוען...</p>
+    <p v-else-if="loading" class="text-neutral-500">טוען...</p>
+    <p v-else class="text-red-600 dark:text-red-400">{{ error || 'הקבוצה לא נמצאה' }}</p>
   </section>
 </template>

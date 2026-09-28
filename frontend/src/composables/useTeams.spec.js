@@ -11,6 +11,27 @@ describe('useTeams', () => {
     vi.restoreAllMocks()
   })
 
+  it('get() fetches and returns a single team by id', async () => {
+    const team = { id: 1, name: 'מכבי' }
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => team })
+
+    const { get } = useTeams()
+    const result = await get(1)
+
+    expect(global.fetch).toHaveBeenCalledWith('/api/teams/1', { credentials: 'include' })
+    expect(result).toEqual(team)
+  })
+
+  it('get() sets an error and returns nothing when the team is not found', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: false, status: 404 })
+
+    const teams = useTeams()
+    const result = await teams.get(999)
+
+    expect(result).toBeUndefined()
+    expect(teams.error.value).toBeTruthy()
+  })
+
   it('list() fetches and returns teams from /api/teams', async () => {
     const teams = [{ id: 1, name: 'מכבי' }]
     global.fetch.mockResolvedValueOnce({ ok: true, json: async () => teams })
@@ -79,5 +100,20 @@ describe('useTeams', () => {
     await call(teams)
 
     expect(teams.error.value).toBeTruthy()
+  })
+
+  it.each([
+    ['list', (teams) => teams.list()],
+    ['create', (teams) => teams.create({ name: 'x' })],
+    ['update', (teams) => teams.update(1, { name: 'x' })],
+    ['delete', (teams) => teams.delete(1)],
+  ])('%s sets an error instead of returning data when the response is not ok', async (_, call) => {
+    global.fetch.mockResolvedValueOnce({ ok: false, status: 422, json: async () => ({}) })
+
+    const teams = useTeams()
+    const result = await call(teams)
+
+    expect(teams.error.value).toBeTruthy()
+    expect(result).toBeUndefined()
   })
 })

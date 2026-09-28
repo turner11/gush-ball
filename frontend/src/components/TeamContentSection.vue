@@ -10,14 +10,27 @@ const props = defineProps({
   fields: { type: Array, required: true },
 })
 
-const { error, list, create, delete: destroy } = useTeamContent(props.resource)
+const { error, list, create, update, delete: destroy } = useTeamContent(props.resource)
 
 const items = ref([])
 const form = reactive(Object.fromEntries(props.fields.map((f) => [f.key, ''])))
 const submitting = ref(false)
+const editingId = ref(null)
 
 async function load() {
   items.value = (await list(props.teamId)) ?? []
+}
+
+function resetForm() {
+  editingId.value = null
+  for (const key of Object.keys(form)) form[key] = ''
+}
+
+function onEdit(item) {
+  editingId.value = item.id
+  for (const field of props.fields) {
+    form[field.key] = item[field.key] ?? ''
+  }
 }
 
 async function onSubmit() {
@@ -26,10 +39,19 @@ async function onSubmit() {
     const payload = Object.fromEntries(
       Object.entries(form).filter(([, value]) => value !== ''),
     )
-    const created = await create(props.teamId, payload)
-    if (created && !error.value) {
-      items.value.push(created)
-      for (const key of Object.keys(form)) form[key] = ''
+    if (editingId.value) {
+      const updated = await update(props.teamId, editingId.value, payload)
+      if (updated && !error.value) {
+        const index = items.value.findIndex((item) => item.id === editingId.value)
+        if (index !== -1) items.value[index] = updated
+        resetForm()
+      }
+    } else {
+      const created = await create(props.teamId, payload)
+      if (created && !error.value) {
+        items.value.push(created)
+        resetForm()
+      }
     }
   } finally {
     submitting.value = false
@@ -40,6 +62,7 @@ async function onDelete(itemId) {
   if (!confirm('למחוק פריט זה?')) return
   await destroy(props.teamId, itemId)
   items.value = items.value.filter((item) => item.id !== itemId)
+  if (editingId.value === itemId) resetForm()
 }
 
 onMounted(load)
@@ -56,13 +79,22 @@ onMounted(load)
         class="flex items-center justify-between rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600"
       >
         <span>{{ fields.map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
-        <button
-          type="button"
-          class="text-sm text-red-600 dark:text-red-400"
-          @click="onDelete(item.id)"
-        >
-          מחיקה
-        </button>
+        <span class="flex gap-3">
+          <button
+            type="button"
+            class="text-sm text-neutral-600 dark:text-neutral-400"
+            @click="onEdit(item)"
+          >
+            עריכה
+          </button>
+          <button
+            type="button"
+            class="text-sm text-red-600 dark:text-red-400"
+            @click="onDelete(item.id)"
+          >
+            מחיקה
+          </button>
+        </span>
       </li>
     </ul>
     <p v-else class="text-sm text-neutral-500">אין פריטים עדיין.</p>
@@ -91,13 +123,23 @@ onMounted(load)
 
       <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
 
-      <button
-        type="submit"
-        :disabled="submitting"
-        class="rounded bg-neutral-900 px-3 py-2 text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
-      >
-        הוספה
-      </button>
+      <div class="flex gap-2">
+        <button
+          type="submit"
+          :disabled="submitting"
+          class="rounded bg-neutral-900 px-3 py-2 text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        >
+          {{ editingId ? 'עדכון' : 'הוספה' }}
+        </button>
+        <button
+          v-if="editingId"
+          type="button"
+          class="rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600"
+          @click="resetForm"
+        >
+          ביטול
+        </button>
+      </div>
     </form>
   </section>
 </template>
