@@ -15,6 +15,7 @@ from app.db import SessionLocal
 from app.models import StandingRow, Team
 
 CRAWL_DELAY = 10
+log = logging.getLogger(__name__)
 
 # Maps a StandingRow field name to the table's `data-*` td class. Two source columns
 # (data-lt technical fouls, data-bd point differential) have no matching StandingRow
@@ -103,7 +104,7 @@ def sync_all_standings(db: Session) -> int:
         try:
             total += sync_team_standings(db, team)
         except Exception:
-            logging.exception("Standings sync failed for team %r", slug)
+            log.exception("Standings sync failed for team %r", slug)
             # A DB-level failure mid-flush leaves the session's transaction rolled back but
             # still "dirty" -- without this, every later team's db.commit() would raise
             # PendingRollbackError instead of syncing.
