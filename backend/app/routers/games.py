@@ -57,6 +57,15 @@ class GameRead(BaseModel):
     opponent_score: int | None
     description: str | None
     opponent: OpponentRead
+
+
+class AdminGameRead(GameRead):
+    """GameRead plus scrape-review bookkeeping — admin-only routes only.
+
+    Public routes (list_games, get_game) must not leak these to anonymous
+    callers; see GameRead above.
+    """
+
     is_scraped: bool
     needs_review: bool
     is_manually_overridden: bool
@@ -121,7 +130,7 @@ def list_games(team_id: int, db: DbSession) -> list[Game]:
     )
 
 
-@router.get("/pending-review", response_model=list[GameRead])
+@router.get("/pending-review", response_model=list[AdminGameRead])
 def list_pending_review_games(
     team_id: int,
     db: DbSession,
@@ -140,7 +149,7 @@ def get_game(team_id: int, game_id: int, db: DbSession) -> Game:
     return _get_game_or_404(db, team_id, game_id)
 
 
-@router.patch("/{game_id}", response_model=GameRead)
+@router.patch("/{game_id}", response_model=AdminGameRead)
 def update_game(
     team_id: int,
     game_id: int,
@@ -164,7 +173,7 @@ def update_game(
     return game
 
 
-@router.post("/{game_id}/approve", response_model=GameRead)
+@router.post("/{game_id}/approve", response_model=AdminGameRead)
 def approve_game(
     team_id: int,
     game_id: int,

@@ -93,6 +93,7 @@ async function onSubmit() {
       })
       const idx = games.value.findIndex((g) => g.id === updated.id)
       if (idx !== -1) games.value[idx] = updated
+      else games.value.push(updated)
       pendingGames.value = pendingGames.value.filter((g) => g.id !== updated.id)
     } else {
       const created = await apiFetch(`/teams/${selectedTeamId.value}/games`, {

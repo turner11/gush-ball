@@ -102,6 +102,20 @@ def test_list_games_hides_games_needing_review(
     assert len(response.json()) == 1
 
 
+def test_list_and_get_game_do_not_expose_review_flags(
+    client: TestClient, admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    created = admin_client.post(f"/teams/{team.id}/games", json=_game_payload()).json()
+
+    list_body = client.get(f"/teams/{team.id}/games").json()
+    get_body = client.get(f"/teams/{team.id}/games/{created['id']}").json()
+
+    hidden_fields = {"is_scraped", "needs_review", "is_manually_overridden"}
+    assert hidden_fields.isdisjoint(list_body[0])
+    assert hidden_fields.isdisjoint(get_body)
+
+
 def test_get_game_by_id_is_public(client: TestClient, admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     created = admin_client.post(f"/teams/{team.id}/games", json=_game_payload()).json()

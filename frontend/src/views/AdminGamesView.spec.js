@@ -215,6 +215,45 @@ describe('AdminGamesView', () => {
     expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(true)
   })
 
+  it('editing a pending game via the shared edit button moves it into the main list, not pending', async () => {
+    const pending = {
+      id: 300,
+      team_id: 1,
+      is_home: true,
+      scheduled_at: '2026-12-01T18:00:00',
+      status: 'scheduled',
+      team_score: null,
+      opponent_score: null,
+      description: null,
+      opponent: { id: 7, name: 'הפועל ירושלים', name_en: null, logo_url: null, source_url: null },
+    }
+    const updated = { ...pending, status: 'final', team_score: 90, opponent_score: 85 }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([pending]),
+      'PATCH /api/teams/1/games/300': () => jsonRes(updated),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const editButton = wrapper.findAll('button').find((b) => b.text() === 'ערוך')
+    await editButton.trigger('click')
+    await wrapper.find('#game-status').setValue('final')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/teams/1/games/300',
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+    expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(false)
+    const rows = wrapper.findAll('tbody')
+    expect(rows[rows.length - 1].text()).toContain('הפועל ירושלים')
+  })
+
   it('clicking approve POSTs to the approve endpoint and removes the game from pending', async () => {
     const pending = {
       id: 300,
