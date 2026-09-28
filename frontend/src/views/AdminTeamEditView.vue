@@ -96,43 +96,43 @@ const contentSections = [
 
 <template>
   <section class="space-y-8">
-    <h1 class="text-2xl font-bold">עריכת קבוצה</h1>
+    <h1 class="page-title">עריכת קבוצה</h1>
 
     <template v-if="team">
       <form class="max-w-lg space-y-3" @submit.prevent="onSubmit">
         <div>
-          <span class="block text-sm font-medium">מזהה (slug)</span>
+          <span class="field-label">מזהה (slug)</span>
           <p class="mt-1 text-neutral-600 dark:text-neutral-400">{{ team.slug }}</p>
         </div>
 
         <div>
-          <label for="team-name" class="block text-sm font-medium">שם</label>
+          <label for="team-name" class="field-label">שם</label>
           <input
             id="team-name"
             v-model="form.name"
             type="text"
             required
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <div>
-          <label for="team-name-en" class="block text-sm font-medium">שם (אנגלית)</label>
+          <label for="team-name-en" class="field-label">שם (אנגלית)</label>
           <input
             id="team-name-en"
             v-model="form.name_en"
             type="text"
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <div class="flex gap-4">
           <div>
-            <label for="team-primary-color" class="block text-sm font-medium">צבע ראשי</label>
+            <label for="team-primary-color" class="field-label">צבע ראשי</label>
             <input id="team-primary-color" v-model="form.primary_color" type="color" class="mt-1" />
           </div>
           <div>
-            <label for="team-secondary-color" class="block text-sm font-medium">צבע משני</label>
+            <label for="team-secondary-color" class="field-label">צבע משני</label>
             <input
               id="team-secondary-color"
               v-model="form.secondary_color"
@@ -143,96 +143,92 @@ const contentSections = [
         </div>
 
         <div>
-          <label for="team-logo-url" class="block text-sm font-medium">כתובת לוגו</label>
+          <label for="team-logo-url" class="field-label">כתובת לוגו</label>
           <input
             id="team-logo-url"
             v-model="form.logo_url"
             type="url"
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <div>
-          <label for="team-home-court" class="block text-sm font-medium">כתובת אולם הבית</label>
+          <label for="team-home-court" class="field-label">כתובת אולם הבית</label>
           <input
             id="team-home-court"
             v-model="form.home_court_address"
             type="text"
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <div>
-          <label for="team-facebook" class="block text-sm font-medium">פייסבוק</label>
+          <label for="team-facebook" class="field-label">פייסבוק</label>
           <input
             id="team-facebook"
             v-model="form.facebook_url"
             type="url"
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <div>
-          <label for="team-instagram" class="block text-sm font-medium">אינסטגרם</label>
+          <label for="team-instagram" class="field-label">אינסטגרם</label>
           <input
             id="team-instagram"
             v-model="form.instagram_url"
             type="url"
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <div>
-          <label for="team-youtube" class="block text-sm font-medium">יוטיוב</label>
+          <label for="team-youtube" class="field-label">יוטיוב</label>
           <input
             id="team-youtube"
             v-model="form.youtube_url"
             type="url"
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <div>
-          <label for="team-tiktok" class="block text-sm font-medium">טיקטוק</label>
+          <label for="team-tiktok" class="field-label">טיקטוק</label>
           <input
             id="team-tiktok"
             v-model="form.tiktok_url"
             type="url"
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <div>
-          <label for="team-ibasketball-team" class="block text-sm font-medium">
+          <label for="team-ibasketball-team" class="field-label">
             כתובת קבוצה ב-ibasketball
           </label>
           <input
             id="team-ibasketball-team"
             v-model="form.ibasketball_team_url"
             type="url"
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <div>
-          <label for="team-ibasketball-league" class="block text-sm font-medium">
+          <label for="team-ibasketball-league" class="field-label">
             כתובת ליגה ב-ibasketball
           </label>
           <input
             id="team-ibasketball-league"
             v-model="form.ibasketball_league_url"
             type="url"
-            class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+            class="field-input"
           />
         </div>
 
         <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
 
-        <button
-          type="submit"
-          :disabled="submitting"
-          class="w-full rounded bg-neutral-900 px-3 py-2 text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
-        >
+        <button type="submit" :disabled="submitting" class="btn-primary w-full">
           שמירה
         </button>
       </form>

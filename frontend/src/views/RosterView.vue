@@ -28,7 +28,7 @@ watch(selectedTeamId, loadPlayers)
 
 <template>
   <section class="space-y-6">
-    <h1 class="text-2xl font-bold">שחקנים</h1>
+    <h1 class="page-title">שחקנים</h1>
 
     <ul v-if="players.length" class="grid grid-cols-2 gap-4 sm:grid-cols-3">
       <li v-for="player in players" :key="player.id" class="space-y-1 text-center">
@@ -41,7 +41,7 @@ watch(selectedTeamId, loadPlayers)
         <p class="font-semibold">{{ player.jersey_number }} — {{ player.name }}</p>
       </li>
     </ul>
-    <p v-else class="text-sm text-neutral-500">אין שחקנים עדיין.</p>
+    <p v-else class="empty-state">אין שחקנים עדיין.</p>
 
     <p class="text-neutral-600 dark:text-neutral-400">סטטיסטיקות שחקנים יופיעו כאן בקרוב.</p>
   </section>

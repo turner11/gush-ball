@@ -4,9 +4,6 @@ import { onMounted, ref, watch } from 'vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 
-const inputClass =
-  'mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800'
-
 const teams = ref([])
 const players = ref([])
 const editing = ref(null)
@@ -112,18 +109,18 @@ async function deleteImage(player, image) {
 
 <template>
   <section class="space-y-6">
-    <h1 class="text-2xl font-bold">ניהול שחקנים</h1>
+    <h1 class="page-title">ניהול שחקנים</h1>
 
     <div>
-      <label for="team-select" class="block text-sm font-medium">קבוצה</label>
-      <select id="team-select" v-model="selectedTeamId" :class="inputClass">
+      <label for="team-select" class="field-label">קבוצה</label>
+      <select id="team-select" v-model="selectedTeamId" class="field-input">
         <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
       </select>
     </div>
 
     <table class="w-full text-start">
       <thead>
-        <tr class="border-b border-neutral-200 text-sm dark:border-neutral-700">
+        <tr class="table-header-row">
           <th class="py-2 text-start">מספר</th>
           <th class="py-2 text-start">שם</th>
           <th class="py-2 text-start">תמונות</th>
@@ -131,7 +128,7 @@ async function deleteImage(player, image) {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="player in players" :key="player.id" class="border-b border-neutral-100 dark:border-neutral-800">
+        <tr v-for="player in players" :key="player.id" class="table-row">
           <td class="py-2">{{ player.jersey_number }}</td>
           <td class="py-2">{{ player.name }}</td>
           <td class="py-2">
@@ -148,39 +145,41 @@ async function deleteImage(player, image) {
               <button type="button" class="text-xs hover:underline" @click="addImage(player)">הוסף תמונה</button>
             </div>
           </td>
-          <td class="py-2 space-x-2 space-x-reverse">
-            <button type="button" class="hover:underline" @click="startEdit(player)">ערוך</button>
-            <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="onDelete(player)">מחק</button>
+          <td class="py-2">
+            <span class="inline-flex gap-2">
+              <button type="button" class="hover:underline" @click="startEdit(player)">ערוך</button>
+              <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="onDelete(player)">מחק</button>
+            </span>
           </td>
         </tr>
       </tbody>
     </table>
 
     <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
-      <h2 class="font-semibold">{{ editing ? 'עריכת שחקן' : 'הוספת שחקן' }}</h2>
+      <h2 class="section-title">{{ editing ? 'עריכת שחקן' : 'הוספת שחקן' }}</h2>
 
       <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
 
       <div>
-        <label for="player-name" class="block text-sm font-medium">שם</label>
-        <input id="player-name" v-model="form.name" type="text" required :class="inputClass" />
+        <label for="player-name" class="field-label">שם</label>
+        <input id="player-name" v-model="form.name" type="text" required class="field-input" />
       </div>
 
       <div>
-        <label for="player-name-en" class="block text-sm font-medium">שם באנגלית</label>
-        <input id="player-name-en" v-model="form.name_en" type="text" :class="inputClass" />
+        <label for="player-name-en" class="field-label">שם באנגלית</label>
+        <input id="player-name-en" v-model="form.name_en" type="text" class="field-input" />
       </div>
 
       <div>
-        <label for="player-jersey-number" class="block text-sm font-medium">מספר חולצה</label>
-        <input id="player-jersey-number" v-model="form.jersey_number" type="number" :class="inputClass" />
+        <label for="player-jersey-number" class="field-label">מספר חולצה</label>
+        <input id="player-jersey-number" v-model="form.jersey_number" type="number" class="field-input" />
       </div>
 
       <div class="flex gap-2">
-        <button type="submit" class="rounded bg-neutral-900 px-3 py-2 text-white dark:bg-neutral-100 dark:text-neutral-900">
+        <button type="submit" class="btn-primary">
           {{ editing ? 'שמירה' : 'הוספה' }}
         </button>
-        <button v-if="editing" type="button" class="rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600" @click="resetForm">
+        <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
           ביטול
         </button>
       </div>

@@ -3,9 +3,6 @@ import { onMounted, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 
-const inputClass =
-  'mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800'
-
 const FIELDS = [
   'league_name',
   'team_name',
@@ -84,11 +81,11 @@ async function onDelete(row) {
 
 <template>
   <section class="space-y-6">
-    <h1 class="text-2xl font-bold">ניהול טבלת ליגה</h1>
+    <h1 class="page-title">ניהול טבלת ליגה</h1>
 
     <table class="w-full text-start">
       <thead>
-        <tr class="border-b border-neutral-200 text-sm dark:border-neutral-700">
+        <tr class="table-header-row">
           <th class="py-2 text-start">ליגה</th>
           <th class="py-2 text-start">קבוצה</th>
           <th class="py-2 text-start">דירוג</th>
@@ -102,7 +99,7 @@ async function onDelete(row) {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in rows" :key="row.id" class="border-b border-neutral-100 dark:border-neutral-800">
+        <tr v-for="row in rows" :key="row.id" class="table-row">
           <td class="py-2">{{ row.league_name }}</td>
           <td class="py-2">{{ row.team_name }}</td>
           <td class="py-2">{{ row.rank }}</td>
@@ -112,69 +109,71 @@ async function onDelete(row) {
           <td class="py-2">{{ row.points_for }}</td>
           <td class="py-2">{{ row.points_against }}</td>
           <td class="py-2">{{ row.points }}</td>
-          <td class="py-2 space-x-2 space-x-reverse">
-            <button type="button" class="hover:underline" @click="startEdit(row)">ערוך</button>
-            <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="onDelete(row)">מחק</button>
+          <td class="py-2">
+            <span class="inline-flex gap-2">
+              <button type="button" class="hover:underline" @click="startEdit(row)">ערוך</button>
+              <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="onDelete(row)">מחק</button>
+            </span>
           </td>
         </tr>
       </tbody>
     </table>
 
     <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
-      <h2 class="font-semibold">{{ editing ? 'עריכת שורה' : 'הוספת שורה' }}</h2>
+      <h2 class="section-title">{{ editing ? 'עריכת שורה' : 'הוספת שורה' }}</h2>
 
       <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
 
       <div>
-        <label for="standing-league-name" class="block text-sm font-medium">ליגה</label>
-        <input id="standing-league-name" v-model="form.league_name" type="text" required :class="inputClass" />
+        <label for="standing-league-name" class="field-label">ליגה</label>
+        <input id="standing-league-name" v-model="form.league_name" type="text" required class="field-input" />
       </div>
 
       <div>
-        <label for="standing-team-name" class="block text-sm font-medium">קבוצה</label>
-        <input id="standing-team-name" v-model="form.team_name" type="text" required :class="inputClass" />
+        <label for="standing-team-name" class="field-label">קבוצה</label>
+        <input id="standing-team-name" v-model="form.team_name" type="text" required class="field-input" />
       </div>
 
       <div>
-        <label for="standing-rank" class="block text-sm font-medium">דירוג</label>
-        <input id="standing-rank" v-model="form.rank" type="number" required :class="inputClass" />
+        <label for="standing-rank" class="field-label">דירוג</label>
+        <input id="standing-rank" v-model="form.rank" type="number" required class="field-input" />
       </div>
 
       <div>
-        <label for="standing-played" class="block text-sm font-medium">משחקים</label>
-        <input id="standing-played" v-model="form.played" type="number" required :class="inputClass" />
+        <label for="standing-played" class="field-label">משחקים</label>
+        <input id="standing-played" v-model="form.played" type="number" required class="field-input" />
       </div>
 
       <div>
-        <label for="standing-won" class="block text-sm font-medium">נצחונות</label>
-        <input id="standing-won" v-model="form.won" type="number" required :class="inputClass" />
+        <label for="standing-won" class="field-label">נצחונות</label>
+        <input id="standing-won" v-model="form.won" type="number" required class="field-input" />
       </div>
 
       <div>
-        <label for="standing-lost" class="block text-sm font-medium">הפסדים</label>
-        <input id="standing-lost" v-model="form.lost" type="number" required :class="inputClass" />
+        <label for="standing-lost" class="field-label">הפסדים</label>
+        <input id="standing-lost" v-model="form.lost" type="number" required class="field-input" />
       </div>
 
       <div>
-        <label for="standing-points-for" class="block text-sm font-medium">נקודות זכות</label>
-        <input id="standing-points-for" v-model="form.points_for" type="number" required :class="inputClass" />
+        <label for="standing-points-for" class="field-label">נקודות זכות</label>
+        <input id="standing-points-for" v-model="form.points_for" type="number" required class="field-input" />
       </div>
 
       <div>
-        <label for="standing-points-against" class="block text-sm font-medium">נקודות חובה</label>
-        <input id="standing-points-against" v-model="form.points_against" type="number" required :class="inputClass" />
+        <label for="standing-points-against" class="field-label">נקודות חובה</label>
+        <input id="standing-points-against" v-model="form.points_against" type="number" required class="field-input" />
       </div>
 
       <div>
-        <label for="standing-points" class="block text-sm font-medium">נקודות</label>
-        <input id="standing-points" v-model="form.points" type="number" required :class="inputClass" />
+        <label for="standing-points" class="field-label">נקודות</label>
+        <input id="standing-points" v-model="form.points" type="number" required class="field-input" />
       </div>
 
       <div class="flex gap-2">
-        <button type="submit" class="rounded bg-neutral-900 px-3 py-2 text-white dark:bg-neutral-100 dark:text-neutral-900">
+        <button type="submit" class="btn-primary">
           {{ editing ? 'שמירה' : 'הוספה' }}
         </button>
-        <button v-if="editing" type="button" class="rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600" @click="resetForm">
+        <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
           ביטול
         </button>
       </div>

@@ -46,16 +46,16 @@ watch(selectedTeamId, loadGames)
 
 <template>
   <section class="space-y-8">
-    <h1 class="text-2xl font-bold">לוח משחקים</h1>
+    <h1 class="page-title">לוח משחקים</h1>
 
-    <p v-if="!games.length" class="text-sm text-neutral-500">אין משחקים עדיין.</p>
+    <p v-if="!games.length" class="empty-state">אין משחקים עדיין.</p>
 
     <template v-else>
       <section class="space-y-2">
-        <h2 class="text-lg font-bold">משחקים קרובים</h2>
+        <h2 class="section-title">משחקים קרובים</h2>
         <table v-if="upcoming.length" class="w-full text-start">
           <thead>
-            <tr class="border-b border-neutral-200 text-sm dark:border-neutral-700">
+            <tr class="table-header-row">
               <th class="py-2 text-start">יריבה</th>
               <th class="py-2 text-start">תאריך</th>
               <th class="py-2 text-start">בית/חוץ</th>
@@ -63,7 +63,7 @@ watch(selectedTeamId, loadGames)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="game in upcoming" :key="game.id" class="border-b border-neutral-100 dark:border-neutral-800">
+            <tr v-for="game in upcoming" :key="game.id" class="table-row">
               <td class="py-2">{{ game.opponent.name }}</td>
               <td class="py-2">{{ game.scheduled_at }}</td>
               <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
@@ -71,14 +71,14 @@ watch(selectedTeamId, loadGames)
             </tr>
           </tbody>
         </table>
-        <p v-else class="text-sm text-neutral-500">אין משחקים קרובים.</p>
+        <p v-else class="empty-state">אין משחקים קרובים.</p>
       </section>
 
       <section class="space-y-2">
-        <h2 class="text-lg font-bold">תוצאות</h2>
+        <h2 class="section-title">תוצאות</h2>
         <table v-if="past.length" class="w-full text-start">
           <thead>
-            <tr class="border-b border-neutral-200 text-sm dark:border-neutral-700">
+            <tr class="table-header-row">
               <th class="py-2 text-start">יריבה</th>
               <th class="py-2 text-start">תאריך</th>
               <th class="py-2 text-start">בית/חוץ</th>
@@ -87,7 +87,7 @@ watch(selectedTeamId, loadGames)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="game in past" :key="game.id" class="border-b border-neutral-100 dark:border-neutral-800">
+            <tr v-for="game in past" :key="game.id" class="table-row">
               <td class="py-2">{{ game.opponent.name }}</td>
               <td class="py-2">{{ game.scheduled_at }}</td>
               <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
@@ -100,7 +100,7 @@ watch(selectedTeamId, loadGames)
             </tr>
           </tbody>
         </table>
-        <p v-else class="text-sm text-neutral-500">אין תוצאות עדיין.</p>
+        <p v-else class="empty-state">אין תוצאות עדיין.</p>
       </section>
     </template>
   </section>
