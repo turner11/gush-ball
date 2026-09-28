@@ -1,0 +1,128 @@
+import re
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from pydantic import AnyUrl, BaseModel, StringConstraints
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db import get_db
+from app.deps import require_admin
+from app.models import Team
+
+router = APIRouter(prefix="/teams", tags=["teams"])
+
+DbSession = Annotated[Session, Depends(get_db)]
+AdminId = Annotated[int, Depends(require_admin)]
+
+HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
+
+
+class TeamCreate(BaseModel):
+    name: str
+    name_en: str | None = None
+    primary_color: HexColor | None = None
+    secondary_color: HexColor | None = None
+    logo_url: AnyUrl | None = None
+    home_court_address: str | None = None
+    facebook_url: AnyUrl | None = None
+    instagram_url: AnyUrl | None = None
+    youtube_url: AnyUrl | None = None
+    tiktok_url: AnyUrl | None = None
+    ibasketball_team_url: AnyUrl | None = None
+    ibasketball_league_url: AnyUrl | None = None
+
+
+class TeamUpdate(BaseModel):
+    name: str | None = None
+    name_en: str | None = None
+    primary_color: HexColor | None = None
+    secondary_color: HexColor | None = None
+    logo_url: AnyUrl | None = None
+    home_court_address: str | None = None
+    facebook_url: AnyUrl | None = None
+    instagram_url: AnyUrl | None = None
+    youtube_url: AnyUrl | None = None
+    tiktok_url: AnyUrl | None = None
+    ibasketball_team_url: AnyUrl | None = None
+    ibasketball_league_url: AnyUrl | None = None
+
+
+class TeamOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    name: str
+    name_en: str | None
+    slug: str
+    primary_color: str | None
+    secondary_color: str | None
+    logo_url: str | None
+    home_court_address: str | None
+    facebook_url: str | None
+    instagram_url: str | None
+    youtube_url: str | None
+    tiktok_url: str | None
+    ibasketball_team_url: str | None
+    ibasketball_league_url: str | None
+
+
+def _slugify(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return slug or "team"
+
+
+def _unique_slug(db: Session, base: str) -> str:
+    slug = base
+    suffix = 1
+    while db.scalar(select(Team).where(Team.slug == slug)) is not None:
+        suffix += 1
+        slug = f"{base}-{suffix}"
+    return slug
+
+
+def _get_team_or_404(db: Session, team_id: int) -> Team:
+    team = db.get(Team, team_id)
+    if team is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+    return team
+
+
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=TeamOut)
+def create_team(payload: TeamCreate, _admin_id: AdminId, db: DbSession) -> Team:
+    data = payload.model_dump()
+    data = {k: (str(v) if isinstance(v, AnyUrl) else v) for k, v in data.items()}
+    team = Team(**data, slug=_unique_slug(db, _slugify(payload.name)))
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+    return team
+
+
+@router.get("", response_model=list[TeamOut])
+def list_teams(db: DbSession) -> list[Team]:
+    return list(db.scalars(select(Team)).all())
+
+
+@router.get("/{team_id}", response_model=TeamOut)
+def get_team(team_id: int, db: DbSession) -> Team:
+    return _get_team_or_404(db, team_id)
+
+
+@router.patch("/{team_id}", response_model=TeamOut)
+def update_team(team_id: int, payload: TeamUpdate, _admin_id: AdminId, db: DbSession) -> Team:
+    team = _get_team_or_404(db, team_id)
+    updates = payload.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(team, field, str(value) if isinstance(value, AnyUrl) else value)
+    db.commit()
+    db.refresh(team)
+    return team
+
+
+@router.delete("/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_team(team_id: int, _admin_id: AdminId, db: DbSession) -> Response:
+    team = _get_team_or_404(db, team_id)
+    db.delete(team)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
