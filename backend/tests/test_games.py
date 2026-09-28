@@ -87,6 +87,21 @@ def test_list_games_is_public(client: TestClient, admin_client: TestClient, db_s
     assert len(response.json()) == 1
 
 
+def test_list_games_hides_games_needing_review(
+    client: TestClient, admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    admin_client.post(f"/teams/{team.id}/games", json=_game_payload())
+    pending = _make_game(db_session, team)
+    pending.needs_review = True
+    db_session.commit()
+
+    response = client.get(f"/teams/{team.id}/games")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
 def test_get_game_by_id_is_public(client: TestClient, admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     created = admin_client.post(f"/teams/{team.id}/games", json=_game_payload()).json()
