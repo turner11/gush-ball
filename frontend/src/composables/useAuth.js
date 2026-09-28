@@ -6,8 +6,13 @@ const error = ref(null)
 
 export function useAuth() {
   async function checkSession() {
-    const res = await fetch('/api/auth/me', { credentials: 'include' })
-    user.value = res.ok ? await res.json() : null
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' })
+      user.value = res.ok ? await res.json() : null
+    } catch {
+      user.value = null
+      error.value = 'שגיאת התחברות, נסה שוב'
+    }
     checked.value = true
     return user.value
   }

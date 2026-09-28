@@ -12,9 +12,9 @@ const router = createRouter({
     { path: '/admin/login', name: 'admin-login', component: () => import('../views/LoginView.vue') },
     {
       path: '/admin',
-      component: () => import('../layouts/AdminLayout.vue'),
+      name: 'admin-home',
+      component: () => import('../views/AdminHomeView.vue'),
       meta: { requiresAuth: true, layout: 'admin' },
-      children: [{ path: '', name: 'admin-home', component: () => import('../views/AdminHomeView.vue') }],
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundView.vue') },
   ],

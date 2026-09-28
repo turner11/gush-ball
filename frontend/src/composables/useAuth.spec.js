@@ -49,4 +49,19 @@ describe('useAuth', () => {
 
     expect(user.value).toBe(null)
   })
+
+  it.each([
+    ['login', (auth) => auth.login('admin', 'secret')],
+    ['logout', (auth) => auth.logout()],
+    ['checkSession', (auth) => auth.checkSession()],
+  ])('%s sets an error instead of throwing when fetch rejects', async (_, call) => {
+    global.fetch.mockRejectedValueOnce(new TypeError('network down'))
+
+    const { useAuth } = await import('./useAuth.js')
+    const auth = useAuth()
+
+    await call(auth)
+
+    expect(auth.error.value).toBeTruthy()
+  })
 })
