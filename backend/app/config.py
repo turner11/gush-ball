@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +18,18 @@ class Settings(BaseSettings):
     object_storage_secret_access_key: str = ""
     object_storage_public_url: str = ""
     object_storage_region: str = "auto"
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_database_url(cls, v: str) -> str:
+        # Render's DATABASE_URL (and any bare postgres:// URL) has no driver specified.
+        # SQLAlchemy 2.x dropped the "postgres://" alias entirely, and "postgresql://"
+        # defaults to psycopg2, which isn't installed (we only depend on psycopg[binary] v3).
+        # Force the psycopg v3 driver so both `create_engine` and alembic boot correctly.
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix):]
+        return v
 
 
 settings = Settings()

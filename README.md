@@ -78,6 +78,9 @@ three dashboard configs.
    backend's `CORS_ORIGINS` to the frontend's real URL, and the frontend rewrite route's
    `destination` to the backend's real URL (in the dashboard or by editing `render.yaml` and
    redeploying), since each only exists after the other's first deploy.
+6. **Upgrade the Postgres database off the free plan before it's deleted.** Render's free Postgres
+   plan expires 30 days after creation, then is deleted ~14 days after that if not upgraded — the
+   database is gone (~44 days total) unless it's upgraded to a paid plan before then.
 
 ## Project phases
 
