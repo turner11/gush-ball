@@ -38,13 +38,13 @@ watch(selectedTeamId, load)
 
 <template>
   <section class="space-y-4">
-    <h1 class="text-2xl font-bold">טבלת הליגה</h1>
+    <h1 class="page-title">טבלת הליגה</h1>
 
     <template v-if="myRow">
-      <h2 class="text-lg font-semibold">{{ myRow.league_name }}</h2>
+      <h2 class="section-title">{{ myRow.league_name }}</h2>
       <table class="w-full text-start">
         <thead>
-          <tr class="border-b border-neutral-200 text-sm dark:border-neutral-700">
+          <tr class="table-header-row">
             <th class="py-2 text-start">דירוג</th>
             <th class="py-2 text-start">קבוצה</th>
             <th class="py-2 text-start">משחקים</th>
@@ -59,7 +59,7 @@ watch(selectedTeamId, load)
           <tr
             v-for="row in leagueRows"
             :key="row.id"
-            class="border-b border-neutral-100 dark:border-neutral-800"
+            class="table-row"
             :class="{ 'bg-neutral-100 font-bold dark:bg-neutral-800': row.id === myRow.id }"
           >
             <td class="py-2">{{ row.rank }}</td>
@@ -74,6 +74,6 @@ watch(selectedTeamId, load)
         </tbody>
       </table>
     </template>
-    <p v-else class="text-sm text-neutral-500">אין נתוני טבלה עבור קבוצה זו.</p>
+    <p v-else class="empty-state">אין נתוני טבלה עבור קבוצה זו.</p>
   </section>
 </template>

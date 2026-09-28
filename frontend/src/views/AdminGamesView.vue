@@ -4,9 +4,6 @@ import { onMounted, ref, watch } from 'vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 
-const inputClass =
-  'mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800'
-
 const STATUSES = ['scheduled', 'final', 'postponed', 'cancelled']
 
 function emptyForm() {
@@ -110,18 +107,18 @@ async function onDelete(game) {
 
 <template>
   <section class="space-y-6">
-    <h1 class="text-2xl font-bold">ניהול משחקים</h1>
+    <h1 class="page-title">ניהול משחקים</h1>
 
     <div>
-      <label for="team-select" class="block text-sm font-medium">קבוצה</label>
-      <select id="team-select" v-model="selectedTeamId" :class="inputClass">
+      <label for="team-select" class="field-label">קבוצה</label>
+      <select id="team-select" v-model="selectedTeamId" class="field-input">
         <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
       </select>
     </div>
 
     <table class="w-full text-start">
       <thead>
-        <tr class="border-b border-neutral-200 text-sm dark:border-neutral-700">
+        <tr class="table-header-row">
           <th class="py-2 text-start">יריבה</th>
           <th class="py-2 text-start">תאריך</th>
           <th class="py-2 text-start">בית/חוץ</th>
@@ -131,68 +128,70 @@ async function onDelete(game) {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="game in games" :key="game.id" class="border-b border-neutral-100 dark:border-neutral-800">
+        <tr v-for="game in games" :key="game.id" class="table-row">
           <td class="py-2">{{ game.opponent.name }}</td>
           <td class="py-2">{{ game.scheduled_at }}</td>
           <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
           <td class="py-2">{{ game.status }}</td>
           <td class="py-2">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
-          <td class="py-2 space-x-2 space-x-reverse">
-            <button type="button" class="hover:underline" @click="startEdit(game)">ערוך</button>
-            <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="onDelete(game)">מחק</button>
+          <td class="py-2">
+            <span class="inline-flex gap-2">
+              <button type="button" class="hover:underline" @click="startEdit(game)">ערוך</button>
+              <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="onDelete(game)">מחק</button>
+            </span>
           </td>
         </tr>
       </tbody>
     </table>
 
     <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
-      <h2 class="font-semibold">{{ editing ? 'עריכת משחק' : 'הוספת משחק' }}</h2>
+      <h2 class="section-title">{{ editing ? 'עריכת משחק' : 'הוספת משחק' }}</h2>
 
       <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
 
       <div>
-        <label for="game-opponent-name" class="block text-sm font-medium">יריבה</label>
-        <input id="game-opponent-name" v-model="form.opponent_name" type="text" required :class="inputClass" />
+        <label for="game-opponent-name" class="field-label">יריבה</label>
+        <input id="game-opponent-name" v-model="form.opponent_name" type="text" required class="field-input" />
       </div>
 
       <div>
-        <label for="game-scheduled-at" class="block text-sm font-medium">תאריך ושעה</label>
-        <input id="game-scheduled-at" v-model="form.scheduled_at" type="datetime-local" required :class="inputClass" />
+        <label for="game-scheduled-at" class="field-label">תאריך ושעה</label>
+        <input id="game-scheduled-at" v-model="form.scheduled_at" type="datetime-local" required class="field-input" />
       </div>
 
       <div class="flex items-center gap-2">
         <input id="game-is-home" v-model="form.is_home" type="checkbox" />
-        <label for="game-is-home" class="text-sm font-medium">משחק בית</label>
+        <label for="game-is-home" class="field-label">משחק בית</label>
       </div>
 
       <div>
-        <label for="game-status" class="block text-sm font-medium">סטטוס</label>
-        <select id="game-status" v-model="form.status" :class="inputClass">
+        <label for="game-status" class="field-label">סטטוס</label>
+        <select id="game-status" v-model="form.status" class="field-input">
           <option v-for="s in STATUSES" :key="s" :value="s">{{ s }}</option>
         </select>
       </div>
 
       <div class="flex gap-2">
         <div>
-          <label for="game-team-score" class="block text-sm font-medium">תוצאה — קבוצה</label>
-          <input id="game-team-score" v-model="form.team_score" type="number" :class="inputClass" />
+          <label for="game-team-score" class="field-label">תוצאה — קבוצה</label>
+          <input id="game-team-score" v-model="form.team_score" type="number" class="field-input" />
         </div>
         <div>
-          <label for="game-opponent-score" class="block text-sm font-medium">תוצאה — יריבה</label>
-          <input id="game-opponent-score" v-model="form.opponent_score" type="number" :class="inputClass" />
+          <label for="game-opponent-score" class="field-label">תוצאה — יריבה</label>
+          <input id="game-opponent-score" v-model="form.opponent_score" type="number" class="field-input" />
         </div>
       </div>
 
       <div>
-        <label for="game-description" class="block text-sm font-medium">תיאור</label>
-        <textarea id="game-description" v-model="form.description" :class="inputClass"></textarea>
+        <label for="game-description" class="field-label">תיאור</label>
+        <textarea id="game-description" v-model="form.description" class="field-input"></textarea>
       </div>
 
       <div class="flex gap-2">
-        <button type="submit" class="rounded bg-neutral-900 px-3 py-2 text-white dark:bg-neutral-100 dark:text-neutral-900">
+        <button type="submit" class="btn-primary">
           {{ editing ? 'שמירה' : 'הוספה' }}
         </button>
-        <button v-if="editing" type="button" class="rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600" @click="resetForm">
+        <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
           ביטול
         </button>
       </div>
