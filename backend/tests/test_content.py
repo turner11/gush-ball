@@ -172,9 +172,7 @@ def test_patch_wrong_team_404(
     created = admin_client.post(f"/teams/{team.id}/{segment}", json=create_payload).json()
     item_id = created["id"]
 
-    response = admin_client.patch(
-        f"/teams/{other_team.id}/{segment}/{item_id}", json=patch_payload
-    )
+    response = admin_client.patch(f"/teams/{other_team.id}/{segment}/{item_id}", json=patch_payload)
     assert response.status_code == 404
 
 
