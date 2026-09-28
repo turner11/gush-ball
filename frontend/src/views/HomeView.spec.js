@@ -130,6 +130,31 @@ describe('HomeView', () => {
     expect(document.querySelectorAll('script#twitter-wjs').length).toBe(1)
   })
 
+  it('re-renders the twitter timeline anchor when switching teams', async () => {
+    const teamB = { ...TEAM, id: 2, twitter_url: 'https://x.com/teamb' }
+    mockFetch({
+      'GET /api/teams': () => jsonRes([...TEAMS, { id: 2, name: 'קבוצה ב' }]),
+      'GET /api/teams/1': () => jsonRes({ ...TEAM, twitter_url: 'https://x.com/teama' }),
+      'GET /api/teams/2': () => jsonRes(teamB),
+      ...Object.fromEntries(
+        [1, 2].flatMap((id) => ['links', 'videos', 'images', 'posts'].map((r) => [`GET /api/teams/${id}/${r}`, () => jsonRes([])])),
+      ),
+    })
+    const { default: HomeView } = await import('./HomeView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(HomeView, { global: { plugins: [router] }, attachTo: document.body })
+    await flushPromises()
+
+    // Simulate widgets.js swapping the anchor for its own iframe.
+    wrapper.find('a.twitter-timeline').element.replaceWith(document.createElement('iframe'))
+
+    useSelectedTeam().selectedTeamId.value = '2'
+    await flushPromises()
+
+    expect(wrapper.find('a.twitter-timeline').attributes('href')).toBe('https://x.com/teamb')
+    wrapper.unmount()
+  })
+
   it('shows only platforms that have a url', async () => {
     const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
 

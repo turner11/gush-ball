@@ -120,7 +120,7 @@ watch(
           loading="lazy"
           class="h-[600px] w-full border-0"
         ></iframe>
-        <div v-if="team.twitter_url" class="h-[600px] overflow-hidden">
+        <div v-if="team.twitter_url" :key="team.twitter_url" class="h-[600px] overflow-hidden">
           <a class="twitter-timeline" data-height="600" :href="team.twitter_url">הטוויטר של הקבוצה</a>
         </div>
       </div>
