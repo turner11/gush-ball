@@ -3,6 +3,7 @@ StandingRow table. See GitHub issue #13. Standings have no override-protection c
 (that's a Games-only mechanic, #16) -- this scraper always upserts.
 """
 
+import logging
 import time
 
 import httpx
@@ -89,8 +90,17 @@ def sync_team_standings(db: Session, team: Team) -> int:
 
 
 def sync_all_standings(db: Session) -> int:
+    """Runs unattended (nightly cron, #17), so one team's fragile parse failing must not
+    abort every team after it in iteration order -- log and move on instead.
+    """
     teams = db.scalars(select(Team).where(Team.ibasketball_league_url.is_not(None)))
-    return sum(sync_team_standings(db, team) for team in teams)
+    total = 0
+    for team in teams:
+        try:
+            total += sync_team_standings(db, team)
+        except Exception:
+            logging.exception("Standings sync failed for team %r", team.slug)
+    return total
 
 
 if __name__ == "__main__":
