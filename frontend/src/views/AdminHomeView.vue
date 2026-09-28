@@ -1,8 +1,15 @@
+<script setup>
+import { RouterLink } from 'vue-router'
+</script>
+
 <template>
-  <section class="space-y-2">
+  <section class="space-y-4">
     <h1 class="text-2xl font-bold">אזור ניהול</h1>
-    <RouterLink :to="{ name: 'admin-teams' }" class="text-blue-600 underline dark:text-blue-400">
-      ניהול קבוצות
-    </RouterLink>
+    <nav class="flex flex-col gap-2">
+      <RouterLink to="/admin/players" class="hover:underline">ניהול שחקנים</RouterLink>
+      <RouterLink to="/admin/games" class="hover:underline">ניהול משחקים</RouterLink>
+      <RouterLink to="/admin/standings" class="hover:underline">ניהול טבלת ליגה</RouterLink>
+      <RouterLink :to="{ name: 'admin-teams' }" class="hover:underline">ניהול קבוצות</RouterLink>
+    </nav>
   </section>
 </template>
