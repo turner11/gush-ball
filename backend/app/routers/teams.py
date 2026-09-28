@@ -18,22 +18,7 @@ AdminId = Annotated[int, Depends(require_admin)]
 HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 
 
-class TeamCreate(BaseModel):
-    name: str
-    name_en: str | None = None
-    primary_color: HexColor | None = None
-    secondary_color: HexColor | None = None
-    logo_url: AnyUrl | None = None
-    home_court_address: str | None = None
-    facebook_url: AnyUrl | None = None
-    instagram_url: AnyUrl | None = None
-    youtube_url: AnyUrl | None = None
-    tiktok_url: AnyUrl | None = None
-    ibasketball_team_url: AnyUrl | None = None
-    ibasketball_league_url: AnyUrl | None = None
-
-
-class TeamUpdate(BaseModel):
+class _TeamFields(BaseModel):
     name: str | None = None
     name_en: str | None = None
     primary_color: HexColor | None = None
@@ -46,6 +31,14 @@ class TeamUpdate(BaseModel):
     tiktok_url: AnyUrl | None = None
     ibasketball_team_url: AnyUrl | None = None
     ibasketball_league_url: AnyUrl | None = None
+
+
+class TeamCreate(_TeamFields):
+    name: str  # required on create, unlike every other field
+
+
+class TeamUpdate(_TeamFields):
+    pass
 
 
 class TeamOut(BaseModel):
@@ -81,6 +74,11 @@ def _unique_slug(db: Session, base: str) -> str:
     return slug
 
 
+def _stringify_urls(data: dict) -> dict:
+    """Pydantic's AnyUrl doesn't map to SQLAlchemy's String column; store as plain str."""
+    return {k: (str(v) if isinstance(v, AnyUrl) else v) for k, v in data.items()}
+
+
 def _get_team_or_404(db: Session, team_id: int) -> Team:
     team = db.get(Team, team_id)
     if team is None:
@@ -90,8 +88,7 @@ def _get_team_or_404(db: Session, team_id: int) -> Team:
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=TeamOut)
 def create_team(payload: TeamCreate, _admin_id: AdminId, db: DbSession) -> Team:
-    data = payload.model_dump()
-    data = {k: (str(v) if isinstance(v, AnyUrl) else v) for k, v in data.items()}
+    data = _stringify_urls(payload.model_dump())
     team = Team(**data, slug=_unique_slug(db, _slugify(payload.name)))
     db.add(team)
     db.commit()
@@ -112,9 +109,9 @@ def get_team(team_id: int, db: DbSession) -> Team:
 @router.patch("/{team_id}", response_model=TeamOut)
 def update_team(team_id: int, payload: TeamUpdate, _admin_id: AdminId, db: DbSession) -> Team:
     team = _get_team_or_404(db, team_id)
-    updates = payload.model_dump(exclude_unset=True)
+    updates = _stringify_urls(payload.model_dump(exclude_unset=True))
     for field, value in updates.items():
-        setattr(team, field, str(value) if isinstance(value, AnyUrl) else value)
+        setattr(team, field, value)
     db.commit()
     db.refresh(team)
     return team
