@@ -1,6 +1,8 @@
 <template>
   <section class="space-y-2">
     <h1 class="text-2xl font-bold">אזור ניהול</h1>
-    <p class="text-neutral-600 dark:text-neutral-400">מסכי הניהול יופיעו כאן בהמשך.</p>
+    <RouterLink :to="{ name: 'admin-teams' }" class="text-blue-600 underline dark:text-blue-400">
+      ניהול קבוצות
+    </RouterLink>
   </section>
 </template>

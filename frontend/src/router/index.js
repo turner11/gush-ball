@@ -16,6 +16,18 @@ const router = createRouter({
       component: () => import('../views/AdminHomeView.vue'),
       meta: { requiresAuth: true, layout: 'admin' },
     },
+    {
+      path: '/admin/teams',
+      name: 'admin-teams',
+      component: () => import('../views/AdminTeamsView.vue'),
+      meta: { requiresAuth: true, layout: 'admin' },
+    },
+    {
+      path: '/admin/teams/:id',
+      name: 'admin-team-edit',
+      component: () => import('../views/AdminTeamEditView.vue'),
+      meta: { requiresAuth: true, layout: 'admin' },
+    },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundView.vue') },
   ],
 })
