@@ -55,6 +55,10 @@ watch(selectedTeamId, () => {
   loadPendingGames()
 })
 
+function suggestionCurrentValue(game, key) {
+  return key === 'opponent_name' ? game.opponent.name : game[key]
+}
+
 function resetForm() {
   editing.value = null
   form.value = emptyForm()
@@ -122,6 +126,38 @@ async function approveGame(game) {
   }
 }
 
+function replaceGame(updated) {
+  pendingGames.value = pendingGames.value.filter((g) => g.id !== updated.id)
+  const idx = games.value.findIndex((g) => g.id === updated.id)
+  if (idx !== -1) games.value[idx] = updated
+  else games.value.push(updated)
+}
+
+async function acceptSuggestion(game) {
+  error.value = null
+  try {
+    const updated = await apiFetch(
+      `/teams/${selectedTeamId.value}/games/${game.id}/suggestion/accept`,
+      { method: 'POST' },
+    )
+    replaceGame(updated)
+  } catch {
+    error.value = 'שגיאה בעדכון המשחק, נסה שוב'
+  }
+}
+
+async function rejectSuggestion(game) {
+  error.value = null
+  try {
+    await apiFetch(`/teams/${selectedTeamId.value}/games/${game.id}/suggestion/reject`, {
+      method: 'POST',
+    })
+    pendingGames.value = pendingGames.value.filter((g) => g.id !== game.id)
+  } catch {
+    error.value = 'שגיאה בעדכון המשחק, נסה שוב'
+  }
+}
+
 async function onDelete(game) {
   error.value = null
   try {
@@ -158,19 +194,47 @@ async function onDelete(game) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="game in pendingGames" :key="game.id" class="table-row">
-            <td class="py-2">{{ game.opponent.name }}</td>
-            <td class="py-2">{{ game.scheduled_at }}</td>
-            <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
-            <td class="py-2">{{ game.status }}</td>
-            <td class="py-2">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
-            <td class="py-2">
-              <span class="inline-flex gap-2">
-                <button type="button" class="hover:underline" @click="startEdit(game)">ערוך</button>
-                <button type="button" class="hover:underline" @click="approveGame(game)">אשר</button>
-              </span>
-            </td>
-          </tr>
+          <template v-for="game in pendingGames" :key="game.id">
+            <tr class="table-row">
+              <td class="py-2">{{ game.opponent.name }}</td>
+              <td class="py-2">{{ game.scheduled_at }}</td>
+              <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
+              <td class="py-2">{{ game.status }}</td>
+              <td class="py-2">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
+              <td class="py-2">
+                <span class="inline-flex gap-2">
+                  <button type="button" class="hover:underline" @click="startEdit(game)">ערוך</button>
+                  <button
+                    v-if="!game.scrape_suggestion"
+                    type="button"
+                    class="hover:underline"
+                    @click="approveGame(game)"
+                  >
+                    אשר
+                  </button>
+                  <template v-else>
+                    <button type="button" class="hover:underline" @click="acceptSuggestion(game)">
+                      קבל עדכון
+                    </button>
+                    <button type="button" class="hover:underline" @click="rejectSuggestion(game)">
+                      דחה
+                    </button>
+                  </template>
+                </span>
+              </td>
+            </tr>
+            <tr v-if="game.scrape_suggestion" class="table-row text-sm opacity-80">
+              <td class="py-1" colspan="6">
+                <span
+                  v-for="key in Object.keys(game.scrape_suggestion)"
+                  :key="key"
+                  class="me-4"
+                >
+                  {{ key }}: {{ suggestionCurrentValue(game, key) }} → {{ game.scrape_suggestion[key] }}
+                </span>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>

@@ -288,4 +288,105 @@ describe('AdminGamesView', () => {
     )
     expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(false)
   })
+
+  it('renders a scrape suggestion diff with accept/reject instead of approve', async () => {
+    const pending = {
+      id: 300,
+      team_id: 1,
+      is_home: true,
+      scheduled_at: '2026-12-01T18:00:00',
+      status: 'scheduled',
+      team_score: null,
+      opponent_score: null,
+      description: null,
+      opponent: { id: 7, name: 'הפועל ירושלים', name_en: null, logo_url: null, source_url: null },
+      scrape_suggestion: { team_score: 90 },
+    }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([pending]),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('90')
+    expect(wrapper.findAll('button').some((b) => b.text() === 'קבל עדכון')).toBe(true)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'דחה')).toBe(true)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(false)
+  })
+
+  it('accepting a suggestion POSTs to accept and removes it from pending', async () => {
+    const pending = {
+      id: 300,
+      team_id: 1,
+      is_home: true,
+      scheduled_at: '2026-12-01T18:00:00',
+      status: 'scheduled',
+      team_score: null,
+      opponent_score: null,
+      description: null,
+      opponent: { id: 7, name: 'הפועל ירושלים', name_en: null, logo_url: null, source_url: null },
+      scrape_suggestion: { team_score: 90 },
+    }
+    const accepted = { ...pending, team_score: 90, scrape_suggestion: null }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([pending]),
+      'POST /api/teams/1/games/300/suggestion/accept': () => jsonRes(accepted),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const acceptButton = wrapper.findAll('button').find((b) => b.text() === 'קבל עדכון')
+    await acceptButton.trigger('click')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/teams/1/games/300/suggestion/accept',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(wrapper.findAll('button').some((b) => b.text() === 'קבל עדכון')).toBe(false)
+  })
+
+  it('rejecting a suggestion POSTs to reject and removes it from pending', async () => {
+    const pending = {
+      id: 300,
+      team_id: 1,
+      is_home: true,
+      scheduled_at: '2026-12-01T18:00:00',
+      status: 'scheduled',
+      team_score: null,
+      opponent_score: null,
+      description: null,
+      opponent: { id: 7, name: 'הפועל ירושלים', name_en: null, logo_url: null, source_url: null },
+      scrape_suggestion: { team_score: 90 },
+    }
+    const rejected = { ...pending, scrape_suggestion: { team_score: 90 } }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([pending]),
+      'POST /api/teams/1/games/300/suggestion/reject': () => jsonRes(rejected),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const rejectButton = wrapper.findAll('button').find((b) => b.text() === 'דחה')
+    await rejectButton.trigger('click')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/teams/1/games/300/suggestion/reject',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(wrapper.findAll('button').some((b) => b.text() === 'דחה')).toBe(false)
+  })
 })
