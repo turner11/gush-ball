@@ -102,7 +102,6 @@ def _apply_game_updates(db: Session, game: Game, updates: dict) -> None:
     Shared by the PATCH endpoint and suggestion-accept (#16), which both need
     the same "opponent_name -> opponent row, rest via setattr" apply step.
     """
-    updates = dict(updates)
     opponent_name = updates.pop("opponent_name", None)
     if opponent_name is not None:
         game.opponent = _get_or_create_opponent(db, opponent_name)
