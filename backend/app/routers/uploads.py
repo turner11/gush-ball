@@ -26,7 +26,7 @@ async def create_upload(_admin_id: RequireAdmin, file: Annotated[UploadFile, Fil
             detail=f"Unsupported content type: {file.content_type}",
         )
 
-    data = await file.read()
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
