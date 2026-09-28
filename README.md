@@ -66,8 +66,13 @@ the frontend) via Docker Compose, deployed by CI over SSH on every push to `mast
 
 ### 2. GitHub secrets
 
-Set `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (the private key matching the public key added
-to the deploy user above) on the repo.
+Set on the repo:
+
+- `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (the private key matching the public key added to
+  the deploy user above).
+- `DEPLOY_KNOWN_HOSTS` — the box's SSH host key, so CI verifies it instead of trusting whatever
+  answers on first connect. Generate it with `ssh-keyscan -t ed25519 <server-ip>` and paste the
+  output as-is.
 
 ### 3. First admin
 

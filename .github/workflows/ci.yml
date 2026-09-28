@@ -41,6 +41,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
       - run: |
-          ssh -o StrictHostKeyChecking=accept-new "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            'cd ~/gush-ball && git pull --ff-only && docker compose -f docker-compose.prod.yml up -d --build'
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            'cd ~/gush-ball && git pull --ff-only && docker compose -f docker-compose.prod.yml up -d --build && docker image prune -f'
