@@ -25,6 +25,11 @@ def test_create_team_rejects_invalid_url(admin_client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_create_team_rejects_oversized_field(admin_client: TestClient) -> None:
+    response = admin_client.post("/teams", json={"name": "Team D", "home_court_address": "x" * 301})
+    assert response.status_code == 422
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [

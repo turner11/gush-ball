@@ -2,7 +2,7 @@ import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import AnyUrl, BaseModel, StringConstraints
+from pydantic import AnyUrl, BaseModel, StringConstraints, UrlConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,25 +16,30 @@ DbSession = Annotated[Session, Depends(get_db)]
 AdminId = Annotated[int, Depends(require_admin)]
 
 HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
+# Match the backing DB column widths (see app/models/team.py) so an oversized
+# value is a clean 422 instead of a raw DB error.
+Name = Annotated[str, StringConstraints(max_length=120)]
+Address = Annotated[str, StringConstraints(max_length=300)]
+Url500 = Annotated[AnyUrl, UrlConstraints(max_length=500)]
 
 
 class _TeamFields(BaseModel):
-    name: str | None = None
-    name_en: str | None = None
+    name: Name | None = None
+    name_en: Name | None = None
     primary_color: HexColor | None = None
     secondary_color: HexColor | None = None
-    logo_url: AnyUrl | None = None
-    home_court_address: str | None = None
-    facebook_url: AnyUrl | None = None
-    instagram_url: AnyUrl | None = None
-    youtube_url: AnyUrl | None = None
-    tiktok_url: AnyUrl | None = None
-    ibasketball_team_url: AnyUrl | None = None
-    ibasketball_league_url: AnyUrl | None = None
+    logo_url: Url500 | None = None
+    home_court_address: Address | None = None
+    facebook_url: Url500 | None = None
+    instagram_url: Url500 | None = None
+    youtube_url: Url500 | None = None
+    tiktok_url: Url500 | None = None
+    ibasketball_team_url: Url500 | None = None
+    ibasketball_league_url: Url500 | None = None
 
 
 class TeamCreate(_TeamFields):
-    name: str  # required on create, unlike every other field
+    name: Name  # required on create, unlike every other field
 
 
 class TeamUpdate(_TeamFields):
