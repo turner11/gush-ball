@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -40,6 +40,13 @@ onMounted(async () => {
 })
 
 watch(selectedTeamId, load)
+
+const facebookEmbedSrc = computed(
+  () =>
+    'https://www.facebook.com/plugins/page.php?href=' +
+    encodeURIComponent(team.value.facebook_url) +
+    '&tabs=timeline&width=500&height=600&small_header=true',
+)
 </script>
 
 <template>
@@ -60,6 +67,17 @@ watch(selectedTeamId, load)
       <a v-if="team.youtube_url" :href="team.youtube_url" target="_blank" rel="noopener" class="hover:underline">יוטיוב</a>
       <a v-if="team.tiktok_url" :href="team.tiktok_url" target="_blank" rel="noopener" class="hover:underline">טיקטוק</a>
     </div>
+
+    <!-- ponytail: IG has no official profile-feed embed; add per-post embeds if the club wants them -->
+    <section v-if="team.facebook_url" class="space-y-2">
+      <h2 class="section-title">פייסבוק</h2>
+      <iframe
+        :src="facebookEmbedSrc"
+        title="עמוד הפייסבוק של הקבוצה"
+        loading="lazy"
+        class="h-[600px] w-full max-w-[500px] border-0"
+      ></iframe>
+    </section>
 
     <section class="space-y-2">
       <h2 class="section-title">קישורים</h2>
