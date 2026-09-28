@@ -9,7 +9,7 @@ rationale that aren't visible from the code alone. Setup/run commands live in RE
 Three deliberate phases, tracked as GitHub milestones with 20 filed issues. **Don't build ahead of
 the current phase** — later-phase features were deferred for the reasons below, not forgotten.
 
-- **Phase 1 — Core site** (issues #1–#12): manually-populated public site + admin CRUD. No scraper.
+- **Phase 1 — Core site** (issues #1–#12, plus #37 go-live on Hetzner): manually-populated public site + admin CRUD. No scraper.
 - **Phase 2 — Scraper** (issues #13–#17): pulls standings/schedule/results/opponent logos from
   ibasketball.co.il into the *same tables* Phase 1 built, behind an admin review queue.
 - **Phase 3 — Polish** (issues #18–#20): statistics, social embeds, dynamic team-color theming.
@@ -51,8 +51,13 @@ issue, before starting.
   titles) carry an optional `_en` column so bilingual can switch on later without a schema
   rewrite — but no English UI, toggle, or translation workflow exists yet. Don't build the English
   UI ahead of it being asked for.
-- **Media storage**: object storage (S3-compatible/R2) from day one, not local disk — the hosting
-  target's filesystem is ephemeral, so this is a correctness requirement, not later polish.
+- **Hosting**: a single self-managed Hetzner machine running Postgres + backend + Caddy (static
+  frontend, `/api/*` reverse proxy) via Docker Compose; CI deploys over SSH. Chosen over Render
+  (whose free Postgres is deleted after ~44 days) because the machine already exists. Self-hosting
+  the DB means nightly `pg_dump` backups to object storage are required, not optional. No domain
+  yet → HTTP on the IP; HTTPS arrives with the domain via Caddy.
+- **Media storage**: object storage (S3-compatible/R2), not local disk — keeps media off the single
+  machine (survives rebuilds/loss) and the same bucket holds the DB backups.
 - **Statistics are intentionally undesigned.** Real per-lineup +/- needs live substitution
   tracking that the scraped source can never provide (box scores only, no play-by-play) — this is
   a permanent limitation of the data source, not something a better scraper fixes. The user has an
