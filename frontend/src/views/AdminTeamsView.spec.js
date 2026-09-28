@@ -1,7 +1,13 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const TEAMS = [{ id: 1, name: 'קבוצה א', slug: 'team-a' }]
+
+// The ConfirmDialog's buttons render through an AlertDialog portal teleported to
+// document.body, outside the mounted wrapper's own DOM subtree.
+function body() {
+  return new DOMWrapper(document.body)
+}
 
 function mockFetch(handlers) {
   global.fetch = vi.fn((url, options = {}) => {
@@ -24,6 +30,7 @@ describe('AdminTeamsView', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    document.body.innerHTML = ''
   })
 
   it('clicking מחיקה opens a confirmation dialog and does not call DELETE until confirmed', async () => {
@@ -50,13 +57,13 @@ describe('AdminTeamsView', () => {
     })
 
     const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
-    const wrapper = mount(AdminTeamsView)
+    const wrapper = mount(AdminTeamsView, { attachTo: document.body })
     await flushPromises()
 
     const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחיקה')
     await deleteButton.trigger('click')
 
-    const confirmButton = wrapper.findAll('button').find((b) => b.text() === 'אישור')
+    const confirmButton = body().findAll('button').find((b) => b.text() === 'אישור')
     await confirmButton.trigger('click')
     await flushPromises()
 
@@ -71,13 +78,13 @@ describe('AdminTeamsView', () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
-    const wrapper = mount(AdminTeamsView)
+    const wrapper = mount(AdminTeamsView, { attachTo: document.body })
     await flushPromises()
 
     const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחיקה')
     await deleteButton.trigger('click')
 
-    const cancelButton = wrapper.findAll('button').find((b) => b.text() === 'ביטול')
+    const cancelButton = body().findAll('button').find((b) => b.text() === 'ביטול')
     await cancelButton.trigger('click')
     await flushPromises()
 

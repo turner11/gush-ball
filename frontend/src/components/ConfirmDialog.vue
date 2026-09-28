@@ -1,12 +1,19 @@
 <script setup>
-import { DialogContent, DialogDescription, DialogOverlay, DialogRoot, DialogTitle } from 'reka-ui'
+import {
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogOverlay,
+  AlertDialogPortal,
+  AlertDialogRoot,
+  AlertDialogTitle,
+} from 'reka-ui'
 
 defineProps({
   open: { type: Boolean, default: false },
   message: { type: String, required: true },
 })
 
-const emit = defineEmits(['confirm', 'cancel', 'update:open'])
+const emit = defineEmits(['confirm', 'update:open'])
 
 function onConfirm() {
   emit('confirm')
@@ -14,22 +21,23 @@ function onConfirm() {
 
 function onCancel() {
   emit('update:open', false)
-  emit('cancel')
 }
 </script>
 
 <template>
-  <DialogRoot :open="open" :modal="false" @update:open="(value) => !value && onCancel()">
-    <DialogOverlay class="fixed inset-0 bg-black/50" />
-    <DialogContent
-      class="card fixed start-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 space-y-4"
-    >
-      <DialogTitle class="section-title">אישור פעולה</DialogTitle>
-      <DialogDescription>{{ message }}</DialogDescription>
-      <div class="flex justify-end gap-2">
-        <button type="button" class="btn-secondary" @click="onCancel">ביטול</button>
-        <button type="button" class="btn-primary" @click="onConfirm">אישור</button>
-      </div>
-    </DialogContent>
-  </DialogRoot>
+  <AlertDialogRoot :open="open" @update:open="(value) => emit('update:open', value)">
+    <AlertDialogPortal>
+      <AlertDialogOverlay class="fixed inset-0 bg-black/50" />
+      <AlertDialogContent
+        class="card fixed left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 space-y-4"
+      >
+        <AlertDialogTitle class="section-title">אישור פעולה</AlertDialogTitle>
+        <AlertDialogDescription>{{ message }}</AlertDialogDescription>
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn-secondary" @click="onCancel">ביטול</button>
+          <button type="button" class="btn-primary" @click="onConfirm">אישור</button>
+        </div>
+      </AlertDialogContent>
+    </AlertDialogPortal>
+  </AlertDialogRoot>
 </template>
