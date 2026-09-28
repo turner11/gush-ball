@@ -81,9 +81,10 @@ def test_get_standing_row_unknown_id_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_patch_standing_row_requires_admin(admin_client: TestClient, client: TestClient) -> None:
-    created = _create_row(admin_client)
-    response = client.patch(f"/standings/{created['id']}", json={"won": 9})
+def test_patch_standing_row_requires_admin(client: TestClient) -> None:
+    # admin_client and client share one underlying TestClient (see conftest.py), so this
+    # only checks the auth gate against a non-logged-in client, same as test_teams.py.
+    response = client.patch("/standings/1", json={"won": 9})
     assert response.status_code == 401
 
 
@@ -107,9 +108,8 @@ def test_patch_standing_row_to_duplicate_key_returns_409(admin_client: TestClien
     assert response.status_code == 409
 
 
-def test_delete_standing_row_requires_admin(admin_client: TestClient, client: TestClient) -> None:
-    created = _create_row(admin_client)
-    response = client.delete(f"/standings/{created['id']}")
+def test_delete_standing_row_requires_admin(client: TestClient) -> None:
+    response = client.delete("/standings/1")
     assert response.status_code == 401
 
 

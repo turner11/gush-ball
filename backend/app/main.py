@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.routers import auth, games, health, players, teams
+from app.routers import auth, games, health, players, standings, teams
 
 app = FastAPI(title="Gush Ball API")
 
@@ -20,4 +20,5 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(games.router)
 app.include_router(players.router)
+app.include_router(standings.router)
 app.include_router(teams.router)
