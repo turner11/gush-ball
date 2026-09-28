@@ -7,7 +7,7 @@ const { theme, toggle } = useTheme()
 <template>
   <button
     type="button"
-    class="rounded-full border border-neutral-300 px-3 py-1 text-sm dark:border-neutral-600"
+    class="rounded-full border border-current px-3 py-1 text-sm"
     :aria-label="theme === 'dark' ? 'עבור למצב בהיר' : 'עבור למצב כהה'"
     @click="toggle"
   >
