@@ -111,7 +111,7 @@ def test_list_and_get_game_do_not_expose_review_flags(
     list_body = client.get(f"/teams/{team.id}/games").json()
     get_body = client.get(f"/teams/{team.id}/games/{created['id']}").json()
 
-    hidden_fields = {"is_scraped", "needs_review", "is_manually_overridden"}
+    hidden_fields = {"is_scraped", "needs_review", "is_manually_overridden", "scrape_suggestion"}
     assert hidden_fields.isdisjoint(list_body[0])
     assert hidden_fields.isdisjoint(get_body)
 
@@ -290,3 +290,110 @@ def test_list_pending_review_games_requires_admin(client: TestClient, db_session
     response = client.get(f"/teams/{team.id}/games/pending-review")
 
     assert response.status_code == 401
+
+
+def test_list_pending_review_includes_games_with_active_suggestion(
+    admin_client: TestClient, client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    active = _make_game(db_session, team)
+    active.is_manually_overridden = True
+    active.scrape_suggestion = {"team_score": 90}
+    active.scrape_suggestion_dismissed = False
+    dismissed = _make_game(db_session, team)
+    dismissed.is_manually_overridden = True
+    dismissed.scrape_suggestion = {"team_score": 80}
+    dismissed.scrape_suggestion_dismissed = True
+    db_session.commit()
+
+    response = admin_client.get(f"/teams/{team.id}/games/pending-review")
+
+    assert response.status_code == 200
+    body = response.json()
+    ids = {g["id"] for g in body}
+    assert ids == {active.id}
+    assert body[0]["scrape_suggestion"] == {"team_score": 90}
+
+    # The suggestion-bearing game is still live on the public site.
+    public_response = client.get(f"/teams/{team.id}/games")
+    assert active.id in {g["id"] for g in public_response.json()}
+
+
+def test_accept_suggestion_applies_values_and_clears_override(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    game.is_manually_overridden = True
+    game.scrape_suggestion = {
+        "team_score": 90,
+        "status": "final",
+        "scheduled_at": "2026-02-02T20:00:00",
+        "opponent_name": "New Opp",
+    }
+    game.scrape_suggestion_dismissed = False
+    db_session.commit()
+
+    response = admin_client.post(f"/teams/{team.id}/games/{game.id}/suggestion/accept")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["team_score"] == 90
+    assert body["status"] == "final"
+    assert body["scheduled_at"] == "2026-02-02T20:00:00"
+    assert body["opponent"]["name"] == "New Opp"
+    assert body["scrape_suggestion"] is None
+    assert body["is_manually_overridden"] is False
+
+    pending = admin_client.get(f"/teams/{team.id}/games/pending-review").json()
+    assert game.id not in {g["id"] for g in pending}
+
+
+def test_reject_suggestion_keeps_values_and_dismisses(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    game.is_manually_overridden = True
+    game.team_score = 12
+    game.scrape_suggestion = {"team_score": 90}
+    game.scrape_suggestion_dismissed = False
+    db_session.commit()
+
+    response = admin_client.post(f"/teams/{team.id}/games/{game.id}/suggestion/reject")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["team_score"] == 12
+    assert body["scrape_suggestion"] == {"team_score": 90}
+    assert body["is_manually_overridden"] is True
+
+    db_session.refresh(game)
+    assert game.scrape_suggestion_dismissed is True
+
+    pending = admin_client.get(f"/teams/{team.id}/games/pending-review").json()
+    assert game.id not in {g["id"] for g in pending}
+
+
+def test_suggestion_endpoints_require_admin(client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+
+    accept_response = client.post(f"/teams/{team.id}/games/{game.id}/suggestion/accept")
+    reject_response = client.post(f"/teams/{team.id}/games/{game.id}/suggestion/reject")
+
+    assert accept_response.status_code == 401
+    assert reject_response.status_code == 401
+
+
+def test_accept_suggestion_without_suggestion_returns_409(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+
+    accept_response = admin_client.post(f"/teams/{team.id}/games/{game.id}/suggestion/accept")
+    reject_response = admin_client.post(f"/teams/{team.id}/games/{game.id}/suggestion/reject")
+
+    assert accept_response.status_code == 409
+    assert reject_response.status_code == 409

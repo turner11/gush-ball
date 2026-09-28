@@ -180,3 +180,61 @@ def test_resync_skips_manually_overridden_game(
     db_session.refresh(game)
     assert game.team_score == 12
     assert game.status == GameStatus.FINAL
+    assert game.scrape_suggestion == {"team_score": 90, "opponent_score": 88}
+    assert game.scrape_suggestion_dismissed is False
+
+
+def test_resync_overridden_game_without_changes_clears_suggestion(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    fake = FakeApi([FUTURE_EVENT])
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    scrape_games.sync_team_games(db_session, team)
+
+    game = db_session.query(Game).filter_by(source_event_id=9001).one()
+    game.is_manually_overridden = True
+    game.scrape_suggestion = {"team_score": 1}
+    db_session.commit()
+
+    # Re-scrape the exact same event: nothing differs from the overridden game's
+    # values (still SCHEDULED/None/None), so the stale suggestion should clear.
+    scrape_games.sync_team_games(db_session, team)
+
+    db_session.refresh(game)
+    assert game.scrape_suggestion is None
+    assert game.scrape_suggestion_dismissed is False
+
+
+def test_resync_keeps_dismissed_suggestion_until_source_changes(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    fake = FakeApi([FUTURE_EVENT])
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    scrape_games.sync_team_games(db_session, team)
+
+    game = db_session.query(Game).filter_by(source_event_id=9001).one()
+    game.is_manually_overridden = True
+    game.team_score = 12
+    game.status = GameStatus.FINAL
+    game.scrape_suggestion = {"team_score": 90, "opponent_score": 88}
+    game.scrape_suggestion_dismissed = True
+    db_session.commit()
+
+    played_event = {**FUTURE_EVENT, "status": "publish", "main_results": [90, 88]}
+    fake.events = [played_event]
+
+    # Same diff as before: dismissed stays put.
+    scrape_games.sync_team_games(db_session, team)
+    db_session.refresh(game)
+    assert game.scrape_suggestion == {"team_score": 90, "opponent_score": 88}
+    assert game.scrape_suggestion_dismissed is True
+
+    # Source changes again: new diff resets dismissed.
+    different_event = {**FUTURE_EVENT, "status": "publish", "main_results": [95, 88]}
+    fake.events = [different_event]
+    scrape_games.sync_team_games(db_session, team)
+    db_session.refresh(game)
+    assert game.scrape_suggestion == {"team_score": 95, "opponent_score": 88}
+    assert game.scrape_suggestion_dismissed is False
