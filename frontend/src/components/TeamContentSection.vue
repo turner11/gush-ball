@@ -1,0 +1,145 @@
+<script setup>
+import { onMounted, reactive, ref } from 'vue'
+
+import { useTeamContent } from '../composables/useTeamContent'
+
+const props = defineProps({
+  teamId: { type: [String, Number], required: true },
+  resource: { type: String, required: true },
+  heading: { type: String, required: true },
+  fields: { type: Array, required: true },
+})
+
+const { error, list, create, update, delete: destroy } = useTeamContent(props.resource)
+
+const items = ref([])
+const form = reactive(Object.fromEntries(props.fields.map((f) => [f.key, ''])))
+const submitting = ref(false)
+const editingId = ref(null)
+
+async function load() {
+  items.value = (await list(props.teamId)) ?? []
+}
+
+function resetForm() {
+  editingId.value = null
+  for (const key of Object.keys(form)) form[key] = ''
+}
+
+function onEdit(item) {
+  editingId.value = item.id
+  for (const field of props.fields) {
+    form[field.key] = item[field.key] ?? ''
+  }
+}
+
+async function onSubmit() {
+  submitting.value = true
+  try {
+    const payload = Object.fromEntries(
+      Object.entries(form).filter(([, value]) => value !== ''),
+    )
+    if (editingId.value) {
+      const updated = await update(props.teamId, editingId.value, payload)
+      if (updated && !error.value) {
+        const index = items.value.findIndex((item) => item.id === editingId.value)
+        if (index !== -1) items.value[index] = updated
+        resetForm()
+      }
+    } else {
+      const created = await create(props.teamId, payload)
+      if (created && !error.value) {
+        items.value.push(created)
+        resetForm()
+      }
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function onDelete(itemId) {
+  if (!confirm('למחוק פריט זה?')) return
+  await destroy(props.teamId, itemId)
+  items.value = items.value.filter((item) => item.id !== itemId)
+  if (editingId.value === itemId) resetForm()
+}
+
+onMounted(load)
+</script>
+
+<template>
+  <section class="space-y-3">
+    <h2 class="text-lg font-bold">{{ heading }}</h2>
+
+    <ul v-if="items.length" class="space-y-1">
+      <li
+        v-for="item in items"
+        :key="item.id"
+        class="flex items-center justify-between rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600"
+      >
+        <span>{{ fields.map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
+        <span class="flex gap-3">
+          <button
+            type="button"
+            class="text-sm text-neutral-600 dark:text-neutral-400"
+            @click="onEdit(item)"
+          >
+            עריכה
+          </button>
+          <button
+            type="button"
+            class="text-sm text-red-600 dark:text-red-400"
+            @click="onDelete(item.id)"
+          >
+            מחיקה
+          </button>
+        </span>
+      </li>
+    </ul>
+    <p v-else class="text-sm text-neutral-500">אין פריטים עדיין.</p>
+
+    <form class="space-y-2" @submit.prevent="onSubmit">
+      <div v-for="field in fields" :key="field.key">
+        <label :for="`${resource}-${field.key}`" class="block text-sm font-medium">
+          {{ field.label }}
+        </label>
+        <textarea
+          v-if="field.type === 'textarea'"
+          :id="`${resource}-${field.key}`"
+          v-model="form[field.key]"
+          :required="field.required"
+          class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+        />
+        <input
+          v-else
+          :id="`${resource}-${field.key}`"
+          v-model="form[field.key]"
+          :type="field.type"
+          :required="field.required"
+          class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+        />
+      </div>
+
+      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
+
+      <div class="flex gap-2">
+        <button
+          type="submit"
+          :disabled="submitting"
+          class="rounded bg-neutral-900 px-3 py-2 text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        >
+          {{ editingId ? 'עדכון' : 'הוספה' }}
+        </button>
+        <button
+          v-if="editingId"
+          type="button"
+          class="rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600"
+          @click="resetForm"
+        >
+          ביטול
+        </button>
+      </div>
+    </form>
+  </section>
+</template>

@@ -20,4 +20,26 @@ describe('router auth guard', () => {
 
     expect(router.currentRoute.value.name).toBe('admin-login')
   })
+
+  it('redirects to admin-login when visiting /admin/teams without a session', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: false })
+
+    const { default: router } = await import('./index.js')
+
+    router.push('/admin/teams')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('admin-login')
+  })
+
+  it('redirects to admin-login when visiting /admin/teams/1 without a session', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: false })
+
+    const { default: router } = await import('./index.js')
+
+    router.push('/admin/teams/1')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('admin-login')
+  })
 })

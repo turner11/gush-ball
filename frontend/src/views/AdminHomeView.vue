@@ -9,6 +9,7 @@ import { RouterLink } from 'vue-router'
       <RouterLink to="/admin/players" class="hover:underline">ניהול שחקנים</RouterLink>
       <RouterLink to="/admin/games" class="hover:underline">ניהול משחקים</RouterLink>
       <RouterLink to="/admin/standings" class="hover:underline">ניהול טבלת ליגה</RouterLink>
+      <RouterLink :to="{ name: 'admin-teams' }" class="hover:underline">ניהול קבוצות</RouterLink>
     </nav>
   </section>
 </template>
