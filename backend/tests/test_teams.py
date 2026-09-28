@@ -25,6 +25,18 @@ def test_create_team_rejects_invalid_url(admin_client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_twitter_url_round_trips(admin_client: TestClient) -> None:
+    created = _create_team(admin_client, "Team T", twitter_url="https://x.com/club")
+    assert admin_client.get(f"/teams/{created['id']}").json()["twitter_url"] == "https://x.com/club"
+    admin_client.patch(f"/teams/{created['id']}", json={"twitter_url": "https://x.com/club2"})
+    assert admin_client.get(f"/teams/{created['id']}").json()["twitter_url"] == "https://x.com/club2"
+
+
+def test_create_team_rejects_invalid_twitter_url(admin_client: TestClient) -> None:
+    response = admin_client.post("/teams", json={"name": "Team U", "twitter_url": "not a url"})
+    assert response.status_code == 422
+
+
 def test_create_team_rejects_oversized_field(admin_client: TestClient) -> None:
     response = admin_client.post("/teams", json={"name": "Team D", "home_court_address": "x" * 301})
     assert response.status_code == 422

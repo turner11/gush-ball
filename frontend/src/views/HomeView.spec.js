@@ -16,6 +16,7 @@ const TEAM = {
   instagram_url: null,
   youtube_url: null,
   tiktok_url: null,
+  twitter_url: null,
 }
 const LINKS = [{ id: 1, team_id: 1, label: 'אתר הליגה', label_en: null, url: 'https://example.com' }]
 const VIDEOS = []
@@ -107,9 +108,32 @@ describe('HomeView', () => {
     expect(src).toContain('href=https%3A%2F%2Fwww.facebook.com%2Fgushclub')
   })
 
-  it('renders no social embed when facebook_url is null', async () => {
+  it('renders no social embed when all social urls are null', async () => {
     const wrapper = await mountWithTeam(TEAM)
 
     expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.find('a.twitter-timeline').exists()).toBe(false)
+  })
+
+  it('embeds the Instagram profile for instagram_url', async () => {
+    const wrapper = await mountWithTeam({ ...TEAM, instagram_url: 'https://www.instagram.com/gushclub/?hl=he' })
+
+    expect(wrapper.find('iframe').attributes('src')).toBe('https://www.instagram.com/gushclub/embed')
+  })
+
+  it('renders a twitter timeline anchor and loads widgets.js once', async () => {
+    const team = { ...TEAM, twitter_url: 'https://x.com/gushclub' }
+    const wrapper = await mountWithTeam(team)
+    await mountWithTeam(team)
+
+    expect(wrapper.find('a.twitter-timeline').attributes('href')).toBe('https://x.com/gushclub')
+    expect(document.querySelectorAll('script#twitter-wjs').length).toBe(1)
+  })
+
+  it('shows only platforms that have a url', async () => {
+    const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
+
+    expect(wrapper.findAll('iframe').length).toBe(1)
+    expect(wrapper.find('a.twitter-timeline').exists()).toBe(false)
   })
 })

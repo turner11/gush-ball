@@ -34,6 +34,7 @@ class _TeamFields(BaseModel):
     instagram_url: Url500 | None = None
     youtube_url: Url500 | None = None
     tiktok_url: Url500 | None = None
+    twitter_url: Url500 | None = None
     ibasketball_team_url: Url500 | None = None
     ibasketball_league_url: Url500 | None = None
 
@@ -61,6 +62,7 @@ class TeamOut(BaseModel):
     instagram_url: str | None
     youtube_url: str | None
     tiktok_url: str | None
+    twitter_url: str | None
     ibasketball_team_url: str | None
     ibasketball_league_url: str | None
 
