@@ -80,7 +80,12 @@ def update_link(
     team_id: int, link_id: int, payload: TeamLinkUpdate, db: DbSession, _admin_id: RequireAdmin
 ) -> TeamLink:
     link = _get_team_link_or_404(db, team_id, link_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    if "url" in data and data["url"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="url cannot be null"
+        )
+    for field, value in data.items():
         setattr(link, field, str(value) if field == "url" else value)
     db.commit()
     db.refresh(link)
@@ -153,7 +158,12 @@ def update_video(
     team_id: int, video_id: int, payload: TeamVideoUpdate, db: DbSession, _admin_id: RequireAdmin
 ) -> TeamVideo:
     video = _get_team_video_or_404(db, team_id, video_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    if "url" in data and data["url"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="url cannot be null"
+        )
+    for field, value in data.items():
         setattr(video, field, str(value) if field == "url" else value)
     db.commit()
     db.refresh(video)
@@ -226,7 +236,12 @@ def update_image(
     team_id: int, image_id: int, payload: TeamImageUpdate, db: DbSession, _admin_id: RequireAdmin
 ) -> TeamImage:
     image = _get_team_image_or_404(db, team_id, image_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    if "url" in data and data["url"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="url cannot be null"
+        )
+    for field, value in data.items():
         setattr(image, field, str(value) if field == "url" else value)
     db.commit()
     db.refresh(image)

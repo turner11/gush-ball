@@ -225,3 +225,32 @@ def test_create_rejects_malformed_url(
 def test_create_post_requires_body(admin_client: TestClient, team: Team) -> None:
     response = admin_client.post(f"/teams/{team.id}/posts", json={"title": "Big Win"})
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("segment", "model_class", "create_payload"),
+    [
+        ("links", TeamLink, {"label": "Website", "url": "https://example.com"}),
+        ("videos", TeamVideo, {"title": "Season Highlights", "url": "https://example.com/v.mp4"}),
+        ("images", TeamImage, {"title": "Team Photo", "url": "https://example.com/i.jpg"}),
+    ],
+    ids=["links", "videos", "images"],
+)
+def test_patch_null_url_rejected(
+    admin_client: TestClient,
+    db_session: Session,
+    team: Team,
+    segment: str,
+    model_class: type,
+    create_payload: dict,
+) -> None:
+    created = admin_client.post(f"/teams/{team.id}/{segment}", json=create_payload).json()
+    item_id = created["id"]
+
+    response = admin_client.patch(f"/teams/{team.id}/{segment}/{item_id}", json={"url": None})
+    assert response.status_code == 422
+
+    db_session.expire_all()
+    row = db_session.get(model_class, item_id)
+    assert row.url == created["url"]
+    assert row.url != "None"
