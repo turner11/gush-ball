@@ -103,4 +103,22 @@ describe('DefaultLayout', () => {
 
     expect(wrapper.element.style.getPropertyValue('--team-primary')).toBe('')
   })
+
+  it('keeps the neutral header (no team band) for a team without colors', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const header = wrapper.find('header')
+    expect(header.classes()).toContain('bg-team')
+
+    await wrapper.find('#team-switcher').setValue('3')
+    await flushPromises()
+
+    expect(header.classes()).not.toContain('bg-team')
+    expect(header.classes()).not.toContain('text-on-team')
+    expect(header.classes()).toContain('border-neutral-200')
+  })
 })

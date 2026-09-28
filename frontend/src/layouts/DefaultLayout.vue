@@ -42,7 +42,13 @@ onMounted(async () => {
 
 <template>
   <div :style="teamStyle" class="flex min-h-screen flex-col bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
-    <header class="border-b-4 border-team-2 bg-team text-on-team">
+    <header
+      :class="
+        teamStyle['--team-primary']
+          ? 'border-b-4 border-team-2 bg-team text-on-team'
+          : 'border-b border-neutral-200 dark:border-neutral-700'
+      "
+    >
       <nav class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
         <span class="section-title">גוש כדורסל</span>
         <ul class="flex gap-4 text-sm">
@@ -55,7 +61,7 @@ onMounted(async () => {
             id="team-switcher"
             aria-label="בחר קבוצה"
             v-model="selectedTeamId"
-            class="appearance-none rounded border border-current bg-transparent py-1 ps-2 pe-8 text-sm"
+            class="appearance-none rounded border border-current bg-transparent py-1 ps-2 pe-8 text-sm [&>option]:bg-white [&>option]:text-neutral-900 dark:[&>option]:bg-neutral-800 dark:[&>option]:text-neutral-100"
           >
             <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
           </select>
