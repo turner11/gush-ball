@@ -139,3 +139,68 @@ def test_sync_all_standings_only_processes_teams_with_league_url(
 
     assert count == 2
     assert calls == ["https://ibasketball.co.il/league/2026-1/"]
+
+
+def test_sync_all_standings_continues_after_one_team_fails(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    good_url = "https://ibasketball.co.il/league/2026-1/"
+    bad_url = "https://ibasketball.co.il/league/2026-2/"
+    _make_team(db_session, slug="gush-ball-a", league_url=good_url)
+    _make_team(db_session, slug="gush-ball-b", league_url=bad_url)
+
+    def fake_get_html(url: str) -> str:
+        return NO_TABLE_HTML if url == bad_url else FIXTURE_HTML
+
+    monkeypatch.setattr(scrape_standings, "_get_html", fake_get_html)
+
+    count = scrape_standings.sync_all_standings(db_session)
+
+    assert count == 2
+    rows = db_session.query(StandingRow).all()
+    assert [r.team_name for r in rows] == ["אליצור קרית אתא לאטי", "מכבי חיפה"]
+
+
+def test_sync_all_standings_rolls_back_after_db_failure_so_next_team_still_syncs(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A real DB-level failure (not a parse ValueError) mid-team must not poison the shared
+    session for every team after it -- without `db.rollback()` in the except branch, the next
+    team's `db.commit()` raises `PendingRollbackError` instead of syncing.
+    """
+    good_url = "https://ibasketball.co.il/league/2026-1/"
+    _make_team(db_session, slug="gush-ball-a", league_url="https://ibasketball.co.il/league/broken/")
+    _make_team(db_session, slug="gush-ball-b", league_url=good_url)
+
+    monkeypatch.setattr(scrape_standings, "_get_html", lambda url: FIXTURE_HTML)
+
+    real_sync_team_standings = scrape_standings.sync_team_standings
+
+    def fake_sync_team_standings(db: Session, team: Team) -> int:
+        if team.slug == "gush-ball-a":
+            # league_name=None violates the column's NOT NULL constraint -- a genuine
+            # DB-level (IntegrityError) failure, not the parser's ValueError.
+            db.add(
+                StandingRow(
+                    league_name=None,
+                    team_name="x",
+                    rank=1,
+                    played=0,
+                    won=0,
+                    lost=0,
+                    points_for=0,
+                    points_against=0,
+                    points=0,
+                )
+            )
+            db.commit()
+            return 1
+        return real_sync_team_standings(db, team)
+
+    monkeypatch.setattr(scrape_standings, "sync_team_standings", fake_sync_team_standings)
+
+    count = scrape_standings.sync_all_standings(db_session)
+
+    assert count == 2
+    rows = db_session.query(StandingRow).all()
+    assert [r.team_name for r in rows] == ["אליצור קרית אתא לאטי", "מכבי חיפה"]

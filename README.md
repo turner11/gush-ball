@@ -101,7 +101,28 @@ Add it to the deploy user's crontab:
 0 3 * * * ~/gush-ball/backup.sh
 ```
 
-### 6. Restore (into a scratch DB, to verify a backup)
+### 6. Nightly scraper sync
+
+Standings + schedule/results/opponent logos (issues #13/#14) also run unattended via cron, in
+addition to the admin's manual "סנכרון עכשיו" button (issue #17). Add this line to the **same**
+deploy user's crontab as step 5's `backup.sh` line, so `docker compose exec` resolves against the
+same Docker context:
+
+```
+0 4 * * * cd ~/gush-ball && docker compose -f docker-compose.prod.yml exec -T backend uv run python -m app.scrape_standings ; docker compose -f docker-compose.prod.yml exec -T backend uv run python -m app.scrape_games
+```
+
+One crontab line, with the two commands joined by `;` (not `&&`) — `;` runs games regardless of
+whether standings succeeded, so a standings failure never skips the games sync, while still
+running them sequentially in one cron invocation so they never overlap and both respect
+ibasketball.co.il's `Crawl-Delay: 10`. Two separate crontab lines (one per `H:MM`) would risk the
+games line firing while standings is still mid-run if standings overruns its 5-minute head start.
+`-T` disables pseudo-tty allocation, matching non-interactive cron execution (`backup.sh` doesn't
+need it since it isn't run through `exec`). `-m app.<module>`, not `python app/scrape_x.py` — both
+modules do `from app.db import ...`, and running the file directly would put `backend/app/` rather
+than `backend/` on `sys.path` and break that import.
+
+### 7. Restore (into a scratch DB, to verify a backup)
 
 ```
 docker compose -f docker-compose.prod.yml exec db createdb -U gush_ball scratch
@@ -111,7 +132,7 @@ docker run --rm \
   | docker compose -f docker-compose.prod.yml exec -T db pg_restore -U gush_ball -d scratch --no-owner
 ```
 
-### 7. HTTPS later
+### 8. HTTPS later
 
 Once a domain points at the box: replace `:80` with the domain in `frontend/Caddyfile`, publish
 `443:443` on the `web` service, and add a `caddy_data` volume so Caddy's ACME state survives

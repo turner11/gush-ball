@@ -3,6 +3,7 @@ StandingRow table. See GitHub issue #13. Standings have no override-protection c
 (that's a Games-only mechanic, #16) -- this scraper always upserts.
 """
 
+import logging
 import time
 
 import httpx
@@ -14,6 +15,7 @@ from app.db import SessionLocal
 from app.models import StandingRow, Team
 
 CRAWL_DELAY = 10
+log = logging.getLogger(__name__)
 
 # Maps a StandingRow field name to the table's `data-*` td class. Two source columns
 # (data-lt technical fouls, data-bd point differential) have no matching StandingRow
@@ -89,8 +91,25 @@ def sync_team_standings(db: Session, team: Team) -> int:
 
 
 def sync_all_standings(db: Session) -> int:
+    """Runs unattended (nightly cron, #17), so one team's fragile parse failing must not
+    abort every team after it in iteration order -- log and move on instead.
+    """
     teams = db.scalars(select(Team).where(Team.ibasketball_league_url.is_not(None)))
-    return sum(sync_team_standings(db, team) for team in teams)
+    total = 0
+    for team in teams:
+        # Captured before the try: a DB-level failure below expires every object in the
+        # session, so reading team.slug afterwards (e.g. in the except block) would itself
+        # need a fresh query -- one the still-failed transaction can't run yet.
+        slug = team.slug
+        try:
+            total += sync_team_standings(db, team)
+        except Exception:
+            log.exception("Standings sync failed for team %r", slug)
+            # A DB-level failure mid-flush leaves the session's transaction rolled back but
+            # still "dirty" -- without this, every later team's db.commit() would raise
+            # PendingRollbackError instead of syncing.
+            db.rollback()
+    return total
 
 
 if __name__ == "__main__":
