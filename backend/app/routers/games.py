@@ -57,6 +57,9 @@ class GameRead(BaseModel):
     opponent_score: int | None
     description: str | None
     opponent: OpponentRead
+    is_scraped: bool
+    needs_review: bool
+    is_manually_overridden: bool
 
 
 def _get_team_or_404(db: Session, team_id: int) -> Team:
@@ -118,6 +121,20 @@ def list_games(team_id: int, db: DbSession) -> list[Game]:
     )
 
 
+@router.get("/pending-review", response_model=list[GameRead])
+def list_pending_review_games(
+    team_id: int,
+    db: DbSession,
+    _admin_id: Annotated[int, Depends(require_admin)],
+) -> list[Game]:
+    _get_team_or_404(db, team_id)
+    return list(
+        db.scalars(
+            select(Game).where(Game.team_id == team_id, Game.needs_review.is_(True))
+        )
+    )
+
+
 @router.get("/{game_id}", response_model=GameRead)
 def get_game(team_id: int, game_id: int, db: DbSession) -> Game:
     return _get_game_or_404(db, team_id, game_id)
@@ -133,11 +150,30 @@ def update_game(
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     updates = payload.model_dump(exclude_unset=True)
+    has_changes = bool(updates)
     opponent_name = updates.pop("opponent_name", None)
     if opponent_name is not None:
         game.opponent = _get_or_create_opponent(db, opponent_name)
     for field, value in updates.items():
         setattr(game, field, value)
+    if has_changes:
+        game.is_manually_overridden = True
+        game.needs_review = False
+    db.commit()
+    db.refresh(game)
+    return game
+
+
+@router.post("/{game_id}/approve", response_model=GameRead)
+def approve_game(
+    team_id: int,
+    game_id: int,
+    db: DbSession,
+    _admin_id: Annotated[int, Depends(require_admin)],
+) -> Game:
+    game = _get_game_or_404(db, team_id, game_id)
+    game.needs_review = False
+    game.is_scraped = True
     db.commit()
     db.refresh(game)
     return game

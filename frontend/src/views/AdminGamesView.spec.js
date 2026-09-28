@@ -61,6 +61,7 @@ describe('AdminGamesView', () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
     })
 
     const { default: AdminGamesView } = await import('./AdminGamesView.vue')
@@ -87,6 +88,7 @@ describe('AdminGamesView', () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
       'POST /api/teams/1/games': () => jsonRes(created, 201),
     })
 
@@ -121,6 +123,7 @@ describe('AdminGamesView', () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
       'PATCH /api/teams/1/games/100': () => jsonRes(updated),
     })
 
@@ -148,6 +151,7 @@ describe('AdminGamesView', () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
       'DELETE /api/teams/1/games/100': () => ({ ok: true, status: 204, json: vi.fn() }),
     })
 
@@ -168,6 +172,7 @@ describe('AdminGamesView', () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
       'POST /api/teams/1/games': () => errorRes(),
     })
 
@@ -182,5 +187,66 @@ describe('AdminGamesView', () => {
 
     expect(wrapper.text()).toContain('שגיאה בשמירת המשחק, נסה שוב')
     expect(wrapper.text()).not.toContain('קבוצת רפאים')
+  })
+
+  it('renders pending-review games with an approve button', async () => {
+    const pending = {
+      id: 300,
+      team_id: 1,
+      is_home: true,
+      scheduled_at: '2026-12-01T18:00:00',
+      status: 'scheduled',
+      team_score: null,
+      opponent_score: null,
+      description: null,
+      opponent: { id: 7, name: 'הפועל ירושלים', name_en: null, logo_url: null, source_url: null },
+    }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([pending]),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('הפועל ירושלים')
+    expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(true)
+  })
+
+  it('clicking approve POSTs to the approve endpoint and removes the game from pending', async () => {
+    const pending = {
+      id: 300,
+      team_id: 1,
+      is_home: true,
+      scheduled_at: '2026-12-01T18:00:00',
+      status: 'scheduled',
+      team_score: null,
+      opponent_score: null,
+      description: null,
+      opponent: { id: 7, name: 'הפועל ירושלים', name_en: null, logo_url: null, source_url: null },
+    }
+    const approved = { ...pending, needs_review: false }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([pending]),
+      'POST /api/teams/1/games/300/approve': () => jsonRes(approved),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const approveButton = wrapper.findAll('button').find((b) => b.text() === 'אשר')
+    await approveButton.trigger('click')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/teams/1/games/300/approve',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(false)
   })
 })
