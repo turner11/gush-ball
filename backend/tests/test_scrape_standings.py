@@ -139,3 +139,23 @@ def test_sync_all_standings_only_processes_teams_with_league_url(
 
     assert count == 2
     assert calls == ["https://ibasketball.co.il/league/2026-1/"]
+
+
+def test_sync_all_standings_continues_after_one_team_fails(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    good_url = "https://ibasketball.co.il/league/2026-1/"
+    bad_url = "https://ibasketball.co.il/league/2026-2/"
+    _make_team(db_session, slug="gush-ball-a", league_url=good_url)
+    _make_team(db_session, slug="gush-ball-b", league_url=bad_url)
+
+    def fake_get_html(url: str) -> str:
+        return NO_TABLE_HTML if url == bad_url else FIXTURE_HTML
+
+    monkeypatch.setattr(scrape_standings, "_get_html", fake_get_html)
+
+    count = scrape_standings.sync_all_standings(db_session)
+
+    assert count == 2
+    rows = db_session.query(StandingRow).all()
+    assert [r.team_name for r in rows] == ["אליצור קרית אתא לאטי", "מכבי חיפה"]
