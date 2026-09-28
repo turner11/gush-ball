@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, ForeignKey, Text
+from sqlalchemy import Enum, ForeignKey, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -34,6 +34,13 @@ class Game(Base):
     opponent_score: Mapped[int | None] = mapped_column(default=None)
 
     description: Mapped[str | None] = mapped_column(Text, default=None)
+
+    # Phase 2 scrape bookkeeping (#14). All default False so manually created
+    # games stay live exactly as they do today.
+    source_event_id: Mapped[int | None] = mapped_column(unique=True, default=None)
+    is_scraped: Mapped[bool] = mapped_column(default=False, server_default=false())
+    needs_review: Mapped[bool] = mapped_column(default=False, server_default=false())
+    is_manually_overridden: Mapped[bool] = mapped_column(default=False, server_default=false())
 
     team: Mapped["Team"] = relationship(back_populates="games")
     opponent: Mapped["Opponent"] = relationship()

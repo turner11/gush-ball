@@ -111,7 +111,11 @@ def create_game(
 @router.get("", response_model=list[GameRead])
 def list_games(team_id: int, db: DbSession) -> list[Game]:
     _get_team_or_404(db, team_id)
-    return list(db.scalars(select(Game).where(Game.team_id == team_id)))
+    return list(
+        db.scalars(
+            select(Game).where(Game.team_id == team_id, Game.needs_review.is_(False))
+        )
+    )
 
 
 @router.get("/{game_id}", response_model=GameRead)

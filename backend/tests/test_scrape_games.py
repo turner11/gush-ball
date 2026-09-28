@@ -90,7 +90,7 @@ def test_sync_creates_pending_scraped_games(
     assert future_game.team_score is None
     assert future_game.opponent_score is None
     assert future_game.is_home is True
-    assert future_game.scheduled_at == datetime(2026, 10, 28, 21, 0)
+    assert future_game.scheduled_at == datetime(2026, 10, 28, 21, 0)  # noqa: DTZ001 (naive local wall time, per #14)
 
 
 def test_sync_maps_final_score_to_our_side(
