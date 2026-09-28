@@ -40,6 +40,7 @@ onMounted(async () => {
         <select
           v-if="teams.length"
           id="team-switcher"
+          aria-label="בחר קבוצה"
           v-model="selectedTeamId"
           class="rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
         >
