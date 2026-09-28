@@ -19,6 +19,16 @@ function jsonRes(body, status = 200) {
   return { ok: true, status, json: async () => body }
 }
 
+function errorRes(statusText = 'Server Error') {
+  return {
+    ok: false,
+    statusText,
+    json: async () => {
+      throw new Error('no body')
+    },
+  }
+}
+
 describe('AdminPlayersView', () => {
   let router
 
@@ -116,5 +126,25 @@ describe('AdminPlayersView', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('יוסי')
+  })
+
+  it('a failed add-image request sets an error and leaves the image list unchanged', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'POST /api/players/10/images': () => errorRes(),
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    await wrapper.find('input[placeholder="כתובת תמונה"]').setValue('https://example.com/x.png')
+    const addImageButton = wrapper.findAll('button').find((b) => b.text() === 'הוסף תמונה')
+    await addImageButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('שגיאה בהוספת תמונה, נסה שוב')
+    expect(wrapper.findAll('li')).toHaveLength(0)
   })
 })

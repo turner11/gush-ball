@@ -31,6 +31,16 @@ function jsonRes(body, status = 200) {
   return { ok: true, status, json: async () => body }
 }
 
+function errorRes(statusText = 'Server Error') {
+  return {
+    ok: false,
+    statusText,
+    json: async () => {
+      throw new Error('no body')
+    },
+  }
+}
+
 describe('AdminGamesView', () => {
   let router
 
@@ -152,5 +162,25 @@ describe('AdminGamesView', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('מכבי')
+  })
+
+  it('a failed POST sets an error and does not add the game to the list', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'POST /api/teams/1/games': () => errorRes(),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    await wrapper.find('#game-opponent-name').setValue('קבוצת רפאים')
+    await wrapper.find('#game-scheduled-at').setValue('2026-11-05T20:00')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('שגיאה בשמירת המשחק, נסה שוב')
+    expect(wrapper.text()).not.toContain('קבוצת רפאים')
   })
 })

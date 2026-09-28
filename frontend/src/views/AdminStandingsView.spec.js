@@ -31,6 +31,16 @@ function jsonRes(body, status = 200) {
   return { ok: true, status, json: async () => body }
 }
 
+function errorRes(statusText = 'Server Error') {
+  return {
+    ok: false,
+    statusText,
+    json: async () => {
+      throw new Error('no body')
+    },
+  }
+}
+
 describe('AdminStandingsView', () => {
   let router
 
@@ -152,5 +162,23 @@ describe('AdminStandingsView', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('קבוצה א')
+  })
+
+  it('a failed DELETE sets an error and keeps the row in the list', async () => {
+    mockFetch({
+      'GET /api/standings': () => jsonRes(ROWS),
+      'DELETE /api/standings/1': () => errorRes(),
+    })
+
+    const { default: AdminStandingsView } = await import('./AdminStandingsView.vue')
+    const wrapper = mount(AdminStandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחק')
+    await deleteButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('שגיאה במחיקת השורה, נסה שוב')
+    expect(wrapper.text()).toContain('קבוצה א')
   })
 })
