@@ -184,6 +184,11 @@ def update_game(
     if has_changes:
         game.is_manually_overridden = True
         game.needs_review = False
+        # #16: the admin's new values may no longer match a pending suggestion
+        # (or may match it exactly, e.g. "90 -> 90") — clear it so the next
+        # scrape recomputes the diff against the edit instead of the stale one.
+        game.scrape_suggestion = None
+        game.scrape_suggestion_dismissed = False
     db.commit()
     db.refresh(game)
     return game

@@ -397,3 +397,28 @@ def test_accept_suggestion_without_suggestion_returns_409(
 
     assert accept_response.status_code == 409
     assert reject_response.status_code == 409
+
+
+def test_patch_while_suggestion_pending_clears_it(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    game.is_manually_overridden = True
+    game.team_score = 12
+    game.scrape_suggestion = {"team_score": 90}
+    game.scrape_suggestion_dismissed = False
+    db_session.commit()
+
+    response = admin_client.patch(
+        f"/teams/{team.id}/games/{game.id}", json=_game_payload(is_home=False)
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["scrape_suggestion"] is None
+
+    db_session.refresh(game)
+    assert game.scrape_suggestion is None
+    assert game.scrape_suggestion_dismissed is False
+
+    accept_response = admin_client.post(f"/teams/{team.id}/games/{game.id}/suggestion/accept")
+    assert accept_response.status_code == 409
