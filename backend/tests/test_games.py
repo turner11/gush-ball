@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -21,7 +21,7 @@ def _make_game(db_session: Session, team: Team) -> Game:
     game = Game(
         team=team,
         opponent=opponent,
-        scheduled_at=datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc),
+        scheduled_at=datetime(2026, 1, 1, 18, 0, tzinfo=UTC),
         status=GameStatus.SCHEDULED,
     )
     db_session.add(game)
@@ -33,7 +33,7 @@ def _make_game(db_session: Session, team: Team) -> Game:
 def _game_payload(**overrides: object) -> dict:
     payload = {
         "opponent_name": "Maccabi Test",
-        "scheduled_at": datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc).isoformat(),
+        "scheduled_at": datetime(2026, 1, 1, 18, 0, tzinfo=UTC).isoformat(),
         "is_home": True,
     }
     payload.update(overrides)
