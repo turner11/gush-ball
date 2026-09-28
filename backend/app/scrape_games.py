@@ -1,6 +1,7 @@
 """Pulls schedule/results + opponent logos from ibasketball.co.il's SportsPress JSON API
-into the Game table. See GitHub issue #14. #16 adds diff suggestions for overridden games;
-#17 adds the nightly trigger. This module is a manual, synchronous entry point until then.
+into the Game table. See GitHub issue #14. #16 stores a diff suggestion (not applied) when
+a re-scrape disagrees with an admin-overridden game, for the admin to accept/reject; #17
+adds the nightly trigger. This module is a manual, synchronous entry point until then.
 """
 
 import html
@@ -9,6 +10,7 @@ from datetime import datetime
 from typing import Any
 
 import httpx
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -74,13 +76,40 @@ def sync_team_games(db: Session, team: Team) -> int:
             opponent_score = None
 
         game = db.scalar(select(Game).where(Game.source_event_id == event["id"]))
-        if game is not None and game.is_manually_overridden:
-            # #16 turns this into a diff suggestion
-            continue
 
         # ponytail: refetches known opponents each run; skip when opp already
         # has logo+source_url if runtime matters
         opponent = _resolve_opponent(db, opp_sp_id, opponent_cache)
+
+        if game is not None and game.is_manually_overridden:
+            # #16: never clobber an admin override — store what differs as a
+            # suggestion for the pending-review queue instead of applying it.
+            incoming = {
+                "opponent_name": opponent.name,
+                "is_home": is_home,
+                "scheduled_at": datetime.fromisoformat(event["date"]),
+                "status": game_status,
+                "team_score": team_score,
+                "opponent_score": opponent_score,
+            }
+            current = {
+                "opponent_name": game.opponent.name,
+                "is_home": game.is_home,
+                "scheduled_at": game.scheduled_at,
+                "status": game.status,
+                "team_score": game.team_score,
+                "opponent_score": game.opponent_score,
+            }
+            diff = {k: v for k, v in incoming.items() if current[k] != v}
+            new = jsonable_encoder(diff) or None
+            if new is None:
+                if game.scrape_suggestion is not None or game.scrape_suggestion_dismissed:
+                    game.scrape_suggestion = None
+                    game.scrape_suggestion_dismissed = False
+            elif new != game.scrape_suggestion:
+                game.scrape_suggestion = new
+                game.scrape_suggestion_dismissed = False
+            continue
 
         if game is None:
             game = Game(

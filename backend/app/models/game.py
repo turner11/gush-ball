@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, ForeignKey, Text, false
+from sqlalchemy import JSON, Enum, ForeignKey, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -41,6 +41,12 @@ class Game(Base):
     is_scraped: Mapped[bool] = mapped_column(default=False, server_default=false())
     needs_review: Mapped[bool] = mapped_column(default=False, server_default=false())
     is_manually_overridden: Mapped[bool] = mapped_column(default=False, server_default=false())
+
+    # #16: pending scraped diff for an overridden game (fields that differ from the
+    # source, in GameUpdate shape) + whether the admin dismissed it. none_as_null=True
+    # is required so "no suggestion" round-trips as SQL NULL, not JSON 'null'.
+    scrape_suggestion: Mapped[dict | None] = mapped_column(JSON(none_as_null=True), default=None)
+    scrape_suggestion_dismissed: Mapped[bool] = mapped_column(default=False, server_default=false())
 
     team: Mapped["Team"] = relationship(back_populates="games")
     opponent: Mapped["Opponent"] = relationship()
