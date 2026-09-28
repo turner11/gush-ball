@@ -1,6 +1,106 @@
+<script setup>
+import { onMounted, ref, watch } from 'vue'
+
+import { useSelectedTeam } from '../composables/useSelectedTeam'
+import { apiFetch } from '../lib/api'
+
+const teams = ref([])
+const team = ref(null)
+const links = ref([])
+const videos = ref([])
+const images = ref([])
+const posts = ref([])
+
+const { selectedTeamId, ensureDefault } = useSelectedTeam()
+
+async function load() {
+  if (!selectedTeamId.value) {
+    team.value = null
+    links.value = []
+    videos.value = []
+    images.value = []
+    posts.value = []
+    return
+  }
+
+  const id = selectedTeamId.value
+  ;[team.value, links.value, videos.value, images.value, posts.value] = await Promise.all([
+    apiFetch(`/teams/${id}`),
+    apiFetch(`/teams/${id}/links`),
+    apiFetch(`/teams/${id}/videos`),
+    apiFetch(`/teams/${id}/images`),
+    apiFetch(`/teams/${id}/posts`),
+  ])
+}
+
+onMounted(async () => {
+  teams.value = await apiFetch('/teams')
+  ensureDefault(teams.value)
+  await load()
+})
+
+watch(selectedTeamId, load)
+</script>
+
 <template>
-  <section class="space-y-2">
+  <section v-if="team" class="space-y-8">
+    <div class="flex items-center gap-4">
+      <img v-if="team.logo_url" :src="team.logo_url" :alt="team.name" class="h-16 w-16 rounded object-contain" />
+      <div>
+        <h1 class="text-2xl font-bold">{{ team.name }}</h1>
+        <p v-if="team.home_court_address" class="text-neutral-600 dark:text-neutral-400">
+          {{ team.home_court_address }}
+        </p>
+      </div>
+    </div>
+
+    <div v-if="team.facebook_url || team.instagram_url || team.youtube_url || team.tiktok_url" class="flex gap-3 text-sm">
+      <a v-if="team.facebook_url" :href="team.facebook_url" target="_blank" rel="noopener" class="hover:underline">פייסבוק</a>
+      <a v-if="team.instagram_url" :href="team.instagram_url" target="_blank" rel="noopener" class="hover:underline">אינסטגרם</a>
+      <a v-if="team.youtube_url" :href="team.youtube_url" target="_blank" rel="noopener" class="hover:underline">יוטיוב</a>
+      <a v-if="team.tiktok_url" :href="team.tiktok_url" target="_blank" rel="noopener" class="hover:underline">טיקטוק</a>
+    </div>
+
+    <section class="space-y-2">
+      <h2 class="text-lg font-bold">קישורים</h2>
+      <ul v-if="links.length" class="space-y-1">
+        <li v-for="link in links" :key="link.id">
+          <a :href="link.url" target="_blank" rel="noopener" class="hover:underline">{{ link.label }}</a>
+        </li>
+      </ul>
+      <p v-else class="text-sm text-neutral-500">אין קישורים עדיין.</p>
+    </section>
+
+    <section class="space-y-2">
+      <h2 class="text-lg font-bold">סרטונים</h2>
+      <ul v-if="videos.length" class="space-y-1">
+        <li v-for="video in videos" :key="video.id">
+          <a :href="video.url" target="_blank" rel="noopener" class="hover:underline">{{ video.title }}</a>
+        </li>
+      </ul>
+      <p v-else class="text-sm text-neutral-500">אין סרטונים עדיין.</p>
+    </section>
+
+    <section class="space-y-2">
+      <h2 class="text-lg font-bold">תמונות</h2>
+      <div v-if="images.length" class="flex flex-wrap gap-3">
+        <img v-for="image in images" :key="image.id" :src="image.url" :alt="image.title" class="h-24 w-24 rounded object-cover" />
+      </div>
+      <p v-else class="text-sm text-neutral-500">אין תמונות עדיין.</p>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="text-lg font-bold">עדכונים</h2>
+      <article v-for="post in posts" :key="post.id" class="space-y-1 border-b border-neutral-200 pb-3 dark:border-neutral-700">
+        <h3 class="font-semibold">{{ post.title }}</h3>
+        <p class="text-neutral-600 dark:text-neutral-400">{{ post.body }}</p>
+      </article>
+      <p v-if="!posts.length" class="text-sm text-neutral-500">אין עדכונים עדיין.</p>
+    </section>
+  </section>
+
+  <section v-else class="space-y-2">
     <h1 class="text-2xl font-bold">ברוכים הבאים</h1>
-    <p class="text-neutral-600 dark:text-neutral-400">עמוד הבית של הקבוצה יופיע כאן.</p>
+    <p class="text-neutral-600 dark:text-neutral-400">אין קבוצות במערכת עדיין.</p>
   </section>
 </template>

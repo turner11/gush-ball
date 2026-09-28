@@ -1,8 +1,11 @@
 <script setup>
+import { onMounted, ref } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 
 import ErrorBoundary from '../components/ErrorBoundary.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
+import { useSelectedTeam } from '../composables/useSelectedTeam'
+import { apiFetch } from '../lib/api'
 
 const navItems = [
   { to: '/', label: 'בית' },
@@ -10,6 +13,18 @@ const navItems = [
   { to: '/standings', label: 'טבלה' },
   { to: '/roster', label: 'שחקנים' },
 ]
+
+const teams = ref([])
+const { selectedTeamId, ensureDefault } = useSelectedTeam()
+
+onMounted(async () => {
+  try {
+    teams.value = await apiFetch('/teams')
+    ensureDefault(teams.value)
+  } catch {
+    // leave teams empty — the switcher simply doesn't render
+  }
+})
 </script>
 
 <template>
@@ -22,6 +37,14 @@ const navItems = [
             <RouterLink :to="item.to" class="hover:underline">{{ item.label }}</RouterLink>
           </li>
         </ul>
+        <select
+          v-if="teams.length"
+          id="team-switcher"
+          v-model="selectedTeamId"
+          class="rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
+        >
+          <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
+        </select>
         <ThemeToggle />
       </nav>
     </header>
