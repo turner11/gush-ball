@@ -84,4 +84,32 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('אין קבוצות במערכת עדיין')
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1', expect.anything())
   })
+  async function mountWithTeam(team) {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1': () => jsonRes(team),
+      'GET /api/teams/1/links': () => jsonRes([]),
+      'GET /api/teams/1/videos': () => jsonRes([]),
+      'GET /api/teams/1/images': () => jsonRes([]),
+      'GET /api/teams/1/posts': () => jsonRes([]),
+    })
+    const { default: HomeView } = await import('./HomeView.vue')
+    const wrapper = mount(HomeView, { global: { plugins: [router] } })
+    await flushPromises()
+    return wrapper
+  }
+
+  it('embeds the Facebook page plugin when facebook_url is set', async () => {
+    const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
+
+    const src = wrapper.find('iframe').attributes('src')
+    expect(src.startsWith('https://www.facebook.com/plugins/page.php?')).toBe(true)
+    expect(src).toContain('href=https%3A%2F%2Fwww.facebook.com%2Fgushclub')
+  })
+
+  it('renders no social embed when facebook_url is null', async () => {
+    const wrapper = await mountWithTeam(TEAM)
+
+    expect(wrapper.find('iframe').exists()).toBe(false)
+  })
 })
