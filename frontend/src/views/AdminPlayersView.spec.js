@@ -73,6 +73,31 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('דני')
   })
 
+  it('clicking edit, changing a field and submitting PATCHes and updates the list', async () => {
+    const updated = { id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 23, images: [] }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'PATCH /api/teams/1/players/10': () => jsonRes(updated),
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const editButton = wrapper.findAll('button').find((b) => b.text() === 'ערוך')
+    await editButton.trigger('click')
+    await wrapper.find('#player-jersey-number').setValue('23')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/teams/1/players/10',
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+    expect(wrapper.text()).toContain('23')
+  })
+
   it('clicking delete on a row DELETEs and removes that row from the list', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),

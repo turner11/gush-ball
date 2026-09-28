@@ -25,6 +25,7 @@ const teams = ref([])
 const games = ref([])
 const editing = ref(null)
 const form = ref(emptyForm())
+const error = ref(null)
 
 const { selectedTeamId, ensureDefault } = useSelectedTeam()
 
@@ -73,27 +74,37 @@ async function onSubmit() {
     description: form.value.description || null,
   }
 
-  if (editing.value) {
-    const updated = await apiFetch(`/teams/${selectedTeamId.value}/games/${editing.value.id}`, {
-      method: 'PATCH',
-      body: payload,
-    })
-    const idx = games.value.findIndex((g) => g.id === updated.id)
-    if (idx !== -1) games.value[idx] = updated
-  } else {
-    const created = await apiFetch(`/teams/${selectedTeamId.value}/games`, {
-      method: 'POST',
-      body: payload,
-    })
-    games.value.push(created)
-  }
+  error.value = null
+  try {
+    if (editing.value) {
+      const updated = await apiFetch(`/teams/${selectedTeamId.value}/games/${editing.value.id}`, {
+        method: 'PATCH',
+        body: payload,
+      })
+      const idx = games.value.findIndex((g) => g.id === updated.id)
+      if (idx !== -1) games.value[idx] = updated
+    } else {
+      const created = await apiFetch(`/teams/${selectedTeamId.value}/games`, {
+        method: 'POST',
+        body: payload,
+      })
+      games.value.push(created)
+    }
 
-  resetForm()
+    resetForm()
+  } catch {
+    error.value = 'שגיאה בשמירת המשחק, נסה שוב'
+  }
 }
 
 async function onDelete(game) {
-  await apiFetch(`/teams/${selectedTeamId.value}/games/${game.id}`, { method: 'DELETE' })
-  games.value = games.value.filter((g) => g.id !== game.id)
+  error.value = null
+  try {
+    await apiFetch(`/teams/${selectedTeamId.value}/games/${game.id}`, { method: 'DELETE' })
+    games.value = games.value.filter((g) => g.id !== game.id)
+  } catch {
+    error.value = 'שגיאה במחיקת המשחק, נסה שוב'
+  }
 }
 </script>
 
@@ -136,6 +147,8 @@ async function onDelete(game) {
 
     <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
       <h2 class="font-semibold">{{ editing ? 'עריכת משחק' : 'הוספת משחק' }}</h2>
+
+      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
 
       <div>
         <label for="game-opponent-name" class="block text-sm font-medium">יריבה</label>

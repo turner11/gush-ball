@@ -12,6 +12,7 @@ const players = ref([])
 const editing = ref(null)
 const form = ref({ name: '', name_en: '', jersey_number: '' })
 const newImageUrl = ref({})
+const error = ref(null)
 
 const { selectedTeamId, ensureDefault } = useSelectedTeam()
 
@@ -52,40 +53,60 @@ async function onSubmit() {
     jersey_number: form.value.jersey_number === '' ? null : Number(form.value.jersey_number),
   }
 
-  if (editing.value) {
-    const updated = await apiFetch(`/teams/${selectedTeamId.value}/players/${editing.value.id}`, {
-      method: 'PATCH',
-      body: payload,
-    })
-    const idx = players.value.findIndex((p) => p.id === updated.id)
-    if (idx !== -1) players.value[idx] = updated
-  } else {
-    const created = await apiFetch(`/teams/${selectedTeamId.value}/players`, {
-      method: 'POST',
-      body: payload,
-    })
-    players.value.push(created)
-  }
+  error.value = null
+  try {
+    if (editing.value) {
+      const updated = await apiFetch(`/teams/${selectedTeamId.value}/players/${editing.value.id}`, {
+        method: 'PATCH',
+        body: payload,
+      })
+      const idx = players.value.findIndex((p) => p.id === updated.id)
+      if (idx !== -1) players.value[idx] = updated
+    } else {
+      const created = await apiFetch(`/teams/${selectedTeamId.value}/players`, {
+        method: 'POST',
+        body: payload,
+      })
+      players.value.push(created)
+    }
 
-  resetForm()
+    resetForm()
+  } catch {
+    error.value = 'שגיאה בשמירת השחקן, נסה שוב'
+  }
 }
 
 async function onDelete(player) {
-  await apiFetch(`/teams/${selectedTeamId.value}/players/${player.id}`, { method: 'DELETE' })
-  players.value = players.value.filter((p) => p.id !== player.id)
+  error.value = null
+  try {
+    await apiFetch(`/teams/${selectedTeamId.value}/players/${player.id}`, { method: 'DELETE' })
+    players.value = players.value.filter((p) => p.id !== player.id)
+  } catch {
+    error.value = 'שגיאה במחיקת השחקן, נסה שוב'
+  }
 }
 
 async function addImage(player) {
   const url = newImageUrl.value[player.id]
   if (!url) return
-  const image = await apiFetch(`/players/${player.id}/images`, { method: 'POST', body: { url } })
-  player.images.push(image)
-  newImageUrl.value[player.id] = ''
+  error.value = null
+  try {
+    const image = await apiFetch(`/players/${player.id}/images`, { method: 'POST', body: { url } })
+    player.images.push(image)
+    newImageUrl.value[player.id] = ''
+  } catch {
+    error.value = 'שגיאה בהוספת תמונה, נסה שוב'
+  }
 }
 
 async function deleteImage(player, image) {
-  await apiFetch(`/players/${player.id}/images/${image.id}`, { method: 'DELETE' })
-  player.images = player.images.filter((i) => i.id !== image.id)
+  error.value = null
+  try {
+    await apiFetch(`/players/${player.id}/images/${image.id}`, { method: 'DELETE' })
+    player.images = player.images.filter((i) => i.id !== image.id)
+  } catch {
+    error.value = 'שגיאה במחיקת התמונה, נסה שוב'
+  }
 }
 </script>
 
@@ -137,6 +158,8 @@ async function deleteImage(player, image) {
 
     <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
       <h2 class="font-semibold">{{ editing ? 'עריכת שחקן' : 'הוספת שחקן' }}</h2>
+
+      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
 
       <div>
         <label for="player-name" class="block text-sm font-medium">שם</label>

@@ -98,6 +98,43 @@ describe('AdminStandingsView', () => {
     expect(wrapper.text()).toContain('קבוצה ב')
   })
 
+  it('clicking edit, changing a field and submitting PATCHes and updates the list', async () => {
+    const updated = {
+      id: 1,
+      league_name: 'ליגה א',
+      team_name: 'קבוצה א',
+      rank: 1,
+      played: 11,
+      won: 9,
+      lost: 2,
+      points_for: 880,
+      points_against: 750,
+      points: 18,
+    }
+    mockFetch({
+      'GET /api/standings': () => jsonRes(ROWS),
+      'PATCH /api/standings/1': () => jsonRes(updated),
+    })
+
+    const { default: AdminStandingsView } = await import('./AdminStandingsView.vue')
+    const wrapper = mount(AdminStandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const editButton = wrapper.findAll('button').find((b) => b.text() === 'ערוך')
+    await editButton.trigger('click')
+    await wrapper.find('#standing-played').setValue('11')
+    await wrapper.find('#standing-won').setValue('9')
+    await wrapper.find('#standing-points').setValue('18')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/standings/1',
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+    expect(wrapper.text()).toContain('18')
+  })
+
   it('delete removes a row from the list', async () => {
     mockFetch({
       'GET /api/standings': () => jsonRes(ROWS),

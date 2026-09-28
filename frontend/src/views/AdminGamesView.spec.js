@@ -96,6 +96,44 @@ describe('AdminGamesView', () => {
     expect(wrapper.text()).toContain('הפועל')
   })
 
+  it('clicking edit, changing a field and submitting PATCHes and updates the list', async () => {
+    const updated = {
+      id: 100,
+      team_id: 1,
+      is_home: true,
+      scheduled_at: '2026-10-01T18:00:00',
+      status: 'final',
+      team_score: 80,
+      opponent_score: 70,
+      description: null,
+      opponent: { id: 5, name: 'מכבי', name_en: null, logo_url: null, source_url: null },
+    }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'PATCH /api/teams/1/games/100': () => jsonRes(updated),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const editButton = wrapper.findAll('button').find((b) => b.text() === 'ערוך')
+    await editButton.trigger('click')
+    await wrapper.find('#game-status').setValue('final')
+    await wrapper.find('#game-team-score').setValue('80')
+    await wrapper.find('#game-opponent-score').setValue('70')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/teams/1/games/100',
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+    expect(wrapper.text()).toContain('final')
+    expect(wrapper.text()).toContain('80')
+  })
+
   it('delete removes a game from the list', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),

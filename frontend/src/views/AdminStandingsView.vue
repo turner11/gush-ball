@@ -25,6 +25,7 @@ function emptyForm() {
 const rows = ref([])
 const editing = ref(null)
 const form = ref(emptyForm())
+const error = ref(null)
 
 async function loadRows() {
   rows.value = await apiFetch('/standings')
@@ -53,21 +54,31 @@ function buildPayload() {
 async function onSubmit() {
   const payload = buildPayload()
 
-  if (editing.value) {
-    const updated = await apiFetch(`/standings/${editing.value.id}`, { method: 'PATCH', body: payload })
-    const idx = rows.value.findIndex((r) => r.id === updated.id)
-    if (idx !== -1) rows.value[idx] = updated
-  } else {
-    const created = await apiFetch('/standings', { method: 'POST', body: payload })
-    rows.value.push(created)
-  }
+  error.value = null
+  try {
+    if (editing.value) {
+      const updated = await apiFetch(`/standings/${editing.value.id}`, { method: 'PATCH', body: payload })
+      const idx = rows.value.findIndex((r) => r.id === updated.id)
+      if (idx !== -1) rows.value[idx] = updated
+    } else {
+      const created = await apiFetch('/standings', { method: 'POST', body: payload })
+      rows.value.push(created)
+    }
 
-  resetForm()
+    resetForm()
+  } catch {
+    error.value = 'שגיאה בשמירת השורה, נסה שוב'
+  }
 }
 
 async function onDelete(row) {
-  await apiFetch(`/standings/${row.id}`, { method: 'DELETE' })
-  rows.value = rows.value.filter((r) => r.id !== row.id)
+  error.value = null
+  try {
+    await apiFetch(`/standings/${row.id}`, { method: 'DELETE' })
+    rows.value = rows.value.filter((r) => r.id !== row.id)
+  } catch {
+    error.value = 'שגיאה במחיקת השורה, נסה שוב'
+  }
 }
 </script>
 
@@ -111,6 +122,8 @@ async function onDelete(row) {
 
     <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
       <h2 class="font-semibold">{{ editing ? 'עריכת שורה' : 'הוספת שורה' }}</h2>
+
+      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
 
       <div>
         <label for="standing-league-name" class="block text-sm font-medium">ליגה</label>
