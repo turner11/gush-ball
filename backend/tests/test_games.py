@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models import Team
+from app.models import Game, GameStatus, Opponent, Team
 
 
 def _make_team(db_session: Session, name: str = "Gush Ball A") -> Team:
@@ -12,6 +12,22 @@ def _make_team(db_session: Session, name: str = "Gush Ball A") -> Team:
     db_session.commit()
     db_session.refresh(team)
     return team
+
+
+def _make_game(db_session: Session, team: Team) -> Game:
+    opponent = Opponent(name="Seeded Opponent")
+    db_session.add(opponent)
+    db_session.flush()
+    game = Game(
+        team=team,
+        opponent=opponent,
+        scheduled_at=datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc),
+        status=GameStatus.SCHEDULED,
+    )
+    db_session.add(game)
+    db_session.commit()
+    db_session.refresh(game)
+    return game
 
 
 def _game_payload(**overrides: object) -> dict:
@@ -93,11 +109,15 @@ def test_get_game_scoped_to_wrong_team_is_404(
     assert response.status_code == 404
 
 
-def test_patch_game_requires_admin(client: TestClient, admin_client: TestClient, db_session: Session) -> None:
+def test_patch_game_requires_admin(client: TestClient, db_session: Session) -> None:
+    # Seed via ORM directly (not via admin_client) so `client` stays an
+    # unauthenticated session — admin_client logs in on the *same* TestClient
+    # instance that `client` resolves to, so using both fixtures in one test
+    # would make "plain client" already authenticated.
     team = _make_team(db_session)
-    created = admin_client.post(f"/teams/{team.id}/games", json=_game_payload()).json()
+    game = _make_game(db_session, team)
 
-    response = client.patch(f"/teams/{team.id}/games/{created['id']}", json={"status": "final"})
+    response = client.patch(f"/teams/{team.id}/games/{game.id}", json={"status": "final"})
 
     assert response.status_code == 401
 
@@ -128,11 +148,13 @@ def test_patch_game_updates_score_status_and_opponent(
     assert body["opponent"]["id"] != original_opponent_id
 
 
-def test_delete_game_requires_admin(client: TestClient, admin_client: TestClient, db_session: Session) -> None:
+def test_delete_game_requires_admin(client: TestClient, db_session: Session) -> None:
+    # Same reasoning as test_patch_game_requires_admin: seed via ORM so
+    # `client` isn't implicitly authenticated by a shared admin_client session.
     team = _make_team(db_session)
-    created = admin_client.post(f"/teams/{team.id}/games", json=_game_payload()).json()
+    game = _make_game(db_session, team)
 
-    response = client.delete(f"/teams/{team.id}/games/{created['id']}")
+    response = client.delete(f"/teams/{team.id}/games/{game.id}")
 
     assert response.status_code == 401
 
