@@ -1,6 +1,7 @@
 <script setup>
 import { RouterView, useRouter } from 'vue-router'
 
+import ErrorBoundary from '../components/ErrorBoundary.vue'
 import { useAuth } from '../composables/useAuth'
 
 const { logout } = useAuth()
@@ -22,7 +23,9 @@ async function onLogout() {
     </header>
 
     <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-      <RouterView />
+      <ErrorBoundary>
+        <RouterView />
+      </ErrorBoundary>
     </main>
   </div>
 </template>

@@ -13,24 +13,33 @@ export function useAuth() {
   }
 
   async function login(username, password) {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ username, password }),
-    })
-    if (!res.ok) {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username, password }),
+      })
+      if (!res.ok) {
+        user.value = null
+        error.value = 'שם משתמש או סיסמה שגויים'
+        return
+      }
+      user.value = await res.json()
+      error.value = null
+    } catch {
       user.value = null
-      error.value = 'שם משתמש או סיסמה שגויים'
-      return
+      error.value = 'שגיאת התחברות, נסה שוב'
     }
-    user.value = await res.json()
-    error.value = null
   }
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
-    user.value = null
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+      user.value = null
+    } catch {
+      error.value = 'שגיאת התנתקות, נסה שוב'
+    }
   }
 
   return { user, checked, error, checkSession, login, logout }

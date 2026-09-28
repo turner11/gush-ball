@@ -13,7 +13,7 @@ const router = createRouter({
     {
       path: '/admin',
       component: () => import('../layouts/AdminLayout.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, layout: 'admin' },
       children: [{ path: '', name: 'admin-home', component: () => import('../views/AdminHomeView.vue') }],
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundView.vue') },
