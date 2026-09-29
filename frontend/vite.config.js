@@ -15,5 +15,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // cold reka-ui import under parallel jsdom load exceeds the 5s default
+    testTimeout: 20000,
   },
 })
