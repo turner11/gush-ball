@@ -13,6 +13,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: astral-sh/setup-uv@v7
       - run: uv sync --all-groups
       - run: uv run ruff check .
@@ -44,4 +46,4 @@ jobs:
           echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
       - run: |
           ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            'cd ~/gush-ball && git pull --ff-only && docker compose -f docker-compose.prod.yml up -d --build && docker image prune -f'
+            'cd ~/gush-ball && git pull --ff-only && git submodule update --init && docker compose -f docker-compose.prod.yml up -d --build && docker image prune -f'

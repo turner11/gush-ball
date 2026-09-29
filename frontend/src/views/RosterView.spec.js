@@ -41,6 +41,7 @@ describe('RosterView', () => {
   it("renders the selected team's players with jersey numbers", async () => {
     mockFetch({
       'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'GET /api/teams/1/lineups?size=5&sort=top': () => jsonRes([]),
     })
 
     const { default: RosterView } = await import('./RosterView.vue')
@@ -51,15 +52,16 @@ describe('RosterView', () => {
     expect(wrapper.text()).toContain('7')
   })
 
-  it('keeps the existing stats coming-soon message', async () => {
+  it('renders the lineups section', async () => {
     mockFetch({
       'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'GET /api/teams/1/lineups?size=5&sort=top': () => jsonRes([]),
     })
 
     const { default: RosterView } = await import('./RosterView.vue')
     const wrapper = mount(RosterView, { global: { plugins: [router] } })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('סטטיסטיקות שחקנים יופיעו כאן בקרוב')
+    expect(wrapper.text()).toContain('חמישיות')
   })
 })

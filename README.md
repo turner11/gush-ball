@@ -12,7 +12,7 @@ Website for the club: team pages, schedule/standings, scores, and (later) stats 
 ## Local setup
 
 Clone with `git clone --recursive` (or run `git submodule update --init` in an existing clone) —
-the statistics base, BBStats, is a submodule at `stats/`.
+the statistics base, BBStats, is a submodule at `stats/` and must be initialized before the backend's `uv sync`.
 
 ### 1. Database
 

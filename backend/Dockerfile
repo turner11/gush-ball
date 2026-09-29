@@ -6,6 +6,7 @@ COPY --from=uv /uv /usr/local/bin/uv
 
 WORKDIR /app
 
+COPY --from=stats . /stats
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 

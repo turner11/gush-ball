@@ -389,4 +389,49 @@ describe('AdminGamesView', () => {
     )
     expect(wrapper.findAll('button').some((b) => b.text() === 'דחה')).toBe(false)
   })
+
+  it('editing a game and clicking load stats POSTs the url and shows the count', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+      'POST /api/teams/1/games/100/stats': () => jsonRes({ stats_url: 'http://s', snapshots: 12 }),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.find('#stats-url').setValue('http://s')
+    await wrapper.findAll('button').find((b) => b.text() === 'טען סטטיסטיקה').trigger('click')
+    await flushPromises()
+
+    const call = global.fetch.mock.calls.find(([u]) => u === '/api/teams/1/games/100/stats')
+    expect(JSON.parse(call[1].body)).toEqual({ url: 'http://s' })
+    expect(wrapper.text()).toContain('נטענו 12 רשומות')
+  })
+
+  it('shows the server error when loading stats fails', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+      'POST /api/teams/1/games/100/stats': () => ({
+        ok: false,
+        statusText: 'x',
+        json: async () => ({ detail: 'Failed to load stats sheet: boom' }),
+      }),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'טען סטטיסטיקה').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Failed to load stats sheet: boom')
+  })
 })

@@ -24,6 +24,8 @@ const pendingGames = ref([])
 const editing = ref(null)
 const form = ref(emptyForm())
 const error = ref(null)
+const statsUrl = ref('')
+const statsMessage = ref(null)
 
 const { selectedTeamId, ensureDefault } = useSelectedTeam()
 
@@ -67,6 +69,20 @@ function replaceGame(updated) {
   else games.value.push(updated)
 }
 
+async function loadStats() {
+  error.value = null
+  statsMessage.value = null
+  try {
+    const res = await apiFetch(`/teams/${selectedTeamId.value}/games/${editing.value.id}/stats`, {
+      method: 'POST',
+      body: { url: statsUrl.value || null },
+    })
+    statsMessage.value = `נטענו ${res.snapshots} רשומות`
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
 function resetForm() {
   editing.value = null
   form.value = emptyForm()
@@ -74,6 +90,7 @@ function resetForm() {
 
 function startEdit(game) {
   editing.value = game
+  statsMessage.value = null
   form.value = {
     opponent_name: game.opponent.name,
     scheduled_at: game.scheduled_at.slice(0, 16),
@@ -305,6 +322,13 @@ async function onDelete(game) {
       <div>
         <label for="game-description" class="field-label">תיאור</label>
         <textarea id="game-description" v-model="form.description" class="field-input"></textarea>
+      </div>
+
+      <div v-if="editing">
+        <label for="stats-url" class="field-label">קישור לסטטיסטיקה (גיליון שמשותף ל"כל מי שיש לו קישור")</label>
+        <input id="stats-url" v-model="statsUrl" type="url" class="field-input" />
+        <button type="button" class="btn-secondary mt-2" @click="loadStats">טען סטטיסטיקה</button>
+        <p v-if="statsMessage" class="text-sm">{{ statsMessage }}</p>
       </div>
 
       <div class="flex gap-2">
