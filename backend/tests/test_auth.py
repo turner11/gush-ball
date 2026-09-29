@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -81,3 +83,32 @@ def test_throttled_requests_with_new_usernames_do_not_grow_attempts(seeded: Test
     for i in range(auth._MAX_ATTEMPTS + 20):
         seeded.post("/auth/login", json=_bad(f"spray{i}"))
     assert len(auth._attempts) == auth._MAX_ATTEMPTS + 1  # 1 ip key + one per admitted username
+
+
+def test_login_success_is_logged(seeded: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO):
+        seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "3.3.3.3"})
+    assert any("login ok" in r.getMessage() and "admin" in r.getMessage() and "3.3.3.3" in r.getMessage()
+               for r in caplog.records)
+
+
+def test_login_failure_is_logged(seeded: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO):
+        seeded.post("/auth/login", json=_bad(), headers={"X-Forwarded-For": "4.4.4.4"})
+    recs = [r for r in caplog.records if "login failed" in r.getMessage()]
+    assert recs and recs[0].levelno == logging.WARNING
+    assert "admin" in recs[0].getMessage() and "4.4.4.4" in recs[0].getMessage()
+    assert "wrong" not in caplog.text
+
+
+def test_admin_write_is_logged(admin_client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO):
+        admin_client.delete("/teams/999999?x=secret")
+    msgs = [r.getMessage() for r in caplog.records if "admin write" in r.getMessage()]
+    assert msgs and "DELETE" in msgs[0] and "/teams/999999" in msgs[0] and "secret" not in msgs[0]
+
+
+def test_admin_read_not_logged(admin_client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO):
+        admin_client.get("/auth/me")
+    assert "admin write" not in caplog.text
