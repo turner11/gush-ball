@@ -10,5 +10,22 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  # Full local stack: `docker compose --profile full up -d --build`
+  backend:
+    profiles: [full]
+    build: ./backend
+    depends_on: [db]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://gush_ball:gush_ball@db:5432/gush_ball
+      SESSION_SECRET: dev-secret-change-me
+      # ponytail: no object-storage vars, so /uploads fails locally until R2 vars are set
+  web:
+    profiles: [full]
+    build: ./frontend
+    depends_on: [backend]
+    ports:
+      - "8081:80"
+
 volumes:
   db_data:

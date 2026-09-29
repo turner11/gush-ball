@@ -39,6 +39,26 @@ npm run dev
 
 Runs on http://localhost:5173, proxying `/api/*` to the backend. Tests: `npm run test`.
 
+### Full stack locally (optional)
+
+```bash
+docker compose --profile full up -d --build   # db + backend + Caddy
+docker compose exec backend uv run python scripts/create_admin.py <user> <password>
+```
+
+Open http://localhost:8081. Uploads fail until object-storage vars are set.
+
+To run `npm run dev` against another backend, set `API_TARGET` (includes `/api`):
+
+```bash
+API_TARGET=http://localhost:8081/api npm run dev
+# PowerShell: $env:API_TARGET='http://localhost:8081/api'; npm run dev
+```
+
+For prod, open the SSH tunnel from Deployment step 4 (`ssh -L 8080:localhost:80 <deploy-user>@<server-ip>`)
+and use `API_TARGET=http://localhost:8080/api`. This is **live prod data**: every admin edit is real.
+Don't run vite with `--host` while pointed at prod.
+
 ## Deployment
 
 Host: a self-managed **Hetzner** machine running the whole stack (Postgres, backend, Caddy serving
