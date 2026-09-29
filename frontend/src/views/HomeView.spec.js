@@ -78,6 +78,28 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('עדכון עונה')
   })
 
+  it('links the home court address to Google Maps', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'GET /api/teams/1/links': () => jsonRes([]),
+      'GET /api/teams/1/videos': () => jsonRes([]),
+      'GET /api/teams/1/images': () => jsonRes([]),
+      'GET /api/teams/1/posts': () => jsonRes([]),
+      'GET /api/teams/1/players': () => jsonRes([]),
+      'GET /api/teams/1/games': () => jsonRes([]),
+    })
+
+    const { default: HomeView } = await import('./HomeView.vue')
+    const wrapper = mount(HomeView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const a = wrapper.findAll('a').find((x) => x.text() === 'אולם הספורט, תל אביב')
+    expect(a.attributes('href')).toBe(
+      'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('אולם הספורט, תל אביב'),
+    )
+    expect(a.attributes('rel')).toContain('noopener')
+  })
+
   it('shows an empty state when no team is selected (none in the DB)', async () => {
     localStorage.clear()
     mockFetch({})
