@@ -135,20 +135,29 @@ def sync_team_games(db: Session, team: Team) -> int:
     return count
 
 
-def sync_all_games(db: Session) -> int:
+def sync_all_games(db: Session, errors: list[str] | None = None) -> int:
     """Runs unattended (nightly cron), so one team's failure must not abort every team
     after it -- log and move on instead.
     """
-    teams = db.scalars(select(Team).where(Team.ibasketball_team_url.is_not(None)))
+    teams = db.scalars(select(Team).where(Team.ibasketball_team_url.is_not(None))).all()
+    if not teams:
+        log.warning("Games sync: no team has an ibasketball_team_url set -- nothing to do")
+        if errors is not None:
+            errors.append("games: no team has an ibasketball_team_url set")
     total = 0
     for team in teams:
         # Captured before the try: after a DB-level failure the session's objects are
         # expired and the failed transaction can't query until rolled back.
         slug = team.slug
         try:
-            total += sync_team_games(db, team)
-        except Exception:
+            log.info("Games sync: fetching %r", slug)
+            count = sync_team_games(db, team)
+            log.info("Games sync: %r created/updated %d games", slug, count)
+            total += count
+        except Exception as exc:
             log.exception("Games sync failed for team %r", slug)
+            if errors is not None:
+                errors.append(f"games {slug}: {exc}")
             # Without this, every later team's db.commit() raises PendingRollbackError.
             db.rollback()
     return total

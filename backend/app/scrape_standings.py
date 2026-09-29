@@ -90,11 +90,15 @@ def sync_team_standings(db: Session, team: Team) -> int:
     return count
 
 
-def sync_all_standings(db: Session) -> int:
+def sync_all_standings(db: Session, errors: list[str] | None = None) -> int:
     """Runs unattended (nightly cron, #17), so one team's fragile parse failing must not
     abort every team after it in iteration order -- log and move on instead.
     """
-    teams = db.scalars(select(Team).where(Team.ibasketball_league_url.is_not(None)))
+    teams = db.scalars(select(Team).where(Team.ibasketball_league_url.is_not(None))).all()
+    if not teams:
+        log.warning("Standings sync: no team has an ibasketball_league_url set -- nothing to do")
+        if errors is not None:
+            errors.append("standings: no team has an ibasketball_league_url set")
     total = 0
     for team in teams:
         # Captured before the try: a DB-level failure below expires every object in the
@@ -102,9 +106,14 @@ def sync_all_standings(db: Session) -> int:
         # need a fresh query -- one the still-failed transaction can't run yet.
         slug = team.slug
         try:
-            total += sync_team_standings(db, team)
-        except Exception:
+            log.info("Standings sync: fetching %r", slug)
+            count = sync_team_standings(db, team)
+            log.info("Standings sync: %r upserted %d rows", slug, count)
+            total += count
+        except Exception as exc:
             log.exception("Standings sync failed for team %r", slug)
+            if errors is not None:
+                errors.append(f"standings {slug}: {exc}")
             # A DB-level failure mid-flush leaves the session's transaction rolled back but
             # still "dirty" -- without this, every later team's db.commit() would raise
             # PendingRollbackError instead of syncing.
