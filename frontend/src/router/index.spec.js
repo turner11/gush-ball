@@ -49,4 +49,10 @@ describe('router auth guard', () => {
     expect(router.resolve('/elizur').name).toBe('team-home')
     expect(router.resolve('/schedule').name).toBe('schedule')
   })
+
+  it('/media resolves to media, not team-home', async () => {
+    const { default: router } = await import('./index.js')
+
+    expect(router.resolve('/media').name).toBe('media')
+  })
 })
