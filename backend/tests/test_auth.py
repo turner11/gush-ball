@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -81,3 +83,20 @@ def test_throttled_requests_with_new_usernames_do_not_grow_attempts(seeded: Test
     for i in range(auth._MAX_ATTEMPTS + 20):
         seeded.post("/auth/login", json=_bad(f"spray{i}"))
     assert len(auth._attempts) == auth._MAX_ATTEMPTS + 1  # 1 ip key + one per admitted username
+
+
+def test_deleted_admin_session_is_rejected(seeded: TestClient, db_session: Session) -> None:
+    assert seeded.post("/auth/login", json=GOOD).status_code == 200
+    db_session.delete(db_session.query(AdminUser).one())
+    db_session.commit()
+    assert seeded.get("/auth/me").status_code == 401
+    assert seeded.post("/teams", json={"name": "Ghost"}).status_code == 401
+
+
+def test_session_expires_after_max_age(seeded: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from itsdangerous.timed import TimestampSigner
+
+    assert seeded.post("/auth/login", json=GOOD).status_code == 200
+    assert seeded.get("/auth/me").status_code == 200
+    monkeypatch.setattr(TimestampSigner, "get_timestamp", lambda self: int(time.time()) + 12 * 3600 + 1)
+    assert seeded.get("/auth/me").status_code == 401
