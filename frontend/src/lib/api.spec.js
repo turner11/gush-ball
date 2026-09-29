@@ -26,6 +26,19 @@ describe('apiFetch', () => {
     )
   })
 
+  it('passes FormData through without JSON-stringifying or setting Content-Type', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ url: 'x' }) })
+    const fd = new FormData()
+    fd.append('file', new File(['a'], 'a.png', { type: 'image/png' }))
+
+    const { apiFetch } = await import('./api.js')
+    await apiFetch('/uploads', { method: 'POST', body: fd })
+
+    const init = global.fetch.mock.calls[0][1]
+    expect(init.body).toBe(fd)
+    expect(init.headers?.['Content-Type']).toBeUndefined()
+  })
+
   it('sends a JSON body and Content-Type header for a plain-object body', async () => {
     global.fetch.mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({ id: 2 }) })
 
