@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const TEAMS = [{ id: 1, name: 'קבוצה א' }]
-const TEAM = { id: 1, name: 'קבוצה א' }
+const TEAM = { id: 1, name: 'קבוצה א', logo_url: 'https://l/team.png' }
 
 const ROWS = [
   {
@@ -23,6 +23,7 @@ const ROWS = [
     id: 2,
     league_name: 'ליגה א',
     team_name: 'קבוצה ב',
+    logo_url: 'https://l/b.png',
     rank: 2,
     played: 10,
     won: 6,
@@ -91,6 +92,20 @@ describe('StandingsView', () => {
     expect(text).toContain('קבוצה א')
     expect(text).toContain('קבוצה ב')
     expect(text).not.toContain('קבוצה ג')
+  })
+
+  it('shows the team logo on the own row and the opponent logo on others', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'GET /api/standings': () => jsonRes(ROWS),
+    })
+
+    const { default: StandingsView } = await import('./StandingsView.vue')
+    const wrapper = mount(StandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const srcs = wrapper.findAll('tbody img').map((i) => i.attributes('src'))
+    expect(srcs).toEqual(['https://l/team.png', 'https://l/b.png'])
   })
 
   it('links team names to ibasketball, including the club own row', async () => {

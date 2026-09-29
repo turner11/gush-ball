@@ -189,17 +189,20 @@ describe('HomeView', () => {
   })
 
   it('shows the next and the last match', async () => {
-    const opp = (name) => ({ name, source_url: null })
+    const opp = (name, logo_url = null) => ({ name, source_url: null, logo_url })
     const wrapper = await mountWithTeam(TEAM, {
       games: [
-        { id: 1, opponent: opp('יריבה א'), scheduled_at: '2999-01-01T18:00:00', is_home: true, team_score: null, opponent_score: null },
-        { id: 2, opponent: opp('יריבה ב'), scheduled_at: '2000-01-01T18:00:00', is_home: false, team_score: 80, opponent_score: 70 },
+        { id: 1, opponent: opp('יריבה א', 'https://l/a.png'), scheduled_at: '2999-01-01T18:00:00', is_home: true, team_score: null, opponent_score: null },
+        { id: 2, opponent: opp('יריבה ב', 'https://l/b.png'), scheduled_at: '2000-01-01T18:00:00', is_home: false, team_score: 80, opponent_score: 70 },
       ],
     })
 
     expect(wrapper.text()).toContain('יריבה א')
     expect(wrapper.text()).toContain('יריבה ב')
     expect(wrapper.text()).toContain('80 : 70')
+    const cards = wrapper.findAll('div.card')
+    expect(cards.some((c) => c.find('img[src="https://l/a.png"]').exists())).toBe(true)
+    expect(cards.some((c) => c.find('img[src="https://l/b.png"]').exists())).toBe(true)
   })
 
   it('renders a carousel card per player', async () => {
