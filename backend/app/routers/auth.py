@@ -1,19 +1,12 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from app.db import get_db
-from app.deps import require_admin
+from app.deps import DbSession, RequireAdmin
 from app.models import AdminUser
 from app.security import verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-DbSession = Annotated[Session, Depends(get_db)]
-
 
 class LoginRequest(BaseModel):
     username: str
@@ -36,6 +29,6 @@ def logout(request: Request) -> dict[str, bool]:
 
 
 @router.get("/me")
-def me(admin_id: Annotated[int, Depends(require_admin)], db: DbSession) -> dict[str, str]:
+def me(admin_id: RequireAdmin, db: DbSession) -> dict[str, str]:
     admin = db.get(AdminUser, admin_id)
     return {"username": admin.username}

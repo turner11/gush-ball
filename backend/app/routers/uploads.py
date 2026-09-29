@@ -1,14 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
-from app.deps import require_admin
+from app.deps import RequireAdmin
 from app.storage import upload_file
 
 router = APIRouter(tags=["uploads"])
-
-RequireAdmin = Annotated[int, Depends(require_admin)]
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4"}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB

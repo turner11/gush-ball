@@ -15,8 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import Game, GameStatus, Opponent, Team
-from app.routers.games import _get_or_create_opponent
+from app.models import Game, GameStatus, Opponent, Team, get_or_create_opponent
 
 BASE = "https://ibasketball.co.il/wp-json"
 CRAWL_DELAY = 10
@@ -34,7 +33,7 @@ def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -
         return cache[opp_sp_id]
     data = _get_json(f"/sportspress/v2/teams/{opp_sp_id}", _embed="wp:featuredmedia")
     name = html.unescape(data["title"]["rendered"])
-    opponent = _get_or_create_opponent(db, name)
+    opponent = get_or_create_opponent(db, name)
     if opponent.source_url is None:
         opponent.source_url = data["link"]
     if opponent.logo_url is None:

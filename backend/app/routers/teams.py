@@ -1,19 +1,15 @@
 import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, status
 from pydantic import AnyUrl, BaseModel, StringConstraints, UrlConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db import get_db
-from app.deps import require_admin
+from app.deps import DbSession, RequireAdmin, get_team_or_404
 from app.models import Team
 
 router = APIRouter(prefix="/teams", tags=["teams"])
-
-DbSession = Annotated[Session, Depends(get_db)]
-AdminId = Annotated[int, Depends(require_admin)]
 
 HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 # Match the backing DB column widths (see app/models/team.py) so an oversized
@@ -23,7 +19,7 @@ Address = Annotated[str, StringConstraints(max_length=300)]
 Url500 = Annotated[AnyUrl, UrlConstraints(max_length=500)]
 
 
-class _TeamFields(BaseModel):
+class TeamUpdate(BaseModel):
     name: Name | None = None
     name_en: Name | None = None
     primary_color: HexColor | None = None
@@ -39,12 +35,8 @@ class _TeamFields(BaseModel):
     ibasketball_league_url: Url500 | None = None
 
 
-class TeamCreate(_TeamFields):
+class TeamCreate(TeamUpdate):
     name: Name  # required on create, unlike every other field
-
-
-class TeamUpdate(_TeamFields):
-    pass
 
 
 class TeamOut(BaseModel):
@@ -86,15 +78,8 @@ def _stringify_urls(data: dict) -> dict:
     return {k: (str(v) if isinstance(v, AnyUrl) else v) for k, v in data.items()}
 
 
-def _get_team_or_404(db: Session, team_id: int) -> Team:
-    team = db.get(Team, team_id)
-    if team is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
-    return team
-
-
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=TeamOut)
-def create_team(payload: TeamCreate, _admin_id: AdminId, db: DbSession) -> Team:
+def create_team(payload: TeamCreate, _admin_id: RequireAdmin, db: DbSession) -> Team:
     data = _stringify_urls(payload.model_dump())
     team = Team(**data, slug=_unique_slug(db, _slugify(payload.name)))
     db.add(team)
@@ -110,12 +95,12 @@ def list_teams(db: DbSession) -> list[Team]:
 
 @router.get("/{team_id}", response_model=TeamOut)
 def get_team(team_id: int, db: DbSession) -> Team:
-    return _get_team_or_404(db, team_id)
+    return get_team_or_404(db, team_id)
 
 
 @router.patch("/{team_id}", response_model=TeamOut)
-def update_team(team_id: int, payload: TeamUpdate, _admin_id: AdminId, db: DbSession) -> Team:
-    team = _get_team_or_404(db, team_id)
+def update_team(team_id: int, payload: TeamUpdate, _admin_id: RequireAdmin, db: DbSession) -> Team:
+    team = get_team_or_404(db, team_id)
     updates = _stringify_urls(payload.model_dump(exclude_unset=True))
     for field, value in updates.items():
         setattr(team, field, value)
@@ -125,8 +110,7 @@ def update_team(team_id: int, payload: TeamUpdate, _admin_id: AdminId, db: DbSes
 
 
 @router.delete("/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_team(team_id: int, _admin_id: AdminId, db: DbSession) -> Response:
-    team = _get_team_or_404(db, team_id)
+def delete_team(team_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
+    team = get_team_or_404(db, team_id)
     db.delete(team)
     db.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)

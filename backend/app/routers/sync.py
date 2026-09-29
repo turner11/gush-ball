@@ -11,19 +11,15 @@ Starlette's threadpool executor, where two near-simultaneous requests could both
 `if _running` check before either sets it. See the issue #17 plan for the full rationale.
 """
 
-from typing import Annotated
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel
 
 from app.db import SessionLocal
-from app.deps import require_admin
+from app.deps import RequireAdmin
 from app.scrape_games import sync_all_games
 from app.scrape_standings import sync_all_standings
 
 router = APIRouter(prefix="/sync", tags=["sync"])
-
-RequireAdmin = Annotated[int, Depends(require_admin)]
 
 _running = False
 
