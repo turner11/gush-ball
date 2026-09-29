@@ -238,3 +238,55 @@ def test_resync_keeps_dismissed_suggestion_until_source_changes(
     db_session.refresh(game)
     assert game.scrape_suggestion == {"team_score": 95, "opponent_score": 88}
     assert game.scrape_suggestion_dismissed is False
+
+
+def _two_teams(db_session: Session) -> None:
+    for slug in ("bad", "good"):
+        db_session.add(
+            Team(name=slug, slug=slug, ibasketball_team_url=f"https://ibasketball.co.il/team/1-{slug}/")
+        )
+    db_session.commit()
+
+
+def _fail_for_bad(monkeypatch: pytest.MonkeyPatch, db_session: Session, fail) -> None:
+    real = scrape_games.sync_team_games
+
+    def fake(db: Session, team: Team) -> int:
+        if team.slug == "bad":
+            return fail(db)
+        return real(db, team)
+
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
+    monkeypatch.setattr(scrape_games, "sync_team_games", fake)
+
+
+def _raise_value_error(db: Session) -> int:
+    raise ValueError("boom")
+
+
+def test_sync_all_games_continues_after_one_team_fails(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _two_teams(db_session)
+    _fail_for_bad(monkeypatch, db_session, _raise_value_error)
+
+    assert scrape_games.sync_all_games(db_session) == 1
+
+    assert db_session.query(Game).count() == 1
+    assert "'bad'" in caplog.text
+
+
+def test_sync_all_games_rolls_back_after_db_failure_so_next_team_still_syncs(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _two_teams(db_session)
+
+    def db_failure(db: Session) -> int:
+        db.add(Game(team_id=None, is_home=True, status=GameStatus.SCHEDULED))  # violates NOT NULL
+        db.commit()
+        return 1
+
+    _fail_for_bad(monkeypatch, db_session, db_failure)
+
+    assert scrape_games.sync_all_games(db_session) == 1
+    assert db_session.query(Game).count() == 1

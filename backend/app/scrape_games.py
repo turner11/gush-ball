@@ -5,6 +5,7 @@ adds the nightly trigger. This module is a manual, synchronous entry point until
 """
 
 import html
+import logging
 import time
 from datetime import datetime
 from typing import Any
@@ -19,6 +20,8 @@ from app.models import Game, GameStatus, Opponent, Team, get_or_create_opponent
 
 BASE = "https://ibasketball.co.il/wp-json"
 CRAWL_DELAY = 10
+
+log = logging.getLogger(__name__)
 
 
 def _get_json(path: str, **params: Any) -> Any:
@@ -133,8 +136,22 @@ def sync_team_games(db: Session, team: Team) -> int:
 
 
 def sync_all_games(db: Session) -> int:
+    """Runs unattended (nightly cron), so one team's failure must not abort every team
+    after it -- log and move on instead.
+    """
     teams = db.scalars(select(Team).where(Team.ibasketball_team_url.is_not(None)))
-    return sum(sync_team_games(db, team) for team in teams)
+    total = 0
+    for team in teams:
+        # Captured before the try: after a DB-level failure the session's objects are
+        # expired and the failed transaction can't query until rolled back.
+        slug = team.slug
+        try:
+            total += sync_team_games(db, team)
+        except Exception:
+            log.exception("Games sync failed for team %r", slug)
+            # Without this, every later team's db.commit() raises PendingRollbackError.
+            db.rollback()
+    return total
 
 
 if __name__ == "__main__":
