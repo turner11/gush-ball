@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import AdminUser, Team
 
-
 DbSession = Annotated[Session, Depends(get_db)]
 
 
