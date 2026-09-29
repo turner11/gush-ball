@@ -144,7 +144,7 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('[data-testid="hero"]').attributes('style')).toContain('/backgrounds/hoop-2.jpg')
   })
 
-  it('header is sticky and shows the logo instead of the text title', async () => {
+  it('header is sticky and never shows the text club title', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -154,9 +154,39 @@ describe('DefaultLayout', () => {
     const header = wrapper.find('header')
     expect(header.element.parentElement.classList).toContain('sticky')
     expect(header.element.parentElement.classList).toContain('top-0')
-    const logo = header.find('img[src="/logo.jpg"]')
-    expect(logo.attributes('alt')).toBe('גוש כדורסל')
     expect(header.text()).not.toContain('גוש כדורסל')
+  })
+
+  it('header brand shows the selected team logo and name', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const brand = wrapper.find('header a[href="/"]')
+    const img = brand.find('img[src="https://cdn.example.com/logo-a.png"]')
+    expect(img.exists()).toBe(true)
+    expect(brand.text()).toContain('קבוצה א')
+    const row = Array.from(brand.element.children)
+    const name = row.find((el) => el.textContent.includes('קבוצה א'))
+    expect(row.indexOf(img.element)).toBeLessThan(row.indexOf(name))
+
+    await wrapper.find('#team-switcher').setValue('2')
+    await flushPromises()
+
+    expect(brand.find('img[src="/logo.jpg"]').exists()).toBe(true)
+    expect(brand.text()).toContain('קבוצה ב')
+  })
+
+  it('has no footer', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('footer').exists()).toBe(false)
   })
 
   it('hero stays pinned with the header', async () => {
@@ -170,7 +200,7 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('[data-testid="hero"]').element.parentElement).toBe(parent)
   })
 
-  it("hero shows the selected team's logo, name and a map link, in that order", async () => {
+  it("hero shows only the map link, not the team logo or name", async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -178,22 +208,16 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const hero = wrapper.find('[data-testid="hero"]')
-    const img = hero.find('img')
-    expect(img.attributes('src')).toBe('https://cdn.example.com/logo-a.png')
-    expect(hero.text()).toContain('קבוצה א')
+    expect(hero.find('img').exists()).toBe(false)
+    expect(hero.text()).not.toContain('קבוצה א')
     const a = hero.find('a')
     expect(a.attributes('href')).toBe(
       'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('אולם הספורט, תל אביב'),
     )
     expect(a.attributes('rel')).toContain('noopener')
-
-    const row = Array.from(img.element.parentElement.children)
-    const name = row.find((el) => el.textContent.includes('קבוצה א'))
-    expect(row.indexOf(img.element)).toBeLessThan(row.indexOf(name))
-    expect(row.indexOf(name)).toBeLessThan(row.indexOf(a.element))
   })
 
-  it('hero omits logo and map link when the team has none', async () => {
+  it('hero omits the map link when the team has no address', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -204,7 +228,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const hero = wrapper.find('[data-testid="hero"]')
-    expect(hero.text()).toContain('קבוצה ג')
+    expect(hero.text()).not.toContain('קבוצה ג')
     expect(hero.find('img').exists()).toBe(false)
     expect(hero.find('a').exists()).toBe(false)
   })

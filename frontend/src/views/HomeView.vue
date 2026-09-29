@@ -94,8 +94,8 @@ watch(
 
 <template>
   <section v-if="team" class="space-y-8">
-    <div class="grid gap-8" :class="{ 'md:grid-cols-3': hasSocial }">
-      <div class="space-y-8" :class="{ 'md:col-span-2': hasSocial }">
+    <div class="grid gap-8" :class="{ 'md:grid-cols-2': hasSocial }">
+      <div class="space-y-8">
         <div v-if="nextGame || lastGame" class="grid gap-4 sm:grid-cols-2">
           <div v-if="nextGame" class="card space-y-1">
             <h2 class="section-title">המשחק הבא</h2>
