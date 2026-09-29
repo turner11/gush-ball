@@ -36,6 +36,7 @@ describe('DefaultLayout', () => {
   beforeEach(() => {
     vi.resetModules()
     localStorage.clear()
+    window.history.replaceState({}, '', '/') // jsdom keeps the URL between tests
     router = createRouter({
       history: createWebHistory(),
       routes: [
@@ -62,22 +63,26 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('header a').text()).toContain('קבוצה ב')
   })
 
-  it("bare / redirects to the remembered team's slug, else the first team", async () => {
+  it("bare / redirects to the remembered team's slug", async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+    localStorage.setItem('gush-ball:selected-team-id', '2')
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
 
-    localStorage.setItem('gush-ball:selected-team-id', '2')
     mount(DefaultLayout, { global: { plugins: [router] } })
     await router.push('/')
     await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/team_b')
 
-    localStorage.clear()
-    vi.resetModules()
-    const { default: Layout2 } = await import('./DefaultLayout.vue')
-    mount(Layout2, { global: { plugins: [router] } })
+    expect(router.currentRoute.value.path).toBe('/team_b')
+  })
+
+  it('bare / redirects to the first team when nothing is remembered', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+
+    mount(DefaultLayout, { global: { plugins: [router] } })
     await router.push('/')
     await flushPromises()
+
     expect(router.currentRoute.value.path).toBe('/team_a')
   })
 
