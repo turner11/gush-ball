@@ -1,3 +1,4 @@
+import logging
 import time
 
 import pytest
@@ -100,3 +101,32 @@ def test_session_expires_after_max_age(seeded: TestClient, monkeypatch: pytest.M
     assert seeded.get("/auth/me").status_code == 200
     monkeypatch.setattr(TimestampSigner, "get_timestamp", lambda self: int(time.time()) + 12 * 3600 + 1)
     assert seeded.get("/auth/me").status_code == 401
+
+
+def test_login_success_is_logged(seeded: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO):
+        seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "3.3.3.3"})
+    assert any("login ok" in r.getMessage() and "admin" in r.getMessage() and "3.3.3.3" in r.getMessage()
+               for r in caplog.records)
+
+
+def test_login_failure_is_logged(seeded: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO):
+        seeded.post("/auth/login", json=_bad(), headers={"X-Forwarded-For": "4.4.4.4"})
+    recs = [r for r in caplog.records if "login failed" in r.getMessage()]
+    assert recs and recs[0].levelno == logging.WARNING
+    assert "admin" in recs[0].getMessage() and "4.4.4.4" in recs[0].getMessage()
+    assert "wrong" not in caplog.text
+
+
+def test_admin_write_is_logged(admin_client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO):
+        admin_client.delete("/teams/999999?x=secret")
+    msgs = [r.getMessage() for r in caplog.records if "admin write" in r.getMessage()]
+    assert msgs and "DELETE" in msgs[0] and "/teams/999999" in msgs[0] and "secret" not in msgs[0]
+
+
+def test_admin_read_not_logged(admin_client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO):
+        admin_client.get("/auth/me")
+    assert "admin write" not in caplog.text
