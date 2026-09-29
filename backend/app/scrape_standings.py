@@ -97,6 +97,8 @@ def sync_all_standings(db: Session, errors: list[str] | None = None) -> int:
     teams = db.scalars(select(Team).where(Team.ibasketball_league_url.is_not(None))).all()
     if not teams:
         log.warning("Standings sync: no team has an ibasketball_league_url set -- nothing to do")
+        if errors is not None:
+            errors.append("standings: no team has an ibasketball_league_url set")
     total = 0
     for team in teams:
         # Captured before the try: a DB-level failure below expires every object in the

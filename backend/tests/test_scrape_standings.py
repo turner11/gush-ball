@@ -153,12 +153,23 @@ def test_sync_all_standings_continues_after_one_team_fails(
         return NO_TABLE_HTML if url == bad_url else FIXTURE_HTML
 
     monkeypatch.setattr(scrape_standings, "_get_html", fake_get_html)
+    errors: list[str] = []
 
-    count = scrape_standings.sync_all_standings(db_session)
+    count = scrape_standings.sync_all_standings(db_session, errors)
 
     assert count == 2
     rows = db_session.query(StandingRow).all()
     assert [r.team_name for r in rows] == ["אליצור קרית אתא לאטי", "מכבי חיפה"]
+    assert len(errors) == 1
+    assert errors[0].startswith("standings gush-ball-b: ")
+
+
+def test_sync_all_standings_reports_when_no_team_has_url(db_session: Session) -> None:
+    errors: list[str] = []
+
+    assert scrape_standings.sync_all_standings(db_session, errors) == 0
+
+    assert errors == ["standings: no team has an ibasketball_league_url set"]
 
 
 def test_sync_all_standings_rolls_back_after_db_failure_so_next_team_still_syncs(

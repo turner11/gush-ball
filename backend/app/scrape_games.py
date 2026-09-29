@@ -142,6 +142,8 @@ def sync_all_games(db: Session, errors: list[str] | None = None) -> int:
     teams = db.scalars(select(Team).where(Team.ibasketball_team_url.is_not(None))).all()
     if not teams:
         log.warning("Games sync: no team has an ibasketball_team_url set -- nothing to do")
+        if errors is not None:
+            errors.append("games: no team has an ibasketball_team_url set")
     total = 0
     for team in teams:
         # Captured before the try: after a DB-level failure the session's objects are

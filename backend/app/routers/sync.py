@@ -12,7 +12,7 @@ Starlette's threadpool executor, where two near-simultaneous requests could both
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
@@ -51,12 +51,12 @@ def _run_sync() -> None:
         # be closed, so open a fresh one here -- same pattern as the scrapers' own __main__ blocks.
         with SessionLocal() as db:
             result = {**sync_all(db), "failed": False}
+        _last = {**result, "finished_at": datetime.now(UTC)}
     except Exception as exc:
         log.exception("Sync crashed")
-        result = {"errors": [str(exc)], "failed": True}
-    result["finished_at"] = datetime.now(timezone.utc)
-    _last = result
-    _running = False
+        _last = {"errors": [str(exc)], "failed": True, "finished_at": datetime.now(UTC)}
+    finally:
+        _running = False
 
 
 @router.post("/now", response_model=SyncOut, status_code=status.HTTP_202_ACCEPTED)

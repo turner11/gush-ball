@@ -269,11 +269,21 @@ def test_sync_all_games_continues_after_one_team_fails(
 ) -> None:
     _two_teams(db_session)
     _fail_for_bad(monkeypatch, db_session, _raise_value_error)
+    errors: list[str] = []
 
-    assert scrape_games.sync_all_games(db_session) == 1
+    assert scrape_games.sync_all_games(db_session, errors) == 1
 
     assert db_session.query(Game).count() == 1
     assert "'bad'" in caplog.text
+    assert errors == ["games bad: boom"]
+
+
+def test_sync_all_games_reports_when_no_team_has_url(db_session: Session) -> None:
+    errors: list[str] = []
+
+    assert scrape_games.sync_all_games(db_session, errors) == 0
+
+    assert errors == ["games: no team has an ibasketball_team_url set"]
 
 
 def test_sync_all_games_rolls_back_after_db_failure_so_next_team_still_syncs(
