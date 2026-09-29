@@ -24,6 +24,7 @@ const form = reactive({
   instagram_url: '',
   youtube_url: '',
   tiktok_url: '',
+  twitter_url: '',
   ibasketball_team_url: '',
   ibasketball_league_url: '',
 })
@@ -197,6 +198,16 @@ const contentSections = [
           <input
             id="team-tiktok"
             v-model="form.tiktok_url"
+            type="url"
+            class="field-input"
+          />
+        </div>
+
+        <div>
+          <label for="team-twitter" class="field-label">טוויטר (X)</label>
+          <input
+            id="team-twitter"
+            v-model="form.twitter_url"
             type="url"
             class="field-input"
           />

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -40,6 +40,43 @@ onMounted(async () => {
 })
 
 watch(selectedTeamId, load)
+
+const facebookEmbedSrc = computed(
+  () =>
+    'https://www.facebook.com/plugins/page.php?href=' +
+    encodeURIComponent(team.value.facebook_url) +
+    '&tabs=timeline&width=500&height=600&small_header=true',
+)
+
+const instagramUsername = computed(() => {
+  if (!team.value?.instagram_url) return null
+  try {
+    return new URL(team.value.instagram_url).pathname.split('/').filter(Boolean)[0] ?? null
+  } catch {
+    return null
+  }
+})
+
+const hasSocialEmbed = computed(
+  () => !!(team.value && (team.value.facebook_url || instagramUsername.value || team.value.twitter_url)),
+)
+
+// Load X's widgets.js once; it turns a.twitter-timeline anchors into timelines.
+watch(
+  () => team.value?.twitter_url,
+  async (url) => {
+    if (!url) return
+    if (!document.getElementById('twitter-wjs')) {
+      const script = document.createElement('script')
+      script.id = 'twitter-wjs'
+      script.src = 'https://platform.twitter.com/widgets.js'
+      script.async = true
+      document.head.appendChild(script)
+    }
+    await nextTick()
+    window.twttr?.widgets?.load()
+  },
+)
 </script>
 
 <template>
@@ -54,12 +91,40 @@ watch(selectedTeamId, load)
       </div>
     </div>
 
-    <div v-if="team.facebook_url || team.instagram_url || team.youtube_url || team.tiktok_url" class="flex gap-3 text-sm">
+    <div
+      v-if="team.facebook_url || team.instagram_url || team.youtube_url || team.tiktok_url || team.twitter_url"
+      class="flex gap-3 text-sm"
+    >
       <a v-if="team.facebook_url" :href="team.facebook_url" target="_blank" rel="noopener" class="hover:underline">פייסבוק</a>
       <a v-if="team.instagram_url" :href="team.instagram_url" target="_blank" rel="noopener" class="hover:underline">אינסטגרם</a>
       <a v-if="team.youtube_url" :href="team.youtube_url" target="_blank" rel="noopener" class="hover:underline">יוטיוב</a>
       <a v-if="team.tiktok_url" :href="team.tiktok_url" target="_blank" rel="noopener" class="hover:underline">טיקטוק</a>
+      <a v-if="team.twitter_url" :href="team.twitter_url" target="_blank" rel="noopener" class="hover:underline">טוויטר</a>
     </div>
+
+    <section v-if="hasSocialEmbed" class="space-y-2">
+      <h2 class="section-title">ברשתות</h2>
+      <div class="grid gap-4 md:grid-cols-3">
+        <iframe
+          v-if="team.facebook_url"
+          :src="facebookEmbedSrc"
+          title="עמוד הפייסבוק של הקבוצה"
+          loading="lazy"
+          class="h-[600px] w-full max-w-[500px] border-0"
+        ></iframe>
+        <!-- ponytail: undocumented IG profile embed (IG has no official profile-feed widget; official alternatives are per-post embeds or Graph API) -->
+        <iframe
+          v-if="instagramUsername"
+          :src="`https://www.instagram.com/${instagramUsername}/embed`"
+          title="עמוד האינסטגרם של הקבוצה"
+          loading="lazy"
+          class="h-[600px] w-full border-0"
+        ></iframe>
+        <div v-if="team.twitter_url" :key="team.twitter_url" class="h-[600px] overflow-hidden">
+          <a class="twitter-timeline" data-height="600" :href="team.twitter_url">הטוויטר של הקבוצה</a>
+        </div>
+      </div>
+    </section>
 
     <section class="space-y-2">
       <h2 class="section-title">קישורים</h2>
