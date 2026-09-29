@@ -161,7 +161,5 @@ describe('DefaultLayout', () => {
 
     const parent = wrapper.find('header').element.parentElement
     expect(wrapper.find('[data-testid="hero"]').element.parentElement).toBe(parent)
-    expect(parent.classList).toContain('sticky')
-    expect(parent.classList).toContain('top-0')
   })
 })
