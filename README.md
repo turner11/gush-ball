@@ -11,6 +11,9 @@ Website for the club: team pages, schedule/standings, scores, and (later) stats 
 
 ## Local setup
 
+Clone with `git clone --recursive` (or run `git submodule update --init` in an existing clone) —
+the statistics base, BBStats, is a submodule at `stats/`.
+
 ### 1. Database
 
 ```
@@ -69,7 +72,7 @@ the frontend) via Docker Compose, deployed by CI over SSH on every push to `mast
 - Install Docker (with the Compose plugin) on the box.
 - Create a deploy user, add the CI's public key to its `~/.ssh/authorized_keys`, and add the user
   to the `docker` group.
-- `git clone` this repo into `~/gush-ball` (that exact path — CI's deploy step assumes it).
+- `git clone --recursive` this repo into `~/gush-ball` (that exact path — CI's deploy step assumes it).
 - Create `~/gush-ball/.env` with:
   - `POSTGRES_PASSWORD`
   - `DATABASE_URL=postgresql+psycopg://gush_ball:<same password>@db:5432/gush_ball`

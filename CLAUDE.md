@@ -60,8 +60,9 @@ issue, before starting.
   machine (survives rebuilds/loss) and the same bucket holds the DB backups.
 - **Statistics are intentionally undesigned.** Real per-lineup +/- needs live substitution
   tracking that the scraped source can never provide (box scores only, no play-by-play) — this is
-  a permanent limitation of the data source, not something a better scraper fixes. The user has an
-  existing small app that tracks this; integration is still to be discussed. Don't design a stats
+  a permanent limitation of the data source, not something a better scraper fixes. The user's existing
+  app that tracks this, BBStats, is vendored as a git submodule at `stats/` and is the base for
+  statistics; *how* it integrates is still to be discussed. Don't design a stats
   data model beyond the existing "coming soon" empty state until that discussion happens.
 - **No live scores.** Refresh-on-load is sufficient; no websockets/polling.
 - **Design bar**: "professional" is anchored to four reference sites — maccabi.co.il, paobc.gr,
@@ -88,3 +89,4 @@ Don't build these ahead of their phase, even if a related task makes them tempti
 - Local Postgres: `docker-compose.yml`
 - Backend models: `backend/app/models/`
 - Bootstrap the first admin login: `backend/scripts/create_admin.py`
+- Statistics base (BBStats, git submodule): `stats/`
