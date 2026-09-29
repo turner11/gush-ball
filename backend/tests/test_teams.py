@@ -90,3 +90,36 @@ def test_delete_team_removes_it(admin_client: TestClient, client: TestClient) ->
 
     get_response = client.get(f"/teams/{created['id']}")
     assert get_response.status_code == 404
+
+
+@pytest.mark.parametrize("field", ["facebook_url", "logo_url"])
+@pytest.mark.parametrize("value", ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"])
+def test_update_team_rejects_non_http_scheme(admin_client: TestClient, field: str, value: str) -> None:
+    created = _create_team(admin_client, "Team S")
+    assert admin_client.patch(f"/teams/{created['id']}", json={field: value}).status_code == 422
+
+
+@pytest.mark.parametrize("field", ["ibasketball_team_url", "ibasketball_league_url"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://db:5432/",
+        "http://169.254.169.254/latest/meta-data/",
+        "https://evil.com/league/1/",
+        "http://ibasketball.co.il/league/1/",
+    ],
+)
+def test_update_team_rejects_non_ibasketball_host(admin_client: TestClient, field: str, value: str) -> None:
+    created = _create_team(admin_client, "Team H")
+    assert admin_client.patch(f"/teams/{created['id']}", json={field: value}).status_code == 422
+
+
+def test_ibasketball_urls_accept_real_hosts(admin_client: TestClient) -> None:
+    team_url = "https://ibasketball.co.il/team/12345-x/"
+    league_url = "https://www.ibasketball.co.il/league/2026-1/"
+    created = _create_team(
+        admin_client, "Team R", ibasketball_team_url=team_url, ibasketball_league_url=league_url
+    )
+    got = admin_client.get(f"/teams/{created['id']}").json()
+    assert got["ibasketball_team_url"] == team_url
+    assert got["ibasketball_league_url"] == league_url

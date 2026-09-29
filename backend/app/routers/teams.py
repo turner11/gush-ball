@@ -2,7 +2,7 @@ import re
 from typing import Annotated
 
 from fastapi import APIRouter, status
-from pydantic import AnyUrl, BaseModel, StringConstraints, UrlConstraints
+from pydantic import AfterValidator, AnyUrl, BaseModel, HttpUrl, StringConstraints, UrlConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,7 +16,17 @@ HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 # value is a clean 422 instead of a raw DB error.
 Name = Annotated[str, StringConstraints(max_length=120)]
 Address = Annotated[str, StringConstraints(max_length=300)]
-Url500 = Annotated[AnyUrl, UrlConstraints(max_length=500)]
+Url500 = Annotated[HttpUrl, UrlConstraints(max_length=500)]
+
+
+def _require_ibasketball(url: HttpUrl) -> HttpUrl:
+    # The scraper fetches these server-side, so pin them to the real source (SSRF).
+    if url.scheme != "https" or url.host not in {"ibasketball.co.il", "www.ibasketball.co.il"}:
+        raise ValueError("must be an https://ibasketball.co.il URL")
+    return url
+
+
+IbasketballUrl = Annotated[Url500, AfterValidator(_require_ibasketball)]
 
 
 class TeamUpdate(BaseModel):
@@ -31,8 +41,8 @@ class TeamUpdate(BaseModel):
     youtube_url: Url500 | None = None
     tiktok_url: Url500 | None = None
     twitter_url: Url500 | None = None
-    ibasketball_team_url: Url500 | None = None
-    ibasketball_league_url: Url500 | None = None
+    ibasketball_team_url: IbasketballUrl | None = None
+    ibasketball_league_url: IbasketballUrl | None = None
 
 
 class TeamCreate(TeamUpdate):
