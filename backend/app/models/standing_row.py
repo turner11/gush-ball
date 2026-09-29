@@ -26,3 +26,4 @@ class StandingRow(Base):
     points_for: Mapped[int] = mapped_column(Integer)
     points_against: Mapped[int] = mapped_column(Integer)
     points: Mapped[int] = mapped_column(Integer)
+    source_url: Mapped[str | None] = mapped_column(String(500), default=None)

@@ -57,7 +57,10 @@ watch(selectedTeamId, load, { immediate: true })
             :class="{ 'bg-neutral-100 font-bold dark:bg-neutral-800': row.id === myRow.id }"
           >
             <td class="py-2">{{ row.rank }}</td>
-            <td class="py-2">{{ row.team_name }}</td>
+            <td class="py-2">
+              <a v-if="row.source_url" :href="row.source_url" target="_blank" rel="noopener" class="hover:underline">{{ row.team_name }}</a>
+              <template v-else>{{ row.team_name }}</template>
+            </td>
             <td class="py-2">{{ row.played }}</td>
             <td class="py-2">{{ row.won }}</td>
             <td class="py-2">{{ row.lost }}</td>

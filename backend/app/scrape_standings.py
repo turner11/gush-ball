@@ -53,7 +53,11 @@ def parse_league_table(html_text: str) -> tuple[str, list[dict[str, str | int]]]
     rows: list[dict[str, str | int]] = []
     for tr in table.find("tbody").find_all("tr"):
         name_cell = tr.find("td", class_="data-name")
-        row: dict[str, str | int] = {"team_name": name_cell.get_text(strip=True)}
+        link = name_cell.find("a")
+        row: dict[str, str | int | None] = {
+            "team_name": name_cell.get_text(strip=True),
+            "source_url": link["href"] if link else None,
+        }
         for field, css_class in _COLUMN_MAP.items():
             row[field] = int(tr.find("td", class_=css_class).get_text(strip=True))
         rows.append(row)
@@ -77,6 +81,7 @@ def sync_team_standings(db: Session, team: Team) -> int:
             standing = StandingRow(league_name=league_name, team_name=row["team_name"])
             db.add(standing)
 
+        standing.source_url = row["source_url"]
         standing.rank = row["rank"]
         standing.played = row["played"]
         standing.won = row["won"]

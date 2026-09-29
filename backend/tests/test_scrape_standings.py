@@ -62,6 +62,7 @@ def test_parse_league_table_extracts_league_name_and_rows() -> None:
     first, second = rows
     assert first == {
         "team_name": "אליצור קרית אתא לאטי",
+        "source_url": "https://ibasketball.co.il/team/120/",
         "rank": 1,
         "played": 10,
         "won": 8,
