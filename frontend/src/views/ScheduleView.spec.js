@@ -47,6 +47,7 @@ describe('ScheduleView', () => {
   beforeEach(() => {
     vi.resetModules()
     localStorage.clear()
+    localStorage.setItem('gush-ball:selected-team-id', '1')
     router = createRouter({
       history: createWebHistory(),
       routes: [{ path: '/', component: { template: '<div/>' } }],
@@ -59,7 +60,6 @@ describe('ScheduleView', () => {
 
   it('splits games into upcoming and past sections by scheduled_at', async () => {
     mockFetch({
-      'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME, PAST_GAME]),
     })
 
@@ -77,7 +77,6 @@ describe('ScheduleView', () => {
 
   it('renders a Hebrew status label, not the raw enum value', async () => {
     mockFetch({
-      'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME]),
     })
 
@@ -91,7 +90,6 @@ describe('ScheduleView', () => {
 
   it('shows an empty state when the team has no games', async () => {
     mockFetch({
-      'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/games': () => jsonRes([]),
     })
 

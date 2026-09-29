@@ -11,19 +11,14 @@ Starlette's threadpool executor, where two near-simultaneous requests could both
 `if _running` check before either sets it. See the issue #17 plan for the full rationale.
 """
 
-from typing import Annotated
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel
 
 from app.db import SessionLocal
-from app.deps import require_admin
-from app.scrape_games import sync_all_games
-from app.scrape_standings import sync_all_standings
+from app.deps import RequireAdmin
+from app.scrape import sync_all
 
 router = APIRouter(prefix="/sync", tags=["sync"])
-
-RequireAdmin = Annotated[int, Depends(require_admin)]
 
 _running = False
 
@@ -38,8 +33,7 @@ def _run_sync() -> None:
         # Background tasks run after the request's own `Depends(get_db)` session may already
         # be closed, so open a fresh one here -- same pattern as the scrapers' own __main__ blocks.
         with SessionLocal() as db:
-            sync_all_standings(db)
-            sync_all_games(db)
+            sync_all(db)
     finally:
         _running = False
 

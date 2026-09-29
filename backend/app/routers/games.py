@@ -1,18 +1,14 @@
 from datetime import datetime
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.db import get_db
-from app.deps import require_admin
-from app.models import Game, GameStatus, Opponent, Team
+from app.deps import DbSession, RequireAdmin, get_team_or_404
+from app.models import Game, GameStatus, get_or_create_opponent
 
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
-
-DbSession = Annotated[Session, Depends(get_db)]
 
 
 class GameCreate(BaseModel):
@@ -72,23 +68,6 @@ class AdminGameRead(GameRead):
     scrape_suggestion: dict | None
 
 
-def _get_team_or_404(db: Session, team_id: int) -> Team:
-    team = db.get(Team, team_id)
-    if team is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
-    return team
-
-
-def _get_or_create_opponent(db: Session, name: str) -> Opponent:
-    name = name.strip()
-    opponent = db.scalar(select(Opponent).where(Opponent.name == name))
-    if opponent is None:
-        opponent = Opponent(name=name)
-        db.add(opponent)
-        db.flush()
-    return opponent
-
-
 def _get_game_or_404(db: Session, team_id: int, game_id: int) -> Game:
     game = db.scalar(select(Game).where(Game.id == game_id, Game.team_id == team_id))
     if game is None:
@@ -97,14 +76,14 @@ def _get_game_or_404(db: Session, team_id: int, game_id: int) -> Game:
 
 
 def _apply_game_updates(db: Session, game: Game, updates: dict) -> None:
-    """Applies a field-name-keyed dict of GameUpdate values onto `game`.
+    """Applies a field-name-keyed dict of GameCreate/GameUpdate values onto `game`.
 
-    Shared by the PATCH endpoint and suggestion-accept (#16), which both need
-    the same "opponent_name -> opponent row, rest via setattr" apply step.
+    Shared by create, PATCH and suggestion-accept (#16), which all need the
+    same "opponent_name -> opponent row, rest via setattr" apply step.
     """
     opponent_name = updates.pop("opponent_name", None)
     if opponent_name is not None:
-        game.opponent = _get_or_create_opponent(db, opponent_name)
+        game.opponent = get_or_create_opponent(db, opponent_name)
     for field, value in updates.items():
         setattr(game, field, value)
 
@@ -114,20 +93,11 @@ def create_game(
     team_id: int,
     payload: GameCreate,
     db: DbSession,
-    _admin_id: Annotated[int, Depends(require_admin)],
+    _admin_id: RequireAdmin,
 ) -> Game:
-    _get_team_or_404(db, team_id)
-    opponent = _get_or_create_opponent(db, payload.opponent_name)
-    game = Game(
-        team_id=team_id,
-        opponent=opponent,
-        is_home=payload.is_home,
-        scheduled_at=payload.scheduled_at,
-        status=payload.status,
-        team_score=payload.team_score,
-        opponent_score=payload.opponent_score,
-        description=payload.description,
-    )
+    get_team_or_404(db, team_id)
+    game = Game(team_id=team_id)
+    _apply_game_updates(db, game, payload.model_dump())
     db.add(game)
     db.commit()
     db.refresh(game)
@@ -136,7 +106,7 @@ def create_game(
 
 @router.get("", response_model=list[GameRead])
 def list_games(team_id: int, db: DbSession) -> list[Game]:
-    _get_team_or_404(db, team_id)
+    get_team_or_404(db, team_id)
     return list(
         db.scalars(
             select(Game).where(Game.team_id == team_id, Game.needs_review.is_(False))
@@ -148,9 +118,9 @@ def list_games(team_id: int, db: DbSession) -> list[Game]:
 def list_pending_review_games(
     team_id: int,
     db: DbSession,
-    _admin_id: Annotated[int, Depends(require_admin)],
+    _admin_id: RequireAdmin,
 ) -> list[Game]:
-    _get_team_or_404(db, team_id)
+    get_team_or_404(db, team_id)
     return list(
         db.scalars(
             select(Game).where(
@@ -175,7 +145,7 @@ def update_game(
     game_id: int,
     payload: GameUpdate,
     db: DbSession,
-    _admin_id: Annotated[int, Depends(require_admin)],
+    _admin_id: RequireAdmin,
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     updates = payload.model_dump(exclude_unset=True)
@@ -199,7 +169,7 @@ def approve_game(
     team_id: int,
     game_id: int,
     db: DbSession,
-    _admin_id: Annotated[int, Depends(require_admin)],
+    _admin_id: RequireAdmin,
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     game.needs_review = False
@@ -214,7 +184,7 @@ def accept_game_suggestion(
     team_id: int,
     game_id: int,
     db: DbSession,
-    _admin_id: Annotated[int, Depends(require_admin)],
+    _admin_id: RequireAdmin,
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     if game.scrape_suggestion is None or game.scrape_suggestion_dismissed:
@@ -234,7 +204,7 @@ def reject_game_suggestion(
     team_id: int,
     game_id: int,
     db: DbSession,
-    _admin_id: Annotated[int, Depends(require_admin)],
+    _admin_id: RequireAdmin,
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     if game.scrape_suggestion is None or game.scrape_suggestion_dismissed:
@@ -250,7 +220,7 @@ def delete_game(
     team_id: int,
     game_id: int,
     db: DbSession,
-    _admin_id: Annotated[int, Depends(require_admin)],
+    _admin_id: RequireAdmin,
 ) -> None:
     game = _get_game_or_404(db, team_id, game_id)
     db.delete(game)

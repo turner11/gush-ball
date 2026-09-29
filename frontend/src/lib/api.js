@@ -1,5 +1,5 @@
-// Formalizes the `credentials: 'include'` + JSON fetch pattern useAuth.js already
-// hand-rolls, so the ~12 admin CRUD call sites don't each repeat it.
+// The one place that knows the `/api` prefix, `credentials: 'include'` and JSON handling.
+// Throws on a non-2xx response with the server's `detail` as message and `status` attached.
 export async function apiFetch(path, options = {}) {
   const { body, headers, ...rest } = options
   const isPlainBody = body !== undefined && body !== null && typeof body === 'object'
@@ -19,9 +19,21 @@ export async function apiFetch(path, options = {}) {
     } catch {
       // non-JSON error body — fall back to statusText
     }
-    throw new Error(detail)
+    const error = new Error(detail)
+    error.status = res.status
+    throw error
   }
 
   if (res.status === 204) return null
   return res.json()
+}
+
+// For composables that expose an `error` ref instead of throwing: on failure, sets
+// `errorRef` to the user-facing `message` and resolves to undefined.
+export async function tryApiFetch(errorRef, message, path, options) {
+  try {
+    return await apiFetch(path, options)
+  } catch {
+    errorRef.value = message
+  }
 }

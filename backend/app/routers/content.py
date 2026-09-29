@@ -1,27 +1,18 @@
-from typing import Annotated
+"""CRUD for a team's four content resources (links/videos/images/posts).
 
-from fastapi import APIRouter, Depends, HTTPException, status
+The four tables stay separate (see CLAUDE.md), but their routes are identical apart from the
+schemas, so they're registered once per resource by `_add_crud_routes` below.
+"""
+
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, HttpUrl
 from sqlalchemy.orm import Session
 
-from app.db import get_db
-from app.deps import require_admin
-from app.models import Team, TeamImage, TeamLink, TeamPost, TeamVideo
+from app.db import Base
+from app.deps import DbSession, RequireAdmin, get_team_or_404
+from app.models import TeamImage, TeamLink, TeamPost, TeamVideo
 
 router = APIRouter(tags=["content"])
-
-DbSession = Annotated[Session, Depends(get_db)]
-RequireAdmin = Annotated[int, Depends(require_admin)]
-
-
-def _get_team_or_404(db: Session, team_id: int) -> Team:
-    team = db.get(Team, team_id)
-    if team is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
-    return team
-
-
-# --- links ---------------------------------------------------------------
 
 
 class TeamLinkCreate(BaseModel):
@@ -46,75 +37,20 @@ class TeamLinkOut(BaseModel):
     url: str
 
 
-def _get_team_link_or_404(db: Session, team_id: int, link_id: int) -> TeamLink:
-    link = db.get(TeamLink, link_id)
-    if link is None or link.team_id != team_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Link not found")
-    return link
-
-
-@router.post(
-    "/teams/{team_id}/links", response_model=TeamLinkOut, status_code=status.HTTP_201_CREATED
-)
-def create_link(
-    team_id: int, payload: TeamLinkCreate, db: DbSession, _admin_id: RequireAdmin
-) -> TeamLink:
-    _get_team_or_404(db, team_id)
-    data = payload.model_dump()
-    data["url"] = str(data["url"])
-    link = TeamLink(team_id=team_id, **data)
-    db.add(link)
-    db.commit()
-    db.refresh(link)
-    return link
-
-
-@router.get("/teams/{team_id}/links", response_model=list[TeamLinkOut])
-def list_links(team_id: int, db: DbSession) -> list[TeamLink]:
-    team = _get_team_or_404(db, team_id)
-    return list(team.links)
-
-
-@router.patch("/teams/{team_id}/links/{link_id}", response_model=TeamLinkOut)
-def update_link(
-    team_id: int, link_id: int, payload: TeamLinkUpdate, db: DbSession, _admin_id: RequireAdmin
-) -> TeamLink:
-    link = _get_team_link_or_404(db, team_id, link_id)
-    data = payload.model_dump(exclude_unset=True)
-    if "url" in data and data["url"] is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="url cannot be null"
-        )
-    for field, value in data.items():
-        setattr(link, field, str(value) if field == "url" else value)
-    db.commit()
-    db.refresh(link)
-    return link
-
-
-@router.delete("/teams/{team_id}/links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_link(team_id: int, link_id: int, db: DbSession, _admin_id: RequireAdmin) -> None:
-    link = _get_team_link_or_404(db, team_id, link_id)
-    db.delete(link)
-    db.commit()
-
-
-# --- videos ----------------------------------------------------------------
-
-
-class TeamVideoCreate(BaseModel):
+# Videos and images share one shape.
+class TitledUrlCreate(BaseModel):
     title: str
     title_en: str | None = None
     url: HttpUrl
 
 
-class TeamVideoUpdate(BaseModel):
+class TitledUrlUpdate(BaseModel):
     title: str | None = None
     title_en: str | None = None
     url: HttpUrl | None = None
 
 
-class TeamVideoOut(BaseModel):
+class TitledUrlOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -122,140 +58,6 @@ class TeamVideoOut(BaseModel):
     title: str
     title_en: str | None
     url: str
-
-
-def _get_team_video_or_404(db: Session, team_id: int, video_id: int) -> TeamVideo:
-    video = db.get(TeamVideo, video_id)
-    if video is None or video.team_id != team_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
-    return video
-
-
-@router.post(
-    "/teams/{team_id}/videos", response_model=TeamVideoOut, status_code=status.HTTP_201_CREATED
-)
-def create_video(
-    team_id: int, payload: TeamVideoCreate, db: DbSession, _admin_id: RequireAdmin
-) -> TeamVideo:
-    _get_team_or_404(db, team_id)
-    data = payload.model_dump()
-    data["url"] = str(data["url"])
-    video = TeamVideo(team_id=team_id, **data)
-    db.add(video)
-    db.commit()
-    db.refresh(video)
-    return video
-
-
-@router.get("/teams/{team_id}/videos", response_model=list[TeamVideoOut])
-def list_videos(team_id: int, db: DbSession) -> list[TeamVideo]:
-    team = _get_team_or_404(db, team_id)
-    return list(team.videos)
-
-
-@router.patch("/teams/{team_id}/videos/{video_id}", response_model=TeamVideoOut)
-def update_video(
-    team_id: int, video_id: int, payload: TeamVideoUpdate, db: DbSession, _admin_id: RequireAdmin
-) -> TeamVideo:
-    video = _get_team_video_or_404(db, team_id, video_id)
-    data = payload.model_dump(exclude_unset=True)
-    if "url" in data and data["url"] is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="url cannot be null"
-        )
-    for field, value in data.items():
-        setattr(video, field, str(value) if field == "url" else value)
-    db.commit()
-    db.refresh(video)
-    return video
-
-
-@router.delete("/teams/{team_id}/videos/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_video(team_id: int, video_id: int, db: DbSession, _admin_id: RequireAdmin) -> None:
-    video = _get_team_video_or_404(db, team_id, video_id)
-    db.delete(video)
-    db.commit()
-
-
-# --- images ------------------------------------------------------------------
-
-
-class TeamImageCreate(BaseModel):
-    title: str
-    title_en: str | None = None
-    url: HttpUrl
-
-
-class TeamImageUpdate(BaseModel):
-    title: str | None = None
-    title_en: str | None = None
-    url: HttpUrl | None = None
-
-
-class TeamImageOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    team_id: int
-    title: str
-    title_en: str | None
-    url: str
-
-
-def _get_team_image_or_404(db: Session, team_id: int, image_id: int) -> TeamImage:
-    image = db.get(TeamImage, image_id)
-    if image is None or image.team_id != team_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
-    return image
-
-
-@router.post(
-    "/teams/{team_id}/images", response_model=TeamImageOut, status_code=status.HTTP_201_CREATED
-)
-def create_image(
-    team_id: int, payload: TeamImageCreate, db: DbSession, _admin_id: RequireAdmin
-) -> TeamImage:
-    _get_team_or_404(db, team_id)
-    data = payload.model_dump()
-    data["url"] = str(data["url"])
-    image = TeamImage(team_id=team_id, **data)
-    db.add(image)
-    db.commit()
-    db.refresh(image)
-    return image
-
-
-@router.get("/teams/{team_id}/images", response_model=list[TeamImageOut])
-def list_images(team_id: int, db: DbSession) -> list[TeamImage]:
-    team = _get_team_or_404(db, team_id)
-    return list(team.images)
-
-
-@router.patch("/teams/{team_id}/images/{image_id}", response_model=TeamImageOut)
-def update_image(
-    team_id: int, image_id: int, payload: TeamImageUpdate, db: DbSession, _admin_id: RequireAdmin
-) -> TeamImage:
-    image = _get_team_image_or_404(db, team_id, image_id)
-    data = payload.model_dump(exclude_unset=True)
-    if "url" in data and data["url"] is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="url cannot be null"
-        )
-    for field, value in data.items():
-        setattr(image, field, str(value) if field == "url" else value)
-    db.commit()
-    db.refresh(image)
-    return image
-
-
-@router.delete("/teams/{team_id}/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_image(team_id: int, image_id: int, db: DbSession, _admin_id: RequireAdmin) -> None:
-    image = _get_team_image_or_404(db, team_id, image_id)
-    db.delete(image)
-    db.commit()
-
-
-# --- posts -------------------------------------------------------------------
 
 
 class TeamPostCreate(BaseModel):
@@ -283,47 +85,69 @@ class TeamPostOut(BaseModel):
     body_en: str | None
 
 
-def _get_team_post_or_404(db: Session, team_id: int, post_id: int) -> TeamPost:
-    post = db.get(TeamPost, post_id)
-    if post is None or post.team_id != team_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
-    return post
+def _to_columns(data: dict) -> dict:
+    # HttpUrl doesn't map to a String column; store as plain str.
+    if data.get("url") is not None:
+        data["url"] = str(data["url"])
+    return data
 
 
-@router.post(
-    "/teams/{team_id}/posts", response_model=TeamPostOut, status_code=status.HTTP_201_CREATED
+def _add_crud_routes(
+    resource: str,
+    model: type[Base],
+    create_schema: type[BaseModel],
+    update_schema: type[BaseModel],
+    out_schema: type[BaseModel],
+    not_found: str,
+) -> None:
+    path = f"/teams/{{team_id}}/{resource}"
+
+    def get_item_or_404(db: Session, team_id: int, item_id: int):
+        item = db.get(model, item_id)
+        if item is None or item.team_id != team_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=not_found)
+        return item
+
+    @router.post(path, response_model=out_schema, status_code=status.HTTP_201_CREATED)
+    def create(team_id: int, payload: create_schema, db: DbSession, _admin_id: RequireAdmin):
+        get_team_or_404(db, team_id)
+        item = model(team_id=team_id, **_to_columns(payload.model_dump()))
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return item
+
+    @router.get(path, response_model=list[out_schema])
+    def list_items(team_id: int, db: DbSession):
+        return list(getattr(get_team_or_404(db, team_id), resource))
+
+    @router.patch(path + "/{item_id}", response_model=out_schema)
+    def update(
+        team_id: int, item_id: int, payload: update_schema, db: DbSession, _admin_id: RequireAdmin
+    ):
+        item = get_item_or_404(db, team_id, item_id)
+        data = payload.model_dump(exclude_unset=True)
+        if "url" in data and data["url"] is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="url cannot be null"
+            )
+        for field, value in _to_columns(data).items():
+            setattr(item, field, value)
+        db.commit()
+        db.refresh(item)
+        return item
+
+    @router.delete(path + "/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def delete(team_id: int, item_id: int, db: DbSession, _admin_id: RequireAdmin) -> None:
+        db.delete(get_item_or_404(db, team_id, item_id))
+        db.commit()
+
+
+_add_crud_routes("links", TeamLink, TeamLinkCreate, TeamLinkUpdate, TeamLinkOut, "Link not found")
+_add_crud_routes(
+    "videos", TeamVideo, TitledUrlCreate, TitledUrlUpdate, TitledUrlOut, "Video not found"
 )
-def create_post(
-    team_id: int, payload: TeamPostCreate, db: DbSession, _admin_id: RequireAdmin
-) -> TeamPost:
-    _get_team_or_404(db, team_id)
-    post = TeamPost(team_id=team_id, **payload.model_dump())
-    db.add(post)
-    db.commit()
-    db.refresh(post)
-    return post
-
-
-@router.get("/teams/{team_id}/posts", response_model=list[TeamPostOut])
-def list_posts(team_id: int, db: DbSession) -> list[TeamPost]:
-    team = _get_team_or_404(db, team_id)
-    return list(team.posts)
-
-
-@router.patch("/teams/{team_id}/posts/{post_id}", response_model=TeamPostOut)
-def update_post(
-    team_id: int, post_id: int, payload: TeamPostUpdate, db: DbSession, _admin_id: RequireAdmin
-) -> TeamPost:
-    post = _get_team_post_or_404(db, team_id, post_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(post, field, value)
-    db.commit()
-    db.refresh(post)
-    return post
-
-
-@router.delete("/teams/{team_id}/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(team_id: int, post_id: int, db: DbSession, _admin_id: RequireAdmin) -> None:
-    post = _get_team_post_or_404(db, team_id, post_id)
-    db.delete(post)
-    db.commit()
+_add_crud_routes(
+    "images", TeamImage, TitledUrlCreate, TitledUrlUpdate, TitledUrlOut, "Image not found"
+)
+_add_crud_routes("posts", TeamPost, TeamPostCreate, TeamPostUpdate, TeamPostOut, "Post not found")

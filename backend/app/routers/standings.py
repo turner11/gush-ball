@@ -1,25 +1,21 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db import get_db
-from app.deps import require_admin
+from app.deps import DbSession, RequireAdmin
 from app.models import StandingRow
 
 router = APIRouter(prefix="/standings", tags=["standings"])
-
-DbSession = Annotated[Session, Depends(get_db)]
-AdminId = Annotated[int, Depends(require_admin)]
 
 # Match the backing DB column widths (see app/models/standing_row.py).
 Name = Annotated[str, StringConstraints(max_length=120)]
 NonNegativeInt = Annotated[int, Field(ge=0)]
 
 
-class _StandingRowFields(BaseModel):
+class StandingRowCreate(BaseModel):
     league_name: Name
     team_name: Name
     rank: NonNegativeInt
@@ -29,10 +25,6 @@ class _StandingRowFields(BaseModel):
     points_for: NonNegativeInt
     points_against: NonNegativeInt
     points: NonNegativeInt
-
-
-class StandingRowCreate(_StandingRowFields):
-    pass
 
 
 class StandingRowUpdate(BaseModel):
@@ -78,7 +70,7 @@ def _find_by_key(db: Session, league_name: str, team_name: str) -> StandingRow |
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=StandingRowOut)
-def create_standing_row(payload: StandingRowCreate, _admin_id: AdminId, db: DbSession) -> StandingRow:
+def create_standing_row(payload: StandingRowCreate, _admin_id: RequireAdmin, db: DbSession) -> StandingRow:
     if _find_by_key(db, payload.league_name, payload.team_name) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -107,7 +99,7 @@ def get_standing_row(row_id: int, db: DbSession) -> StandingRow:
 
 @router.patch("/{row_id}", response_model=StandingRowOut)
 def update_standing_row(
-    row_id: int, payload: StandingRowUpdate, _admin_id: AdminId, db: DbSession
+    row_id: int, payload: StandingRowUpdate, _admin_id: RequireAdmin, db: DbSession
 ) -> StandingRow:
     row = _get_row_or_404(db, row_id)
     updates = payload.model_dump(exclude_unset=True)
@@ -130,8 +122,7 @@ def update_standing_row(
 
 
 @router.delete("/{row_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_standing_row(row_id: int, _admin_id: AdminId, db: DbSession) -> Response:
+def delete_standing_row(row_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
     row = _get_row_or_404(db, row_id)
     db.delete(row)
     db.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)

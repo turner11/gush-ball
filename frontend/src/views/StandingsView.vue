@@ -1,14 +1,14 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 
-const teams = ref([])
 const team = ref(null)
 const rows = ref([])
 
-const { selectedTeamId, ensureDefault } = useSelectedTeam()
+// DefaultLayout picks the default team; this view only follows the selection.
+const { selectedTeamId } = useSelectedTeam()
 
 const myRow = computed(() => rows.value.find((r) => r.team_name === team.value?.name) ?? null)
 const leagueRows = computed(() =>
@@ -27,13 +27,7 @@ async function load() {
   ])
 }
 
-onMounted(async () => {
-  teams.value = await apiFetch('/teams')
-  ensureDefault(teams.value)
-  await load()
-})
-
-watch(selectedTeamId, load)
+watch(selectedTeamId, load, { immediate: true })
 </script>
 
 <template>

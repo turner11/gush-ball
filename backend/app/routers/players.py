@@ -1,18 +1,11 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, HttpUrl
 from sqlalchemy.orm import Session
 
-from app.db import get_db
-from app.deps import require_admin
-from app.models import Player, PlayerImage, Team
+from app.deps import DbSession, RequireAdmin, get_team_or_404
+from app.models import Player, PlayerImage
 
 router = APIRouter(tags=["players"])
-
-DbSession = Annotated[Session, Depends(get_db)]
-RequireAdmin = Annotated[int, Depends(require_admin)]
-
 
 class PlayerCreate(BaseModel):
     name: str
@@ -49,13 +42,6 @@ class PlayerOut(BaseModel):
     images: list[PlayerImageOut]
 
 
-def _get_team_or_404(db: Session, team_id: int) -> Team:
-    team = db.get(Team, team_id)
-    if team is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
-    return team
-
-
 def _get_team_player_or_404(db: Session, team_id: int, player_id: int) -> Player:
     player = db.get(Player, player_id)
     if player is None or player.team_id != team_id:
@@ -76,7 +62,7 @@ def _get_player_or_404(db: Session, player_id: int) -> Player:
 def create_player(
     team_id: int, payload: PlayerCreate, db: DbSession, _admin_id: RequireAdmin
 ) -> Player:
-    _get_team_or_404(db, team_id)
+    get_team_or_404(db, team_id)
     player = Player(team_id=team_id, **payload.model_dump())
     db.add(player)
     db.commit()
@@ -86,7 +72,7 @@ def create_player(
 
 @router.get("/teams/{team_id}/players", response_model=list[PlayerOut])
 def list_players(team_id: int, db: DbSession) -> list[Player]:
-    team = _get_team_or_404(db, team_id)
+    team = get_team_or_404(db, team_id)
     return list(team.players)
 
 

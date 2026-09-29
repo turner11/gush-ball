@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from app import scrape
 from app.routers import sync as sync_router
 
 
@@ -20,8 +21,8 @@ def stub_scrapers(monkeypatch: pytest.MonkeyPatch) -> Generator[dict[str, Any], 
         calls["games"] += 1
         return 0
 
-    monkeypatch.setattr(sync_router, "sync_all_standings", _fake_sync_all_standings)
-    monkeypatch.setattr(sync_router, "sync_all_games", _fake_sync_all_games)
+    monkeypatch.setattr(scrape, "sync_all_standings", _fake_sync_all_standings)
+    monkeypatch.setattr(scrape, "sync_all_games", _fake_sync_all_games)
     yield calls
 
 

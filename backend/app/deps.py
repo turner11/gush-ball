@@ -1,4 +1,10 @@
-from fastapi import HTTPException, Request, status
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
+
+from app.db import get_db
+from app.models import Team
 
 
 def require_admin(request: Request) -> int:
@@ -7,3 +13,14 @@ def require_admin(request: Request) -> int:
     if admin_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return admin_id
+
+
+DbSession = Annotated[Session, Depends(get_db)]
+RequireAdmin = Annotated[int, Depends(require_admin)]
+
+
+def get_team_or_404(db: Session, team_id: int) -> Team:
+    team = db.get(Team, team_id)
+    if team is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+    return team

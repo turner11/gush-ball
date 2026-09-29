@@ -3,20 +3,21 @@ import { onMounted, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 
+// `column` is the (shorter) table header; `numeric` fields are sent as numbers.
 const FIELDS = [
-  'league_name',
-  'team_name',
-  'rank',
-  'played',
-  'won',
-  'lost',
-  'points_for',
-  'points_against',
-  'points',
+  { key: 'league_name', label: 'ליגה', column: 'ליגה', type: 'text' },
+  { key: 'team_name', label: 'קבוצה', column: 'קבוצה', type: 'text' },
+  { key: 'rank', label: 'דירוג', column: 'דירוג', type: 'number' },
+  { key: 'played', label: 'משחקים', column: 'משחקים', type: 'number' },
+  { key: 'won', label: 'נצחונות', column: 'נצחונות', type: 'number' },
+  { key: 'lost', label: 'הפסדים', column: 'הפסדים', type: 'number' },
+  { key: 'points_for', label: 'נקודות זכות', column: "נק' זכות", type: 'number' },
+  { key: 'points_against', label: 'נקודות חובה', column: "נק' חובה", type: 'number' },
+  { key: 'points', label: 'נקודות', column: 'נקודות', type: 'number' },
 ]
 
 function emptyForm() {
-  return { league_name: '', team_name: '', rank: '', played: '', won: '', lost: '', points_for: '', points_against: '', points: '' }
+  return Object.fromEntries(FIELDS.map((f) => [f.key, '']))
 }
 
 const rows = ref([])
@@ -41,11 +42,12 @@ function startEdit(row) {
 }
 
 function buildPayload() {
-  const payload = { league_name: form.value.league_name, team_name: form.value.team_name }
-  for (const field of FIELDS.slice(2)) {
-    payload[field] = form.value[field] === '' ? 0 : Number(form.value[field])
-  }
-  return payload
+  return Object.fromEntries(
+    FIELDS.map(({ key, type }) => {
+      const value = form.value[key]
+      return [key, type === 'number' ? Number(value || 0) : value]
+    }),
+  )
 }
 
 async function onSubmit() {
@@ -86,29 +88,13 @@ async function onDelete(row) {
     <table class="w-full text-start">
       <thead>
         <tr class="table-header-row">
-          <th class="py-2 text-start">ליגה</th>
-          <th class="py-2 text-start">קבוצה</th>
-          <th class="py-2 text-start">דירוג</th>
-          <th class="py-2 text-start">משחקים</th>
-          <th class="py-2 text-start">נצחונות</th>
-          <th class="py-2 text-start">הפסדים</th>
-          <th class="py-2 text-start">נק' זכות</th>
-          <th class="py-2 text-start">נק' חובה</th>
-          <th class="py-2 text-start">נקודות</th>
+          <th v-for="field in FIELDS" :key="field.key" class="py-2 text-start">{{ field.column }}</th>
           <th class="py-2 text-start"></th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="row.id" class="table-row">
-          <td class="py-2">{{ row.league_name }}</td>
-          <td class="py-2">{{ row.team_name }}</td>
-          <td class="py-2">{{ row.rank }}</td>
-          <td class="py-2">{{ row.played }}</td>
-          <td class="py-2">{{ row.won }}</td>
-          <td class="py-2">{{ row.lost }}</td>
-          <td class="py-2">{{ row.points_for }}</td>
-          <td class="py-2">{{ row.points_against }}</td>
-          <td class="py-2">{{ row.points }}</td>
+          <td v-for="field in FIELDS" :key="field.key" class="py-2">{{ row[field.key] }}</td>
           <td class="py-2">
             <span class="inline-flex gap-2">
               <button type="button" class="hover:underline" @click="startEdit(row)">ערוך</button>
@@ -124,49 +110,15 @@ async function onDelete(row) {
 
       <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
 
-      <div>
-        <label for="standing-league-name" class="field-label">ליגה</label>
-        <input id="standing-league-name" v-model="form.league_name" type="text" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="standing-team-name" class="field-label">קבוצה</label>
-        <input id="standing-team-name" v-model="form.team_name" type="text" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="standing-rank" class="field-label">דירוג</label>
-        <input id="standing-rank" v-model="form.rank" type="number" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="standing-played" class="field-label">משחקים</label>
-        <input id="standing-played" v-model="form.played" type="number" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="standing-won" class="field-label">נצחונות</label>
-        <input id="standing-won" v-model="form.won" type="number" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="standing-lost" class="field-label">הפסדים</label>
-        <input id="standing-lost" v-model="form.lost" type="number" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="standing-points-for" class="field-label">נקודות זכות</label>
-        <input id="standing-points-for" v-model="form.points_for" type="number" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="standing-points-against" class="field-label">נקודות חובה</label>
-        <input id="standing-points-against" v-model="form.points_against" type="number" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="standing-points" class="field-label">נקודות</label>
-        <input id="standing-points" v-model="form.points" type="number" required class="field-input" />
+      <div v-for="field in FIELDS" :key="field.key">
+        <label :for="`standing-${field.key.replaceAll('_', '-')}`" class="field-label">{{ field.label }}</label>
+        <input
+          :id="`standing-${field.key.replaceAll('_', '-')}`"
+          v-model="form[field.key]"
+          :type="field.type"
+          required
+          class="field-input"
+        />
       </div>
 
       <div class="flex gap-2">

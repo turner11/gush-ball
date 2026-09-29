@@ -10,23 +10,30 @@ const teamId = route.params.id
 
 const { error, get, update } = useTeams()
 
+// Plain inputs shown above and below the color pickers.
+const NAME_FIELDS = [
+  { key: 'name', label: 'שם', type: 'text', required: true },
+  { key: 'name_en', label: 'שם (אנגלית)', type: 'text' },
+]
+const DETAIL_FIELDS = [
+  { key: 'logo_url', label: 'כתובת לוגו', type: 'url' },
+  { key: 'home_court_address', label: 'כתובת אולם הבית', type: 'text' },
+  { key: 'facebook_url', label: 'פייסבוק', type: 'url' },
+  { key: 'instagram_url', label: 'אינסטגרם', type: 'url' },
+  { key: 'youtube_url', label: 'יוטיוב', type: 'url' },
+  { key: 'tiktok_url', label: 'טיקטוק', type: 'url' },
+  { key: 'twitter_url', label: 'טוויטר (X)', type: 'url' },
+  { key: 'ibasketball_team_url', label: 'כתובת קבוצה ב-ibasketball', type: 'url' },
+  { key: 'ibasketball_league_url', label: 'כתובת ליגה ב-ibasketball', type: 'url' },
+]
+
 const team = ref(null)
 const loading = ref(true)
 const submitting = ref(false)
 const form = reactive({
-  name: '',
-  name_en: '',
+  ...Object.fromEntries([...NAME_FIELDS, ...DETAIL_FIELDS].map((f) => [f.key, ''])),
   primary_color: '#000000',
   secondary_color: '#000000',
-  logo_url: '',
-  home_court_address: '',
-  facebook_url: '',
-  instagram_url: '',
-  youtube_url: '',
-  tiktok_url: '',
-  twitter_url: '',
-  ibasketball_team_url: '',
-  ibasketball_league_url: '',
 })
 
 async function load() {
@@ -106,23 +113,13 @@ const contentSections = [
           <p class="mt-1 text-neutral-600 dark:text-neutral-400">{{ team.slug }}</p>
         </div>
 
-        <div>
-          <label for="team-name" class="field-label">שם</label>
+        <div v-for="field in NAME_FIELDS" :key="field.key">
+          <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
           <input
-            id="team-name"
-            v-model="form.name"
-            type="text"
-            required
-            class="field-input"
-          />
-        </div>
-
-        <div>
-          <label for="team-name-en" class="field-label">שם (אנגלית)</label>
-          <input
-            id="team-name-en"
-            v-model="form.name_en"
-            type="text"
+            :id="`team-${field.key}`"
+            v-model="form[field.key]"
+            :type="field.type"
+            :required="field.required"
             class="field-input"
           />
         </div>
@@ -143,98 +140,9 @@ const contentSections = [
           </div>
         </div>
 
-        <div>
-          <label for="team-logo-url" class="field-label">כתובת לוגו</label>
-          <input
-            id="team-logo-url"
-            v-model="form.logo_url"
-            type="url"
-            class="field-input"
-          />
-        </div>
-
-        <div>
-          <label for="team-home-court" class="field-label">כתובת אולם הבית</label>
-          <input
-            id="team-home-court"
-            v-model="form.home_court_address"
-            type="text"
-            class="field-input"
-          />
-        </div>
-
-        <div>
-          <label for="team-facebook" class="field-label">פייסבוק</label>
-          <input
-            id="team-facebook"
-            v-model="form.facebook_url"
-            type="url"
-            class="field-input"
-          />
-        </div>
-
-        <div>
-          <label for="team-instagram" class="field-label">אינסטגרם</label>
-          <input
-            id="team-instagram"
-            v-model="form.instagram_url"
-            type="url"
-            class="field-input"
-          />
-        </div>
-
-        <div>
-          <label for="team-youtube" class="field-label">יוטיוב</label>
-          <input
-            id="team-youtube"
-            v-model="form.youtube_url"
-            type="url"
-            class="field-input"
-          />
-        </div>
-
-        <div>
-          <label for="team-tiktok" class="field-label">טיקטוק</label>
-          <input
-            id="team-tiktok"
-            v-model="form.tiktok_url"
-            type="url"
-            class="field-input"
-          />
-        </div>
-
-        <div>
-          <label for="team-twitter" class="field-label">טוויטר (X)</label>
-          <input
-            id="team-twitter"
-            v-model="form.twitter_url"
-            type="url"
-            class="field-input"
-          />
-        </div>
-
-        <div>
-          <label for="team-ibasketball-team" class="field-label">
-            כתובת קבוצה ב-ibasketball
-          </label>
-          <input
-            id="team-ibasketball-team"
-            v-model="form.ibasketball_team_url"
-            type="url"
-            class="field-input"
-          />
-        </div>
-
-        <div>
-          <label for="team-ibasketball-league" class="field-label">
-            כתובת ליגה ב-ibasketball
-          </label>
-          <input
-            id="team-ibasketball-league"
-            v-model="form.ibasketball_league_url"
-            type="url"
-            class="field-input"
-          />
+        <div v-for="field in DETAIL_FIELDS" :key="field.key">
+          <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
+          <input :id="`team-${field.key}`" v-model="form[field.key]" :type="field.type" class="field-input" />
         </div>
 
         <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>

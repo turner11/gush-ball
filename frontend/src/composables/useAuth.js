@@ -1,17 +1,21 @@
 import { ref } from 'vue'
 
+import { apiFetch } from '../lib/api'
+
 const user = ref(null)
 const checked = ref(false)
 const error = ref(null)
 
+const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
+
 export function useAuth() {
   async function checkSession() {
     try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' })
-      user.value = res.ok ? await res.json() : null
-    } catch {
+      user.value = await apiFetch('/auth/me')
+    } catch (err) {
       user.value = null
-      error.value = 'שגיאת התחברות, נסה שוב'
+      // A 401 just means "not logged in"; only a network failure is an error.
+      if (!err.status) error.value = CONNECTION_ERROR
     }
     checked.value = true
     return user.value
@@ -19,28 +23,20 @@ export function useAuth() {
 
   async function login(username, password) {
     try {
-      const res = await fetch('/api/auth/login', {
+      user.value = await apiFetch('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
+        body: { username, password },
       })
-      if (!res.ok) {
-        user.value = null
-        error.value = 'שם משתמש או סיסמה שגויים'
-        return
-      }
-      user.value = await res.json()
       error.value = null
-    } catch {
+    } catch (err) {
       user.value = null
-      error.value = 'שגיאת התחברות, נסה שוב'
+      error.value = err.status ? 'שם משתמש או סיסמה שגויים' : CONNECTION_ERROR
     }
   }
 
   async function logout() {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+      await apiFetch('/auth/logout', { method: 'POST' })
       user.value = null
     } catch {
       error.value = 'שגיאת התנתקות, נסה שוב'

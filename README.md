@@ -104,23 +104,15 @@ Add it to the deploy user's crontab:
 ### 6. Nightly scraper sync
 
 Standings + schedule/results/opponent logos (issues #13/#14) also run unattended via cron, in
-addition to the admin's manual "סנכרון עכשיו" button (issue #17). Add this line to the **same**
-deploy user's crontab as step 5's `backup.sh` line, so `docker compose exec` resolves against the
-same Docker context:
+addition to the admin's manual "סנכרון עכשיו" button (issue #17). Add this to the **same** deploy
+user's crontab as step 5's `backup.sh`:
 
 ```
-0 4 * * * cd ~/gush-ball && docker compose -f docker-compose.prod.yml exec -T backend uv run python -m app.scrape_standings ; docker compose -f docker-compose.prod.yml exec -T backend uv run python -m app.scrape_games
+0 4 * * * cd ~/gush-ball && docker compose -f docker-compose.prod.yml exec -T backend uv run python -m app.scrape
 ```
 
-One crontab line, with the two commands joined by `;` (not `&&`) — `;` runs games regardless of
-whether standings succeeded, so a standings failure never skips the games sync, while still
-running them sequentially in one cron invocation so they never overlap and both respect
-ibasketball.co.il's `Crawl-Delay: 10`. Two separate crontab lines (one per `H:MM`) would risk the
-games line firing while standings is still mid-run if standings overruns its 5-minute head start.
-`-T` disables pseudo-tty allocation, matching non-interactive cron execution (`backup.sh` doesn't
-need it since it isn't run through `exec`). `-m app.<module>`, not `python app/scrape_x.py` — both
-modules do `from app.db import ...`, and running the file directly would put `backend/app/` rather
-than `backend/` on `sys.path` and break that import.
+`app.scrape` runs standings then games sequentially (never overlapping, respecting
+ibasketball.co.il's `Crawl-Delay: 10`); a failing team's standings are logged and skipped, not fatal.
 
 ### 7. Restore (into a scratch DB, to verify a backup)
 
@@ -140,7 +132,7 @@ restarts.
 
 ## Project phases
 
-1. **Phase 1** (current): manually-populated public site (teams, players, schedule, standings,
+1. **Phase 1**: manually-populated public site (teams, players, schedule, standings,
    scores) + basic admin CRUD. Hebrew/RTL only. Dark/light toggle.
 2. **Phase 2**: scraper (standings + schedule/results + opponent logos from ibasketball.co.il)
    into a pending-review admin queue, with manual-override protection against re-scrape clobber.
