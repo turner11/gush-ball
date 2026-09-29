@@ -145,10 +145,21 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const header = wrapper.find('header')
-    expect(header.classes()).toContain('sticky')
-    expect(header.classes()).toContain('top-0')
+    expect(header.element.parentElement.classList).toContain('sticky')
+    expect(header.element.parentElement.classList).toContain('top-0')
     const logo = header.find('img[src="/logo.jpg"]')
     expect(logo.attributes('alt')).toBe('גוש כדורסל')
     expect(header.text()).not.toContain('גוש כדורסל')
+  })
+
+  it('hero stays pinned with the header', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const parent = wrapper.find('header').element.parentElement
+    expect(wrapper.find('[data-testid="hero"]').element.parentElement).toBe(parent)
   })
 })
