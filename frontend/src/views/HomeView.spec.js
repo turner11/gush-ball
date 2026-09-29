@@ -201,6 +201,35 @@ describe('HomeView', () => {
     expect(cards.some((c) => c.find('img[src="https://l/b.png"]').exists())).toBe(true)
   })
 
+  describe('game location links', () => {
+    const opp = { name: 'יריבה', source_url: null, logo_url: null }
+    const game = (id, scheduled_at, is_home) => ({ id, opponent: opp, scheduled_at, is_home, team_score: null, opponent_score: null })
+    const google = `a[href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(TEAM.home_court_address)}"]`
+    const waze = `a[href^="https://waze.com/ul?q=${encodeURIComponent(TEAM.home_court_address)}"]`
+
+    it('shows maps and waze links on home game cards', async () => {
+      const wrapper = await mountWithTeam(TEAM, {
+        games: [game(1, '2999-01-01T18:00:00', true), game(2, '2000-01-01T18:00:00', true)],
+      })
+      const cards = wrapper.findAll('div.card')
+      expect(cards).toHaveLength(2)
+      for (const c of cards) {
+        expect(c.find(google).exists()).toBe(true)
+        expect(c.find(waze).exists()).toBe(true)
+      }
+    })
+
+    it('hides location links on away games and when the team has no address', async () => {
+      const away = await mountWithTeam(TEAM, { games: [game(1, '2999-01-01T18:00:00', false)] })
+      expect(away.find(google).exists()).toBe(false)
+      expect(away.find(waze).exists()).toBe(false)
+
+      const noAddr = await mountWithTeam({ ...TEAM, home_court_address: null }, { games: [game(1, '2999-01-01T18:00:00', true)] })
+      expect(noAddr.find('a[href*="google.com/maps"]').exists()).toBe(false)
+      expect(noAddr.find('a[href*="waze.com"]').exists()).toBe(false)
+    })
+  })
+
   it('renders a carousel card per player', async () => {
     const wrapper = await mountWithTeam(TEAM, {
       players: [

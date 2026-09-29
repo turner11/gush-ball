@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
+import GameLocationLinks from '../components/GameLocationLinks.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -102,7 +103,10 @@ watch(
               <img v-if="nextGame.opponent.logo_url" :src="nextGame.opponent.logo_url" alt="" class="h-8 w-8 object-contain" />
               {{ nextGame.opponent.name }}
             </p>
-            <p class="text-sm">{{ formatDateTime(nextGame.scheduled_at) }} · {{ nextGame.is_home ? 'בית' : 'חוץ' }}</p>
+            <p class="flex items-center gap-2 text-sm">
+              <span>{{ formatDateTime(nextGame.scheduled_at) }} · {{ nextGame.is_home ? 'בית' : 'חוץ' }}</span>
+              <GameLocationLinks v-if="nextGame.is_home && team.home_court_address" :address="team.home_court_address" />
+            </p>
           </div>
           <div v-if="lastGame" class="card space-y-1">
             <h2 class="section-title">המשחק האחרון</h2>
@@ -110,7 +114,10 @@ watch(
               <img v-if="lastGame.opponent.logo_url" :src="lastGame.opponent.logo_url" alt="" class="h-8 w-8 object-contain" />
               {{ lastGame.opponent.name }}
             </p>
-            <p class="text-sm">{{ formatDateTime(lastGame.scheduled_at) }} · {{ lastGame.is_home ? 'בית' : 'חוץ' }}</p>
+            <p class="flex items-center gap-2 text-sm">
+              <span>{{ formatDateTime(lastGame.scheduled_at) }} · {{ lastGame.is_home ? 'בית' : 'חוץ' }}</span>
+              <GameLocationLinks v-if="lastGame.is_home && team.home_court_address" :address="team.home_court_address" />
+            </p>
             <p v-if="lastGame.team_score !== null && lastGame.opponent_score !== null" class="font-semibold">
               {{ lastGame.team_score }} : {{ lastGame.opponent_score }}
             </p>
