@@ -2,9 +2,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const VIDEOS = [
-  { id: 1, title: 'ישן', url: 'https://vimeo.com/1' },
-  { id: 3, title: 'חדש', url: 'https://vimeo.com/3' },
-  { id: 2, title: 'אמצע', url: 'https://vimeo.com/2' },
+  { id: 1, title: 'ישן', url: 'https://youtu.be/v1' },
+  { id: 3, title: 'חדש', url: 'https://youtu.be/v3' },
+  { id: 2, title: 'אמצע', url: 'https://youtu.be/v2' },
 ]
 const POSTS = [
   { id: 1, title: 'פוסט ישן', body: 'גוף ישן' },

@@ -292,9 +292,9 @@ describe('HomeView', () => {
   it('shows only the 2 newest videos', async () => {
     const wrapper = await mountWithTeam(TEAM, {
       videos: [
-        { id: 1, title: 'ישן', url: 'https://vimeo.com/1' },
-        { id: 2, title: 'אמצע', url: 'https://vimeo.com/2' },
-        { id: 3, title: 'חדש', url: 'https://vimeo.com/3' },
+        { id: 1, title: 'ישן', url: 'https://youtu.be/v1' },
+        { id: 2, title: 'אמצע', url: 'https://youtu.be/v2' },
+        { id: 3, title: 'חדש', url: 'https://youtu.be/v3' },
       ],
     })
 
