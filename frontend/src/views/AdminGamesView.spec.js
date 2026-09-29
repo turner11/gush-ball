@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { formatDateTime } from '../lib/format'
+
 const TEAMS = [{ id: 1, name: 'קבוצה א' }]
 const GAMES = [
   {
@@ -69,7 +71,7 @@ describe('AdminGamesView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('מכבי')
-    expect(wrapper.text()).toContain('2026-10-01')
+    expect(wrapper.text()).toContain(formatDateTime('2026-10-01T18:00:00'))
     expect(wrapper.text()).toContain('scheduled')
   })
 

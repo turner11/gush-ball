@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router'
 import PlayerCard from '../components/PlayerCard.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { formatDateTime } from '../lib/format'
 import { splitGames } from '../lib/games'
 
 const team = ref(null)
@@ -97,7 +98,13 @@ watch(
       <div>
         <h1 class="page-title">{{ team.name }}</h1>
         <p v-if="team.home_court_address" class="text-neutral-600 dark:text-neutral-400">
-          {{ team.home_court_address }}
+          <a
+            :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(team.home_court_address)"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hover:underline"
+            >{{ team.home_court_address }}</a
+          >
         </p>
       </div>
     </div>
@@ -108,12 +115,12 @@ watch(
           <div v-if="nextGame" class="card space-y-1">
             <h2 class="section-title">המשחק הבא</h2>
             <p class="font-semibold">{{ nextGame.opponent.name }}</p>
-            <p class="text-sm">{{ nextGame.scheduled_at }} · {{ nextGame.is_home ? 'בית' : 'חוץ' }}</p>
+            <p class="text-sm">{{ formatDateTime(nextGame.scheduled_at) }} · {{ nextGame.is_home ? 'בית' : 'חוץ' }}</p>
           </div>
           <div v-if="lastGame" class="card space-y-1">
             <h2 class="section-title">המשחק האחרון</h2>
             <p class="font-semibold">{{ lastGame.opponent.name }}</p>
-            <p class="text-sm">{{ lastGame.scheduled_at }} · {{ lastGame.is_home ? 'בית' : 'חוץ' }}</p>
+            <p class="text-sm">{{ formatDateTime(lastGame.scheduled_at) }} · {{ lastGame.is_home ? 'בית' : 'חוץ' }}</p>
             <p v-if="lastGame.team_score !== null && lastGame.opponent_score !== null" class="font-semibold">
               {{ lastGame.team_score }} : {{ lastGame.opponent_score }}
             </p>
