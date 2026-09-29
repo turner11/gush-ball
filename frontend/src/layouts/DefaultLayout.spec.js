@@ -129,6 +129,17 @@ describe('DefaultLayout', () => {
     expect(a.attributes('href')).toBe('/roster')
   })
 
+  it('nav links מדיה to the media page', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const a = wrapper.findAll('a').find((x) => x.text() === 'מדיה')
+    expect(a.attributes('href')).toBe('/media')
+  })
+
   it("exposes the selected team's colors as CSS custom properties", async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 

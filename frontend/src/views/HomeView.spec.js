@@ -49,6 +49,7 @@ describe('HomeView', () => {
       routes: [
         { path: '/', component: { template: '<div/>' } },
         { path: '/roster', component: { template: '<div/>' } },
+        { path: '/media', component: { template: '<div/>' } },
       ],
     })
   })
@@ -288,21 +289,25 @@ describe('HomeView', () => {
     expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'עדכונים', 'שחקנים', 'סרטונים'])
   })
 
-  it('embeds YouTube videos and links others', async () => {
+  it('shows only the 2 newest videos', async () => {
     const wrapper = await mountWithTeam(TEAM, {
       videos: [
-        { id: 1, title: 'א', url: 'https://www.youtube.com/watch?v=abc123' },
-        { id: 2, title: 'ב', url: 'https://youtu.be/xyz' },
-        { id: 3, title: 'ג', url: 'https://vimeo.com/1' },
+        { id: 1, title: 'ישן', url: 'https://youtu.be/v1' },
+        { id: 2, title: 'אמצע', url: 'https://youtu.be/v2' },
+        { id: 3, title: 'חדש', url: 'https://youtu.be/v3' },
       ],
     })
 
-    const srcs = wrapper.findAll('iframe').map((f) => f.attributes('src'))
-    expect(srcs).toEqual([
-      'https://www.youtube-nocookie.com/embed/abc123',
-      'https://www.youtube-nocookie.com/embed/xyz',
-    ])
-    expect(wrapper.find('a[href="https://vimeo.com/1"]').exists()).toBe(true)
+    const titles = wrapper.findAll('article h3').map((h) => h.text())
+    expect(titles).toEqual(['חדש', 'אמצע'])
+    expect(wrapper.findAll('article').length).toBe(2)
+    expect(wrapper.text()).not.toContain('ישן')
+  })
+
+  it('links to all videos on the media page', async () => {
+    const wrapper = await mountWithTeam(TEAM, { videos: [{ id: 1, title: 'א', url: 'https://vimeo.com/1' }] })
+
+    expect(wrapper.find('a[href="/media"]').text()).toBe('כל הסרטונים')
   })
 
   it('hides sections with no content', async () => {

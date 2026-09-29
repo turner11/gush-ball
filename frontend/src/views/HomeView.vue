@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import PlayerCard from '../components/PlayerCard.vue'
+import VideoCard from '../components/VideoCard.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -52,20 +53,8 @@ const lastGame = computed(() => splitGames(games.value).past[0])
 // ponytail: the API has no ORDER BY, so highest id = newest.
 const newestPost = computed(() => posts.value.reduce((a, p) => (!a || p.id > a.id ? p : a), null))
 
-function youtubeId(url) {
-  try {
-    const u = new URL(url)
-    if (u.hostname === 'youtu.be') return u.pathname.slice(1) || null
-    if (u.hostname.endsWith('youtube.com')) {
-      if (u.pathname === '/watch') return u.searchParams.get('v')
-      const m = u.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)
-      return m ? m[1] : null
-    }
-  } catch {
-    // fall through to a plain link
-  }
-  return null
-}
+// ponytail: same highest-id-is-newest rule; the media page lists the rest.
+const latestVideos = computed(() => [...videos.value].sort((x, y) => y.id - x.id).slice(0, 2))
 
 const facebookEmbedSrc = computed(
   () =>
@@ -163,18 +152,13 @@ watch(
         </section>
 
         <section v-if="videos.length" class="space-y-2">
-          <h2 class="section-title">סרטונים</h2>
+          <div class="flex items-center justify-between">
+            <h2 class="section-title">סרטונים</h2>
+            <RouterLink to="/media" class="text-sm hover:underline">כל הסרטונים</RouterLink>
+          </div>
           <ul class="space-y-4">
-            <li v-for="video in videos" :key="video.id">
-              <iframe
-                v-if="youtubeId(video.url)"
-                :src="`https://www.youtube-nocookie.com/embed/${youtubeId(video.url)}`"
-                :title="video.title"
-                loading="lazy"
-                allowfullscreen
-                class="aspect-video w-full border-0"
-              ></iframe>
-              <a v-else :href="video.url" target="_blank" rel="noopener" class="hover:underline">{{ video.title }}</a>
+            <li v-for="video in latestVideos" :key="video.id">
+              <VideoCard :video="video" />
             </li>
           </ul>
         </section>

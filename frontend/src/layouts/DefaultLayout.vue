@@ -16,6 +16,7 @@ const navItems = computed(() => [
   { to: '/schedule', label: 'לוח משחקים' },
   { to: '/standings', label: 'טבלה' },
   { to: '/roster', label: 'שחקנים' },
+  { to: '/media', label: 'מדיה' },
   { to: '/roster', label: 'סטטיסטיקה' },
 ])
 
