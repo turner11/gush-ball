@@ -91,7 +91,21 @@ onMounted(async () => {
         :style="{ backgroundImage: `url(/backgrounds/${selectedTeam.background ?? 'hoop-1'}.jpg)` }"
       >
         <div class="w-full bg-black/40 py-2">
-          <p class="page-title mx-auto max-w-5xl px-4 !text-white">{{ selectedTeam.name }}</p>
+          <div class="mx-auto flex max-w-5xl items-center gap-3 px-4">
+            <!-- ponytail: no bg/rounded so a transparent PNG logo stays transparent -->
+            <img v-if="selectedTeam.logo_url" :src="selectedTeam.logo_url" alt="" class="h-10 w-10 object-contain" />
+            <p class="page-title !text-white">{{ selectedTeam.name }}</p>
+            <a
+              v-if="selectedTeam.home_court_address"
+              :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(selectedTeam.home_court_address)"
+              target="_blank"
+              rel="noopener noreferrer"
+              :aria-label="selectedTeam.home_court_address"
+              :title="selectedTeam.home_court_address"
+              class="text-xl !text-white"
+              >📍</a
+            >
+          </div>
         </div>
       </div>
     </div>
