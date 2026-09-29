@@ -59,6 +59,14 @@ function suggestionCurrentValue(game, key) {
   return key === 'opponent_name' ? game.opponent.name : game[key]
 }
 
+// Moves a game out of the pending queue (if there) and upserts it into the live list.
+function replaceGame(updated) {
+  pendingGames.value = pendingGames.value.filter((g) => g.id !== updated.id)
+  const idx = games.value.findIndex((g) => g.id === updated.id)
+  if (idx !== -1) games.value[idx] = updated
+  else games.value.push(updated)
+}
+
 function resetForm() {
   editing.value = null
   form.value = emptyForm()
@@ -95,10 +103,7 @@ async function onSubmit() {
         method: 'PATCH',
         body: payload,
       })
-      const idx = games.value.findIndex((g) => g.id === updated.id)
-      if (idx !== -1) games.value[idx] = updated
-      else games.value.push(updated)
-      pendingGames.value = pendingGames.value.filter((g) => g.id !== updated.id)
+      replaceGame(updated)
     } else {
       const created = await apiFetch(`/teams/${selectedTeamId.value}/games`, {
         method: 'POST',
@@ -119,18 +124,10 @@ async function approveGame(game) {
     const approved = await apiFetch(`/teams/${selectedTeamId.value}/games/${game.id}/approve`, {
       method: 'POST',
     })
-    pendingGames.value = pendingGames.value.filter((g) => g.id !== game.id)
-    games.value.push(approved)
+    replaceGame(approved)
   } catch {
     error.value = 'שגיאה באישור המשחק, נסה שוב'
   }
-}
-
-function replaceGame(updated) {
-  pendingGames.value = pendingGames.value.filter((g) => g.id !== updated.id)
-  const idx = games.value.findIndex((g) => g.id === updated.id)
-  if (idx !== -1) games.value[idx] = updated
-  else games.value.push(updated)
 }
 
 async function acceptSuggestion(game) {

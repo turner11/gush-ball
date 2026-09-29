@@ -38,7 +38,7 @@ describe('useAuth', () => {
   })
 
   it('logout clears the current user', async () => {
-    global.fetch.mockResolvedValueOnce({ ok: true })
+    global.fetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) })
 
     const { useAuth } = await import('./useAuth.js')
     const { user, logout } = useAuth()

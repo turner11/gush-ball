@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -11,10 +11,10 @@ const STATUS_LABELS = {
   cancelled: 'בוטל',
 }
 
-const teams = ref([])
 const games = ref([])
 
-const { selectedTeamId, ensureDefault } = useSelectedTeam()
+// DefaultLayout picks the default team; this view only follows the selection.
+const { selectedTeamId } = useSelectedTeam()
 
 const upcoming = computed(() =>
   games.value
@@ -35,13 +35,7 @@ async function loadGames() {
   games.value = await apiFetch(`/teams/${selectedTeamId.value}/games`)
 }
 
-onMounted(async () => {
-  teams.value = await apiFetch('/teams')
-  ensureDefault(teams.value)
-  await loadGames()
-})
-
-watch(selectedTeamId, loadGames)
+watch(selectedTeamId, loadGames, { immediate: true })
 </script>
 
 <template>

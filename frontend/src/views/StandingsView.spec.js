@@ -64,6 +64,7 @@ describe('StandingsView', () => {
   beforeEach(() => {
     vi.resetModules()
     localStorage.clear()
+    localStorage.setItem('gush-ball:selected-team-id', '1')
     router = createRouter({
       history: createWebHistory(),
       routes: [{ path: '/', component: { template: '<div/>' } }],
@@ -76,7 +77,6 @@ describe('StandingsView', () => {
 
   it("renders the selected team's league table, highlighting its own row", async () => {
     mockFetch({
-      'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1': () => jsonRes(TEAM),
       'GET /api/standings': () => jsonRes(ROWS),
     })
@@ -94,7 +94,6 @@ describe('StandingsView', () => {
 
   it("shows an empty state when no standings row matches the team's name", async () => {
     mockFetch({
-      'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1': () => jsonRes(TEAM),
       'GET /api/standings': () => jsonRes([ROWS[2]]),
     })

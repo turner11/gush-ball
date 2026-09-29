@@ -43,6 +43,7 @@ describe('HomeView', () => {
   beforeEach(() => {
     vi.resetModules()
     localStorage.clear()
+    localStorage.setItem('gush-ball:selected-team-id', '1')
     router = createRouter({
       history: createWebHistory(),
       routes: [{ path: '/', component: { template: '<div/>' } }],
@@ -55,7 +56,6 @@ describe('HomeView', () => {
 
   it("renders the selected team's profile and content (logo, home court, links, posts)", async () => {
     mockFetch({
-      'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1': () => jsonRes(TEAM),
       'GET /api/teams/1/links': () => jsonRes(LINKS),
       'GET /api/teams/1/videos': () => jsonRes(VIDEOS),
@@ -73,10 +73,9 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('עדכון עונה')
   })
 
-  it('shows an empty state when there are no teams in the DB', async () => {
-    mockFetch({
-      'GET /api/teams': () => jsonRes([]),
-    })
+  it('shows an empty state when no team is selected (none in the DB)', async () => {
+    localStorage.clear()
+    mockFetch({})
 
     const { default: HomeView } = await import('./HomeView.vue')
     const wrapper = mount(HomeView, { global: { plugins: [router] } })
@@ -87,7 +86,6 @@ describe('HomeView', () => {
   })
   async function mountWithTeam(team) {
     mockFetch({
-      'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1': () => jsonRes(team),
       'GET /api/teams/1/links': () => jsonRes([]),
       'GET /api/teams/1/videos': () => jsonRes([]),
@@ -133,7 +131,6 @@ describe('HomeView', () => {
   it('re-renders the twitter timeline anchor when switching teams', async () => {
     const teamB = { ...TEAM, id: 2, twitter_url: 'https://x.com/teamb' }
     mockFetch({
-      'GET /api/teams': () => jsonRes([...TEAMS, { id: 2, name: 'קבוצה ב' }]),
       'GET /api/teams/1': () => jsonRes({ ...TEAM, twitter_url: 'https://x.com/teama' }),
       'GET /api/teams/2': () => jsonRes(teamB),
       ...Object.fromEntries(

@@ -1,17 +1,17 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 
-const teams = ref([])
 const team = ref(null)
 const links = ref([])
 const videos = ref([])
 const images = ref([])
 const posts = ref([])
 
-const { selectedTeamId, ensureDefault } = useSelectedTeam()
+// DefaultLayout picks the default team; this view only follows the selection.
+const { selectedTeamId } = useSelectedTeam()
 
 async function load() {
   if (!selectedTeamId.value) {
@@ -33,13 +33,7 @@ async function load() {
   ])
 }
 
-onMounted(async () => {
-  teams.value = await apiFetch('/teams')
-  ensureDefault(teams.value)
-  await load()
-})
-
-watch(selectedTeamId, load)
+watch(selectedTeamId, load, { immediate: true })
 
 const facebookEmbedSrc = computed(
   () =>

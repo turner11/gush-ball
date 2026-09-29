@@ -27,6 +27,7 @@ describe('RosterView', () => {
   beforeEach(() => {
     vi.resetModules()
     localStorage.clear()
+    localStorage.setItem('gush-ball:selected-team-id', '1')
     router = createRouter({
       history: createWebHistory(),
       routes: [{ path: '/', component: { template: '<div/>' } }],
@@ -39,7 +40,6 @@ describe('RosterView', () => {
 
   it("renders the selected team's players with jersey numbers", async () => {
     mockFetch({
-      'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/players': () => jsonRes(PLAYERS),
     })
 
@@ -53,7 +53,6 @@ describe('RosterView', () => {
 
   it('keeps the existing stats coming-soon message', async () => {
     mockFetch({
-      'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/players': () => jsonRes(PLAYERS),
     })
 

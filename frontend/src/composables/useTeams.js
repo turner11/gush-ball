@@ -1,81 +1,31 @@
 import { ref } from 'vue'
 
+import { apiFetch, tryApiFetch } from '../lib/api'
+
 export function useTeams() {
   const error = ref(null)
 
   async function get(id) {
     try {
-      const res = await fetch(`/api/teams/${id}`, { credentials: 'include' })
-      if (!res.ok) {
-        error.value =
-          res.status === 404 ? 'הקבוצה לא נמצאה' : 'שגיאה בטעינת הקבוצה, נסה שוב'
-        return
-      }
-      return await res.json()
-    } catch {
-      error.value = 'שגיאה בטעינת הקבוצה, נסה שוב'
+      return await apiFetch(`/teams/${id}`)
+    } catch (err) {
+      error.value = err.status === 404 ? 'הקבוצה לא נמצאה' : 'שגיאה בטעינת הקבוצה, נסה שוב'
     }
   }
 
-  async function list() {
-    try {
-      const res = await fetch('/api/teams', { credentials: 'include' })
-      if (!res.ok) {
-        error.value = 'שגיאה בטעינת הקבוצות, נסה שוב'
-        return
-      }
-      return await res.json()
-    } catch {
-      error.value = 'שגיאה בטעינת הקבוצות, נסה שוב'
-    }
-  }
+  const list = () => tryApiFetch(error, 'שגיאה בטעינת הקבוצות, נסה שוב', '/teams')
 
-  async function create(payload) {
-    try {
-      const res = await fetch('/api/teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        error.value = 'שגיאה ביצירת הקבוצה, נסה שוב'
-        return
-      }
-      return await res.json()
-    } catch {
-      error.value = 'שגיאה ביצירת הקבוצה, נסה שוב'
-    }
-  }
+  const create = (payload) =>
+    tryApiFetch(error, 'שגיאה ביצירת הקבוצה, נסה שוב', '/teams', { method: 'POST', body: payload })
 
-  async function update(id, payload) {
-    try {
-      const res = await fetch(`/api/teams/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        error.value = 'שגיאה בעדכון הקבוצה, נסה שוב'
-        return
-      }
-      return await res.json()
-    } catch {
-      error.value = 'שגיאה בעדכון הקבוצה, נסה שוב'
-    }
-  }
+  const update = (id, payload) =>
+    tryApiFetch(error, 'שגיאה בעדכון הקבוצה, נסה שוב', `/teams/${id}`, {
+      method: 'PATCH',
+      body: payload,
+    })
 
-  async function destroy(id) {
-    try {
-      const res = await fetch(`/api/teams/${id}`, { method: 'DELETE', credentials: 'include' })
-      if (!res.ok) {
-        error.value = 'שגיאה במחיקת הקבוצה, נסה שוב'
-      }
-    } catch {
-      error.value = 'שגיאה במחיקת הקבוצה, נסה שוב'
-    }
-  }
+  const destroy = (id) =>
+    tryApiFetch(error, 'שגיאה במחיקת הקבוצה, נסה שוב', `/teams/${id}`, { method: 'DELETE' })
 
   return { error, get, list, create, update, delete: destroy }
 }
