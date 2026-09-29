@@ -16,8 +16,7 @@ from pydantic import BaseModel
 
 from app.db import SessionLocal
 from app.deps import RequireAdmin
-from app.scrape_games import sync_all_games
-from app.scrape_standings import sync_all_standings
+from app.scrape import sync_all
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 
@@ -34,8 +33,7 @@ def _run_sync() -> None:
         # Background tasks run after the request's own `Depends(get_db)` session may already
         # be closed, so open a fresh one here -- same pattern as the scrapers' own __main__ blocks.
         with SessionLocal() as db:
-            sync_all_standings(db)
-            sync_all_games(db)
+            sync_all(db)
     finally:
         _running = False
 
