@@ -41,17 +41,14 @@ OPPONENT_NAME_UNESCAPED = "מכבי – תל אביב"
 class FakeApi:
     """Path-keyed fake for app.scrape_games._get_json. Records calls, no network/sleep."""
 
-    def __init__(self, events: list[dict], roster: object = None) -> None:
+    def __init__(self, events: list[dict]) -> None:
         self.events = events
-        self.roster = roster
         self.calls: list[tuple[str, dict]] = []
 
     def __call__(self, path: str, **params: object) -> object:
         self.calls.append((path, params))
         if path == "/sportspress/v2/teams":
-            return [{"id": OUR_SP_ID, "lists": [10, 20]}]
-        if path == "/sportspress/v2/lists/20":
-            return {"data": self.roster}
+            return [{"id": OUR_SP_ID}]
         if path == "/sportspress/v2/events":
             return self.events
         if path == f"/sportspress/v2/teams/{OPP_SP_ID}":
@@ -305,60 +302,72 @@ def test_sync_all_games_rolls_back_after_db_failure_so_next_team_still_syncs(
     assert db_session.query(Game).count() == 1
 
 
-HEADER_ROW = {"number": "#", "name": "שחקן", "team": "קבוצה"}
+ROSTER_HTML = (
+    '<a class="player data-item male" href="/p/1"><img src="a.jpg"/>איתי ורולקר<br />'
+    '<span></span><span>01-02-2000</span></a>'
+    '<a class="player data-item male" href="/p/2"><img src="b.jpg"/>רן &#8211; לוי<br />'
+    '<span></span><span>03-04-2001</span></a>'
+)
 
 
-def _roster(*rows: dict) -> dict:
-    return {str(i): r for i, r in enumerate([HEADER_ROW, *rows])}
+def _fake_roster(monkeypatch: pytest.MonkeyPatch, html_text: str) -> list[dict]:
+    calls: list[dict] = []
+
+    def fake(**params: object) -> str:
+        calls.append(params)
+        return html_text
+
+    monkeypatch.setattr(scrape_games, "_get_html", fake)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
+    return calls
 
 
-def test_sync_team_players_creates_players_for_this_team_only(
+def test_sync_team_players_creates_players_from_roster_tab(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     team = _make_team(db_session)
-    roster = _roster(
-        {"name": "דן כהן", "number": "7", "team": str(OUR_SP_ID)},
-        {"name": "רן &#8211; לוי", "number": "", "team": str(OUR_SP_ID)},
-        {"name": "זר", "number": "3", "team": "999"},
-    )
-    fake = FakeApi([], roster)
-    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    _fake_roster(monkeypatch, ROSTER_HTML)
 
     assert scrape_games.sync_team_players(db_session, team) == 2
 
-    players = db_session.query(Player).order_by(Player.name).all()
-    assert {(p.name, p.jersey_number) for p in players} == {("דן כהן", 7), ("רן – לוי", None)}
-    assert ("/sportspress/v2/lists/20", {}) in fake.calls
+    players = db_session.query(Player).all()
+    assert {(p.name, p.team_id, p.jersey_number) for p in players} == {
+        ("איתי ורולקר", team.id, None),
+        ("רן – לוי", team.id, None),
+    }
 
 
-def test_sync_team_players_keeps_admin_edits(
+def test_sync_team_players_requests_team_roster_template(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     team = _make_team(db_session)
-    db_session.add_all(
-        [
-            Player(team_id=team.id, name="דן כהן", jersey_number=10),
-            Player(team_id=team.id, name="רן לוי"),
-        ]
-    )
-    db_session.commit()
-    roster = _roster(
-        {"name": "דן כהן", "number": "7", "team": str(OUR_SP_ID)},
-        {"name": "רן לוי", "number": "5", "team": str(OUR_SP_ID)},
-    )
-    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([], roster))
+    calls = _fake_roster(monkeypatch, "")
 
     scrape_games.sync_team_players(db_session, team)
 
-    players = {p.name: p.jersey_number for p in db_session.query(Player).all()}
-    assert players == {"דן כהן": 10, "רן לוי": 5}
+    assert calls == [{"action": "ibba", "template": "players", "id": OUR_SP_ID, "type": "sp_team"}]
 
 
-def test_sync_team_players_handles_empty_list(
+def test_sync_team_players_is_idempotent_and_keeps_admin_edits(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     team = _make_team(db_session)
-    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([], [HEADER_ROW]))
+    db_session.add(Player(team_id=team.id, name="איתי ורולקר", jersey_number=10))
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+
+    assert scrape_games.sync_team_players(db_session, team) == 1
+    assert scrape_games.sync_team_players(db_session, team) == 0
+
+    players = {p.name: p.jersey_number for p in db_session.query(Player).all()}
+    assert players == {"איתי ורולקר": 10, "רן – לוי": None}
+
+
+def test_sync_team_players_handles_empty_roster(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, "")
 
     assert scrape_games.sync_team_players(db_session, team) == 0
     assert db_session.query(Player).count() == 0
