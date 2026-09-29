@@ -59,6 +59,7 @@ watch(selectedTeamId, loadGames, { immediate: true })
           <tbody>
             <tr v-for="game in upcoming" :key="game.id" class="table-row">
               <td class="py-2">
+                <img v-if="game.opponent.logo_url" :src="game.opponent.logo_url" alt="" class="me-2 inline h-6 w-6 object-contain" />
                 <a v-if="game.opponent.source_url" :href="game.opponent.source_url" target="_blank" rel="noopener" class="hover:underline">{{ game.opponent.name }}</a>
                 <template v-else>{{ game.opponent.name }}</template>
               </td>
@@ -86,6 +87,7 @@ watch(selectedTeamId, loadGames, { immediate: true })
           <tbody>
             <tr v-for="game in past" :key="game.id" class="table-row">
               <td class="py-2">
+                <img v-if="game.opponent.logo_url" :src="game.opponent.logo_url" alt="" class="me-2 inline h-6 w-6 object-contain" />
                 <a v-if="game.opponent.source_url" :href="game.opponent.source_url" target="_blank" rel="noopener" class="hover:underline">{{ game.opponent.name }}</a>
                 <template v-else>{{ game.opponent.name }}</template>
               </td>
