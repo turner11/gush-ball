@@ -210,6 +210,14 @@ describe('HomeView', () => {
     expect(wrapper.find('.empty-state').exists()).toBe(false)
   })
 
+  it('uses the full width when the team has no social links', async () => {
+    const wrapper = await mountWithTeam(TEAM)
+
+    expect(wrapper.find('aside').exists()).toBe(false)
+    expect(wrapper.html()).not.toContain('md:col-span-2')
+    expect(wrapper.html()).not.toContain('md:grid-cols-3')
+  })
+
   it('puts social embeds in the aside, apart from the links section', async () => {
     const wrapper = await mountWithTeam(
       { ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' },

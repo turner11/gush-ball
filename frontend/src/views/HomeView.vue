@@ -102,8 +102,8 @@ watch(
       </div>
     </div>
 
-    <div class="grid gap-8 md:grid-cols-3">
-      <div class="space-y-8 md:col-span-2">
+    <div class="grid gap-8" :class="{ 'md:grid-cols-3': hasSocial }">
+      <div class="space-y-8" :class="{ 'md:col-span-2': hasSocial }">
         <div v-if="nextGame || lastGame" class="grid gap-4 sm:grid-cols-2">
           <div v-if="nextGame" class="card space-y-1">
             <h2 class="section-title">המשחק הבא</h2>
