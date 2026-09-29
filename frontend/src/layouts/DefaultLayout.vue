@@ -56,8 +56,20 @@ onMounted(async () => {
         ]"
       >
         <nav class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-1">
-          <RouterLink to="/" aria-label="גוש כדורסל — דף הבית">
-            <img :src="LOGO_URL" alt="גוש כדורסל" class="h-10 w-auto rounded" />
+          <RouterLink
+            to="/"
+            :aria-label="(selectedTeam?.name ?? 'גוש כדורסל') + ' — דף הבית'"
+            class="flex min-w-0 items-center gap-2"
+          >
+            <!-- ponytail: team logos are transparent PNGs, so no bg/rounded on them -->
+            <img
+              v-if="selectedTeam?.logo_url"
+              :src="selectedTeam.logo_url"
+              alt=""
+              class="h-10 w-10 shrink-0 object-contain"
+            />
+            <img v-else :src="LOGO_URL" alt="גוש כדורסל" class="h-10 w-auto rounded" />
+            <span v-if="selectedTeam" class="truncate font-bold">{{ selectedTeam.name }}</span>
           </RouterLink>
           <ul class="flex gap-4 text-sm">
             <li v-for="item in navItems" :key="item.to">
@@ -92,9 +104,6 @@ onMounted(async () => {
       >
         <div class="w-full bg-black/40 py-2">
           <div class="mx-auto flex max-w-5xl items-center gap-3 px-4">
-            <!-- ponytail: no bg/rounded so a transparent PNG logo stays transparent -->
-            <img v-if="selectedTeam.logo_url" :src="selectedTeam.logo_url" alt="" class="h-10 w-10 object-contain" />
-            <p class="page-title !text-white">{{ selectedTeam.name }}</p>
             <a
               v-if="selectedTeam.home_court_address"
               :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(selectedTeam.home_court_address)"
@@ -115,9 +124,5 @@ onMounted(async () => {
         <RouterView />
       </ErrorBoundary>
     </main>
-
-    <footer class="border-t border-neutral-200 px-4 py-4 text-center text-sm text-neutral-500 dark:border-neutral-700">
-      גוש כדורסל
-    </footer>
   </div>
 </template>
