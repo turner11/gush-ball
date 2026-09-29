@@ -93,22 +93,6 @@ watch(
 
 <template>
   <section v-if="team" class="space-y-8">
-    <div class="flex items-center gap-4">
-      <img v-if="team.logo_url" :src="team.logo_url" :alt="team.name" class="h-16 w-16 rounded object-contain" />
-      <div>
-        <h1 class="page-title">{{ team.name }}</h1>
-        <p v-if="team.home_court_address" class="text-neutral-600 dark:text-neutral-400">
-          <a
-            :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(team.home_court_address)"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="hover:underline"
-            >{{ team.home_court_address }}</a
-          >
-        </p>
-      </div>
-    </div>
-
     <div class="grid gap-8" :class="{ 'md:grid-cols-3': hasSocial }">
       <div class="space-y-8" :class="{ 'md:col-span-2': hasSocial }">
         <div v-if="nextGame || lastGame" class="grid gap-4 sm:grid-cols-2">
