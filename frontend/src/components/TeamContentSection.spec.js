@@ -39,6 +39,28 @@ describe('TeamContentSection', () => {
     document.body.innerHTML = ''
   })
 
+  it('field with upload:true fills the url input after an upload', async () => {
+    mockFetch({
+      'GET /api/teams/1/links': () => jsonRes([]),
+      'POST /api/uploads': () => jsonRes({ url: 'https://cdn/x.png' }),
+    })
+
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const fields = FIELDS.map((f) => (f.key === 'url' ? { ...f, upload: true } : f))
+    const wrapper = mount(TeamContentSection, {
+      props: { teamId: 1, resource: 'links', heading: 'קישורים', fields },
+    })
+    await flushPromises()
+
+    const input = wrapper.find('input[type="file"]')
+    const file = new File(['a'], 'a.png', { type: 'image/png' })
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.find('#links-url').element.value).toBe('https://cdn/x.png')
+  })
+
   it('clicking מחיקה opens a confirmation dialog and does not call DELETE until confirmed', async () => {
     mockFetch({ 'GET /api/teams/1/links': () => jsonRes(LINKS) })
 

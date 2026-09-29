@@ -83,6 +83,34 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('דני')
   })
 
+  it('uploading a player image fills the image url input and הוסף תמונה posts it', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'POST /api/uploads': () => jsonRes({ url: 'https://cdn/p.png' }),
+      'POST /api/players/10/images': () => jsonRes({ id: 5, url: 'https://cdn/p.png' }, 201),
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const input = wrapper.find('input[type="file"]')
+    const file = new File(['a'], 'p.png', { type: 'image/png' })
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.find('input[type="url"]').element.value).toBe('https://cdn/p.png')
+
+    await wrapper.findAll('button').find((b) => b.text() === 'הוסף תמונה').trigger('click')
+    await flushPromises()
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/players/10/images',
+      expect.objectContaining({ body: JSON.stringify({ url: 'https://cdn/p.png' }) }),
+    )
+  })
+
   it('clicking edit, changing a field and submitting PATCHes and updates the list', async () => {
     const updated = { id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 23, images: [] }
     mockFetch({

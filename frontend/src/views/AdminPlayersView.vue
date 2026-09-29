@@ -2,6 +2,7 @@
 import { onMounted, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
+import ImageUpload from '../components/ImageUpload.vue'
 import { apiFetch } from '../lib/api'
 
 const teams = ref([])
@@ -172,6 +173,7 @@ async function deleteImage(player, image) {
               <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="w-40 rounded border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-600 dark:bg-neutral-800" />
               <button type="button" class="text-xs hover:underline" @click="addImage(player)">הוסף תמונה</button>
             </div>
+            <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
           </td>
           <td class="py-2">
             <span class="inline-flex gap-2">

@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
+import ImageUpload from '../components/ImageUpload.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import { useTeams } from '../composables/useTeams'
 
@@ -87,7 +88,7 @@ const contentSections = [
     fields: [
       { key: 'title', label: 'כותרת', type: 'text', required: true },
       { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
-      { key: 'url', label: 'כתובת', type: 'url', required: true },
+      { key: 'url', label: 'כתובת', type: 'url', required: true, upload: true },
     ],
   },
   {
@@ -152,6 +153,7 @@ const contentSections = [
         <div v-for="field in DETAIL_FIELDS" :key="field.key">
           <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
           <input :id="`team-${field.key}`" v-model="form[field.key]" :type="field.type" class="field-input" />
+          <ImageUpload v-if="field.key === 'logo_url'" @uploaded="(url) => (form.logo_url = url)" />
         </div>
 
         <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
