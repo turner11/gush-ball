@@ -34,7 +34,7 @@ watch(selectedTeamId, loadPlayers, { immediate: true })
     <p v-else class="empty-state">אין שחקנים עדיין.</p>
 
     <template v-if="selectedTeamId">
-      <h2 id="lineups" class="section-title">חמישיות</h2>
+      <h2 class="section-title">חמישיות</h2>
       <LineupStats :team-id="selectedTeamId" :players="players" />
     </template>
   </section>

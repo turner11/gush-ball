@@ -118,7 +118,7 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('select').exists()).toBe(false)
   })
 
-  it('nav links סטטיסטיקה to the lineups section', async () => {
+  it('nav links סטטיסטיקה to the roster page', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -126,7 +126,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const a = wrapper.findAll('a').find((x) => x.text() === 'סטטיסטיקה')
-    expect(a.attributes('href')).toBe('/roster#lineups')
+    expect(a.attributes('href')).toBe('/roster')
   })
 
   it("exposes the selected team's colors as CSS custom properties", async () => {

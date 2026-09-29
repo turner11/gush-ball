@@ -16,7 +16,7 @@ const navItems = computed(() => [
   { to: '/schedule', label: 'לוח משחקים' },
   { to: '/standings', label: 'טבלה' },
   { to: '/roster', label: 'שחקנים' },
-  { to: '/roster#lineups', label: 'סטטיסטיקה' },
+  { to: '/roster', label: 'סטטיסטיקה' },
 ])
 
 const teams = ref([])
@@ -101,7 +101,7 @@ onMounted(async () => {
             >
           </div>
           <ul class="flex gap-4 text-sm">
-            <li v-for="item in navItems" :key="item.to">
+            <li v-for="item in navItems" :key="item.label">
               <RouterLink :to="item.to" class="hover:underline">{{ item.label }}</RouterLink>
             </li>
           </ul>

@@ -4,9 +4,6 @@ import { useAuth } from '../composables/useAuth'
 
 const router = createRouter({
   history: createWebHistory(),
-  scrollBehavior(to) {
-    if (to.hash) return { el: to.hash }
-  },
   routes: [
     { path: '/', name: 'home', component: () => import('../views/HomeView.vue') },
     { path: '/schedule', name: 'schedule', component: () => import('../views/ScheduleView.vue') },
