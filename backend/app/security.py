@@ -1,11 +1,14 @@
-from passlib.context import CryptContext
+import bcrypt
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# ponytail: bcrypt only uses the first 72 bytes; truncate explicitly (matches passlib, and bcrypt>=5 raises otherwise).
+def _b(s: str) -> bytes:
+    return s.encode()[:72]
 
 
 def hash_password(password: str) -> str:
-    return _pwd_context.hash(password)
+    return bcrypt.hashpw(_b(password), bcrypt.gensalt()).decode()
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return _pwd_context.verify(password, password_hash)
+    return bcrypt.checkpw(_b(password), password_hash.encode())

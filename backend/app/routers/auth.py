@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 
@@ -5,10 +6,11 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.deps import DbSession, RequireAdmin
+from app.deps import DbSession, RequireAdmin, client_ip
 from app.models import AdminUser
 from app.security import hash_password, verify_password
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 class LoginRequest(BaseModel):
@@ -25,15 +27,6 @@ _attempts: dict[str, list[float]] = {}
 _lock = threading.Lock()  # login is a plain def -> real threadpool threads, unlike sync.py
 # Same bcrypt cost as real hashes, so unknown usernames take as long as wrong passwords.
 _DUMMY_HASH = hash_password("not-a-real-password")
-
-
-def _client_ip(request: Request) -> str:
-    # ponytail: XFF trusted only because the backend isn't publicly exposed (prod compose
-    # publishes only `web`); Caddy overwrites the header, so the rightmost entry is the real peer.
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[-1].strip()
-    return request.client.host if request.client else "unknown"
 
 
 def _reserve_attempt(keys: list[str]) -> None:
@@ -56,15 +49,18 @@ def _reserve_attempt(keys: list[str]) -> None:
 
 @router.post("/login")
 def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, str]:
-    keys = [f"ip:{_client_ip(request)}", f"user:{payload.username}"]
+    ip = client_ip(request)
+    keys = [f"ip:{ip}", f"user:{payload.username}"]
     _reserve_attempt(keys)
     admin = db.scalar(select(AdminUser).where(AdminUser.username == payload.username))
     ok = verify_password(payload.password, admin.password_hash if admin else _DUMMY_HASH)
     if admin is None or not ok:
+        log.warning("login failed username=%r ip=%s", payload.username, ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     with _lock:
         for key in keys:
             _attempts.pop(key, None)
+    log.info("login ok username=%r ip=%s", payload.username, ip)
     request.session["admin_id"] = admin.id
     return {"username": admin.username}
 
