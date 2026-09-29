@@ -46,7 +46,10 @@ describe('HomeView', () => {
     localStorage.setItem('gush-ball:selected-team-id', '1')
     router = createRouter({
       history: createWebHistory(),
-      routes: [{ path: '/', component: { template: '<div/>' } }],
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/roster', component: { template: '<div/>' } },
+      ],
     })
   })
 
@@ -61,6 +64,8 @@ describe('HomeView', () => {
       'GET /api/teams/1/videos': () => jsonRes(VIDEOS),
       'GET /api/teams/1/images': () => jsonRes(IMAGES),
       'GET /api/teams/1/posts': () => jsonRes(POSTS),
+      'GET /api/teams/1/players': () => jsonRes([]),
+      'GET /api/teams/1/games': () => jsonRes([]),
     })
 
     const { default: HomeView } = await import('./HomeView.vue')
@@ -84,13 +89,15 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('אין קבוצות במערכת עדיין')
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1', expect.anything())
   })
-  async function mountWithTeam(team) {
+  async function mountWithTeam(team, { links = [], players = [], games = [] } = {}) {
     mockFetch({
       'GET /api/teams/1': () => jsonRes(team),
-      'GET /api/teams/1/links': () => jsonRes([]),
+      'GET /api/teams/1/links': () => jsonRes(links),
       'GET /api/teams/1/videos': () => jsonRes([]),
       'GET /api/teams/1/images': () => jsonRes([]),
       'GET /api/teams/1/posts': () => jsonRes([]),
+      'GET /api/teams/1/players': () => jsonRes(players),
+      'GET /api/teams/1/games': () => jsonRes(games),
     })
     const { default: HomeView } = await import('./HomeView.vue')
     const wrapper = mount(HomeView, { global: { plugins: [router] } })
@@ -134,7 +141,7 @@ describe('HomeView', () => {
       'GET /api/teams/1': () => jsonRes({ ...TEAM, twitter_url: 'https://x.com/teama' }),
       'GET /api/teams/2': () => jsonRes(teamB),
       ...Object.fromEntries(
-        [1, 2].flatMap((id) => ['links', 'videos', 'images', 'posts'].map((r) => [`GET /api/teams/${id}/${r}`, () => jsonRes([])])),
+        [1, 2].flatMap((id) => ['links', 'videos', 'images', 'posts', 'players', 'games'].map((r) => [`GET /api/teams/${id}/${r}`, () => jsonRes([])])),
       ),
     })
     const { default: HomeView } = await import('./HomeView.vue')
@@ -157,5 +164,60 @@ describe('HomeView', () => {
 
     expect(wrapper.findAll('iframe').length).toBe(1)
     expect(wrapper.find('a.twitter-timeline').exists()).toBe(false)
+  })
+
+  it('shows the next and the last match', async () => {
+    const opp = (name) => ({ name, source_url: null })
+    const wrapper = await mountWithTeam(TEAM, {
+      games: [
+        { id: 1, opponent: opp('יריבה א'), scheduled_at: '2999-01-01T18:00:00', is_home: true, team_score: null, opponent_score: null },
+        { id: 2, opponent: opp('יריבה ב'), scheduled_at: '2000-01-01T18:00:00', is_home: false, team_score: 80, opponent_score: 70 },
+      ],
+    })
+
+    expect(wrapper.text()).toContain('יריבה א')
+    expect(wrapper.text()).toContain('יריבה ב')
+    expect(wrapper.text()).toContain('80 : 70')
+  })
+
+  it('renders a carousel card per player', async () => {
+    const wrapper = await mountWithTeam(TEAM, {
+      players: [
+        { id: 1, name: 'דני', jersey_number: 4, images: [] },
+        { id: 2, name: 'רון', jersey_number: 7, images: [] },
+      ],
+    })
+
+    const cards = wrapper.findAll('ul.snap-x > li')
+    expect(cards.length).toBe(2)
+    expect(cards[0].text()).toContain('דני')
+    expect(cards[1].text()).toContain('רון')
+  })
+
+  it('links to the stats page (roster)', async () => {
+    const wrapper = await mountWithTeam(TEAM)
+
+    const link = wrapper.findAll('a').find((a) => a.text() === 'סטטיסטיקה')
+    expect(link.attributes('href')).toBe('/roster')
+  })
+
+  it('hides sections with no content', async () => {
+    const wrapper = await mountWithTeam(TEAM)
+
+    for (const title of ['קישורים', 'סרטונים', 'תמונות', 'עדכונים', 'שחקנים']) {
+      expect(wrapper.text()).not.toContain(title)
+    }
+    expect(wrapper.find('.empty-state').exists()).toBe(false)
+  })
+
+  it('puts social embeds in the aside, apart from the links section', async () => {
+    const wrapper = await mountWithTeam(
+      { ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' },
+      { links: LINKS },
+    )
+
+    const aside = wrapper.find('aside')
+    expect(aside.find('iframe').exists()).toBe(true)
+    expect(aside.text()).not.toContain('קישורים')
   })
 })

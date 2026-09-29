@@ -136,4 +136,19 @@ describe('DefaultLayout', () => {
 
     expect(wrapper.find('[data-testid="hero"]').attributes('style')).toContain('/backgrounds/hoop-2.jpg')
   })
+
+  it('header is sticky and shows the logo instead of the text title', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const header = wrapper.find('header')
+    expect(header.classes()).toContain('sticky')
+    expect(header.classes()).toContain('top-0')
+    const logo = header.find('img[src="/logo.jpg"]')
+    expect(logo.attributes('alt')).toBe('גוש כדורסל')
+    expect(header.text()).not.toContain('גוש כדורסל')
+  })
 })
