@@ -75,3 +75,9 @@ def test_unknown_user_still_runs_bcrypt(seeded: TestClient, monkeypatch: pytest.
     monkeypatch.setattr(auth, "verify_password", spy)
     assert seeded.post("/auth/login", json=_bad("nobody")).status_code == 401
     assert calls == [auth._DUMMY_HASH]
+
+
+def test_throttled_requests_with_new_usernames_do_not_grow_attempts(seeded: TestClient) -> None:
+    for i in range(auth._MAX_ATTEMPTS + 20):
+        seeded.post("/auth/login", json=_bad(f"spray{i}"))
+    assert len(auth._attempts) == auth._MAX_ATTEMPTS + 1  # 1 ip key + one per admitted username

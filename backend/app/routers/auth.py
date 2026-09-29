@@ -2,7 +2,7 @@ import threading
 import time
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.deps import DbSession, RequireAdmin
@@ -12,12 +12,13 @@ from app.security import hash_password, verify_password
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 class LoginRequest(BaseModel):
-    username: str
+    username: str = Field(max_length=64)
     password: str
 
 
 # ponytail: in-memory, single-worker only, resets on restart; keys for never-revisited usernames
-# aren't evicted (growth bounded by the per-IP limit). Move to Redis/DB if >1 worker.
+# aren't evicted, but only admitted requests create keys: <= _MAX_ATTEMPTS new usernames per IP
+# per window (throttled requests store nothing), and usernames are length-capped. Move to Redis/DB if >1 worker.
 _MAX_ATTEMPTS = 5
 _WINDOW_SECONDS = 15 * 60
 _attempts: dict[str, list[float]] = {}
@@ -40,13 +41,17 @@ def _reserve_attempt(keys: list[str]) -> None:
     now = time.monotonic()
     with _lock:
         for key in keys:
-            _attempts[key] = [t for t in _attempts.get(key, []) if now - t < _WINDOW_SECONDS]
-        if any(len(_attempts[key]) >= _MAX_ATTEMPTS for key in keys):
+            recent = [t for t in _attempts.get(key, []) if now - t < _WINDOW_SECONDS]
+            if recent:
+                _attempts[key] = recent
+            else:
+                _attempts.pop(key, None)  # never store empty lists (throttled spray would leak)
+        if any(len(_attempts.get(key, [])) >= _MAX_ATTEMPTS for key in keys):
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many login attempts"
             )
         for key in keys:
-            _attempts[key].append(now)
+            _attempts.setdefault(key, []).append(now)
 
 
 @router.post("/login")
