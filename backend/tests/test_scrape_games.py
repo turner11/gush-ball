@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.orm import Session
@@ -388,7 +388,7 @@ def test_sync_team_players_does_not_reimport_soft_deleted_player(
     _fake_roster(monkeypatch, ROSTER_HTML)
     scrape_games.sync_team_players(db_session, team)
     gone = db_session.query(Player).filter_by(source_url="/p/2").one()
-    gone.deleted_at = datetime(2026, 1, 1)
+    gone.deleted_at = datetime(2026, 1, 1, tzinfo=UTC)
     db_session.commit()
 
     assert scrape_games.sync_team_players(db_session, team) == 0

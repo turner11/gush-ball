@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, HttpUrl
 from sqlalchemy.orm import Session
@@ -73,7 +75,7 @@ def create_player(
 @router.get("/teams/{team_id}/players", response_model=list[PlayerOut])
 def list_players(team_id: int, db: DbSession) -> list[Player]:
     team = get_team_or_404(db, team_id)
-    return list(team.players)
+    return [p for p in team.players if p.deleted_at is None]
 
 
 @router.patch("/teams/{team_id}/players/{player_id}", response_model=PlayerOut)
@@ -97,8 +99,23 @@ def delete_player(
     team_id: int, player_id: int, db: DbSession, _admin_id: RequireAdmin
 ) -> None:
     player = _get_team_player_or_404(db, team_id, player_id)
-    db.delete(player)
+    player.deleted_at = datetime.now(UTC)
     db.commit()
+
+
+@router.get("/teams/{team_id}/players/deleted", response_model=list[PlayerOut])
+def list_deleted_players(team_id: int, db: DbSession, _admin_id: RequireAdmin) -> list[Player]:
+    team = get_team_or_404(db, team_id)
+    return [p for p in team.players if p.deleted_at is not None]
+
+
+@router.post("/teams/{team_id}/players/{player_id}/restore", response_model=PlayerOut)
+def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: RequireAdmin) -> Player:
+    player = _get_team_player_or_404(db, team_id, player_id)
+    player.deleted_at = None
+    db.commit()
+    db.refresh(player)
+    return player
 
 
 @router.post(

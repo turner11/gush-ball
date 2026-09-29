@@ -147,4 +147,33 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('שגיאה בהוספת תמונה, נסה שוב')
     expect(wrapper.findAll('li')).toHaveLength(0)
   })
+
+  it('shows deleted players on demand and restoring moves the player back to the list', async () => {
+    const gone = { id: 11, team_id: 1, name: 'דני', name_en: null, jersey_number: 9, images: [] }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes([{ id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 7, images: [] }]),
+      'GET /api/teams/1/players/deleted': () => jsonRes([gone]),
+      'POST /api/teams/1/players/11/restore': () => jsonRes(gone),
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('דני')
+
+    await wrapper.findAll('button').find((b) => b.text() === 'שחקנים שנמחקו').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('דני')
+
+    await wrapper.findAll('button').find((b) => b.text() === 'שחזר').trigger('click')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/teams/1/players/11/restore',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(wrapper.findAll('button').some((b) => b.text() === 'שחזר')).toBe(false)
+    expect(wrapper.findAll('tbody')[0].text()).toContain('דני')
+  })
 })
