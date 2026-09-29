@@ -20,3 +20,9 @@ def test_settings_rejects_short_or_default_secret(monkeypatch, secret):
 def test_settings_accepts_long_secret(monkeypatch):
     monkeypatch.setenv("SESSION_SECRET", "x" * 32)
     assert Settings(_env_file=None).session_secret == "x" * 32
+
+
+def test_docs_disabled_by_default(monkeypatch):
+    monkeypatch.setenv("SESSION_SECRET", "x" * 32)
+    monkeypatch.delenv("ENABLE_DOCS", raising=False)
+    assert Settings(_env_file=None).enable_docs is False
