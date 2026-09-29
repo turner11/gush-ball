@@ -46,9 +46,10 @@ onMounted(async () => {
 
 <template>
   <div :style="teamStyle" class="flex min-h-screen flex-col bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
+    <div class="sticky top-0 z-40">
     <header
       :class="[
-        'sticky top-0 z-40 shadow-md',
+        'shadow-md',
         teamStyle['--team-primary']
           ? 'border-b-4 border-team-2 bg-team text-on-team'
           : 'border-b border-neutral-200 bg-neutral-50/90 backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/90',
@@ -86,12 +87,13 @@ onMounted(async () => {
     <div
       v-if="selectedTeam"
       data-testid="hero"
-      class="flex h-40 items-end bg-cover bg-center sm:h-56"
+      class="flex h-16 items-end bg-cover bg-[position:50%_65%] sm:h-20"
       :style="{ backgroundImage: `url(/backgrounds/${selectedTeam.background ?? 'hoop-1'}.jpg)` }"
     >
-      <div class="w-full bg-black/40 py-4">
+      <div class="w-full bg-black/40 py-2">
         <p class="page-title mx-auto max-w-5xl px-4 !text-white">{{ selectedTeam.name }}</p>
       </div>
+    </div>
     </div>
 
     <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
