@@ -1,7 +1,12 @@
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "5"}
+
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: gush_ball
       POSTGRES_DB: gush_ball
@@ -12,6 +17,7 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     depends_on:
       - db
@@ -19,6 +25,7 @@ services:
   web:
     build: ./frontend
     restart: unless-stopped
+    logging: *logging
     ports:
       - "80:80"
     depends_on:
