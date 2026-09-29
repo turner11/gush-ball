@@ -77,6 +77,24 @@ def test_parse_league_table_extracts_league_name_and_rows() -> None:
         assert "difference" not in row
 
 
+def test_parse_league_table_extracts_team_source_url() -> None:
+    _, rows = scrape_standings.parse_league_table(FIXTURE_HTML)
+
+    assert rows[0]["source_url"] == "https://ibasketball.co.il/team/120/"
+
+
+def test_sync_stores_standing_source_url(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_standings, "_get_html", lambda url: FIXTURE_HTML)
+
+    scrape_standings.sync_team_standings(db_session, team)
+
+    row = db_session.query(StandingRow).filter_by(team_name="מכבי חיפה").one()
+    assert row.source_url.endswith("/team/121/")
+
+
 def test_parse_league_table_missing_table_raises() -> None:
     with pytest.raises(ValueError, match="sp-league-table"):
         scrape_standings.parse_league_table(NO_TABLE_HTML)

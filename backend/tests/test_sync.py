@@ -11,7 +11,7 @@ from app.routers import sync as sync_router
 @pytest.fixture()
 def stub_scrapers(monkeypatch: pytest.MonkeyPatch) -> Generator[dict[str, Any], None, None]:
     """Monkeypatch the scraper entry points the router delegates to; records calls."""
-    calls: dict[str, Any] = {"standings": 0, "games": 0}
+    calls: dict[str, Any] = {"standings": 0, "games": 0, "players": 0}
 
     def _fake_sync_all_standings(db: Any, errors: Any = None) -> int:
         calls["standings"] += 1
@@ -23,6 +23,12 @@ def stub_scrapers(monkeypatch: pytest.MonkeyPatch) -> Generator[dict[str, Any], 
 
     monkeypatch.setattr(scrape, "sync_all_standings", _fake_sync_all_standings)
     monkeypatch.setattr(scrape, "sync_all_games", _fake_sync_all_games)
+
+    def _fake_sync_all_players(db: Any, errors: Any = None) -> int:
+        calls["players"] += 1
+        return 0
+
+    monkeypatch.setattr(scrape, "sync_all_players", _fake_sync_all_players)
     yield calls
 
 
@@ -40,6 +46,7 @@ def test_sync_now_starts_background_sync_and_returns_202(
     assert response.json() == {"status": "started"}
     assert stub_scrapers["standings"] == 1
     assert stub_scrapers["games"] == 1
+    assert stub_scrapers["players"] == 1
 
 
 def test_sync_now_returns_409_when_already_running(
@@ -68,5 +75,6 @@ def test_sync_status_reports_last_result(
     assert body["running"] is False
     assert body["standings"] == 0
     assert body["games"] == 0
+    assert body["players"] == 0
     assert body["errors"] == []
     assert body["finished_at"] is not None

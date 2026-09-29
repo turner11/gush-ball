@@ -10,6 +10,7 @@ const ROWS = [
     id: 1,
     league_name: 'ליגה א',
     team_name: 'קבוצה א',
+    source_url: 'https://ibasketball.co.il/team/1/',
     rank: 1,
     played: 10,
     won: 8,
@@ -90,6 +91,23 @@ describe('StandingsView', () => {
     expect(text).toContain('קבוצה א')
     expect(text).toContain('קבוצה ב')
     expect(text).not.toContain('קבוצה ג')
+  })
+
+  it('links team names to ibasketball, including the club own row', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'GET /api/standings': () => jsonRes(ROWS),
+    })
+
+    const { default: StandingsView } = await import('./StandingsView.vue')
+    const wrapper = mount(StandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const links = wrapper.findAll('tbody a')
+    expect(links).toHaveLength(1)
+    expect(links[0].attributes('href')).toBe('https://ibasketball.co.il/team/1/')
+    expect(links[0].text()).toBe('קבוצה א')
+    expect(links[0].attributes('rel')).toContain('noopener')
   })
 
   it("shows an empty state when no standings row matches the team's name", async () => {
