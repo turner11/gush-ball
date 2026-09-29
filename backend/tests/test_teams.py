@@ -123,3 +123,19 @@ def test_ibasketball_urls_accept_real_hosts(admin_client: TestClient) -> None:
     got = admin_client.get(f"/teams/{created['id']}").json()
     assert got["ibasketball_team_url"] == team_url
     assert got["ibasketball_league_url"] == league_url
+
+
+def test_background_defaults_and_round_trips(admin_client: TestClient) -> None:
+    created = _create_team(admin_client, "Team BG")
+    url = f"/teams/{created['id']}"
+    assert admin_client.get(url).json()["background"] == "hoop-1"
+    admin_client.patch(url, json={"background": "hoop-2"})
+    assert admin_client.get(url).json()["background"] == "hoop-2"
+    assert admin_client.patch(url, json={"background": None}).status_code == 200
+    assert admin_client.get(url).json()["background"] == "hoop-2"
+
+
+def test_rejects_unknown_background(admin_client: TestClient) -> None:
+    assert admin_client.post("/teams", json={"name": "Team X", "background": "nope"}).status_code == 422
+    created = _create_team(admin_client, "Team Y")
+    assert admin_client.patch(f"/teams/{created['id']}", json={"background": "nope"}).status_code == 422

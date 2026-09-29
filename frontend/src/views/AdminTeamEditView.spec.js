@@ -9,6 +9,7 @@ const TEAM = {
   slug: 'team-a',
   primary_color: '#ff0000',
   secondary_color: null,
+  background: 'hoop-1',
   logo_url: null,
   home_court_address: 'אולם הספורט',
   facebook_url: 'https://www.facebook.com/gushclub',
@@ -87,11 +88,13 @@ describe('AdminTeamEditView', () => {
     const wrapper = await mountView()
     await wrapper.find('#team-instagram_url').setValue('https://www.instagram.com/gushclub')
     await wrapper.find('#team-name').setValue('קבוצה ב')
+    await wrapper.find('#team-background').setValue('hoop-2')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
     expect(patchBody).toMatchObject({
       name: 'קבוצה ב',
+      background: 'hoop-2',
       instagram_url: 'https://www.instagram.com/gushclub',
       facebook_url: TEAM.facebook_url,
       ibasketball_league_url: TEAM.ibasketball_league_url,
