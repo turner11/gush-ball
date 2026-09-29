@@ -8,6 +8,17 @@ watch(selectedTeamId, (id) => {
   if (id) localStorage.setItem(STORAGE_KEY, id)
 })
 
+// Public URL slug, derived from name_en so it tracks admin edits (no DB column).
+// ponytail: first match wins on duplicate name_en; add uniqueness when it actually happens.
+export function teamSlug(team) {
+  const slug = (team.name_en ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_\s]/g, '')
+    .trim()
+    .replace(/\s+/g, '_')
+  return slug || String(team.id)
+}
+
 export function useSelectedTeam() {
   // Call once the real team list has loaded, so first-time visitors land on
   // the first team in the DB instead of an empty selection.

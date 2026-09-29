@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
 
 const { error, list, create, delete: destroy } = useTeams()
@@ -57,8 +58,9 @@ onMounted(load)
         class="flex items-center justify-between rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600"
       >
         <RouterLink :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="underline">
-          {{ team.name }} ({{ team.slug }})
+          {{ team.name }}
         </RouterLink>
+        <RouterLink :to="'/' + teamSlug(team)" class="text-sm underline" dir="ltr">/{{ teamSlug(team) }}</RouterLink>
         <button
           type="button"
           class="text-sm text-red-600 dark:text-red-400"

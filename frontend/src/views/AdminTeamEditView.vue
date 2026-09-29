@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 
 import ImageUpload from '../components/ImageUpload.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
+import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
 
 const route = useRoute()
@@ -112,7 +113,7 @@ const contentSections = [
       <form class="max-w-lg space-y-3" @submit.prevent="onSubmit">
         <div>
           <span class="field-label">מזהה (slug)</span>
-          <p class="mt-1 text-neutral-600 dark:text-neutral-400">{{ team.slug }}</p>
+          <p class="mt-1 text-neutral-600 dark:text-neutral-400">{{ teamSlug(team) }}</p>
         </div>
 
         <div v-for="field in NAME_FIELDS" :key="field.key">

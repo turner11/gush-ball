@@ -49,6 +49,24 @@ watch(selectedTeamId, load, { immediate: true })
 const nextGame = computed(() => splitGames(games.value).upcoming[0])
 const lastGame = computed(() => splitGames(games.value).past[0])
 
+// ponytail: the API has no ORDER BY, so highest id = newest.
+const newestPost = computed(() => posts.value.reduce((a, p) => (!a || p.id > a.id ? p : a), null))
+
+function youtubeId(url) {
+  try {
+    const u = new URL(url)
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1) || null
+    if (u.hostname.endsWith('youtube.com')) {
+      if (u.pathname === '/watch') return u.searchParams.get('v')
+      const m = u.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)
+      return m ? m[1] : null
+    }
+  } catch {
+    // fall through to a plain link
+  }
+  return null
+}
+
 const facebookEmbedSrc = computed(
   () =>
     'https://www.facebook.com/plugins/page.php?href=' +
@@ -94,20 +112,9 @@ watch(
 
 <template>
   <section v-if="team" class="space-y-8">
-    <div class="grid gap-8" :class="{ 'md:grid-cols-2': hasSocial }">
+    <div class="grid gap-12" :class="{ 'md:grid-cols-[3fr_2fr]': hasSocial }">
       <div class="space-y-8">
         <div v-if="nextGame || lastGame" class="grid gap-4 sm:grid-cols-2">
-          <div v-if="nextGame" class="card space-y-1">
-            <h2 class="section-title">המשחק הבא</h2>
-            <p class="flex items-center gap-2 font-semibold">
-              <img v-if="nextGame.opponent.logo_url" :src="nextGame.opponent.logo_url" alt="" class="h-8 w-8 object-contain" />
-              {{ nextGame.opponent.name }}
-            </p>
-            <p class="flex items-center gap-2 text-sm">
-              <span>{{ formatDateTime(nextGame.scheduled_at) }} · {{ nextGame.is_home ? 'בית' : 'חוץ' }}</span>
-              <GameLocationLinks v-if="nextGame.is_home && team.home_court_address" :address="team.home_court_address" />
-            </p>
-          </div>
           <div v-if="lastGame" class="card space-y-1">
             <h2 class="section-title">המשחק האחרון</h2>
             <p class="flex items-center gap-2 font-semibold">
@@ -122,7 +129,26 @@ watch(
               {{ lastGame.team_score }} : {{ lastGame.opponent_score }}
             </p>
           </div>
+          <div v-if="nextGame" class="card space-y-1">
+            <h2 class="section-title">המשחק הבא</h2>
+            <p class="flex items-center gap-2 font-semibold">
+              <img v-if="nextGame.opponent.logo_url" :src="nextGame.opponent.logo_url" alt="" class="h-8 w-8 object-contain" />
+              {{ nextGame.opponent.name }}
+            </p>
+            <p class="flex items-center gap-2 text-sm">
+              <span>{{ formatDateTime(nextGame.scheduled_at) }} · {{ nextGame.is_home ? 'בית' : 'חוץ' }}</span>
+              <GameLocationLinks v-if="nextGame.is_home && team.home_court_address" :address="team.home_court_address" />
+            </p>
+          </div>
         </div>
+
+        <section v-if="newestPost" class="space-y-3">
+          <h2 class="section-title">עדכונים</h2>
+          <article class="space-y-1">
+            <h3 class="font-semibold">{{ newestPost.title }}</h3>
+            <p class="text-neutral-600 dark:text-neutral-400">{{ newestPost.body }}</p>
+          </article>
+        </section>
 
         <section v-if="players.length" class="space-y-2">
           <div class="flex items-center justify-between">
@@ -136,7 +162,22 @@ watch(
           </ul>
         </section>
 
-        <RouterLink to="/roster" class="block hover:underline">סטטיסטיקה</RouterLink>
+        <section v-if="videos.length" class="space-y-2">
+          <h2 class="section-title">סרטונים</h2>
+          <ul class="space-y-4">
+            <li v-for="video in videos" :key="video.id">
+              <iframe
+                v-if="youtubeId(video.url)"
+                :src="`https://www.youtube-nocookie.com/embed/${youtubeId(video.url)}`"
+                :title="video.title"
+                loading="lazy"
+                allowfullscreen
+                class="aspect-video w-full border-0"
+              ></iframe>
+              <a v-else :href="video.url" target="_blank" rel="noopener" class="hover:underline">{{ video.title }}</a>
+            </li>
+          </ul>
+        </section>
 
         <section v-if="links.length" class="space-y-2">
           <h2 class="section-title">קישורים</h2>
@@ -147,28 +188,11 @@ watch(
           </ul>
         </section>
 
-        <section v-if="videos.length" class="space-y-2">
-          <h2 class="section-title">סרטונים</h2>
-          <ul class="space-y-1">
-            <li v-for="video in videos" :key="video.id">
-              <a :href="video.url" target="_blank" rel="noopener" class="hover:underline">{{ video.title }}</a>
-            </li>
-          </ul>
-        </section>
-
         <section v-if="images.length" class="space-y-2">
           <h2 class="section-title">תמונות</h2>
           <div class="flex flex-wrap gap-3">
             <img v-for="image in images" :key="image.id" :src="image.url" :alt="image.title" class="h-24 w-24 rounded object-cover" />
           </div>
-        </section>
-
-        <section v-if="posts.length" class="space-y-3">
-          <h2 class="section-title">עדכונים</h2>
-          <article v-for="post in posts" :key="post.id" class="space-y-1 border-b border-neutral-200 pb-3 dark:border-neutral-700">
-            <h3 class="font-semibold">{{ post.title }}</h3>
-            <p class="text-neutral-600 dark:text-neutral-400">{{ post.body }}</p>
-          </article>
         </section>
       </div>
 

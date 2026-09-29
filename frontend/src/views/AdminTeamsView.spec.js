@@ -1,4 +1,5 @@
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
+import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const TEAMS = [{ id: 1, name: 'קבוצה א', slug: 'team-a' }]
@@ -93,5 +94,22 @@ describe('AdminTeamsView', () => {
       '/api/teams/1',
       expect.objectContaining({ method: 'DELETE' }),
     )
+  })
+
+  it('links each team to its public page', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes([{ id: 1, name: 'קבוצה א', name_en: 'Team A' }]) })
+    const router = createRouter({
+      history: createWebHistory(),
+      routes: [
+        { path: '/:p(.*)*', component: { template: '<div/>' } },
+        { path: '/admin/teams/:id', name: 'admin-team-edit', component: { template: '<div/>' } },
+      ],
+    })
+
+    const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
+    const wrapper = mount(AdminTeamsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('a[href="/team_a"]').exists()).toBe(true)
   })
 })
