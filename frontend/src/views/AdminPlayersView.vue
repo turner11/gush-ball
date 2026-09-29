@@ -6,6 +6,7 @@ import { apiFetch } from '../lib/api'
 
 const teams = ref([])
 const players = ref([])
+const deletedPlayers = ref(null) // null = hidden
 const editing = ref(null)
 const form = ref({ name: '', name_en: '', jersey_number: '' })
 const newImageUrl = ref({})
@@ -14,6 +15,7 @@ const error = ref(null)
 const { selectedTeamId, ensureDefault } = useSelectedTeam()
 
 async function loadPlayers() {
+  deletedPlayers.value = null
   if (!selectedTeamId.value) {
     players.value = []
     return
@@ -80,6 +82,32 @@ async function onDelete(player) {
     players.value = players.value.filter((p) => p.id !== player.id)
   } catch {
     error.value = 'שגיאה במחיקת השחקן, נסה שוב'
+  }
+}
+
+async function toggleDeleted() {
+  if (deletedPlayers.value) {
+    deletedPlayers.value = null
+    return
+  }
+  error.value = null
+  try {
+    deletedPlayers.value = await apiFetch(`/teams/${selectedTeamId.value}/players/deleted`)
+  } catch {
+    error.value = 'שגיאה בטעינת השחקנים שנמחקו, נסה שוב'
+  }
+}
+
+async function onRestore(player) {
+  error.value = null
+  try {
+    const restored = await apiFetch(`/teams/${selectedTeamId.value}/players/${player.id}/restore`, {
+      method: 'POST',
+    })
+    deletedPlayers.value = deletedPlayers.value.filter((p) => p.id !== player.id)
+    players.value.push(restored)
+  } catch {
+    error.value = 'שגיאה בשחזור השחקן, נסה שוב'
   }
 }
 
@@ -154,6 +182,21 @@ async function deleteImage(player, image) {
         </tr>
       </tbody>
     </table>
+
+    <div>
+      <button type="button" class="btn-secondary" @click="toggleDeleted">שחקנים שנמחקו</button>
+      <table v-if="deletedPlayers" class="mt-2 w-full text-start">
+        <tbody>
+          <tr v-for="player in deletedPlayers" :key="player.id" class="table-row">
+            <td class="py-2">{{ player.jersey_number }}</td>
+            <td class="py-2">{{ player.name }}</td>
+            <td class="py-2">
+              <button type="button" class="hover:underline" @click="onRestore(player)">שחזר</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
       <h2 class="section-title">{{ editing ? 'עריכת שחקן' : 'הוספת שחקן' }}</h2>

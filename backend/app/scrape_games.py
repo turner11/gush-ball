@@ -179,7 +179,11 @@ def sync_all_games(db: Session, errors: list[str] | None = None) -> int:
 
 
 def sync_team_players(db: Session, team: Team) -> int:
-    """Fill-only: creates missing players. Never overwrites admin edits, never deletes."""
+    """Fill-only: creates missing players. Never overwrites admin edits, never deletes.
+
+    Players are matched by the roster card's href (Player.source_url), so renamed or soft-deleted
+    players are not re-imported. Legacy rows without source_url are adopted by name.
+    """
     sp_id = _find_sp_team(team)["id"]
     page = BeautifulSoup(
         _get_html(action="ibba", template="players", id=sp_id, type="sp_team"), "html.parser"
@@ -190,8 +194,23 @@ def sync_team_players(db: Session, team: Team) -> int:
         name = (card.find(string=True, recursive=False) or "").strip()
         if not name:
             continue
-        if db.scalar(select(Player).where(Player.team_id == team.id, Player.name == name)) is None:
-            db.add(Player(team_id=team.id, name=name))
+        href = card.get("href")
+        # not filtering deleted_at: a soft-deleted player must still block re-import
+        # ponytail: keyed on href; if the source changes a URL the player is re-imported once
+        # (upgrade path: numeric SportsPress player id)
+        if href and db.scalar(
+            select(Player).where(Player.team_id == team.id, Player.source_url == href)
+        ):
+            continue
+        legacy = db.scalar(
+            select(Player).where(
+                Player.team_id == team.id, Player.source_url.is_(None), Player.name == name
+            )
+        )
+        if legacy is not None:
+            legacy.source_url = href
+        else:
+            db.add(Player(team_id=team.id, name=name, source_url=href))
             count += 1
 
     db.commit()

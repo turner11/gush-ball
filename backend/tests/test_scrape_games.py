@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.orm import Session
@@ -335,6 +335,7 @@ def test_sync_team_players_creates_players_from_roster_tab(
         ("איתי ורולקר", team.id, None),
         ("רן – לוי", team.id, None),
     }
+    assert {p.source_url for p in players} == {"/p/1", "/p/2"}
 
 
 def test_sync_team_players_requests_team_roster_template(
@@ -361,6 +362,39 @@ def test_sync_team_players_is_idempotent_and_keeps_admin_edits(
 
     players = {p.name: p.jersey_number for p in db_session.query(Player).all()}
     assert players == {"איתי ורולקר": 10, "רן – לוי": None}
+    adopted = db_session.query(Player).filter_by(jersey_number=10).one()
+    assert adopted.source_url == "/p/1"
+
+
+def test_sync_team_players_does_not_reimport_renamed_player(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, ROSTER_HTML)
+    scrape_games.sync_team_players(db_session, team)
+    db_session.query(Player).filter_by(source_url="/p/1").one().name = "Renamed"
+    db_session.commit()
+
+    assert scrape_games.sync_team_players(db_session, team) == 0
+
+    assert db_session.query(Player).count() == 2
+    assert db_session.query(Player).filter_by(source_url="/p/1").one().name == "Renamed"
+
+
+def test_sync_team_players_does_not_reimport_soft_deleted_player(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, ROSTER_HTML)
+    scrape_games.sync_team_players(db_session, team)
+    gone = db_session.query(Player).filter_by(source_url="/p/2").one()
+    gone.deleted_at = datetime(2026, 1, 1, tzinfo=UTC)
+    db_session.commit()
+
+    assert scrape_games.sync_team_players(db_session, team) == 0
+
+    assert db_session.query(Player).count() == 2
+    assert db_session.query(Player).filter_by(source_url="/p/2").one().deleted_at is not None
 
 
 def test_sync_team_players_handles_empty_roster(

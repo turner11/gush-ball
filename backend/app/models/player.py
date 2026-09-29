@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String
@@ -17,6 +18,8 @@ class Player(Base):
     name: Mapped[str] = mapped_column(String(120))
     name_en: Mapped[str | None] = mapped_column(String(120), default=None)
     jersey_number: Mapped[int | None] = mapped_column(default=None)
+    source_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    deleted_at: Mapped[datetime | None] = mapped_column(default=None)
 
     team: Mapped["Team"] = relationship(back_populates="players")
     images: Mapped[list["PlayerImage"]] = relationship(back_populates="player", cascade="all, delete-orphan")
