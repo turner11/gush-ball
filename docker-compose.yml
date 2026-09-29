@@ -19,11 +19,15 @@ services:
         stats: ./stats
     depends_on: [db]
     restart: unless-stopped
+    # R2 creds etc. come from backend/.env (dockerignored, so it must be passed here).
+    # `environment` below wins over it, keeping DATABASE_URL pointed at the compose db.
+    env_file:
+      - path: backend/.env
+        required: false
     environment:
       DATABASE_URL: postgresql+psycopg://gush_ball:gush_ball@db:5432/gush_ball
       SESSION_SECRET: local-dev-only-not-a-real-secret-0123456789
       STATS_URL: http://localhost:8501
-      # ponytail: no object-storage vars, so /uploads fails locally until R2 vars are set
   web:
     profiles: [full]
     build: ./frontend
