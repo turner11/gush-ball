@@ -161,6 +161,22 @@ docker run --rm \
   | docker compose -f docker-compose.prod.yml exec -T db pg_restore -U gush_ball -d scratch --no-owner
 ```
 
+### Manual dump / import (dev <-> prod)
+
+`dbsync.sh` dumps the DB to a file and imports it (wipes the target). It targets dev by default; prefix
+`COMPOSE_FILE=docker-compose.prod.yml` for prod. Run from Git Bash/WSL (PowerShell redirection corrupts binary dumps).
+
+```
+COMPOSE_FILE=docker-compose.prod.yml ./dbsync.sh dump prod.dump   # on the server; scp it down
+./dbsync.sh import prod.dump                                       # into dev
+./dbsync.sh dump dev.dump                                          # scp it up, then on the server:
+COMPOSE_FILE=docker-compose.prod.yml ./dbsync.sh import dev.dump
+```
+
+Stop `backend` first on prod (open connections block `--clean`), start it after. Dumps include admin password
+hashes (prod->dev copies prod logins, dev->prod replaces prod admins). If migration heads differ, run
+`alembic upgrade head` afterwards. `*.dump` is gitignored; never commit one.
+
 ### 8. HTTPS later
 
 Once a domain points at the box: replace `:80` with the domain in `frontend/Caddyfile`, publish
