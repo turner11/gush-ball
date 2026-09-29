@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { splitGames } from '../lib/games'
 
 const STATUS_LABELS = {
   scheduled: 'מתוכנן',
@@ -17,16 +18,8 @@ const team = ref(null)
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
 
-const upcoming = computed(() =>
-  games.value
-    .filter((g) => new Date(g.scheduled_at) >= new Date())
-    .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)),
-)
-const past = computed(() =>
-  games.value
-    .filter((g) => new Date(g.scheduled_at) < new Date())
-    .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at)),
-)
+const upcoming = computed(() => splitGames(games.value).upcoming)
+const past = computed(() => splitGames(games.value).past)
 
 async function loadGames() {
   if (!selectedTeamId.value) {

@@ -8,6 +8,9 @@ import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { onColor } from '../lib/teamColors'
 
+// Bound (not a static src) so the SFC compiler serves it from public/ as-is.
+const LOGO_URL = '/logo.jpg'
+
 const navItems = [
   { to: '/', label: 'בית' },
   { to: '/schedule', label: 'לוח משחקים' },
@@ -44,14 +47,17 @@ onMounted(async () => {
 <template>
   <div :style="teamStyle" class="flex min-h-screen flex-col bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
     <header
-      :class="
+      :class="[
+        'sticky top-0 z-40 shadow-md',
         teamStyle['--team-primary']
           ? 'border-b-4 border-team-2 bg-team text-on-team'
-          : 'border-b border-neutral-200 dark:border-neutral-700'
-      "
+          : 'border-b border-neutral-200 bg-neutral-50/90 backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/90',
+      ]"
     >
-      <nav class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-        <span class="section-title">גוש כדורסל</span>
+      <nav class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-1">
+        <RouterLink to="/" aria-label="גוש כדורסל — דף הבית">
+          <img :src="LOGO_URL" alt="גוש כדורסל" class="h-10 w-auto rounded" />
+        </RouterLink>
         <ul class="flex gap-4 text-sm">
           <li v-for="item in navItems" :key="item.to">
             <RouterLink :to="item.to" class="hover:underline">{{ item.label }}</RouterLink>
