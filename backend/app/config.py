@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -5,7 +6,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+psycopg://gush_ball:gush_ball@localhost:5432/gush_ball"
-    session_secret: str = "dev-secret-change-me"
+    session_secret: str = Field(min_length=32)
     cors_origins: list[str] = ["http://localhost:5173"]
 
     # Object storage (S3-compatible / R2). Empty-string defaults, like the other settings above,

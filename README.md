@@ -73,7 +73,7 @@ the frontend) via Docker Compose, deployed by CI over SSH on every push to `mast
 - Create `~/gush-ball/.env` with:
   - `POSTGRES_PASSWORD`
   - `DATABASE_URL=postgresql+psycopg://gush_ball:<same password>@db:5432/gush_ball`
-  - `SESSION_SECRET`
+  - `SESSION_SECRET` (required, 32+ chars; the app refuses to start otherwise)
   - `CORS_ORIGINS=["http://<server-ip>"]`
   - `OBJECT_STORAGE_ENDPOINT_URL`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_ACCESS_KEY_ID`,
     `OBJECT_STORAGE_SECRET_ACCESS_KEY`, `OBJECT_STORAGE_PUBLIC_URL`, `OBJECT_STORAGE_REGION`
