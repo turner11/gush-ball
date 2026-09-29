@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app import scrape_games
-from app.models import Game, GameStatus, Opponent, Player, Team
+from app.models import Game, GameStatus, Opponent, Player, PlayerImage, Team
 
 OUR_SP_ID = 1542241
 OPP_SP_ID = 2001
@@ -405,3 +405,63 @@ def test_sync_team_players_handles_empty_roster(
 
     assert scrape_games.sync_team_players(db_session, team) == 0
     assert db_session.query(Player).count() == 0
+
+
+def _images(db: Session) -> dict[str, list[str]]:
+    return {p.name: [i.url for i in p.images] for p in db.query(Player).all()}
+
+
+def test_sync_team_players_saves_scraped_image(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, ROSTER_HTML)
+
+    scrape_games.sync_team_players(db_session, team)
+
+    assert _images(db_session) == {
+        "איתי ורולקר": ["https://ibasketball.co.il/a.jpg"],
+        "רן – לוי": ["https://ibasketball.co.il/b.jpg"],
+    }
+
+
+def test_sync_team_players_fills_image_for_existing_player_without_one(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    db_session.add(Player(team_id=team.id, name="איתי ורולקר"))
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+
+    assert scrape_games.sync_team_players(db_session, team) == 1
+
+    assert _images(db_session)["איתי ורולקר"] == ["https://ibasketball.co.il/a.jpg"]
+
+
+def test_sync_team_players_never_overrides_admin_image_and_is_idempotent(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    player = Player(team_id=team.id, name="איתי ורולקר")
+    player.images.append(PlayerImage(url="https://cdn/admin.png"))
+    db_session.add(player)
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+
+    scrape_games.sync_team_players(db_session, team)
+    scrape_games.sync_team_players(db_session, team)
+
+    assert _images(db_session) == {
+        "איתי ורולקר": ["https://cdn/admin.png"],
+        "רן – לוי": ["https://ibasketball.co.il/b.jpg"],
+    }
+
+
+def test_sync_team_players_card_without_img_creates_player_without_image(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, '<a class="player" href="/p/1">איתי<br /></a>')
+
+    assert scrape_games.sync_team_players(db_session, team) == 1
+    assert _images(db_session) == {"איתי": []}
