@@ -19,6 +19,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://gush_ball:gush_ball@db:5432/gush_ball
       SESSION_SECRET: local-dev-only-not-a-real-secret-0123456789
+      STATS_URL: http://localhost:8501
       # ponytail: no object-storage vars, so /uploads fails locally until R2 vars are set
   web:
     profiles: [full]
@@ -26,6 +27,20 @@ services:
     depends_on: [backend]
     ports:
       - "8081:80"
+
+  # BBStats Streamlit app, for debugging: `docker compose --profile stats up stats`
+  stats:
+    profiles: [stats]
+    image: python:3.9-slim  # ponytail: matches BBStats' pins (pip-compiled on Windows/3.9, hence the pywin32 filter)
+    working_dir: /stats
+    volumes:
+      - ./stats:/stats
+    command: >
+      sh -c "grep -v pywin32 requirements_compiled.txt > /tmp/req.txt &&
+             pip install -q -r /tmp/req.txt &&
+             streamlit run src/apps/stats.py --server.address 0.0.0.0 --server.headless true"
+    ports:
+      - "8501:8501"
 
 volumes:
   db_data:

@@ -11,6 +11,9 @@ Website for the club: team pages, schedule/standings, scores, and (later) stats 
 
 ## Local setup
 
+Clone with `git clone --recursive` (or run `git submodule update --init` in an existing clone) —
+the statistics base, BBStats, is a submodule at `stats/`.
+
 ### 1. Database
 
 ```
@@ -48,6 +51,9 @@ docker compose exec backend uv run python scripts/create_admin.py <user> <passwo
 
 Open http://localhost:8081. Uploads fail until object-storage vars are set.
 
+To debug the BBStats Streamlit app (`stats/` submodule): `docker compose --profile stats up stats`,
+then open http://localhost:8501.
+
 To run `npm run dev` against another backend, set `API_TARGET` (includes `/api`):
 
 ```bash
@@ -69,7 +75,7 @@ the frontend) via Docker Compose, deployed by CI over SSH on every push to `mast
 - Install Docker (with the Compose plugin) on the box.
 - Create a deploy user, add the CI's public key to its `~/.ssh/authorized_keys`, and add the user
   to the `docker` group.
-- `git clone` this repo into `~/gush-ball` (that exact path — CI's deploy step assumes it).
+- `git clone --recursive` this repo into `~/gush-ball` (that exact path — CI's deploy step assumes it).
 - Create `~/gush-ball/.env` with:
   - `POSTGRES_PASSWORD`
   - `DATABASE_URL=postgresql+psycopg://gush_ball:<same password>@db:5432/gush_ball`
@@ -79,6 +85,7 @@ the frontend) via Docker Compose, deployed by CI over SSH on every push to `mast
     `OBJECT_STORAGE_SECRET_ACCESS_KEY`, `OBJECT_STORAGE_PUBLIC_URL`, `OBJECT_STORAGE_REGION`.
     The `OBJECT_STORAGE_*` key is an R2 API token scoped to `OBJECT_STORAGE_BUCKET` only (Object
     Read & Write); this file is passed whole to the backend container, so it must not reach backups.
+  - `STATS_URL`: public URL of the BBStats Streamlit app (empty if unset).
   - `ENABLE_DOCS`: leave unset in prod (keeps `/api/docs` and `/api/openapi.json` off).
   - `BACKUP_BUCKET` — a **separate, private** R2 bucket for `pg_dump` output. It must not be the same bucket as `OBJECT_STORAGE_BUCKET`, because that
     one needs R2 public access for media, which would make dated backup files public too.

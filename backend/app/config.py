@@ -20,5 +20,8 @@ class Settings(BaseSettings):
     object_storage_public_url: str = ""
     object_storage_region: str = "auto"
 
+    # BBStats Streamlit app. Empty default so an unset prod value is obvious, not a localhost link.
+    stats_url: str = ""
+
 
 settings = Settings()
