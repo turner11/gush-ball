@@ -3,7 +3,14 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const TEAMS = [
-  { id: 1, name: 'קבוצה א', primary_color: '#ffff00', secondary_color: '#000000' },
+  {
+    id: 1,
+    name: 'קבוצה א',
+    primary_color: '#ffff00',
+    secondary_color: '#000000',
+    logo_url: 'https://cdn.example.com/logo-a.png',
+    home_court_address: 'אולם הספורט, תל אביב',
+  },
   { id: 2, name: 'קבוצה ב', primary_color: '#1d428a', secondary_color: '#c8102e', background: 'hoop-2' },
   { id: 3, name: 'קבוצה ג', primary_color: null, secondary_color: null },
 ]
@@ -161,5 +168,44 @@ describe('DefaultLayout', () => {
 
     const parent = wrapper.find('header').element.parentElement
     expect(wrapper.find('[data-testid="hero"]').element.parentElement).toBe(parent)
+  })
+
+  it("hero shows the selected team's logo, name and a map link, in that order", async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const hero = wrapper.find('[data-testid="hero"]')
+    const img = hero.find('img')
+    expect(img.attributes('src')).toBe('https://cdn.example.com/logo-a.png')
+    expect(hero.text()).toContain('קבוצה א')
+    const a = hero.find('a')
+    expect(a.attributes('href')).toBe(
+      'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('אולם הספורט, תל אביב'),
+    )
+    expect(a.attributes('rel')).toContain('noopener')
+
+    const row = Array.from(img.element.parentElement.children)
+    const name = row.find((el) => el.textContent.includes('קבוצה א'))
+    expect(row.indexOf(img.element)).toBeLessThan(row.indexOf(name))
+    expect(row.indexOf(name)).toBeLessThan(row.indexOf(a.element))
+  })
+
+  it('hero omits logo and map link when the team has none', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    await wrapper.find('#team-switcher').setValue('3')
+    await flushPromises()
+
+    const hero = wrapper.find('[data-testid="hero"]')
+    expect(hero.text()).toContain('קבוצה ג')
+    expect(hero.find('img').exists()).toBe(false)
+    expect(hero.find('a').exists()).toBe(false)
   })
 })

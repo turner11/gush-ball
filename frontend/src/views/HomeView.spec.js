@@ -57,7 +57,7 @@ describe('HomeView', () => {
     vi.restoreAllMocks()
   })
 
-  it("renders the selected team's profile and content (logo, home court, links, posts)", async () => {
+  it("renders the selected team's content (links, posts)", async () => {
     mockFetch({
       'GET /api/teams/1': () => jsonRes(TEAM),
       'GET /api/teams/1/links': () => jsonRes(LINKS),
@@ -72,13 +72,11 @@ describe('HomeView', () => {
     const wrapper = mount(HomeView, { global: { plugins: [router] } })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('קבוצה א')
-    expect(wrapper.text()).toContain('אולם הספורט, תל אביב')
     expect(wrapper.text()).toContain('אתר הליגה')
     expect(wrapper.text()).toContain('עדכון עונה')
   })
 
-  it('links the home court address to Google Maps', async () => {
+  it('does not render its own team header', async () => {
     mockFetch({
       'GET /api/teams/1': () => jsonRes(TEAM),
       'GET /api/teams/1/links': () => jsonRes([]),
@@ -93,11 +91,9 @@ describe('HomeView', () => {
     const wrapper = mount(HomeView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const a = wrapper.findAll('a').find((x) => x.text() === 'אולם הספורט, תל אביב')
-    expect(a.attributes('href')).toBe(
-      'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('אולם הספורט, תל אביב'),
-    )
-    expect(a.attributes('rel')).toContain('noopener')
+    // The layout hero owns the team identity (#106).
+    expect(wrapper.find('h1').exists()).toBe(false)
+    expect(wrapper.find('a[href^="https://www.google.com/maps"]').exists()).toBe(false)
   })
 
   it('shows an empty state when no team is selected (none in the DB)', async () => {
