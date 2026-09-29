@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any
 
 import httpx
+from bs4 import BeautifulSoup
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -20,15 +21,25 @@ from app.models import Game, GameStatus, Opponent, Player, Team, get_or_create_o
 
 BASE = "https://ibasketball.co.il/wp-json"
 CRAWL_DELAY = 10
+AJAX_URL = "https://ibasketball.co.il/wp-admin/admin-ajax.php"
 
 log = logging.getLogger(__name__)
 
 
-def _get_json(path: str, **params: Any) -> Any:
+def _get(url: str, **params: Any) -> httpx.Response:
     time.sleep(CRAWL_DELAY)
-    response = httpx.get(BASE + path, params=params, timeout=30)
+    response = httpx.get(url, params=params, timeout=30)
     response.raise_for_status()
-    return response.json()
+    return response
+
+
+def _get_json(path: str, **params: Any) -> Any:
+    return _get(BASE + path, **params).json()
+
+
+def _get_html(**params: Any) -> str:
+    # The "סגל הקבוצה" tab is filled client-side from this theme action, not the REST API.
+    return _get(AJAX_URL, **params).text
 
 
 def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -> Opponent:
@@ -168,29 +179,19 @@ def sync_all_games(db: Session, errors: list[str] | None = None) -> int:
 
 
 def sync_team_players(db: Session, team: Team) -> int:
-    """Fill-only: creates missing players and fills a blank jersey number. Never overwrites
-    admin edits and never deletes.
-    """
-    sp_team = _find_sp_team(team)
-    if not sp_team.get("lists"):
-        return 0
-    # ponytail: newest list only; iterate lists if a team ever splits its roster
-    data = _get_json(f"/sportspress/v2/lists/{max(sp_team['lists'])}")["data"]
-    # An empty list comes back as a JSON list holding only the header row.
-    rows = [] if isinstance(data, list) else data.values()
+    """Fill-only: creates missing players. Never overwrites admin edits, never deletes."""
+    sp_id = _find_sp_team(team)["id"]
+    page = BeautifulSoup(
+        _get_html(action="ibba", template="players", id=sp_id, type="sp_team"), "html.parser"
+    )
 
     count = 0
-    for row in rows:
-        if row.get("team") != str(sp_team["id"]):  # also drops the header row
+    for card in page.select("a.player"):
+        name = (card.find(string=True, recursive=False) or "").strip()
+        if not name:
             continue
-        name = html.unescape(row["name"]).strip()
-        number = int(row["number"]) if str(row["number"]).isdigit() else None
-        player = db.scalar(select(Player).where(Player.team_id == team.id, Player.name == name))
-        if player is None:
-            db.add(Player(team_id=team.id, name=name, jersey_number=number))
-            count += 1
-        elif player.jersey_number is None and number is not None:
-            player.jersey_number = number
+        if db.scalar(select(Player).where(Player.team_id == team.id, Player.name == name)) is None:
+            db.add(Player(team_id=team.id, name=name))
             count += 1
 
     db.commit()
