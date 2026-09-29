@@ -95,7 +95,7 @@ def test_patch_player_wrong_team_404(
     assert response.status_code == 404
 
 
-def test_delete_player_cascades_images(
+def test_delete_player_soft_deletes(
     admin_client: TestClient, db_session: Session, team: Team
 ) -> None:
     created = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()
@@ -111,8 +111,38 @@ def test_delete_player_cascades_images(
     response = admin_client.delete(f"/teams/{team.id}/players/{player_id}")
     assert response.status_code == 204
 
-    assert db_session.get(Player, player_id) is None
-    assert db_session.get(PlayerImage, image_id) is None
+    assert db_session.get(Player, player_id).deleted_at is not None
+    assert db_session.get(PlayerImage, image_id) is not None
+    assert admin_client.get(f"/teams/{team.id}/players").json() == []
+
+
+def test_list_deleted_players_admin_only(admin_client: TestClient, team: Team) -> None:
+    gone = admin_client.post(f"/teams/{team.id}/players", json={"name": "Gone"}).json()
+    admin_client.post(f"/teams/{team.id}/players", json={"name": "Live"})
+    admin_client.delete(f"/teams/{team.id}/players/{gone['id']}")
+
+    assert TestClient(app).get(f"/teams/{team.id}/players/deleted").status_code == 401
+
+    response = admin_client.get(f"/teams/{team.id}/players/deleted")
+    assert response.status_code == 200
+    assert [p["name"] for p in response.json()] == ["Gone"]
+
+
+def test_restore_player(admin_client: TestClient, team: Team) -> None:
+    created = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()
+    player_id = created["id"]
+    admin_client.post(f"/players/{player_id}/images", json={"url": "https://example.com/d.jpg"})
+    admin_client.delete(f"/teams/{team.id}/players/{player_id}")
+
+    url = f"/teams/{team.id}/players/{player_id}/restore"
+    assert TestClient(app).post(url).status_code == 401
+    assert admin_client.post(f"/teams/{team.id + 1}/players/{player_id}/restore").status_code == 404
+
+    response = admin_client.post(url)
+    assert response.status_code == 200
+    listed = admin_client.get(f"/teams/{team.id}/players").json()
+    assert [p["id"] for p in listed] == [player_id]
+    assert len(listed[0]["images"]) == 1
 
 
 def test_add_player_image_admin_only(admin_client: TestClient, team: Team) -> None:
