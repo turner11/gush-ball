@@ -2,7 +2,7 @@
 // Throws on a non-2xx response with the server's `detail` as message and `status` attached.
 export async function apiFetch(path, options = {}) {
   const { body, headers, ...rest } = options
-  const isPlainBody = body !== undefined && body !== null && typeof body === 'object'
+  const isPlainBody = body !== undefined && body !== null && typeof body === 'object' && !(body instanceof FormData)
 
   const res = await fetch(`/api${path}`, {
     credentials: 'include',

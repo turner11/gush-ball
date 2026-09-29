@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 
 import { useTeamContent } from '../composables/useTeamContent'
+import ImageUpload from './ImageUpload.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps({
@@ -133,6 +134,7 @@ onMounted(load)
           :required="field.required"
           class="field-input"
         />
+        <ImageUpload v-if="field.upload" @uploaded="(url) => (form[field.key] = url)" />
       </div>
 
       <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
