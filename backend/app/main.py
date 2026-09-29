@@ -7,7 +7,7 @@ from app.routers import auth, content, games, health, players, standings, sync, 
 
 app = FastAPI(title="Gush Ball API")
 
-app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
+app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, max_age=12 * 60 * 60)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
