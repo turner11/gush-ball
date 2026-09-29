@@ -268,6 +268,14 @@ describe('HomeView', () => {
     expect(wrapper.html()).not.toContain('md:grid-cols-3')
   })
 
+  it('gives the social aside half the width', async () => {
+    const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
+
+    expect(wrapper.html()).toContain('md:grid-cols-2')
+    expect(wrapper.html()).not.toContain('md:grid-cols-3')
+    expect(wrapper.html()).not.toContain('md:col-span-2')
+  })
+
   it('puts social embeds in the aside, apart from the links section', async () => {
     const wrapper = await mountWithTeam(
       { ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' },
