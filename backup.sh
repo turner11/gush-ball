@@ -4,6 +4,8 @@ cd "$(dirname "$0")"
 
 set -a
 . ./.env
+# Optional scoped backup token; falls back to the app key until .env.backup exists.
+[ -f ./.env.backup ] && . ./.env.backup
 set +a
 
 f="$(mktemp)"
@@ -12,8 +14,8 @@ trap 'rm -f "$f"' EXIT
 docker compose -f docker-compose.prod.yml exec -T db pg_dump -U gush_ball -Fc gush_ball > "$f"
 
 docker run --rm -i \
-    -e AWS_ACCESS_KEY_ID="$OBJECT_STORAGE_ACCESS_KEY_ID" \
-    -e AWS_SECRET_ACCESS_KEY="$OBJECT_STORAGE_SECRET_ACCESS_KEY" \
+    -e AWS_ACCESS_KEY_ID="${BACKUP_ACCESS_KEY_ID:-$OBJECT_STORAGE_ACCESS_KEY_ID}" \
+    -e AWS_SECRET_ACCESS_KEY="${BACKUP_SECRET_ACCESS_KEY:-$OBJECT_STORAGE_SECRET_ACCESS_KEY}" \
     -e AWS_DEFAULT_REGION=auto \
     amazon/aws-cli s3 cp - "s3://$BACKUP_BUCKET/gush_ball-$(date +%F).dump" \
     --endpoint-url "$OBJECT_STORAGE_ENDPOINT_URL" \

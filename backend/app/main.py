@@ -5,7 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.routers import auth, content, games, health, players, standings, sync, teams, uploads
 
-app = FastAPI(title="Gush Ball API")
+app = FastAPI(title="Gush Ball API", openapi_url="/openapi.json" if settings.enable_docs else None)
 
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 app.add_middleware(

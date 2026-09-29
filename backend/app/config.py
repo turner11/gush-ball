@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://gush_ball:gush_ball@localhost:5432/gush_ball"
     session_secret: str = Field(min_length=32)
     cors_origins: list[str] = ["http://localhost:5173"]
+    enable_docs: bool = False
 
     # Object storage (S3-compatible / R2). Empty-string defaults, like the other settings above,
     # so the app still boots for local dev/tests without real credentials — only /uploads itself
