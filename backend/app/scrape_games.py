@@ -9,6 +9,7 @@ import logging
 import time
 from datetime import datetime
 from typing import Any
+from urllib.parse import urljoin
 
 import httpx
 from bs4 import BeautifulSoup
@@ -17,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import Game, GameStatus, Opponent, Player, Team, get_or_create_opponent
+from app.models import Game, GameStatus, Opponent, Player, PlayerImage, Team, get_or_create_opponent
 
 BASE = "https://ibasketball.co.il/wp-json"
 CRAWL_DELAY = 10
@@ -179,7 +180,8 @@ def sync_all_games(db: Session, errors: list[str] | None = None) -> int:
 
 
 def sync_team_players(db: Session, team: Team) -> int:
-    """Fill-only: creates missing players. Never overwrites admin edits, never deletes.
+    """Fill-only: creates missing players and fills a missing image. Never overwrites admin edits,
+    never deletes.
 
     Players are matched by the roster card's href (Player.source_url), so renamed or soft-deleted
     players are not re-imported. Legacy rows without source_url are adopted by name.
@@ -198,20 +200,26 @@ def sync_team_players(db: Session, team: Team) -> int:
         # not filtering deleted_at: a soft-deleted player must still block re-import
         # ponytail: keyed on href; if the source changes a URL the player is re-imported once
         # (upgrade path: numeric SportsPress player id)
-        if href and db.scalar(
+        player = href and db.scalar(
             select(Player).where(Player.team_id == team.id, Player.source_url == href)
-        ):
-            continue
-        legacy = db.scalar(
-            select(Player).where(
-                Player.team_id == team.id, Player.source_url.is_(None), Player.name == name
-            )
         )
-        if legacy is not None:
-            legacy.source_url = href
-        else:
-            db.add(Player(team_id=team.id, name=name, source_url=href))
-            count += 1
+        if not player:
+            player = db.scalar(
+                select(Player).where(
+                    Player.team_id == team.id, Player.source_url.is_(None), Player.name == name
+                )
+            )
+            if player is not None:
+                player.source_url = href
+            else:
+                player = Player(team_id=team.id, name=name, source_url=href)
+                db.add(player)
+                count += 1
+        img = card.select_one("img[src]")
+        # ponytail: hotlinks the source URL; copy to object storage if it ever breaks
+        url = urljoin(BASE, img["src"]) if img else ""
+        if url and len(url) <= 500 and not player.images:
+            player.images.append(PlayerImage(url=url))
 
     db.commit()
     return count
