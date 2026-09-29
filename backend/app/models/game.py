@@ -2,12 +2,13 @@ import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Enum, ForeignKey, Text, false
+from sqlalchemy import JSON, Enum, ForeignKey, String, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
 if TYPE_CHECKING:
+    from app.models.lineup_snapshot import LineupSnapshot
     from app.models.opponent import Opponent
     from app.models.team import Team
 
@@ -47,6 +48,11 @@ class Game(Base):
     # is required so "no suggestion" round-trips as SQL NULL, not JSON 'null'.
     scrape_suggestion: Mapped[dict | None] = mapped_column(JSON(none_as_null=True), default=None)
     scrape_suggestion_dismissed: Mapped[bool] = mapped_column(default=False, server_default=false())
+
+    # Not a scrape field: setting it never flags an override. Sheet holding BBStats snapshots.
+    stats_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    # ORM cascade too: delete_game uses db.delete and SQLite tests don't enforce FKs.
+    lineup_snapshots: Mapped[list["LineupSnapshot"]] = relationship(cascade="all, delete-orphan")
 
     team: Mapped["Team"] = relationship(back_populates="games")
     opponent: Mapped["Opponent"] = relationship()

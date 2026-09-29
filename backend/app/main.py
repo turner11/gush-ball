@@ -5,7 +5,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.routers import auth, content, games, health, players, standings, sync, teams, uploads
+from app.routers import (
+    auth,
+    content,
+    games,
+    health,
+    lineups,
+    players,
+    standings,
+    sync,
+    teams,
+    uploads,
+)
 
 # uvicorn does not configure the root logger; without this app.* INFO records are dropped.
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +36,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(content.router)
 app.include_router(games.router)
+app.include_router(lineups.router)
 app.include_router(players.router)
 app.include_router(standings.router)
 app.include_router(sync.router)

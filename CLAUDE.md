@@ -30,6 +30,9 @@ issue, before starting.
   one polymorphic content table — the four types share no behavior beyond "belongs to a team."
 - `StandingRow` (Phase 1 issue #4): designed so Phase 2's scraper upserts into the *same* table
   Phase 1's manual entry uses, keyed by league + team name.
+- `LineupSnapshot`: raw per-snapshot lineup rows (5 jersey numbers, elapsed minutes, points for/against)
+  belonging to a `Game`. `Game.stats_url` is the admin-set sheet they were loaded from; it is not a
+  scrape field, so setting it never flags an override.
 - `AdminUser`: the only authenticated role anywhere in the system.
 
 ## Key decisions
@@ -58,12 +61,13 @@ issue, before starting.
   yet → HTTP on the IP; HTTPS arrives with the domain via Caddy.
 - **Media storage**: object storage (S3-compatible/R2), not local disk — keeps media off the single
   machine (survives rebuilds/loss) and the same bucket holds the DB backups.
-- **Statistics are intentionally undesigned.** Real per-lineup +/- needs live substitution
-  tracking that the scraped source can never provide (box scores only, no play-by-play) — this is
-  a permanent limitation of the data source, not something a better scraper fixes. The user's existing
-  app that tracks this, BBStats, is vendored as a git submodule at `stats/` and is the base for
-  statistics; *how* it integrates is still to be discussed. Don't design a stats
-  data model beyond the existing "coming soon" empty state until that discussion happens.
+- **Statistics (lineup +/-)**: real per-lineup +/- needs live substitution tracking that the scraped
+  source can never provide (box scores only, no play-by-play) — a permanent limitation of the data
+  source. BBStats (`stats/` git submodule, installed into the backend as the `bbstats` package) is the
+  stats engine. The admin sets a Google Sheet/CSV URL per `Game` and loads it; the raw snapshots are
+  stored in `LineupSnapshot`. Lineup stats for group size 1–5 and sort top/offense/defense are
+  computed on read with `get_stats_from_raw_data`, with no precomputed aggregates. The public view is
+  the lineups section on the roster page.
 - **No live scores.** Refresh-on-load is sufficient; no websockets/polling.
 - **Design bar**: "professional" is anchored to four reference sites — maccabi.co.il, paobc.gr,
   nba.com/knicks, nba.com/heat — plus Tailwind and a headless Vue component kit (e.g. Reka UI).
@@ -73,7 +77,8 @@ issue, before starting.
 
 Don't build these ahead of their phase, even if a related task makes them tempting:
 
-- Stats UI/entry beyond the empty state (Phase 3, undesigned)
+- Stats beyond per-lineup +/- from admin-loaded BBStats sheets: no box-score stats, no in-site stat
+  entry, no precomputed/stored aggregates
 - Dynamic per-team color theming (Phase 3) — dark/light mode is a *different*, already-shipped
   feature; don't conflate the two
 - Social media embeds (Phase 3)
@@ -89,4 +94,5 @@ Don't build these ahead of their phase, even if a related task makes them tempti
 - Local Postgres: `docker-compose.yml`
 - Backend models: `backend/app/models/`
 - Bootstrap the first admin login: `backend/scripts/create_admin.py`
-- Statistics base (BBStats, git submodule): `stats/`
+- Statistics engine (BBStats, git submodule): `stats/`. It is installed into the backend as a uv path
+  dependency (`bbstats`), so the submodule is required to build and test the backend.

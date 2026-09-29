@@ -13,7 +13,10 @@ services:
   # Full local stack: `docker compose --profile full up -d --build`
   backend:
     profiles: [full]
-    build: ./backend
+    build:
+      context: ./backend
+      additional_contexts:
+        stats: ./stats
     depends_on: [db]
     restart: unless-stopped
     environment:
@@ -31,13 +34,12 @@ services:
   # BBStats Streamlit app, for debugging: `docker compose --profile stats up stats`
   stats:
     profiles: [stats]
-    image: python:3.9-slim  # ponytail: matches BBStats' pins (pip-compiled on Windows/3.9, hence the pywin32 filter)
+    image: python:3.12-slim
     working_dir: /stats
     volumes:
       - ./stats:/stats
     command: >
-      sh -c "grep -v pywin32 requirements_compiled.txt > /tmp/req.txt &&
-             pip install -q -r /tmp/req.txt &&
+      sh -c "pip install -q -e '.[app]' &&
              streamlit run src/apps/stats.py --server.address 0.0.0.0 --server.headless true"
     ports:
       - "8501:8501"

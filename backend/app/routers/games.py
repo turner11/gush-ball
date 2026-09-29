@@ -66,6 +66,7 @@ class AdminGameRead(GameRead):
     needs_review: bool
     is_manually_overridden: bool
     scrape_suggestion: dict | None
+    stats_url: str | None
 
 
 def _get_game_or_404(db: Session, team_id: int, game_id: int) -> Game:

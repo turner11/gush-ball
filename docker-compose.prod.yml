@@ -15,7 +15,10 @@ services:
       - db_data:/var/lib/postgresql/data
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      additional_contexts:
+        stats: ./stats
     restart: unless-stopped
     logging: *logging
     env_file: .env
