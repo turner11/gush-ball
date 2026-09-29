@@ -19,8 +19,9 @@ const teams = ref([])
 const { selectedTeamId, ensureDefault } = useSelectedTeam()
 
 // Scoped to this layout's root so admin pages stay neutral; unset vars fall back in style.css.
+const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value))
 const teamStyle = computed(() => {
-  const team = teams.value.find((t) => String(t.id) === selectedTeamId.value)
+  const team = selectedTeam.value
   const style = {}
   if (team?.primary_color) {
     style['--team-primary'] = team.primary_color
@@ -75,6 +76,17 @@ onMounted(async () => {
         <ThemeToggle />
       </nav>
     </header>
+
+    <div
+      v-if="selectedTeam"
+      data-testid="hero"
+      class="flex h-40 items-end bg-cover bg-center sm:h-56"
+      :style="{ backgroundImage: `url(/backgrounds/${selectedTeam.background ?? 'hoop-1'}.jpg)` }"
+    >
+      <div class="w-full bg-black/40 py-4">
+        <p class="page-title mx-auto max-w-5xl px-4 !text-white">{{ selectedTeam.name }}</p>
+      </div>
+    </div>
 
     <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
       <ErrorBoundary>

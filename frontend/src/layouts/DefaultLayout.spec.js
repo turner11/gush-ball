@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const TEAMS = [
   { id: 1, name: 'קבוצה א', primary_color: '#ffff00', secondary_color: '#000000' },
-  { id: 2, name: 'קבוצה ב', primary_color: '#1d428a', secondary_color: '#c8102e' },
+  { id: 2, name: 'קבוצה ב', primary_color: '#1d428a', secondary_color: '#c8102e', background: 'hoop-2' },
   { id: 3, name: 'קבוצה ג', primary_color: null, secondary_color: null },
 ]
 
@@ -120,5 +120,20 @@ describe('DefaultLayout', () => {
     expect(header.classes()).not.toContain('bg-team')
     expect(header.classes()).not.toContain('text-on-team')
     expect(header.classes()).toContain('border-neutral-200')
+  })
+
+  it("renders the selected team's background in the hero, falling back to hoop-1", async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="hero"]').attributes('style')).toContain('/backgrounds/hoop-1.jpg')
+
+    await wrapper.find('#team-switcher').setValue('2')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="hero"]').attributes('style')).toContain('/backgrounds/hoop-2.jpg')
   })
 })

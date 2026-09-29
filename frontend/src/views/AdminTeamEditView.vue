@@ -34,6 +34,7 @@ const form = reactive({
   ...Object.fromEntries([...NAME_FIELDS, ...DETAIL_FIELDS].map((f) => [f.key, ''])),
   primary_color: '#000000',
   secondary_color: '#000000',
+  background: 'hoop-1',
 })
 
 async function load() {
@@ -138,6 +139,14 @@ const contentSections = [
               class="mt-1"
             />
           </div>
+        </div>
+
+        <div>
+          <label for="team-background" class="field-label">רקע</label>
+          <select id="team-background" v-model="form.background" class="field-input">
+            <option value="hoop-1">רקע 1</option>
+            <option value="hoop-2">רקע 2</option>
+          </select>
         </div>
 
         <div v-for="field in DETAIL_FIELDS" :key="field.key">
