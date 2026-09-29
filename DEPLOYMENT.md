@@ -1,7 +1,7 @@
 # Deployment
 
-The whole stack (Postgres, backend, Caddy serving the frontend and proxying `/api/*`) runs on one
-**Hetzner** machine via `docker-compose.prod.yml`. CI (`.github/workflows/ci.yml`) deploys over SSH
+The whole stack (Postgres, backend, [Caddy](https://caddyserver.com/docs/) serving the frontend and proxying `/api/*`) runs on one
+**[Hetzner](https://console.hetzner.cloud/)** machine via `docker-compose.prod.yml`. CI (`.github/workflows/ci.yml`) deploys over SSH
 on every push to `master`, after the backend and frontend jobs pass.
 
 Order matters: storage first (you need its values for `.env`), then the machine, then CI.
@@ -16,22 +16,27 @@ Order matters: storage first (you need its values for `.env`), then the machine,
 
 ## 1. Object storage (Cloudflare R2)
 
+Docs: [R2 get started](https://developers.cloudflare.com/r2/get-started/) ·
+[pricing / free tier](https://developers.cloudflare.com/r2/pricing/).
+
 Media uploads go through the backend (`backend/app/storage.py`), which `put_object`s to the bucket
 and stores the returned public URL. Browsers only *read* from the bucket, so no bucket CORS rule is
 needed.
 
-1. Cloudflare dashboard → **R2** → enable R2 (needs a payment method; the free tier covers this site).
+1. [Cloudflare dashboard](https://dash.cloudflare.com/) → **R2** → enable R2 (needs a payment method; the free tier covers this site).
 2. **Account ID**: shown on the R2 overview page. The S3 endpoint is
-   `https://<account-id>.r2.cloudflarestorage.com` → `OBJECT_STORAGE_ENDPOINT_URL`.
-3. **Media bucket**: *Create bucket* → `gush-ball-media` → `OBJECT_STORAGE_BUCKET`.
+   `https://<account-id>.r2.cloudflarestorage.com` → `OBJECT_STORAGE_ENDPOINT_URL`
+   ([S3 API docs](https://developers.cloudflare.com/r2/api/s3/api/)).
+3. **Media bucket**: [*Create bucket*](https://developers.cloudflare.com/r2/buckets/create-buckets/) → `gush-ball-media` → `OBJECT_STORAGE_BUCKET`.
    - Bucket → *Settings* → *Public access* → enable the **r2.dev subdomain** (or connect a custom
-     domain once one exists). The resulting URL (e.g. `https://pub-xxxx.r2.dev`, no trailing
+     domain once one exists) — [public buckets docs](https://developers.cloudflare.com/r2/buckets/public-buckets/). The resulting URL (e.g. `https://pub-xxxx.r2.dev`, no trailing
      slash) → `OBJECT_STORAGE_PUBLIC_URL`.
 4. **Backup bucket**: *Create bucket* → `gush-ball-backups` → `BACKUP_BUCKET`. Leave public access
    **off**. It must be a different bucket from the media one, or dated DB dumps would be public.
-   - Optional: *Settings* → *Object lifecycle rules* → delete objects after e.g. 30 days, so
+   - Optional: *Settings* → [*Object lifecycle rules*](https://developers.cloudflare.com/r2/buckets/object-lifecycles/) → delete objects after e.g. 30 days, so
      nightly dumps don't pile up forever.
-5. **Media token**: R2 → *Manage R2 API Tokens* → *Create API token*:
+5. **Media token**: R2 → *Manage R2 API Tokens* → *Create API token*
+   ([API tokens docs](https://developers.cloudflare.com/r2/api/tokens/)):
    permission **Object Read & Write**, *Specify bucket* → `gush-ball-media` only.
    Copy the **Access Key ID** → `OBJECT_STORAGE_ACCESS_KEY_ID` and **Secret Access Key** →
    `OBJECT_STORAGE_SECRET_ACCESS_KEY`. The secret is shown once.
@@ -41,13 +46,15 @@ needed.
 
 ## 2. Hetzner machine
 
-1. Hetzner Cloud console → create a server (Ubuntu LTS), add your personal SSH key.
-2. Firewall: allow inbound **22** and **80** (add **443** when HTTPS arrives, step 9).
-3. SSH in as root and install Docker with the Compose plugin:
+1. [Hetzner Cloud console](https://console.hetzner.cloud/) → [create a server](https://docs.hetzner.com/cloud/servers/getting-started/creating-a-server/) (Ubuntu LTS), add your personal SSH key.
+2. [Firewall](https://docs.hetzner.com/cloud/firewalls/getting-started/creating-a-firewall/): allow inbound **22** and **80** (add **443** when HTTPS arrives, step 9).
+3. SSH in as root and install Docker with the Compose plugin
+   ([Docker on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)):
    ```bash
    curl -fsSL https://get.docker.com | sh
    ```
-4. Create the deploy user and give it Docker:
+4. Create the deploy user and give it Docker
+   ([non-root Docker](https://docs.docker.com/engine/install/linux-postinstall/)):
    ```bash
    adduser --disabled-password --gecos "" deploy
    usermod -aG docker deploy
@@ -139,7 +146,8 @@ Check `http://<server-ip>/` loads.
 
 ## 5. GitHub secrets (CI deploy)
 
-Repo → *Settings* → *Secrets and variables* → *Actions* → *New repository secret*:
+[Repo → *Settings* → *Secrets and variables* → *Actions*](https://github.com/turner11/gush-ball/settings/secrets/actions)
+→ *New repository secret* ([docs](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions)):
 
 | Secret | Value |
 |---|---|
@@ -167,7 +175,7 @@ then browse to `http://localhost:8080/`.
 
 ## 7. Cron: backups + nightly scrape
 
-As `deploy`, `crontab -e`:
+As `deploy`, `crontab -e` ([crontab.guru](https://crontab.guru/) to sanity-check schedules):
 
 ```
 0 3 * * * ~/gush-ball/backup.sh
@@ -199,13 +207,14 @@ For a real restore into `gush_ball`, or copying data dev ↔ prod, use `dbsync.s
 ## 9. HTTPS (once a domain exists)
 
 1. Point the domain's A record at the server IP.
-2. `frontend/Caddyfile`: replace `:80` with the domain — Caddy then gets a Let's Encrypt cert itself.
-3. `docker-compose.prod.yml`, `web` service: publish `443:443` and add a `caddy_data:/data` volume
+2. `frontend/Caddyfile`: replace `:80` with the domain — Caddy then gets a Let's Encrypt cert itself
+   ([automatic HTTPS](https://caddyserver.com/docs/automatic-https)).
+3. `docker-compose.prod.yml`, `web` service: publish `443:443` and add a `caddy_data:/data` volume ([why](https://hub.docker.com/_/caddy))
    (plus the top-level `caddy_data:` volume) so certificates survive rebuilds.
 4. Open port 443 in the Hetzner firewall.
 5. `.env`: `CORS_ORIGINS=["https://<domain>"]`, then
    `docker compose -f docker-compose.prod.yml up -d backend`.
-6. Optional: connect a custom domain to the media bucket (R2 → bucket → *Custom domains*) and update
+6. Optional: connect a custom domain to the media bucket (R2 → bucket → [*Custom domains*](https://developers.cloudflare.com/r2/buckets/public-buckets/#custom-domains)) and update
    `OBJECT_STORAGE_PUBLIC_URL`. Already-uploaded images keep their old r2.dev URLs in the DB, so
    leave r2.dev access on.
 
