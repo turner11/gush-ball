@@ -20,5 +20,8 @@ class Settings(BaseSettings):
     object_storage_public_url: str = ""
     object_storage_region: str = "auto"
 
+    # BBStats Streamlit app. Default is the local `stats` compose service; prod sets STATS_URL.
+    stats_url: str = "http://localhost:8501"
+
 
 settings = Settings()
