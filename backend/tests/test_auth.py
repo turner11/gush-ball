@@ -1,0 +1,77 @@
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.models import AdminUser
+from app.routers import auth
+from app.security import hash_password, verify_password
+
+GOOD = {"username": "admin", "password": "password123"}
+
+
+def _bad(username: str = "admin") -> dict[str, str]:
+    return {"username": username, "password": "wrong"}
+
+
+@pytest.fixture(autouse=True)
+def _clear_attempts():
+    auth._attempts.clear()
+    yield
+    auth._attempts.clear()
+
+
+@pytest.fixture()
+def seeded(client: TestClient, db_session: Session) -> TestClient:
+    db_session.add(AdminUser(username="admin", password_hash=hash_password("password123")))
+    db_session.commit()
+    return client
+
+
+def test_login_locks_out_ip_after_max_failures(seeded: TestClient) -> None:
+    for _ in range(auth._MAX_ATTEMPTS):
+        assert seeded.post("/auth/login", json=_bad()).status_code == 401
+    assert seeded.post("/auth/login", json=GOOD).status_code == 429
+
+
+def test_login_lockout_is_per_ip(seeded: TestClient) -> None:
+    h1 = {"X-Forwarded-For": "1.1.1.1"}
+    for i in range(auth._MAX_ATTEMPTS):
+        assert seeded.post("/auth/login", json=_bad(f"nobody{i}"), headers=h1).status_code == 401
+    assert seeded.post("/auth/login", json=GOOD, headers=h1).status_code == 429
+    assert seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "2.2.2.2"}).status_code == 200
+
+
+def test_login_lockout_is_per_username(seeded: TestClient) -> None:
+    for i in range(auth._MAX_ATTEMPTS):
+        headers = {"X-Forwarded-For": f"9.9.9.{i}"}
+        assert seeded.post("/auth/login", json=_bad(), headers=headers).status_code == 401
+    response = seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "8.8.8.8"})
+    assert response.status_code == 429
+
+
+def test_login_lockout_expires_after_window(seeded: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    for _ in range(auth._MAX_ATTEMPTS):
+        seeded.post("/auth/login", json=_bad())
+    later = auth.time.monotonic() + auth._WINDOW_SECONDS + 1
+    monkeypatch.setattr(auth.time, "monotonic", lambda: later)
+    assert seeded.post("/auth/login", json=GOOD).status_code == 200
+
+
+def test_successful_login_clears_failures(seeded: TestClient) -> None:
+    for _ in range(auth._MAX_ATTEMPTS - 1):
+        assert seeded.post("/auth/login", json=_bad()).status_code == 401
+    assert seeded.post("/auth/login", json=GOOD).status_code == 200
+    for _ in range(auth._MAX_ATTEMPTS - 1):
+        assert seeded.post("/auth/login", json=_bad()).status_code == 401
+
+
+def test_unknown_user_still_runs_bcrypt(seeded: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    def spy(password: str, password_hash: str) -> bool:
+        calls.append(password_hash)
+        return verify_password(password, password_hash)
+
+    monkeypatch.setattr(auth, "verify_password", spy)
+    assert seeded.post("/auth/login", json=_bad("nobody")).status_code == 401
+    assert calls == [auth._DUMMY_HASH]
