@@ -2,6 +2,24 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* Per-team colors: --team-* are set inline by DefaultLayout from the selected team. Unset (admin, or a team
+   without colors) falls back to the neutral, mode-aware default below — team color and dark mode stay independent. */
+@theme inline {
+  --color-team: var(--team-primary, var(--team-default));
+  --color-on-team: var(--team-on-primary, var(--team-on-default));
+  --color-team-2: var(--team-secondary, var(--color-neutral-400));
+}
+
+:root {
+  --team-default: var(--color-neutral-900);
+  --team-on-default: #ffffff;
+}
+
+[data-theme="dark"] {
+  --team-default: var(--color-neutral-100);
+  --team-on-default: var(--color-neutral-900);
+}
+
 @layer components {
   .page-title {
     @apply text-2xl font-bold;
@@ -16,7 +34,7 @@
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 bg-neutral-900 text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300;
+    @apply inline-flex items-center justify-center rounded px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 bg-team text-on-team hover:opacity-90;
   }
 
   .btn-secondary {
