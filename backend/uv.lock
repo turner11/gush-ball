@@ -72,7 +72,6 @@ dependencies = [
 requires-dist = [
     { name = "numpy" },
     { name = "pandas" },
-    { name = "pillow", marker = "extra == 'app'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "streamlit", marker = "extra == 'app'", specifier = ">=1.40" },
 ]
