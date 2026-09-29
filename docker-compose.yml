@@ -19,6 +19,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://gush_ball:gush_ball@db:5432/gush_ball
       SESSION_SECRET: local-dev-only-not-a-real-secret-0123456789
+      STATS_URL: http://localhost:8501
       # ponytail: no object-storage vars, so /uploads fails locally until R2 vars are set
   web:
     profiles: [full]
