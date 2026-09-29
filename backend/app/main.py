@@ -10,7 +10,7 @@ from app.routers import auth, content, games, health, players, standings, sync, 
 # uvicorn does not configure the root logger; without this app.* INFO records are dropped.
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Gush Ball API")
+app = FastAPI(title="Gush Ball API", openapi_url="/openapi.json" if settings.enable_docs else None)
 
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 app.add_middleware(

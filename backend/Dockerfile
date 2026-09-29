@@ -11,6 +11,9 @@ RUN uv sync --frozen --no-dev
 
 COPY . .
 
+RUN useradd --create-home app
+USER app
+
 ENV UV_NO_SYNC=1
 
 CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000"]
