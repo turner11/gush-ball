@@ -1,5 +1,5 @@
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, status
 from pydantic import AfterValidator, AnyUrl, BaseModel, HttpUrl, StringConstraints, UrlConstraints
@@ -16,6 +16,7 @@ HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 # value is a clean 422 instead of a raw DB error.
 Name = Annotated[str, StringConstraints(max_length=120)]
 Address = Annotated[str, StringConstraints(max_length=300)]
+Background = Literal["hoop-1", "hoop-2"]  # bundled presets in frontend/public/backgrounds
 Url500 = Annotated[HttpUrl, UrlConstraints(max_length=500)]
 
 
@@ -35,6 +36,7 @@ class TeamUpdate(BaseModel):
     primary_color: HexColor | None = None
     secondary_color: HexColor | None = None
     logo_url: Url500 | None = None
+    background: Background | None = None
     home_court_address: Address | None = None
     facebook_url: Url500 | None = None
     instagram_url: Url500 | None = None
@@ -59,6 +61,7 @@ class TeamOut(BaseModel):
     primary_color: str | None
     secondary_color: str | None
     logo_url: str | None
+    background: str
     home_court_address: str | None
     facebook_url: str | None
     instagram_url: str | None
@@ -90,7 +93,7 @@ def _stringify_urls(data: dict) -> dict:
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=TeamOut)
 def create_team(payload: TeamCreate, _admin_id: RequireAdmin, db: DbSession) -> Team:
-    data = _stringify_urls(payload.model_dump())
+    data = _stringify_urls(payload.model_dump(exclude_none=True))
     team = Team(**data, slug=_unique_slug(db, _slugify(payload.name)))
     db.add(team)
     db.commit()
@@ -112,6 +115,8 @@ def get_team(team_id: int, db: DbSession) -> Team:
 def update_team(team_id: int, payload: TeamUpdate, _admin_id: RequireAdmin, db: DbSession) -> Team:
     team = get_team_or_404(db, team_id)
     updates = _stringify_urls(payload.model_dump(exclude_unset=True))
+    if updates.get("background") is None:
+        updates.pop("background", None)  # column is NOT NULL
     for field, value in updates.items():
         setattr(team, field, value)
     db.commit()
