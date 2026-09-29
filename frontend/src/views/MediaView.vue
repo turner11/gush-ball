@@ -45,7 +45,7 @@ const tabs = [
   <section class="space-y-6">
     <h1 class="page-title">מדיה</h1>
 
-    <TabsRoot default-value="videos" class="space-y-6">
+    <TabsRoot default-value="videos" dir="rtl" class="space-y-6">
       <TabsList class="flex gap-4 border-b border-neutral-200 dark:border-neutral-800">
         <TabsTrigger
           v-for="tab in tabs"

@@ -54,6 +54,11 @@ describe('MediaView', () => {
     expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['סרטונים', 'עדכונים', 'תמונות'])
   })
 
+  it('renders the tabs root right-to-left', async () => {
+    const wrapper = await mountView()
+    expect(wrapper.find('[dir]').attributes('dir')).toBe('rtl')
+  })
+
   it('shows all videos newest first on the default tab', async () => {
     const wrapper = await mountView()
     expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['חדש', 'אמצע', 'ישן'])
