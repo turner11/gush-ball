@@ -13,11 +13,11 @@ def stub_scrapers(monkeypatch: pytest.MonkeyPatch) -> Generator[dict[str, Any], 
     """Monkeypatch the scraper entry points the router delegates to; records calls."""
     calls: dict[str, Any] = {"standings": 0, "games": 0}
 
-    def _fake_sync_all_standings(db: Any) -> int:
+    def _fake_sync_all_standings(db: Any, errors: Any = None) -> int:
         calls["standings"] += 1
         return 0
 
-    def _fake_sync_all_games(db: Any) -> int:
+    def _fake_sync_all_games(db: Any, errors: Any = None) -> int:
         calls["games"] += 1
         return 0
 
@@ -50,3 +50,23 @@ def test_sync_now_returns_409_when_already_running(
     response = admin_client.post("/sync/now")
 
     assert response.status_code == 409
+
+
+def test_sync_status_requires_admin(client: TestClient) -> None:
+    assert client.get("/sync/status").status_code == 401
+
+
+def test_sync_status_reports_last_result(
+    admin_client: TestClient, stub_scrapers: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sync_router, "_last", None)
+    assert admin_client.get("/sync/status").json()["finished_at"] is None
+
+    admin_client.post("/sync/now")
+    body = admin_client.get("/sync/status").json()
+
+    assert body["running"] is False
+    assert body["standings"] == 0
+    assert body["games"] == 0
+    assert body["errors"] == []
+    assert body["finished_at"] is not None

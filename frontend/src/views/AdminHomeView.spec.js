@@ -37,8 +37,32 @@ describe('AdminHomeView', () => {
     vi.restoreAllMocks()
   })
 
-  it('clicking the sync button POSTs /sync/now and shows a started message', async () => {
-    mockFetch({ 'POST /api/sync/now': () => jsonRes({ status: 'started' }, 202) })
+  it('shows counts and per-team errors from the last finished run', async () => {
+    mockFetch({
+      'GET /api/sync/status': () =>
+        jsonRes({
+          running: false,
+          finished_at: '2026-09-29T10:00:00Z',
+          standings: 8,
+          games: 12,
+          errors: ['games gush: boom'],
+          failed: false,
+        }),
+    })
+
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('8 שורות טבלה, 12 משחקים')
+    expect(wrapper.text()).toContain('games gush: boom')
+  })
+
+  it('clicking the sync button POSTs /sync/now and shows the running message', async () => {
+    mockFetch({
+      'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }),
+      'POST /api/sync/now': () => jsonRes({ status: 'started' }, 202),
+    })
 
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
     const wrapper = mount(AdminHomeView, { global: { plugins: [router] } })
@@ -51,16 +75,16 @@ describe('AdminHomeView', () => {
       '/api/sync/now',
       expect.objectContaining({ method: 'POST' }),
     )
-    expect(wrapper.text()).toContain('הסנכרון התחיל')
+    expect(wrapper.text()).toContain('הסנכרון רץ')
   })
 
   it('a 409 already-running response shows an error message', async () => {
-    global.fetch = vi.fn(() =>
-      Promise.resolve({
-        ok: false,
-        status: 409,
-        json: async () => ({ detail: 'Sync already running' }),
-      }),
+    global.fetch = vi.fn((url) =>
+      Promise.resolve(
+        url === '/api/sync/status'
+          ? jsonRes({ running: false, errors: [] })
+          : { ok: false, status: 409, json: async () => ({ detail: 'Sync already running' }) },
+      ),
     )
 
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
