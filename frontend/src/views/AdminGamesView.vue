@@ -3,6 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { formatDateTime } from '../lib/format'
 
 const STATUSES = ['scheduled', 'final', 'postponed', 'cancelled']
 
@@ -211,7 +212,7 @@ async function onDelete(game) {
           <template v-for="game in pendingGames" :key="game.id">
             <tr class="table-row">
               <td class="py-2">{{ game.opponent.name }}</td>
-              <td class="py-2">{{ game.scheduled_at }}</td>
+              <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
               <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
               <td class="py-2">{{ game.status }}</td>
               <td class="py-2">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
@@ -267,7 +268,7 @@ async function onDelete(game) {
       <tbody>
         <tr v-for="game in games" :key="game.id" class="table-row">
           <td class="py-2">{{ game.opponent.name }}</td>
-          <td class="py-2">{{ game.scheduled_at }}</td>
+          <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
           <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
           <td class="py-2">{{ game.status }}</td>
           <td class="py-2">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>

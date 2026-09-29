@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { formatDateTime } from '../lib/format'
 import { splitGames } from '../lib/games'
 
 const STATUS_LABELS = {
@@ -61,7 +62,7 @@ watch(selectedTeamId, loadGames, { immediate: true })
                 <a v-if="game.opponent.source_url" :href="game.opponent.source_url" target="_blank" rel="noopener" class="hover:underline">{{ game.opponent.name }}</a>
                 <template v-else>{{ game.opponent.name }}</template>
               </td>
-              <td class="py-2">{{ game.scheduled_at }}</td>
+              <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
               <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
               <td class="py-2">{{ STATUS_LABELS[game.status] ?? game.status }}</td>
             </tr>
@@ -88,7 +89,7 @@ watch(selectedTeamId, loadGames, { immediate: true })
                 <a v-if="game.opponent.source_url" :href="game.opponent.source_url" target="_blank" rel="noopener" class="hover:underline">{{ game.opponent.name }}</a>
                 <template v-else>{{ game.opponent.name }}</template>
               </td>
-              <td class="py-2">{{ game.scheduled_at }}</td>
+              <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
               <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
               <td class="py-2">{{ STATUS_LABELS[game.status] ?? game.status }}</td>
               <td class="py-2">
