@@ -3,7 +3,7 @@ from typing import Literal
 import pandas as pd
 from bbstats import get_snapshots_df, get_stats_from_raw_data
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.deps import DbSession, RequireAdmin, get_team_or_404
@@ -14,7 +14,7 @@ router = APIRouter(tags=["lineups"])
 
 
 class StatsSource(BaseModel):
-    url: str | None = None
+    url: str | None = Field(default=None, pattern=r"^https?://")
 
 
 class StatsLoadOut(BaseModel):

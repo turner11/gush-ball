@@ -65,6 +65,15 @@ def test_load_stats_stores_snapshots_and_url(admin_client, db_session, fake_shee
     assert game.stats_url == URL
 
 
+def test_non_http_url_rejected(admin_client, db_session, fake_sheet) -> None:
+    game = _make_game(db_session)
+
+    r = admin_client.post(_stats_path(game), json={"url": "/etc/passwd"})
+
+    assert r.status_code == 422
+    assert fake_sheet == []
+
+
 def test_reload_replaces_snapshots_and_uses_stored_url(admin_client, db_session, fake_sheet) -> None:
     game = _make_game(db_session)
     admin_client.post(_stats_path(game), json={"url": URL})

@@ -90,7 +90,6 @@ function resetForm() {
 
 function startEdit(game) {
   editing.value = game
-  statsUrl.value = game.stats_url ?? ''
   statsMessage.value = null
   form.value = {
     opponent_name: game.opponent.name,
