@@ -1,4 +1,7 @@
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.models import Opponent
 
 
 def _row(**overrides: object) -> dict:
@@ -52,6 +55,22 @@ def test_list_standing_rows_is_public(admin_client: TestClient, client: TestClie
     response = client.get("/standings")
     assert response.status_code == 200
     assert len(response.json()) == 1
+
+
+def test_list_standing_rows_includes_matching_opponent_logo(
+    admin_client: TestClient, client: TestClient, db_session: Session
+) -> None:
+    db_session.add(Opponent(name="X", logo_url="https://l/x.png"))
+    db_session.commit()
+    _create_row(admin_client, team_name="X")
+    assert client.get("/standings").json()[0]["logo_url"] == "https://l/x.png"
+
+
+def test_list_standing_rows_logo_null_without_matching_opponent(
+    admin_client: TestClient, client: TestClient
+) -> None:
+    _create_row(admin_client, team_name="X")
+    assert client.get("/standings").json()[0]["logo_url"] is None
 
 
 def test_list_standing_rows_filters_by_league_name(admin_client: TestClient, client: TestClient) -> None:

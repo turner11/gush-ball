@@ -22,6 +22,7 @@ const urlMatch = (r) =>
   r.source_url &&
   team.value?.ibasketball_team_url &&
   normUrl(r.source_url) === normUrl(team.value.ibasketball_team_url)
+const rowLogo = (r) => (r.id === myRow.value?.id ? team.value?.logo_url : r.logo_url)
 const nameMatch = (r) => r.team_name === team.value?.name
 const myRow = computed(() => rows.value.find(urlMatch) ?? rows.value.find(nameMatch) ?? null)
 const leagueRows = computed(() =>
@@ -71,6 +72,7 @@ watch(selectedTeamId, load, { immediate: true })
           >
             <td class="py-2">{{ row.rank }}</td>
             <td class="py-2">
+              <img v-if="rowLogo(row)" :src="rowLogo(row)" alt="" class="me-2 inline h-6 w-6 object-contain" />
               <a v-if="row.source_url" :href="row.source_url" target="_blank" rel="noopener" class="hover:underline">{{ row.team_name }}</a>
               <template v-else>{{ row.team_name }}</template>
             </td>

@@ -98,12 +98,18 @@ watch(
         <div v-if="nextGame || lastGame" class="grid gap-4 sm:grid-cols-2">
           <div v-if="nextGame" class="card space-y-1">
             <h2 class="section-title">המשחק הבא</h2>
-            <p class="font-semibold">{{ nextGame.opponent.name }}</p>
+            <p class="flex items-center gap-2 font-semibold">
+              <img v-if="nextGame.opponent.logo_url" :src="nextGame.opponent.logo_url" alt="" class="h-8 w-8 object-contain" />
+              {{ nextGame.opponent.name }}
+            </p>
             <p class="text-sm">{{ formatDateTime(nextGame.scheduled_at) }} · {{ nextGame.is_home ? 'בית' : 'חוץ' }}</p>
           </div>
           <div v-if="lastGame" class="card space-y-1">
             <h2 class="section-title">המשחק האחרון</h2>
-            <p class="font-semibold">{{ lastGame.opponent.name }}</p>
+            <p class="flex items-center gap-2 font-semibold">
+              <img v-if="lastGame.opponent.logo_url" :src="lastGame.opponent.logo_url" alt="" class="h-8 w-8 object-contain" />
+              {{ lastGame.opponent.name }}
+            </p>
             <p class="text-sm">{{ formatDateTime(lastGame.scheduled_at) }} · {{ lastGame.is_home ? 'בית' : 'חוץ' }}</p>
             <p v-if="lastGame.team_score !== null && lastGame.opponent_score !== null" class="font-semibold">
               {{ lastGame.team_score }} : {{ lastGame.opponent_score }}

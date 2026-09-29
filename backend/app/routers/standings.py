@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.deps import DbSession, RequireAdmin
-from app.models import StandingRow
+from app.models import Opponent, StandingRow
 
 router = APIRouter(prefix="/standings", tags=["standings"])
 
@@ -53,6 +53,7 @@ class StandingRowOut(BaseModel):
     points_against: int
     points: int
     source_url: str | None = None
+    logo_url: str | None = None
 
 
 def _get_row_or_404(db: Session, row_id: int) -> StandingRow:
@@ -85,12 +86,24 @@ def create_standing_row(payload: StandingRowCreate, _admin_id: RequireAdmin, db:
 
 
 @router.get("", response_model=list[StandingRowOut])
-def list_standing_rows(db: DbSession, league_name: str | None = None) -> list[StandingRow]:
+def list_standing_rows(db: DbSession, league_name: str | None = None) -> list[StandingRowOut]:
     query = select(StandingRow)
     if league_name is not None:
         query = query.where(StandingRow.league_name == league_name)
     query = query.order_by(StandingRow.league_name, StandingRow.rank)
-    return list(db.scalars(query).all())
+    rows = list(db.scalars(query).all())
+    # Opponent.name is the same key the games scraper uses; no FK by design.
+    logos = dict(
+        db.execute(
+            select(Opponent.name, Opponent.logo_url).where(
+                Opponent.name.in_({r.team_name for r in rows}), Opponent.logo_url.is_not(None)
+            )
+        ).all()
+    )
+    return [
+        StandingRowOut.model_validate(r).model_copy(update={"logo_url": logos.get(r.team_name)})
+        for r in rows
+    ]
 
 
 @router.get("/{row_id}", response_model=StandingRowOut)

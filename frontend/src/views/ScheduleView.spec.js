@@ -80,6 +80,22 @@ describe('ScheduleView', () => {
     expect(text).not.toContain('2030-05-01T18:00:00')
   })
 
+  it('shows the opponent logo only when it has one', async () => {
+    const withLogo = { ...FUTURE_GAME, opponent: { ...FUTURE_GAME.opponent, logo_url: 'https://l/f.png' } }
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+      'GET /api/teams/1/games': () => jsonRes([withLogo, PAST_GAME]),
+    })
+
+    const { default: ScheduleView } = await import('./ScheduleView.vue')
+    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const imgs = wrapper.findAll('tbody img')
+    expect(imgs).toHaveLength(1)
+    expect(imgs[0].attributes('src')).toBe('https://l/f.png')
+  })
+
   it('links the opponent only when it has a source_url', async () => {
     mockFetch({
       'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
