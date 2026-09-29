@@ -107,13 +107,13 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('אין קבוצות במערכת עדיין')
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1', expect.anything())
   })
-  async function mountWithTeam(team, { links = [], players = [], games = [] } = {}) {
+  async function mountWithTeam(team, { links = [], players = [], games = [], videos = [], posts = [] } = {}) {
     mockFetch({
       'GET /api/teams/1': () => jsonRes(team),
       'GET /api/teams/1/links': () => jsonRes(links),
-      'GET /api/teams/1/videos': () => jsonRes([]),
+      'GET /api/teams/1/videos': () => jsonRes(videos),
       'GET /api/teams/1/images': () => jsonRes([]),
-      'GET /api/teams/1/posts': () => jsonRes([]),
+      'GET /api/teams/1/posts': () => jsonRes(posts),
       'GET /api/teams/1/players': () => jsonRes(players),
       'GET /api/teams/1/games': () => jsonRes(games),
     })
@@ -244,11 +244,65 @@ describe('HomeView', () => {
     expect(cards[1].text()).toContain('רון')
   })
 
-  it('links to the stats page (roster)', async () => {
+  it('has no stats link (moved to the top nav)', async () => {
     const wrapper = await mountWithTeam(TEAM)
 
-    const link = wrapper.findAll('a').find((a) => a.text() === 'סטטיסטיקה')
-    expect(link.attributes('href')).toBe('/roster')
+    expect(wrapper.findAll('a').some((a) => a.text() === 'סטטיסטיקה')).toBe(false)
+  })
+
+  it('shows the last game before the next game in one row', async () => {
+    const opp = (name) => ({ name, source_url: null, logo_url: null })
+    const wrapper = await mountWithTeam(TEAM, {
+      games: [
+        { id: 1, opponent: opp('יריבה א'), scheduled_at: '2999-01-01T18:00:00', is_home: true, team_score: null, opponent_score: null },
+        { id: 2, opponent: opp('יריבה ב'), scheduled_at: '2000-01-01T18:00:00', is_home: false, team_score: 80, opponent_score: 70 },
+      ],
+    })
+
+    const cards = wrapper.findAll('div.card')
+    expect(cards[0].text()).toContain('יריבה ב')
+    expect(cards[0].element.parentElement.className).toContain('sm:grid-cols-2')
+  })
+
+  it('shows only the newest post', async () => {
+    const post = (id) => ({ id, team_id: 1, title: `פוסט ${id}`, body: 'x' })
+    const wrapper = await mountWithTeam(TEAM, { posts: [post(2), post(1)] })
+
+    expect(wrapper.text()).toContain('פוסט 2')
+    expect(wrapper.text()).not.toContain('פוסט 1')
+  })
+
+  it('orders sections: games, post, players, videos', async () => {
+    const opp = { name: 'יריבה', source_url: null, logo_url: null }
+    const wrapper = await mountWithTeam(TEAM, {
+      games: [
+        { id: 1, opponent: opp, scheduled_at: '2999-01-01T18:00:00', is_home: false, team_score: null, opponent_score: null },
+        { id: 2, opponent: opp, scheduled_at: '2000-01-01T18:00:00', is_home: false, team_score: 1, opponent_score: 2 },
+      ],
+      posts: [{ id: 1, title: 'פוסט', body: 'x' }],
+      players: [{ id: 1, name: 'דני', jersey_number: 4, images: [] }],
+      videos: [{ id: 1, title: 'וידאו', url: 'https://vimeo.com/1' }],
+    })
+
+    const titles = wrapper.findAll('h2.section-title').map((h) => h.text())
+    expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'עדכונים', 'שחקנים', 'סרטונים'])
+  })
+
+  it('embeds YouTube videos and links others', async () => {
+    const wrapper = await mountWithTeam(TEAM, {
+      videos: [
+        { id: 1, title: 'א', url: 'https://www.youtube.com/watch?v=abc123' },
+        { id: 2, title: 'ב', url: 'https://youtu.be/xyz' },
+        { id: 3, title: 'ג', url: 'https://vimeo.com/1' },
+      ],
+    })
+
+    const srcs = wrapper.findAll('iframe').map((f) => f.attributes('src'))
+    expect(srcs).toEqual([
+      'https://www.youtube-nocookie.com/embed/abc123',
+      'https://www.youtube-nocookie.com/embed/xyz',
+    ])
+    expect(wrapper.find('a[href="https://vimeo.com/1"]').exists()).toBe(true)
   })
 
   it('hides sections with no content', async () => {
@@ -268,10 +322,11 @@ describe('HomeView', () => {
     expect(wrapper.html()).not.toContain('md:grid-cols-3')
   })
 
-  it('gives the social aside half the width', async () => {
+  it('gives the main column more width than the social aside', async () => {
     const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
 
-    expect(wrapper.html()).toContain('md:grid-cols-2')
+    expect(wrapper.html()).toContain('md:grid-cols-[3fr_2fr]')
+    expect(wrapper.html()).toContain('gap-12')
     expect(wrapper.html()).not.toContain('md:grid-cols-3')
     expect(wrapper.html()).not.toContain('md:col-span-2')
   })

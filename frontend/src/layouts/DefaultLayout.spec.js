@@ -6,13 +6,14 @@ const TEAMS = [
   {
     id: 1,
     name: 'קבוצה א',
+    name_en: 'Team A',
     primary_color: '#ffff00',
     secondary_color: '#000000',
     logo_url: 'https://cdn.example.com/logo-a.png',
     home_court_address: 'אולם הספורט, תל אביב',
   },
-  { id: 2, name: 'קבוצה ב', primary_color: '#1d428a', secondary_color: '#c8102e', background: 'hoop-2' },
-  { id: 3, name: 'קבוצה ג', primary_color: null, secondary_color: null },
+  { id: 2, name: 'קבוצה ב', name_en: 'Team B', primary_color: '#1d428a', secondary_color: '#c8102e', background: 'hoop-2' },
+  { id: 3, name: 'קבוצה ג', name_en: 'Team C', primary_color: null, secondary_color: null },
 ]
 
 function mockFetch(handlers) {
@@ -37,7 +38,11 @@ describe('DefaultLayout', () => {
     localStorage.clear()
     router = createRouter({
       history: createWebHistory(),
-      routes: [{ path: '/', component: { template: '<div/>' } }],
+      routes: [
+        { path: '/', name: 'home', component: { template: '<div/>' } },
+        { path: '/schedule', name: 'schedule', component: { template: '<div/>' } },
+        { path: '/:slug', name: 'team-home', component: { template: '<div/>' } },
+      ],
     })
   })
 
@@ -45,29 +50,78 @@ describe('DefaultLayout', () => {
     vi.restoreAllMocks()
   })
 
-  it('loads teams on mount and defaults selectedTeamId to the first team', async () => {
+  it('visiting /team_b selects team 2 and remembers it', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
-    await flushPromises()
-
-    const select = wrapper.find('#team-switcher')
-    expect(select.exists()).toBe(true)
-    expect(select.element.value).toBe('1')
-  })
-
-  it('changing the team switcher updates the shared selectedTeamId', async () => {
-    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
-
-    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
-    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
-    await flushPromises()
-
-    await wrapper.find('#team-switcher').setValue('2')
+    await router.push('/team_b')
     await flushPromises()
 
     expect(localStorage.getItem('gush-ball:selected-team-id')).toBe('2')
+    expect(wrapper.find('header a').text()).toContain('קבוצה ב')
+  })
+
+  it("bare / redirects to the remembered team's slug, else the first team", async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+
+    localStorage.setItem('gush-ball:selected-team-id', '2')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/team_b')
+
+    localStorage.clear()
+    vi.resetModules()
+    const { default: Layout2 } = await import('./DefaultLayout.vue')
+    mount(Layout2, { global: { plugins: [router] } })
+    await router.push('/')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/team_a')
+  })
+
+  it('unknown slug redirects to the remembered/first team', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/nope')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/team_a')
+  })
+
+  it('non-home pages never redirect', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/schedule')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/schedule')
+  })
+
+  it('renders no team <select>', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('select').exists()).toBe(false)
+  })
+
+  it('nav links סטטיסטיקה to the lineups section', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const a = wrapper.findAll('a').find((x) => x.text() === 'סטטיסטיקה')
+    expect(a.attributes('href')).toBe('/roster#lineups')
   })
 
   it("exposes the selected team's colors as CSS custom properties", async () => {
@@ -89,7 +143,7 @@ describe('DefaultLayout', () => {
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
     await flushPromises()
 
-    await wrapper.find('#team-switcher').setValue('2')
+    await router.push('/team_b')
     await flushPromises()
 
     const style = wrapper.element.style
@@ -105,7 +159,7 @@ describe('DefaultLayout', () => {
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
     await flushPromises()
 
-    await wrapper.find('#team-switcher').setValue('3')
+    await router.push('/team_c')
     await flushPromises()
 
     expect(wrapper.element.style.getPropertyValue('--team-primary')).toBe('')
@@ -121,7 +175,7 @@ describe('DefaultLayout', () => {
     const header = wrapper.find('header')
     expect(header.classes()).toContain('bg-team')
 
-    await wrapper.find('#team-switcher').setValue('3')
+    await router.push('/team_c')
     await flushPromises()
 
     expect(header.classes()).not.toContain('bg-team')
@@ -138,7 +192,7 @@ describe('DefaultLayout', () => {
 
     expect(wrapper.find('[data-testid="hero"]').attributes('style')).toContain('/backgrounds/hoop-1.jpg')
 
-    await wrapper.find('#team-switcher').setValue('2')
+    await router.push('/team_b')
     await flushPromises()
 
     expect(wrapper.find('[data-testid="hero"]').attributes('style')).toContain('/backgrounds/hoop-2.jpg')
@@ -164,7 +218,7 @@ describe('DefaultLayout', () => {
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
     await flushPromises()
 
-    const brand = wrapper.find('header a[href="/"]')
+    const brand = wrapper.find('header a[href="/team_a"]')
     const img = brand.find('img[src="https://cdn.example.com/logo-a.png"]')
     expect(img.exists()).toBe(true)
     expect(brand.text()).toContain('קבוצה א')
@@ -172,7 +226,7 @@ describe('DefaultLayout', () => {
     const name = row.find((el) => el.textContent.includes('קבוצה א'))
     expect(row.indexOf(img.element)).toBeLessThan(row.indexOf(name))
 
-    await wrapper.find('#team-switcher').setValue('2')
+    await router.push('/team_b')
     await flushPromises()
 
     expect(brand.find('img[src="/logo.jpg"]').exists()).toBe(true)
@@ -200,7 +254,7 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('[data-testid="hero"]').element.parentElement).toBe(parent)
   })
 
-  it("hero shows only the map link, not the team logo or name", async () => {
+  it('hero has no link or image; the map pin lives in the header', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -208,28 +262,26 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const hero = wrapper.find('[data-testid="hero"]')
+    expect(hero.find('a').exists()).toBe(false)
     expect(hero.find('img').exists()).toBe(false)
-    expect(hero.text()).not.toContain('קבוצה א')
-    const a = hero.find('a')
+    const a = wrapper.find('header a[href^="https://www.google.com/maps"]')
     expect(a.attributes('href')).toBe(
       'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('אולם הספורט, תל אביב'),
     )
     expect(a.attributes('rel')).toContain('noopener')
   })
 
-  it('hero omits the map link when the team has no address', async () => {
+  it('header omits the map link when the team has no address', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
     await flushPromises()
 
-    await wrapper.find('#team-switcher').setValue('3')
+    await router.push('/team_c')
     await flushPromises()
 
-    const hero = wrapper.find('[data-testid="hero"]')
-    expect(hero.text()).not.toContain('קבוצה ג')
-    expect(hero.find('img').exists()).toBe(false)
-    expect(hero.find('a').exists()).toBe(false)
+    expect(wrapper.find('header a[href*="google.com/maps"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="hero"]').find('a').exists()).toBe(false)
   })
 })

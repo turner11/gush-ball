@@ -42,4 +42,11 @@ describe('router auth guard', () => {
 
     expect(router.currentRoute.value.name).toBe('admin-login')
   })
+
+  it('/elizur resolves to team-home and /schedule stays schedule', async () => {
+    const { default: router } = await import('./index.js')
+
+    expect(router.resolve('/elizur').name).toBe('team-home')
+    expect(router.resolve('/schedule').name).toBe('schedule')
+  })
 })
