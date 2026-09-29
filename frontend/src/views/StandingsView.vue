@@ -10,13 +10,20 @@ const rows = ref([])
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
 
-const normUrl = (u) => decodeURIComponent(u).replace(/\/$/, '')
+const normUrl = (u) => {
+  try {
+    return decodeURIComponent(u).replace(/\/$/, '')
+  } catch {
+    return u // admin-pasted URLs can be truncated/invalid percent-encoding
+  }
+}
 // URL is the reliable key (names differ between our Team and ibasketball); name is the fallback.
-const isMine = (r) =>
-  r.source_url && team.value?.ibasketball_team_url
-    ? normUrl(r.source_url) === normUrl(team.value.ibasketball_team_url)
-    : r.team_name === team.value?.name
-const myRow = computed(() => rows.value.find(isMine) ?? null)
+const urlMatch = (r) =>
+  r.source_url &&
+  team.value?.ibasketball_team_url &&
+  normUrl(r.source_url) === normUrl(team.value.ibasketball_team_url)
+const nameMatch = (r) => r.team_name === team.value?.name
+const myRow = computed(() => rows.value.find(urlMatch) ?? rows.value.find(nameMatch) ?? null)
 const leagueRows = computed(() =>
   myRow.value ? rows.value.filter((r) => r.league_name === myRow.value.league_name) : [],
 )
