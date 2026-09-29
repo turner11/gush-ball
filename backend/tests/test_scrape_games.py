@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app import scrape_games
-from app.models import Game, GameStatus, Opponent, Team
+from app.models import Game, GameStatus, Opponent, Player, Team
 
 OUR_SP_ID = 1542241
 OPP_SP_ID = 2001
@@ -41,14 +41,17 @@ OPPONENT_NAME_UNESCAPED = "מכבי – תל אביב"
 class FakeApi:
     """Path-keyed fake for app.scrape_games._get_json. Records calls, no network/sleep."""
 
-    def __init__(self, events: list[dict]) -> None:
+    def __init__(self, events: list[dict], roster: object = None) -> None:
         self.events = events
+        self.roster = roster
         self.calls: list[tuple[str, dict]] = []
 
     def __call__(self, path: str, **params: object) -> object:
         self.calls.append((path, params))
         if path == "/sportspress/v2/teams":
-            return [{"id": OUR_SP_ID}]
+            return [{"id": OUR_SP_ID, "lists": [10, 20]}]
+        if path == "/sportspress/v2/lists/20":
+            return {"data": self.roster}
         if path == "/sportspress/v2/events":
             return self.events
         if path == f"/sportspress/v2/teams/{OPP_SP_ID}":
@@ -300,3 +303,62 @@ def test_sync_all_games_rolls_back_after_db_failure_so_next_team_still_syncs(
 
     assert scrape_games.sync_all_games(db_session) == 1
     assert db_session.query(Game).count() == 1
+
+
+HEADER_ROW = {"number": "#", "name": "שחקן", "team": "קבוצה"}
+
+
+def _roster(*rows: dict) -> dict:
+    return {str(i): r for i, r in enumerate([HEADER_ROW, *rows])}
+
+
+def test_sync_team_players_creates_players_for_this_team_only(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    roster = _roster(
+        {"name": "דן כהן", "number": "7", "team": str(OUR_SP_ID)},
+        {"name": "רן &#8211; לוי", "number": "", "team": str(OUR_SP_ID)},
+        {"name": "זר", "number": "3", "team": "999"},
+    )
+    fake = FakeApi([], roster)
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+
+    assert scrape_games.sync_team_players(db_session, team) == 2
+
+    players = db_session.query(Player).order_by(Player.name).all()
+    assert {(p.name, p.jersey_number) for p in players} == {("דן כהן", 7), ("רן – לוי", None)}
+    assert ("/sportspress/v2/lists/20", {}) in fake.calls
+
+
+def test_sync_team_players_keeps_admin_edits(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    db_session.add_all(
+        [
+            Player(team_id=team.id, name="דן כהן", jersey_number=10),
+            Player(team_id=team.id, name="רן לוי"),
+        ]
+    )
+    db_session.commit()
+    roster = _roster(
+        {"name": "דן כהן", "number": "7", "team": str(OUR_SP_ID)},
+        {"name": "רן לוי", "number": "5", "team": str(OUR_SP_ID)},
+    )
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([], roster))
+
+    scrape_games.sync_team_players(db_session, team)
+
+    players = {p.name: p.jersey_number for p in db_session.query(Player).all()}
+    assert players == {"דן כהן": 10, "רן לוי": 5}
+
+
+def test_sync_team_players_handles_empty_list(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([], [HEADER_ROW]))
+
+    assert scrape_games.sync_team_players(db_session, team) == 0
+    assert db_session.query(Player).count() == 0

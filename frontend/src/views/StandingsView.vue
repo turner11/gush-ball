@@ -10,7 +10,20 @@ const rows = ref([])
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
 
-const myRow = computed(() => rows.value.find((r) => r.team_name === team.value?.name) ?? null)
+const normUrl = (u) => {
+  try {
+    return decodeURIComponent(u).replace(/\/$/, '')
+  } catch {
+    return u // admin-pasted URLs can be truncated/invalid percent-encoding
+  }
+}
+// URL is the reliable key (names differ between our Team and ibasketball); name is the fallback.
+const urlMatch = (r) =>
+  r.source_url &&
+  team.value?.ibasketball_team_url &&
+  normUrl(r.source_url) === normUrl(team.value.ibasketball_team_url)
+const nameMatch = (r) => r.team_name === team.value?.name
+const myRow = computed(() => rows.value.find(urlMatch) ?? rows.value.find(nameMatch) ?? null)
 const leagueRows = computed(() =>
   myRow.value ? rows.value.filter((r) => r.league_name === myRow.value.league_name) : [],
 )
@@ -57,7 +70,10 @@ watch(selectedTeamId, load, { immediate: true })
             :class="{ 'bg-neutral-100 font-bold dark:bg-neutral-800': row.id === myRow.id }"
           >
             <td class="py-2">{{ row.rank }}</td>
-            <td class="py-2">{{ row.team_name }}</td>
+            <td class="py-2">
+              <a v-if="row.source_url" :href="row.source_url" target="_blank" rel="noopener" class="hover:underline">{{ row.team_name }}</a>
+              <template v-else>{{ row.team_name }}</template>
+            </td>
             <td class="py-2">{{ row.played }}</td>
             <td class="py-2">{{ row.won }}</td>
             <td class="py-2">{{ row.lost }}</td>

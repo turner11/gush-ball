@@ -52,6 +52,7 @@ class StandingRowOut(BaseModel):
     points_for: int
     points_against: int
     points: int
+    source_url: str | None = None
 
 
 def _get_row_or_404(db: Session, row_id: int) -> StandingRow:

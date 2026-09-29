@@ -39,6 +39,7 @@ class SyncStatusOut(BaseModel):
     finished_at: datetime | None = None
     standings: int | None = None
     games: int | None = None
+    players: int | None = None
     errors: list[str] = []
     failed: bool = False
 

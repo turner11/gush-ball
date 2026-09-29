@@ -78,7 +78,7 @@ onUnmounted(() => {
       <div v-else-if="result" class="text-sm text-neutral-600 dark:text-neutral-400">
         <p v-if="result.failed" class="text-red-600 dark:text-red-400">הסנכרון נכשל.</p>
         <p v-else>
-          הסנכרון הסתיים: {{ result.standings }} שורות טבלה, {{ result.games }} משחקים.        </p>
+          הסנכרון הסתיים: {{ result.standings }} שורות טבלה, {{ result.games }} משחקים, {{ result.players }} שחקנים.        </p>
         <ul v-if="result.errors.length" class="list-disc ps-5 text-red-600 dark:text-red-400">
           <li v-for="e in result.errors" :key="e">{{ e }}</li>
         </ul>

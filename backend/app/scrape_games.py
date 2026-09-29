@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import Game, GameStatus, Opponent, Team, get_or_create_opponent
+from app.models import Game, GameStatus, Opponent, Player, Team, get_or_create_opponent
 
 BASE = "https://ibasketball.co.il/wp-json"
 CRAWL_DELAY = 10
@@ -46,12 +46,16 @@ def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -
     return opponent
 
 
-def sync_team_games(db: Session, team: Team) -> int:
+def _find_sp_team(team: Team) -> dict[str, Any]:
     slug = team.ibasketball_team_url.rstrip("/").rsplit("/", 1)[-1]
     teams = _get_json("/sportspress/v2/teams", slug=slug)
     if not teams:
         raise ValueError(f"No SportsPress team found for slug {slug!r}")
-    sp_id = teams[0]["id"]
+    return teams[0]
+
+
+def sync_team_games(db: Session, team: Team) -> int:
+    sp_id = _find_sp_team(team)["id"]
 
     # ponytail: single page (100); follow X-WP-TotalPages if a team ever exceeds it
     events = _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)
@@ -159,6 +163,55 @@ def sync_all_games(db: Session, errors: list[str] | None = None) -> int:
             if errors is not None:
                 errors.append(f"games {slug}: {exc}")
             # Without this, every later team's db.commit() raises PendingRollbackError.
+            db.rollback()
+    return total
+
+
+def sync_team_players(db: Session, team: Team) -> int:
+    """Fill-only: creates missing players and fills a blank jersey number. Never overwrites
+    admin edits and never deletes.
+    """
+    sp_team = _find_sp_team(team)
+    if not sp_team.get("lists"):
+        return 0
+    # ponytail: newest list only; iterate lists if a team ever splits its roster
+    data = _get_json(f"/sportspress/v2/lists/{max(sp_team['lists'])}")["data"]
+    # An empty list comes back as a JSON list holding only the header row.
+    rows = [] if isinstance(data, list) else data.values()
+
+    count = 0
+    for row in rows:
+        if row.get("team") != str(sp_team["id"]):  # also drops the header row
+            continue
+        name = html.unescape(row["name"]).strip()
+        number = int(row["number"]) if str(row["number"]).isdigit() else None
+        player = db.scalar(select(Player).where(Player.team_id == team.id, Player.name == name))
+        if player is None:
+            db.add(Player(team_id=team.id, name=name, jersey_number=number))
+            count += 1
+        elif player.jersey_number is None and number is not None:
+            player.jersey_number = number
+            count += 1
+
+    db.commit()
+    return count
+
+
+def sync_all_players(db: Session, errors: list[str] | None = None) -> int:
+    # ponytail: 3rd copy of the per-team loop; extract a helper if a 4th scraper appears
+    teams = db.scalars(select(Team).where(Team.ibasketball_team_url.is_not(None))).all()
+    total = 0
+    for team in teams:
+        slug = team.slug
+        try:
+            log.info("Players sync: fetching %r", slug)
+            count = sync_team_players(db, team)
+            log.info("Players sync: %r created/updated %d players", slug, count)
+            total += count
+        except Exception as exc:
+            log.exception("Players sync failed for team %r", slug)
+            if errors is not None:
+                errors.append(f"players {slug}: {exc}")
             db.rollback()
     return total
 

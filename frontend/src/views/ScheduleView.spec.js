@@ -13,7 +13,7 @@ const FUTURE_GAME = {
   team_score: null,
   opponent_score: null,
   description: null,
-  opponent: { id: 5, name: 'מכבי עתיד', name_en: null, logo_url: null, source_url: null },
+  opponent: { id: 5, name: 'מכבי עתיד', name_en: null, logo_url: null, source_url: 'https://ibasketball.co.il/team/5/' },
 }
 const PAST_GAME = {
   id: 2,
@@ -60,6 +60,7 @@ describe('ScheduleView', () => {
 
   it('splits games into upcoming and past sections by scheduled_at', async () => {
     mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
       'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME, PAST_GAME]),
     })
 
@@ -75,8 +76,27 @@ describe('ScheduleView', () => {
     expect(upcomingIdx).toBeLessThan(pastIdx)
   })
 
+  it('links the opponent only when it has a source_url', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+      'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME, PAST_GAME]),
+    })
+
+    const { default: ScheduleView } = await import('./ScheduleView.vue')
+    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const links = wrapper.findAll('tbody a')
+    expect(links).toHaveLength(1)
+    expect(links[0].text()).toBe('מכבי עתיד')
+    expect(links[0].attributes('href')).toBe('https://ibasketball.co.il/team/5/')
+    expect(links[0].attributes('target')).toBe('_blank')
+    expect(wrapper.text()).toContain('הפועל עבר')
+  })
+
   it('renders a Hebrew status label, not the raw enum value', async () => {
     mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
       'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME]),
     })
 
@@ -90,6 +110,7 @@ describe('ScheduleView', () => {
 
   it('shows an empty state when the team has no games', async () => {
     mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
       'GET /api/teams/1/games': () => jsonRes([]),
     })
 
@@ -98,5 +119,34 @@ describe('ScheduleView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('אין משחקים עדיין')
+  })
+
+  it('links the club team name to ibasketball only when the team has a URL', async () => {
+    const url = 'https://ibasketball.co.il/team/13638/'
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: url }),
+      'GET /api/teams/1/games': () => jsonRes([]),
+    })
+    const { default: ScheduleView } = await import('./ScheduleView.vue')
+    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const link = wrapper.find('h1 + a')
+    expect(link.text()).toBe('קבוצה א')
+    expect(link.attributes('href')).toBe(url)
+    expect(link.attributes('target')).toBe('_blank')
+    expect(link.attributes('rel')).toContain('noopener')
+  })
+
+  it('shows no club link when ibasketball_team_url is null', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+      'GET /api/teams/1/games': () => jsonRes([]),
+    })
+    const { default: ScheduleView } = await import('./ScheduleView.vue')
+    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('h1 + a').exists()).toBe(false)
   })
 })

@@ -10,6 +10,7 @@ const ROWS = [
     id: 1,
     league_name: 'ליגה א',
     team_name: 'קבוצה א',
+    source_url: 'https://ibasketball.co.il/team/1/',
     rank: 1,
     played: 10,
     won: 8,
@@ -92,6 +93,23 @@ describe('StandingsView', () => {
     expect(text).not.toContain('קבוצה ג')
   })
 
+  it('links team names to ibasketball, including the club own row', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'GET /api/standings': () => jsonRes(ROWS),
+    })
+
+    const { default: StandingsView } = await import('./StandingsView.vue')
+    const wrapper = mount(StandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const links = wrapper.findAll('tbody a')
+    expect(links).toHaveLength(1)
+    expect(links[0].attributes('href')).toBe('https://ibasketball.co.il/team/1/')
+    expect(links[0].text()).toBe('קבוצה א')
+    expect(links[0].attributes('rel')).toContain('noopener')
+  })
+
   it("shows an empty state when no standings row matches the team's name", async () => {
     mockFetch({
       'GET /api/teams/1': () => jsonRes(TEAM),
@@ -103,5 +121,52 @@ describe('StandingsView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('אין נתוני טבלה עבור קבוצה זו')
+  })
+
+  it('matches the own row by team URL when names differ (encoded vs raw Hebrew)', async () => {
+    const rows = [
+      { ...ROWS[0], team_name: 'אליצור ג.ע. אפרת', source_url: 'https://ibasketball.co.il/team/13638-%D7%90%D7%9C%D7%99%D7%A6%D7%95%D7%A8/' },
+      ROWS[1],
+    ]
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ ...TEAM, ibasketball_team_url: 'https://ibasketball.co.il/team/13638-אליצור' }),
+      'GET /api/standings': () => jsonRes(rows),
+    })
+
+    const { default: StandingsView } = await import('./StandingsView.vue')
+    const wrapper = mount(StandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const own = wrapper.findAll('tbody tr').filter((tr) => tr.classes().includes('font-bold'))
+    expect(own).toHaveLength(1)
+    expect(own[0].text()).toContain('אליצור ג.ע. אפרת')
+  })
+
+  it('does not throw on a malformed (truncated) team URL', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ ...TEAM, ibasketball_team_url: 'https://ibasketball.co.il/team/13638-%D7%90%D7/' }),
+      'GET /api/standings': () => jsonRes(ROWS),
+    })
+
+    const { default: StandingsView } = await import('./StandingsView.vue')
+    const wrapper = mount(StandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('קבוצה א')
+  })
+
+  it('falls back to the name when both URLs are set but differ', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ ...TEAM, ibasketball_team_url: 'http://ibasketball.co.il/team/999/' }),
+      'GET /api/standings': () => jsonRes(ROWS),
+    })
+
+    const { default: StandingsView } = await import('./StandingsView.vue')
+    const wrapper = mount(StandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const own = wrapper.findAll('tbody tr').filter((tr) => tr.classes().includes('font-bold'))
+    expect(own).toHaveLength(1)
+    expect(own[0].text()).toContain('קבוצה א')
   })
 })
