@@ -126,7 +126,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const a = wrapper.findAll('a').find((x) => x.text() === 'סטטיסטיקה')
-    expect(a.attributes('href')).toBe('/roster')
+    expect(a.attributes('href')).toBe('/roster#lineups')
   })
 
   it('nav links מדיה to the media page', async () => {

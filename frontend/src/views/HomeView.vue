@@ -21,7 +21,7 @@ const games = ref([])
 const loading = ref(false)
 
 // DefaultLayout picks the default team; this view only follows the selection.
-const { selectedTeamId } = useSelectedTeam()
+const { selectedTeamId, teamsLoaded } = useSelectedTeam()
 
 async function load() {
   if (!selectedTeamId.value) {
@@ -113,7 +113,7 @@ watch(
 </script>
 
 <template>
-  <section v-if="loading && !team" class="space-y-8" aria-busy="true">
+  <section v-if="!team && (loading || (!selectedTeamId && !teamsLoaded))" class="space-y-8" aria-busy="true">
     <div class="grid gap-4 sm:grid-cols-2">
       <div class="skeleton h-40" />
       <div class="skeleton h-40" />

@@ -18,7 +18,7 @@ const navItems = computed(() => [
   { to: '/standings', label: 'טבלה' },
   { to: '/roster', label: 'שחקנים' },
   { to: '/media', label: 'מדיה' },
-  { to: '/roster', label: 'סטטיסטיקה', stats: true },
+  { to: '/roster#lineups', label: 'סטטיסטיקה' },
 ])
 
 const teams = ref([])
@@ -59,6 +59,7 @@ onMounted(async () => {
     ensureDefault(teams.value)
   } catch {
     // leave teams empty — the switcher simply doesn't render
+    ensureDefault([]) // still marks the list as loaded so Home shows the welcome
   }
 })
 </script>
@@ -105,8 +106,7 @@ onMounted(async () => {
           </div>
           <ul class="scroll-row order-last flex w-full gap-5 md:order-2 md:ms-auto md:w-auto">
             <li v-for="item in navItems" :key="item.label">
-              <!-- stats shares /roster with "שחקנים": blank exact class so only one highlights -->
-              <RouterLink :to="item.to" class="nav-link" :exact-active-class="item.stats ? 'is-stats-link' : 'router-link-exact-active'">{{ item.label }}</RouterLink>
+              <RouterLink :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
             </li>
           </ul>
           <div class="ms-auto md:order-3 md:ms-0"><ThemeToggle /></div>

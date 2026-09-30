@@ -41,7 +41,6 @@ const GROUPS = [
     ],
   },
 ]
-const [details, branding, socials, sources] = GROUPS
 
 const team = ref(null)
 const loading = ref(true)
@@ -124,95 +123,51 @@ const contentSections = [
     <div class="page-header">
       <h1 class="page-title">עריכת קבוצה</h1>
       <div class="flex gap-2">
-        <RouterLink to="/admin/teams" class="section-link">← כל הקבוצות</RouterLink>
+        <RouterLink to="/admin/teams" class="section-link">→ כל הקבוצות</RouterLink>
         <RouterLink v-if="team" :to="'/' + teamSlug(team)" class="section-link">צפייה באתר</RouterLink>
       </div>
     </div>
 
     <template v-if="team">
       <form class="space-y-4" @submit.prevent="onSubmit">
-        <fieldset class="card space-y-3">
-          <legend class="section-title">{{ details.legend }}</legend>
-          <div>
+        <fieldset v-for="group in GROUPS" :key="group.legend" class="card space-y-3">
+          <legend class="section-title">{{ group.legend }}</legend>
+          <div v-if="group.legend === 'פרטים'">
             <span class="field-label">מזהה (slug)</span>
             <p class="mt-1 text-neutral-600 dark:text-neutral-400">{{ teamSlug(team) }}</p>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
-            <div v-for="field in details.fields" :key="field.key">
-            <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
-            <input
-              :id="`team-${field.key}`"
-              v-model="form[field.key]"
-              :type="field.type"
-              :required="field.required"
-              class="field-input"
-            />
-          </div>
-          </div>
-        </fieldset>
-
-        <fieldset class="card space-y-3">
-          <legend class="section-title">{{ branding.legend }}</legend>
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label for="team-primary-color" class="field-label">צבע ראשי</label>
-              <div class="mt-1 flex items-center gap-2">
-                <input id="team-primary-color" v-model="form.primary_color" type="color" class="h-11 w-16 rounded" />
-                <span class="text-sm tabular-nums" dir="ltr">{{ form.primary_color }}</span>
+            <template v-if="group.legend === 'מיתוג'">
+              <div>
+                <label for="team-primary-color" class="field-label">צבע ראשי</label>
+                <div class="mt-1 flex items-center gap-2">
+                  <input id="team-primary-color" v-model="form.primary_color" type="color" class="h-11 w-16 rounded" />
+                  <span class="text-sm tabular-nums" dir="ltr">{{ form.primary_color }}</span>
+                </div>
               </div>
-            </div>
-            <div>
-              <label for="team-secondary-color" class="field-label">צבע משני</label>
-              <div class="mt-1 flex items-center gap-2">
-                <input id="team-secondary-color" v-model="form.secondary_color" type="color" class="h-11 w-16 rounded" />
-                <span class="text-sm tabular-nums" dir="ltr">{{ form.secondary_color }}</span>
+              <div>
+                <label for="team-secondary-color" class="field-label">צבע משני</label>
+                <div class="mt-1 flex items-center gap-2">
+                  <input id="team-secondary-color" v-model="form.secondary_color" type="color" class="h-11 w-16 rounded" />
+                  <span class="text-sm tabular-nums" dir="ltr">{{ form.secondary_color }}</span>
+                </div>
               </div>
-            </div>
-            <div>
-              <label for="team-background" class="field-label">רקע</label>
-              <select id="team-background" v-model="form.background" class="field-input">
-                <option value="hoop-1">רקע 1</option>
-                <option value="hoop-2">רקע 2</option>
-              </select>
-            </div>
-            <div v-for="field in branding.fields" :key="field.key">
+              <div>
+                <label for="team-background" class="field-label">רקע</label>
+                <select id="team-background" v-model="form.background" class="field-input">
+                  <option value="hoop-1">רקע 1</option>
+                  <option value="hoop-2">רקע 2</option>
+                </select>
+              </div>
+            </template>
+            <div v-for="field in group.fields" :key="field.key">
               <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
-              <input :id="`team-${field.key}`" v-model="form[field.key]" :type="field.type" class="field-input" />
-              <ImageUpload v-if="field.key === 'logo_url'" @uploaded="(url) => (form.logo_url = url)" />
-              <img v-if="field.key === 'logo_url' && form.logo_url" :src="form.logo_url" alt="" class="mt-2 size-16 object-contain" />
+              <input :id="`team-${field.key}`" v-model="form[field.key]" :type="field.type" :required="field.required" class="field-input" />
+              <template v-if="field.key === 'logo_url'">
+                <ImageUpload @uploaded="(url) => (form.logo_url = url)" />
+                <img v-if="form.logo_url" :src="form.logo_url" alt="" class="mt-2 size-16 object-contain" />
+              </template>
             </div>
-          </div>
-        </fieldset>
-
-        <fieldset class="card space-y-3">
-          <legend class="section-title">{{ socials.legend }}</legend>
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div v-for="field in socials.fields" :key="field.key">
-            <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
-            <input
-              :id="`team-${field.key}`"
-              v-model="form[field.key]"
-              :type="field.type"
-              :required="field.required"
-              class="field-input"
-            />
-          </div>
-          </div>
-        </fieldset>
-
-        <fieldset class="card space-y-3">
-          <legend class="section-title">{{ sources.legend }}</legend>
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div v-for="field in sources.fields" :key="field.key">
-            <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
-            <input
-              :id="`team-${field.key}`"
-              v-model="form[field.key]"
-              :type="field.type"
-              :required="field.required"
-              class="field-input"
-            />
-          </div>
           </div>
         </fieldset>
 
