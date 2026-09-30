@@ -49,6 +49,7 @@ describe('DefaultLayout', () => {
   })
 
   afterEach(() => {
+    document.title = ''
     vi.restoreAllMocks()
   })
 
@@ -62,6 +63,33 @@ describe('DefaultLayout', () => {
 
     expect(localStorage.getItem('gush-ball:selected-team-id')).toBe('2')
     expect(wrapper.find('header a').text()).toContain('קבוצה ב')
+  })
+
+  it('sets the tab title to the selected team name', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_b')
+    await flushPromises()
+
+    expect(document.title).toBe('🏀' + TEAMS[1].name)
+  })
+
+  it('tab title follows a team switch', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
+    await flushPromises()
+    await router.push('/schedule')
+    await flushPromises()
+    expect(document.title).toBe('🏀' + TEAMS[0].name)
+
+    await router.push('/team_b')
+    await flushPromises()
+    expect(document.title).toBe('🏀' + TEAMS[1].name)
   })
 
   it("bare / redirects to the remembered team's slug", async () => {

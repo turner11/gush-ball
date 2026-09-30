@@ -34,8 +34,9 @@ router.beforeEach(async (to) => {
   return user.value ? true : { name: 'admin-login' }
 })
 
+// Public pages: DefaultLayout owns the title (team name). Admin pages: page title.
 router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} · גוש כדורסל` : 'גוש כדורסל'
+  if (to.meta.layout === 'admin') document.title = `${to.meta.title} · גוש כדורסל`
 })
 
 export default router
