@@ -1,10 +1,33 @@
 <script setup>
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { RouterLink } from 'vue-router'
+
 // `player` may be undefined (jersey not on the roster); `jersey` is then shown as #N.
-defineProps({
+const props = defineProps({
   player: { type: Object, default: null },
   jersey: { type: Number, default: null },
   compact: Boolean,
 })
+
+const SLIDE_MS = 3000
+const index = ref(0)
+const hovered = ref(false)
+let timer = null
+
+const images = computed(() => props.player?.images ?? [])
+
+function startSlideshow() {
+  hovered.value = true
+  if (timer || images.value.length < 2) return
+  timer = setInterval(() => (index.value = (index.value + 1) % images.value.length), SLIDE_MS)
+}
+function stopSlideshow() {
+  clearInterval(timer)
+  timer = null
+  index.value = 0
+  hovered.value = false
+}
+onBeforeUnmount(stopSlideshow)
 
 const DEFAULT = '/default-player.png'
 // Dead/blocked hotlink -> default; the endsWith guard stops a loop if the default itself fails.
@@ -14,11 +37,17 @@ function onImgError(e) {
 </script>
 
 <template>
-  <div class="text-center">
+  <component
+    :is="player?.id && !compact ? RouterLink : 'div'"
+    :to="player?.id && !compact ? `/players/${player.id}` : undefined"
+    class="block text-center"
+    @mouseenter="startSlideshow"
+    @mouseleave="stopSlideshow"
+  >
     <!-- badge overlaps the photo so names line up whether or not a player has a number -->
     <div class="relative mx-auto w-fit">
       <img
-        :src="player?.images?.[0]?.url || '/default-player.png'"
+        :src="images[0]?.url || '/default-player.png'"
         :alt="player?.name ?? ''"
         loading="lazy"
         :class="compact ? 'size-11 ring-2 sm:size-14' : 'size-20 ring-4 sm:size-24'"
@@ -33,6 +62,35 @@ function onImgError(e) {
         #{{ player?.jersey_number ?? jersey }}
       </p>
     </div>
+    <!-- on hover the slideshow fills the whole card: the nearest positioned ancestor, i.e. the caller's `relative overflow-hidden` card -->
+    <Transition v-if="hovered && images.length && !compact" name="slide">
+      <img
+        :key="index"
+        :src="images[index].url"
+        alt=""
+        data-testid="slide"
+        class="absolute inset-0 size-full object-cover object-top"
+        @error="onImgError"
+      />
+    </Transition>
     <p v-if="player" :class="compact ? 'mt-2.5 line-clamp-2 text-[11px]' : 'mt-3 text-sm'" class="font-bold leading-tight">{{ player.name }}</p>
-  </div>
+  </component>
 </template>
+
+<style scoped>
+.slide-enter-active,
+.slide-leave-active {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  transform: scale(1.05);
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-enter-active,
+  .slide-leave-active {
+    transition: none;
+  }
+}
+</style>
