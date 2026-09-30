@@ -5,6 +5,7 @@ x-logging: &logging
 services:
   db:
     image: postgres:17-alpine
+    container_name: gush-ball-db  # stable name for backup.sh / dbsync.sh (docker exec)
     restart: unless-stopped
     logging: *logging
     environment:
@@ -21,7 +22,18 @@ services:
         stats: ./stats
     restart: unless-stopped
     logging: *logging
-    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://gush_ball:${POSTGRES_PASSWORD:?}@db:5432/gush_ball
+      SESSION_SECRET: ${SESSION_SECRET:?}
+      CORS_ORIGINS: ${CORS_ORIGINS:?}
+      ENABLE_DOCS: ${ENABLE_DOCS:-false}
+      STATS_URL: ${STATS_URL:-}
+      OBJECT_STORAGE_ENDPOINT_URL: ${OBJECT_STORAGE_ENDPOINT_URL:?}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:?}
+      OBJECT_STORAGE_PUBLIC_URL: ${OBJECT_STORAGE_PUBLIC_URL:?}
+      OBJECT_STORAGE_ACCESS_KEY_ID: ${OBJECT_STORAGE_ACCESS_KEY_ID:?}
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: ${OBJECT_STORAGE_SECRET_ACCESS_KEY:?}
+      OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-auto}
     depends_on:
       - db
 
@@ -29,8 +41,8 @@ services:
     build: ./frontend
     restart: unless-stopped
     logging: *logging
-    ports:
-      - "80:80"
+    # No published ports: Coolify's proxy routes the domain to this container's port 80 and
+    # terminates TLS.
     depends_on:
       - backend
 

@@ -54,11 +54,12 @@ issue, before starting.
   titles) carry an optional `_en` column so bilingual can switch on later without a schema
   rewrite — but no English UI, toggle, or translation workflow exists yet. Don't build the English
   UI ahead of it being asked for.
-- **Hosting**: a single self-managed Hetzner machine running Postgres + backend + Caddy (static
-  frontend, `/api/*` reverse proxy) via Docker Compose; CI deploys over SSH. Chosen over Render
+- **Hosting**: a single self-managed Hetzner machine, shared with another site and managed by Coolify,
+  running Postgres + backend + Caddy (static frontend, `/api/*` reverse proxy) via Docker Compose;
+  Coolify's proxy owns 80/443 and TLS and deploys on push (CI only tests). Chosen over Render
   (whose free Postgres is deleted after ~44 days) because the machine already exists. Self-hosting
-  the DB means nightly `pg_dump` backups to object storage are required, not optional. No domain
-  yet → HTTP on the IP; HTTPS arrives with the domain via Caddy.
+  the DB means nightly `pg_dump` backups to object storage are required, not optional. Served on its own
+  domain (HTTPS via Coolify).
 - **Media storage**: object storage (S3-compatible/R2), not local disk — keeps media off the single
   machine (survives rebuilds/loss) and the same bucket holds the DB backups.
 - **Statistics (lineup +/-)**: real per-lineup +/- needs live substitution tracking that the scraped

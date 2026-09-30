@@ -61,24 +61,23 @@ API_TARGET=http://localhost:8081/api npm run dev
 # PowerShell: $env:API_TARGET='http://localhost:8081/api'; npm run dev
 ```
 
-For prod, open the SSH tunnel from [DEPLOYMENT.md](DEPLOYMENT.md) step 6 (`ssh -L 8080:localhost:80 <deploy-user>@<server-ip>`)
-and use `API_TARGET=http://localhost:8080/api`. This is **live prod data**: every admin edit is real.
+For prod, use `API_TARGET=https://<prod-domain>/api`. This is **live prod data**: every admin edit is real.
 Don't run vite with `--host` while pointed at prod.
 
 ## Deployment
 
-Step-by-step guide (R2 storage, Hetzner box, env vars, GitHub secrets, cron, HTTPS): [DEPLOYMENT.md](DEPLOYMENT.md).
+Step-by-step guide (R2 storage, domain, Coolify, env vars, scrape task, backups): [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Manual dump / import (dev <-> prod)
 
 `dbsync.sh` dumps the DB to a file and imports it (wipes the target). It targets dev by default; prefix
-`COMPOSE_FILE=docker-compose.prod.yml` for prod. Run from Git Bash/WSL (PowerShell redirection corrupts binary dumps).
+`DB_CONTAINER=gush-ball-db` for prod (run on the server). Run from Git Bash/WSL (PowerShell redirection corrupts binary dumps).
 
 ```
-COMPOSE_FILE=docker-compose.prod.yml ./dbsync.sh dump prod.dump   # on the server; scp it down
+DB_CONTAINER=gush-ball-db ./dbsync.sh dump prod.dump   # on the server; scp it down
 ./dbsync.sh import prod.dump                                       # into dev
 ./dbsync.sh dump dev.dump                                          # scp it up, then on the server:
-COMPOSE_FILE=docker-compose.prod.yml ./dbsync.sh import dev.dump
+DB_CONTAINER=gush-ball-db ./dbsync.sh import dev.dump
 ```
 
 Stop `backend` first on prod (open connections block `--clean`), start it after. Dumps include admin password
