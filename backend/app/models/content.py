@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import JSON, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -32,6 +32,10 @@ class TeamVideo(Base):
     title_en: Mapped[str | None] = mapped_column(String(200), default=None)
     url: Mapped[str] = mapped_column(String(500))
 
+    # Tagged Player.ids. ponytail: JSON has no portable SQL "contains"; filter in Python, or move to
+    # JSONB @> / an association table if indexed lookup is ever needed.
+    player_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
+
     team: Mapped["Team"] = relationship(back_populates="videos")
 
 
@@ -43,6 +47,10 @@ class TeamImage(Base):
     title: Mapped[str] = mapped_column(String(200))
     title_en: Mapped[str | None] = mapped_column(String(200), default=None)
     url: Mapped[str] = mapped_column(String(500))
+
+    # Tagged Player.ids. ponytail: JSON has no portable SQL "contains"; filter in Python, or move to
+    # JSONB @> / an association table if indexed lookup is ever needed.
+    player_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
 
     team: Mapped["Team"] = relationship(back_populates="images")
 

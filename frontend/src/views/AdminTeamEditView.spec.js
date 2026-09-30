@@ -35,7 +35,7 @@ function jsonRes(body, status = 200) {
 }
 
 const CONTENT_HANDLERS = Object.fromEntries(
-  ['links', 'videos', 'images', 'posts'].map((r) => [`GET /api/teams/1/${r}`, () => jsonRes([])]),
+  ['links', 'videos', 'images', 'posts', 'players'].map((r) => [`GET /api/teams/1/${r}`, () => jsonRes([])]),
 )
 
 describe('AdminTeamEditView', () => {

@@ -42,12 +42,14 @@ class TitledUrlCreate(BaseModel):
     title: str
     title_en: str | None = None
     url: HttpUrl
+    player_ids: list[int] = []
 
 
 class TitledUrlUpdate(BaseModel):
     title: str | None = None
     title_en: str | None = None
     url: HttpUrl | None = None
+    player_ids: list[int] = []
 
 
 class TitledUrlOut(BaseModel):
@@ -58,6 +60,7 @@ class TitledUrlOut(BaseModel):
     title: str
     title_en: str | None
     url: str
+    player_ids: list[int]
 
 
 class TeamPostCreate(BaseModel):
