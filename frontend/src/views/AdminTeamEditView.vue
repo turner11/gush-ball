@@ -134,7 +134,7 @@ const contentSections = [
           <legend class="section-title">{{ group.legend }}</legend>
           <div v-if="group.legend === 'פרטים'">
             <span class="field-label">מזהה (slug)</span>
-            <p class="mt-1 text-neutral-600 dark:text-neutral-400">{{ teamSlug(team) }}</p>
+            <p class="mt-1 text-muted">{{ teamSlug(team) }}</p>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <template v-if="group.legend === 'מיתוג'">
@@ -173,7 +173,7 @@ const contentSections = [
 
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
 
-        <div class="sticky bottom-0 -mx-4 border-t bg-neutral-50/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 dark:bg-neutral-900/95">
+        <div class="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
           <button type="submit" :disabled="submitting" class="btn-primary w-full sm:w-auto">
             שמירה
           </button>
@@ -181,7 +181,8 @@ const contentSections = [
       </form>
 
       <h2 class="page-title">תוכן הקבוצה</h2>
-      <div class="grid gap-6 lg:grid-cols-2">
+      <!-- grid-cols-1 = minmax(0,1fr): an implicit track grows to fit a long truncated item and overflows the page -->
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <TeamContentSection
           v-for="section in contentSections"
           :key="section.resource"

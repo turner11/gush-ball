@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { formatDateTime } from '../lib/format'
+
 const TEAMS = [{ id: 1, name: 'קבוצה א' }]
 const TEAM = {
   id: 1,
@@ -136,6 +138,8 @@ describe('HomeView', () => {
     const src = wrapper.find('iframe').attributes('src')
     expect(src.startsWith('https://www.facebook.com/plugins/page.php?')).toBe(true)
     expect(src).toContain('href=https%3A%2F%2Fwww.facebook.com%2Fgushclub')
+    // sized to its frame (jsdom reports 0px), clamped to the plugin's 180–500 range
+    expect(src).toContain('width=180&')
   })
 
   it('renders no social embed when all social urls are null', async () => {
@@ -202,10 +206,46 @@ describe('HomeView', () => {
 
     expect(wrapper.text()).toContain('יריבה א')
     expect(wrapper.text()).toContain('יריבה ב')
-    expect(wrapper.text()).toContain('80 : 70')
+    // away game: home side (the opponent) first, so its score reads first
+    expect(wrapper.text()).toContain('70 : 80')
     const cards = wrapper.findAll('div.card')
     expect(cards.some((c) => c.find('img[src="https://l/a.png"]').exists())).toBe(true)
     expect(cards.some((c) => c.find('img[src="https://l/b.png"]').exists())).toBe(true)
+  })
+
+  it('puts the home side first: us at home, the opponent away', async () => {
+    const opp = (name) => ({ name, source_url: null, logo_url: null })
+    const wrapper = await mountWithTeam(TEAM, {
+      games: [
+        { id: 1, opponent: opp('מארחת'), scheduled_at: '2000-01-01T18:00:00', is_home: false, team_score: 80, opponent_score: 70 },
+        { id: 2, opponent: opp('אורחת'), scheduled_at: '2999-01-01T18:00:00', is_home: true, team_score: null, opponent_score: null },
+      ],
+    })
+
+    const sides = (card) => card.findAll('p.font-bold').map((p) => p.text())
+    const [last, next] = wrapper.findAll('div.card')
+    expect(sides(last)).toEqual(['מארחת', 'קבוצה א'])
+    expect(sides(next)).toEqual(['קבוצה א', 'אורחת'])
+  })
+
+  it('a lone match card spans the full row and does not repeat its date', async () => {
+    const scheduled_at = '2999-01-01T18:00:00'
+    const wrapper = await mountWithTeam(TEAM, {
+      games: [{ id: 1, opponent: { name: 'יריבה', source_url: null, logo_url: null }, scheduled_at, is_home: true, team_score: null, opponent_score: null }],
+    })
+
+    const card = wrapper.find('div.card')
+    expect(card.element.parentElement.className).not.toContain('sm:grid-cols-2')
+    expect(card.text()).not.toContain(formatDateTime(scheduled_at))
+  })
+
+  it('shows the full date under a played game', async () => {
+    const scheduled_at = '2000-01-01T18:00:00'
+    const wrapper = await mountWithTeam(TEAM, {
+      games: [{ id: 1, opponent: { name: 'יריבה', source_url: null, logo_url: null }, scheduled_at, is_home: true, team_score: 80, opponent_score: 70 }],
+    })
+
+    expect(wrapper.find('div.card').text()).toContain(formatDateTime(scheduled_at))
   })
 
   describe('game location links', () => {
@@ -251,6 +291,12 @@ describe('HomeView', () => {
     expect(cards[1].text()).toContain('רון')
   })
 
+  it('omits the jersey badge for a player without a number', async () => {
+    const wrapper = await mountWithTeam(TEAM, { players: [{ id: 1, name: 'דני', jersey_number: null, images: [] }] })
+
+    expect(wrapper.find('ul.snap-x > li').text()).not.toContain('#')
+  })
+
   it('has no stats link (moved to the top nav)', async () => {
     const wrapper = await mountWithTeam(TEAM)
 
@@ -291,7 +337,7 @@ describe('HomeView', () => {
       videos: [{ id: 1, title: 'וידאו', url: 'https://vimeo.com/1' }],
     })
 
-    const titles = wrapper.findAll('h2.section-title').map((h) => h.text())
+    const titles = wrapper.findAll('h2').map((h) => h.text())
     expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'עדכונים', 'שחקנים', 'סרטונים'])
   })
 
@@ -336,8 +382,11 @@ describe('HomeView', () => {
   it('gives the main column more width than the social aside', async () => {
     const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
 
-    expect(wrapper.html()).toContain('md:grid-cols-[3fr_2fr]')
+    expect(wrapper.html()).toContain('lg:grid-cols-[1fr_20rem]')
     expect(wrapper.html()).toContain('gap-12')
+    // grid tracks never shrink below their content without min-w-0; the carousel would overflow the page
+    const grid = wrapper.find('.gap-12').element
+    expect([...grid.children].every((c) => c.classList.contains('min-w-0'))).toBe(true)
     expect(wrapper.html()).not.toContain('md:grid-cols-3')
     expect(wrapper.html()).not.toContain('md:col-span-2')
   })

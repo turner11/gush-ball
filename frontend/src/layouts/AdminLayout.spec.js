@@ -49,4 +49,13 @@ describe('AdminLayout nav', () => {
     const w = await mountAt('/admin/players')
     expect(link(w, '/admin').classes()).not.toContain('font-bold')
   })
+
+  it('renders a mobile tab bar with every admin section', async () => {
+    const w = await mountAt('/admin')
+    const hrefs = w
+      .find('[data-testid="tab-bar"]')
+      .findAll('a')
+      .map((a) => a.attributes('href'))
+    expect(hrefs).toEqual(['/admin', '/admin/players', '/admin/games', '/admin/standings', '/admin/teams'])
+  })
 })

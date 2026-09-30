@@ -14,6 +14,11 @@ export const STATUS_LABELS = {
   cancelled: 'בוטל',
 }
 
+export const played = (g) => g.team_score != null && g.opponent_score != null
+
+// Scoreboard order, home side first (rightmost in RTL). Pass what each side shows: scores, names, logos...
+export const homeFirst = (g, ours, theirs) => (g.is_home ? [ours, theirs] : [theirs, ours])
+
 // 'W' / 'L' for a played game, null when unscored or tied (no ties in basketball).
 export function result(game) {
   const { team_score: a, opponent_score: b } = game

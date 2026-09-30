@@ -80,7 +80,7 @@ onMounted(load)
   <section class="card space-y-3">
     <h2 class="section-title">{{ heading }}</h2>
 
-    <ul v-if="items.length" class="divide-y dark:divide-neutral-700">
+    <ul v-if="items.length" class="divide-y divide-line">
       <li
         v-for="item in items"
         :key="item.id"
@@ -115,7 +115,7 @@ onMounted(load)
     />
 
     <form class="space-y-2" @submit.prevent="onSubmit">
-      <p v-if="editingId" class="text-sm text-neutral-500">עורך: {{ fields.map((f) => form[f.key]).filter(Boolean)[0] }}</p>
+      <p v-if="editingId" class="text-sm text-muted">עורך: {{ fields.map((f) => form[f.key]).filter(Boolean)[0] }}</p>
       <div v-for="field in fields" :key="field.key">
         <label :for="`${resource}-${field.key}`" class="field-label">
           {{ field.label }}

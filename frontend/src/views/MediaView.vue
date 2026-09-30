@@ -52,12 +52,12 @@ const tabs = [
     <h1 class="page-title">מדיה</h1>
 
     <TabsRoot default-value="videos" dir="rtl" class="space-y-6">
-      <TabsList class="scroll-row flex gap-4 border-b border-neutral-200 dark:border-neutral-800">
+      <TabsList class="segmented">
         <TabsTrigger
           v-for="tab in tabs"
           :key="tab.value"
           :value="tab.value"
-          class="-mb-px inline-flex min-h-11 items-center whitespace-nowrap border-b-2 border-transparent px-3 text-sm hover:bg-neutral-100 data-[state=active]:border-team data-[state=active]:font-semibold dark:hover:bg-neutral-800"
+          class="segmented-item"
         >
           {{ tab.label }}
         </TabsTrigger>
@@ -68,7 +68,7 @@ const tabs = [
           <div class="skeleton h-32" />
           <div class="skeleton h-32" />
         </div>
-        <ul v-else-if="videos.length" class="grid gap-6 lg:grid-cols-2">
+        <ul v-else-if="videos.length" class="grid gap-6 sm:grid-cols-2">
           <li v-for="video in videos" :key="video.id"><VideoCard :video="video" /></li>
         </ul>
         <p v-else class="empty-state">אין פריטים עדיין.</p>
@@ -78,8 +78,8 @@ const tabs = [
         <div v-if="loading" class="skeleton h-32" aria-busy="true" />
         <div v-else-if="posts.length" class="space-y-6">
           <article v-for="post in posts" :key="post.id" class="card space-y-2">
-            <h3 class="font-semibold">{{ post.title }}</h3>
-            <p class="max-w-prose whitespace-pre-line text-neutral-600 dark:text-neutral-400">{{ post.body }}</p>
+            <h3 class="text-lg font-extrabold">{{ post.title }}</h3>
+            <p class="max-w-prose whitespace-pre-line text-muted">{{ post.body }}</p>
           </article>
         </div>
         <p v-else class="empty-state">אין פריטים עדיין.</p>
@@ -87,11 +87,11 @@ const tabs = [
 
       <TabsContent value="images">
         <div v-if="loading" class="skeleton h-32" aria-busy="true" />
-        <div v-else-if="images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div v-else-if="images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <a v-for="image in images" :key="image.id" :href="image.url" target="_blank" rel="noopener">
             <figure class="space-y-1">
-              <img :src="image.url" :alt="image.title" loading="lazy" class="aspect-square w-full rounded-lg object-cover" />
-              <figcaption class="text-sm">{{ image.title }}</figcaption>
+              <img :src="image.url" :alt="image.title" loading="lazy" class="aspect-square w-full rounded-xl object-cover" />
+              <figcaption class="text-sm text-muted">{{ image.title }}</figcaption>
             </figure>
           </a>
         </div>

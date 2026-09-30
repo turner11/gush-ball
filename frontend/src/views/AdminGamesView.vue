@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 
+import AppIcon from '../components/AppIcon.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -201,7 +202,7 @@ async function onDelete(game) {
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">ניהול משחקים</h1>
-      <div>
+      <div class="w-full sm:w-64">
         <label for="team-select" class="field-label">קבוצה</label>
         <select id="team-select" v-model="selectedTeamId" class="field-input">
           <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
@@ -211,77 +212,59 @@ async function onDelete(game) {
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div class="min-w-0 space-y-6">
-        <section v-if="pendingGames.length" class="card space-y-2 border-amber-300 dark:border-amber-700">
+        <section v-if="pendingGames.length" class="card space-y-3 border-warn/60">
           <h2 class="section-title">
             ממתינים לאישור <span class="badge badge-muted">{{ pendingGames.length }}</span>
           </h2>
-          <div class="table-wrap">
-            <table class="w-full text-start">
-              <thead>
-                <tr class="table-header-row">
-                  <th class="py-2 text-start">יריבה</th>
-                  <th class="py-2 text-start">תאריך</th>
-                  <th class="py-2 text-start">בית/חוץ</th>
-                  <th class="py-2 text-start">סטטוס</th>
-                  <th class="py-2 text-start">תוצאה</th>
-                  <th class="py-2 text-start"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template v-for="game in pendingGames" :key="game.id">
-                  <tr class="table-row">
-                    <td class="py-2">{{ game.opponent.name }}</td>
-                    <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
-                    <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
-                    <td class="py-2"><span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span></td>
-                    <td class="py-2 tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
-                    <td class="py-2">
-                      <span class="inline-flex gap-1">
-                        <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
-                        <button v-if="!game.scrape_suggestion" type="button" class="btn-ghost" @click="approveGame(game)">
-                          אשר
-                        </button>
-                        <template v-else>
-                          <button type="button" class="btn-ghost" @click="acceptSuggestion(game)">קבל עדכון</button>
-                          <button type="button" class="btn-danger-ghost" @click="rejectSuggestion(game)">דחה</button>
-                        </template>
-                      </span>
-                    </td>
-                  </tr>
-                  <tr v-if="game.scrape_suggestion" class="table-row text-sm">
-                    <td class="py-1" colspan="6">
-                      <span v-for="key in Object.keys(game.scrape_suggestion)" :key="key" class="me-4">
-                        {{ FIELD_LABELS[key] ?? key }}: <del>{{ suggestionCurrentValue(game, key) }}</del> →
-                        <strong>{{ game.scrape_suggestion[key] }}</strong>
-                      </span>
-                    </td>
-                  </tr>
+          <ul class="divide-y divide-line">
+            <li v-for="game in pendingGames" :key="game.id" class="space-y-2 py-3">
+              <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <strong class="text-base">{{ game.opponent.name }}</strong>
+                <span>{{ formatDateTime(game.scheduled_at) }}</span>
+                <span>{{ game.is_home ? 'בית' : 'חוץ' }}</span>
+                <span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span>
+                <span class="tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</span>
+              </p>
+              <p v-if="game.scrape_suggestion" class="text-sm">
+                <span v-for="key in Object.keys(game.scrape_suggestion)" :key="key" class="me-4 inline-block">
+                  {{ FIELD_LABELS[key] ?? key }}: <del>{{ suggestionCurrentValue(game, key) }}</del> →
+                  <strong>{{ game.scrape_suggestion[key] }}</strong>
+                </span>
+              </p>
+              <span class="flex flex-wrap gap-1">
+                <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
+                <button v-if="!game.scrape_suggestion" type="button" class="btn-ghost" @click="approveGame(game)">
+                  אשר
+                </button>
+                <template v-else>
+                  <button type="button" class="btn-ghost" @click="acceptSuggestion(game)">קבל עדכון</button>
+                  <button type="button" class="btn-danger-ghost" @click="rejectSuggestion(game)">דחה</button>
                 </template>
-              </tbody>
-            </table>
-          </div>
+              </span>
+            </li>
+          </ul>
         </section>
 
         <div class="table-wrap">
-          <table class="w-full text-start">
+          <table class="data-table">
             <thead>
               <tr class="table-header-row">
-                <th class="py-2 text-start">יריבה</th>
-                <th class="py-2 text-start">תאריך</th>
-                <th class="py-2 text-start">בית/חוץ</th>
-                <th class="py-2 text-start">סטטוס</th>
-                <th class="py-2 text-start">תוצאה</th>
-                <th class="py-2 text-start"></th>
+                <th>יריבה</th>
+                <th>תאריך</th>
+                <th>בית/חוץ</th>
+                <th>סטטוס</th>
+                <th>תוצאה</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="game in games" :key="game.id" class="table-row">
-                <td class="py-2">{{ game.opponent.name }}</td>
-                <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
-                <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
-                <td class="py-2"><span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span></td>
-                <td class="py-2 tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
-                <td class="py-2">
+              <tr v-for="game in games" :key="game.id" class="table-body-row">
+                <td data-label="יריבה">{{ game.opponent.name }}</td>
+                <td data-label="תאריך">{{ formatDateTime(game.scheduled_at) }}</td>
+                <td data-label="בית/חוץ">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
+                <td data-label="סטטוס"><span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span></td>
+                <td data-label="תוצאה" class="tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
+                <td class="justify-end">
                   <span class="inline-flex gap-1">
                     <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
                     <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
@@ -293,7 +276,7 @@ async function onDelete(game) {
         </div>
       </div>
 
-      <form ref="formEl" class="card space-y-3 lg:sticky lg:top-6" @submit.prevent="onSubmit">
+      <form id="game-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
         <h2 class="section-title">{{ editing ? 'עריכת משחק' : 'הוספת משחק' }}</h2>
 
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
@@ -336,7 +319,7 @@ async function onDelete(game) {
           <textarea id="game-description" v-model="form.description" class="field-input"></textarea>
         </div>
 
-        <div v-if="editing" class="space-y-2 border-t pt-3 dark:border-neutral-700">
+        <div v-if="editing" class="space-y-2 border-t border-line pt-3">
           <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
           <label for="stats-url" class="field-label">קישור לסטטיסטיקה (גיליון שמשותף ל"כל מי שיש לו קישור")</label>
           <input id="stats-url" v-model="statsUrl" type="url" class="field-input" />
@@ -354,5 +337,6 @@ async function onDelete(game) {
         </div>
       </form>
     </div>
+    <a href="#game-form" class="fab lg:hidden" aria-label="הוספת משחק"><AppIcon name="plus" /></a>
   </section>
 </template>

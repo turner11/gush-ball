@@ -29,7 +29,7 @@ async function onChange(event) {
 
 <template>
   <span class="inline-flex items-center gap-2 text-xs">
-    <input type="file" accept="image/*" :disabled="uploading" class="file:me-2 file:rounded-lg file:border file:border-neutral-300 file:bg-transparent file:px-3 file:py-1.5 dark:file:border-neutral-600" @change="onChange" />
+    <input type="file" accept="image/*" :disabled="uploading" class="file:me-2 file:rounded-xl file:border file:border-line file:bg-raised file:px-3 file:py-1.5" @change="onChange" />
     <span v-if="uploading">מעלה...</span>
     <span v-if="error" class="error-text" role="alert">{{ error }}</span>
   </span>

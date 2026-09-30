@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { formatDateTime } from './format'
+import { formatDateTime, formatGameDate, signed } from './format'
 
 const OPTS = { weekday: 'long', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }
 
@@ -25,5 +25,23 @@ describe('formatDateTime', () => {
 
   it('returns invalid input unchanged', () => {
     expect(formatDateTime('')).toBe('')
+  })
+})
+
+describe('formatGameDate', () => {
+  it('splits a date into day, month, weekday and time', () => {
+    expect(formatGameDate('2030-05-01T18:00:00')).toEqual({ day: '01', month: 'מאי', weekday: 'יום ד׳', time: '18:00' })
+  })
+
+  it('returns null for an invalid date', () => {
+    expect(formatGameDate('')).toBeNull()
+  })
+})
+
+describe('signed', () => {
+  it('prefixes positives with + and leaves zero and negatives alone', () => {
+    expect(signed(5)).toBe('+5')
+    expect(signed(0)).toBe('0')
+    expect(signed(-3)).toBe('-3')
   })
 })

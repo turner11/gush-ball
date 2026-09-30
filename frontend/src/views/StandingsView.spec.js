@@ -94,6 +94,22 @@ describe('StandingsView', () => {
     expect(text).not.toContain('קבוצה ג')
   })
 
+  it('shows the own team summary: rank, record and points', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'GET /api/standings': () => jsonRes(ROWS),
+    })
+
+    const { default: StandingsView } = await import('./StandingsView.vue')
+    const wrapper = mount(StandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const text = wrapper.find('[data-testid="standing-summary"]').text()
+    expect(text).toContain('1')
+    expect(text).toContain('8–2')
+    expect(text).toContain('16')
+  })
+
   it('shows the team logo on the own row and the opponent logo on others', async () => {
     mockFetch({
       'GET /api/teams/1': () => jsonRes(TEAM),

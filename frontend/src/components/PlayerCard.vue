@@ -3,6 +3,7 @@
 defineProps({
   player: { type: Object, default: null },
   jersey: { type: Number, default: null },
+  compact: Boolean,
 })
 
 const DEFAULT = '/default-player.png'
@@ -13,15 +14,25 @@ function onImgError(e) {
 </script>
 
 <template>
-  <div class="space-y-1 text-center">
-    <img
-      :src="player?.images?.[0]?.url || '/default-player.png'"
-      :alt="player?.name ?? ''"
-      loading="lazy"
-      class="mx-auto size-16 rounded-full object-cover object-top ring-2 ring-neutral-200 sm:size-20 dark:ring-neutral-700"
-      @error="onImgError"
-    />
-    <p class="font-extrabold text-team">#{{ player?.jersey_number ?? jersey }}</p>
-    <p v-if="player" class="text-sm font-medium leading-tight">{{ player.name }}</p>
+  <div class="text-center">
+    <!-- badge overlaps the photo so names line up whether or not a player has a number -->
+    <div class="relative mx-auto w-fit">
+      <img
+        :src="player?.images?.[0]?.url || '/default-player.png'"
+        :alt="player?.name ?? ''"
+        loading="lazy"
+        :class="compact ? 'size-11 ring-2 sm:size-14' : 'size-20 ring-4 sm:size-24'"
+        class="rounded-full object-cover object-top ring-sunken"
+        @error="onImgError"
+      />
+      <p
+        v-if="(player?.jersey_number ?? jersey) != null"
+        :class="compact ? 'text-[10px]' : 'text-xs'"
+        class="absolute inset-x-0 -bottom-1.5 mx-auto w-fit rounded-md bg-team px-1.5 font-black tabular-nums text-on-team ring-2 ring-raised"
+      >
+        #{{ player?.jersey_number ?? jersey }}
+      </p>
+    </div>
+    <p v-if="player" :class="compact ? 'mt-2.5 line-clamp-2 text-[11px]' : 'mt-3 text-sm'" class="font-bold leading-tight">{{ player.name }}</p>
   </div>
 </template>

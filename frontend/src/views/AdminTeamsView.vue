@@ -53,12 +53,12 @@ onMounted(load)
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div>
-        <ul v-if="teams.length" class="card divide-y p-0 dark:divide-neutral-700">
+        <ul v-if="teams.length" class="card divide-y divide-line p-0">
           <li v-for="team in teams" :key="team.id" class="flex flex-wrap items-center gap-3 px-4 py-3">
             <RouterLink :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="font-semibold">
               {{ team.name }}
             </RouterLink>
-            <RouterLink :to="'/' + teamSlug(team)" class="text-sm text-neutral-500" dir="ltr">/{{ teamSlug(team) }}</RouterLink>
+            <RouterLink :to="'/' + teamSlug(team)" class="text-sm text-muted" dir="ltr">/{{ teamSlug(team) }}</RouterLink>
             <RouterLink :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-ghost ms-auto">עריכה</RouterLink>
             <button type="button" class="btn-danger-ghost" @click="confirmDelete(team.id)">מחיקה</button>
           </li>
@@ -66,7 +66,7 @@ onMounted(load)
         <p v-else class="empty-state">אין קבוצות עדיין.</p>
       </div>
 
-      <form class="card space-y-3 lg:sticky lg:top-6" @submit.prevent="onCreate">
+      <form class="card space-y-3 lg:sticky lg:top-20" @submit.prevent="onCreate">
         <h2 class="section-title">קבוצה חדשה</h2>
 
         <div>

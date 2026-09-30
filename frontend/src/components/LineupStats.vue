@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 
 import { apiFetch } from '../lib/api'
+import { signed } from '../lib/format'
 import PlayerCard from './PlayerCard.vue'
 
 const props = defineProps({
@@ -38,20 +39,19 @@ async function load() {
 watch(() => [props.teamId, size.value, sort.value], load, { immediate: true })
 
 const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
-const signed = (n) => (n > 0 ? `+${n}` : `${n}`)
 </script>
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-col gap-3 sm:flex-row sm:gap-6">
+    <div class="flex flex-wrap gap-3">
       <div>
-        <p class="mb-1 text-xs text-neutral-500">גודל הרכב</p>
-        <div role="group" aria-label="גודל הרכב" class="inline-flex gap-1 rounded-lg border border-neutral-300 p-1 dark:border-neutral-600">
+        <p class="eyebrow mb-1">גודל הרכב</p>
+        <div role="group" aria-label="גודל הרכב" class="segmented">
           <button
             v-for="s in SIZES"
             :key="s"
             type="button"
-            :class="size === s ? 'btn-primary' : 'btn-ghost min-h-10 sm:min-h-9'"
+            class="segmented-item"
             :aria-pressed="size === s"
             @click="size = s"
           >
@@ -60,13 +60,13 @@ const signed = (n) => (n > 0 ? `+${n}` : `${n}`)
         </div>
       </div>
       <div>
-        <p class="mb-1 text-xs text-neutral-500">מיון</p>
-        <div role="group" aria-label="מיון" class="inline-flex gap-1 rounded-lg border border-neutral-300 p-1 dark:border-neutral-600">
+        <p class="eyebrow mb-1">מיון</p>
+        <div role="group" aria-label="מיון" class="segmented">
           <button
             v-for="o in SORTS"
             :key="o.value"
             type="button"
-            :class="sort === o.value ? 'btn-primary' : 'btn-ghost min-h-10 sm:min-h-9'"
+            class="segmented-item"
             :aria-pressed="sort === o.value"
             @click="sort = o.value"
           >
@@ -83,26 +83,27 @@ const signed = (n) => (n > 0 ? `+${n}` : `${n}`)
     </div>
     <!-- ponytail: top 10, add paging if asked -->
     <ul v-else-if="lineups.length" class="space-y-4">
-      <li v-for="l in lineups.slice(0, 10)" :key="l.players.join('-')" class="card space-y-3 p-4">
+      <li v-for="(l, i) in lineups.slice(0, 10)" :key="l.players.join('-')" class="card space-y-3">
+        <p class="eyebrow">#{{ i + 1 }}</p>
         <div class="grid grid-cols-5 gap-1">
-          <PlayerCard v-for="n in l.players" :key="n" :player="playerFor(n)" :jersey="n" />
+          <PlayerCard v-for="n in l.players" :key="n" :player="playerFor(n)" :jersey="n" compact />
         </div>
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div class="rounded-lg bg-neutral-100 p-2 text-center dark:bg-neutral-700/50">
-            <p class="text-xl font-bold tabular-nums" :class="l.score_diff >= 0 ? 'text-green-600' : 'text-red-600'" dir="ltr">{{ signed(l.score_diff) }}</p>
-            <p class="text-xs text-neutral-500">+/-</p>
+          <div class="stat">
+            <p class="stat-value" :class="l.score_diff >= 0 ? 'text-win' : 'text-loss'" dir="ltr">{{ signed(l.score_diff) }}</p>
+            <p class="stat-label">+/-</p>
           </div>
-          <div class="rounded-lg bg-neutral-100 p-2 text-center dark:bg-neutral-700/50">
-            <p class="text-xl font-bold tabular-nums" dir="ltr">{{ Math.round(l.minutes) }}</p>
-            <p class="text-xs text-neutral-500">דקות</p>
+          <div class="stat">
+            <p class="stat-value" dir="ltr">{{ Math.round(l.minutes) }}</p>
+            <p class="stat-label">דקות</p>
           </div>
-          <div class="rounded-lg bg-neutral-100 p-2 text-center dark:bg-neutral-700/50">
-            <p class="text-xl font-bold tabular-nums" dir="ltr">{{ l.offense_diff }} : {{ l.defence_diff }}</p>
-            <p class="text-xs text-neutral-500">זכות : חובה</p>
+          <div class="stat">
+            <p class="stat-value">{{ l.offense_diff }} : {{ l.defence_diff }}</p>
+            <p class="stat-label">זכות : חובה</p>
           </div>
-          <div class="rounded-lg bg-neutral-100 p-2 text-center dark:bg-neutral-700/50">
-            <p class="text-xl font-bold tabular-nums" dir="ltr">{{ signed(Number(l.score_pm.toFixed(1))) }}</p>
-            <p class="text-xs text-neutral-500">לדקה</p>
+          <div class="stat">
+            <p class="stat-value" dir="ltr">{{ signed(Number(l.score_pm.toFixed(1))) }}</p>
+            <p class="stat-label">לדקה</p>
           </div>
         </div>
       </li>

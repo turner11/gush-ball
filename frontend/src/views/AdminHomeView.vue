@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
+import AppIcon from '../components/AppIcon.vue'
 import { apiFetch } from '../lib/api'
 
 const POLL_MS = 3000
@@ -61,22 +62,26 @@ onUnmounted(() => {
 <template>
   <section class="space-y-6">
     <h1 class="page-title">אזור ניהול</h1>
-    <nav class="grid gap-3 sm:grid-cols-2">
-      <RouterLink to="/admin/players" class="card hover:border-neutral-400">
-        <span class="block font-bold">ניהול שחקנים</span>
-        <span class="text-sm text-neutral-500">שחקנים ותמונות</span>
+    <nav class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <RouterLink to="/admin/players" class="card space-y-2 transition hover:border-team">
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
+        <span class="block font-extrabold">ניהול שחקנים</span>
+        <span class="block text-sm text-muted">שחקנים ותמונות</span>
       </RouterLink>
-      <RouterLink to="/admin/games" class="card hover:border-neutral-400">
-        <span class="block font-bold">ניהול משחקים</span>
-        <span class="text-sm text-neutral-500">לוח משחקים, תוצאות ותור אישור</span>
+      <RouterLink to="/admin/games" class="card space-y-2 transition hover:border-team">
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="calendar" /></span>
+        <span class="block font-extrabold">ניהול משחקים</span>
+        <span class="block text-sm text-muted">לוח משחקים, תוצאות ותור אישור</span>
       </RouterLink>
-      <RouterLink to="/admin/standings" class="card hover:border-neutral-400">
-        <span class="block font-bold">ניהול טבלת ליגה</span>
-        <span class="text-sm text-neutral-500">טבלת ליגה ידנית</span>
+      <RouterLink to="/admin/standings" class="card space-y-2 transition hover:border-team">
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="table" /></span>
+        <span class="block font-extrabold">ניהול טבלת ליגה</span>
+        <span class="block text-sm text-muted">טבלת ליגה ידנית</span>
       </RouterLink>
-      <RouterLink :to="{ name: 'admin-teams' }" class="card hover:border-neutral-400">
-        <span class="block font-bold">ניהול קבוצות</span>
-        <span class="text-sm text-neutral-500">קבוצות, מיתוג ותוכן</span>
+      <RouterLink :to="{ name: 'admin-teams' }" class="card space-y-2 transition hover:border-team">
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="shield" /></span>
+        <span class="block font-extrabold">ניהול קבוצות</span>
+        <span class="block text-sm text-muted">קבוצות, מיתוג ותוכן</span>
       </RouterLink>
     </nav>
 
@@ -85,10 +90,10 @@ onUnmounted(() => {
       <button type="button" :disabled="submitting || running" class="btn-primary" @click="onSyncNow">
         סנכרון עכשיו
       </button>
-      <p v-if="running" class="text-sm text-neutral-600 dark:text-neutral-400">
+      <p v-if="running" class="text-sm text-muted">
         הסנכרון רץ… זה עלול לקחת כמה דקות.
       </p>
-      <div v-else-if="result" class="text-sm text-neutral-600 dark:text-neutral-400">
+      <div v-else-if="result" class="text-sm text-muted">
         <p v-if="result.failed" class="error-text">הסנכרון נכשל.</p>
         <p v-else>
           הסנכרון הסתיים: {{ result.standings }} שורות טבלה, {{ result.games }} משחקים, {{ result.players }} שחקנים.        </p>

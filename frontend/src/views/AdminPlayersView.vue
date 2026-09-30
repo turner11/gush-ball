@@ -2,6 +2,7 @@
 import { onMounted, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
+import AppIcon from '../components/AppIcon.vue'
 import ImageUpload from '../components/ImageUpload.vue'
 import { apiFetch } from '../lib/api'
 
@@ -143,7 +144,7 @@ async function deleteImage(player, image) {
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">ניהול שחקנים</h1>
-      <div>
+      <div class="w-full sm:w-64">
         <label for="team-select" class="field-label">קבוצה</label>
         <select id="team-select" v-model="selectedTeamId" class="field-input">
           <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
@@ -152,37 +153,39 @@ async function deleteImage(player, image) {
     </div>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-      <div class="space-y-4">
+      <div class="min-w-0 space-y-4">
         <div class="table-wrap">
-          <table class="w-full text-start">
+          <table class="data-table">
             <thead>
               <tr class="table-header-row">
-                <th class="py-2 text-start">מספר</th>
-                <th class="py-2 text-start">שם</th>
-                <th class="py-2 text-start">תמונות</th>
-                <th class="py-2 text-start"></th>
+                <th>מספר</th>
+                <th>שם</th>
+                <th>תמונות</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="player in players" :key="player.id" class="table-row">
-                <td class="py-2">{{ player.jersey_number }}</td>
-                <td class="py-2">{{ player.name }}</td>
-                <td class="py-2">
-                  <ul class="space-y-1">
-                    <li v-for="image in player.images" :key="image.id" class="flex items-center gap-2 text-xs">
-                      <img :src="image.url" alt="" class="size-10 rounded object-cover" />
-                      <button type="button" class="btn-danger-ghost" :aria-label="`הסר תמונה — ${player.name}`" @click="deleteImage(player, image)">
-                        הסר תמונה
-                      </button>
-                    </li>
-                  </ul>
-                  <div class="mt-1 flex gap-1">
-                    <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="field-input mt-0 min-h-9 w-40 text-xs" />
-                    <button type="button" class="btn-ghost" @click="addImage(player)">הוסף תמונה</button>
+              <tr v-for="player in players" :key="player.id" class="table-body-row">
+                <td data-label="מספר">{{ player.jersey_number }}</td>
+                <td data-label="שם">{{ player.name }}</td>
+                <td data-label="תמונות" class="max-sm:flex-wrap">
+                  <div>
+                    <ul class="space-y-1">
+                      <li v-for="image in player.images" :key="image.id" class="flex items-center gap-2 text-xs">
+                        <img :src="image.url" alt="" class="size-10 rounded object-cover" />
+                        <button type="button" class="btn-danger-ghost" :aria-label="`הסר תמונה — ${player.name}`" @click="deleteImage(player, image)">
+                          הסר תמונה
+                        </button>
+                      </li>
+                    </ul>
+                    <div class="mt-1 flex gap-1">
+                      <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="field-input mt-0 min-h-10 w-40" />
+                      <button type="button" class="btn-ghost" @click="addImage(player)">הוסף תמונה</button>
+                    </div>
+                    <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
                   </div>
-                  <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
                 </td>
-                <td class="py-2">
+                <td class="justify-end">
                   <span class="inline-flex gap-1">
                     <button type="button" class="btn-ghost" @click="startEdit(player)">ערוך</button>
                     <button type="button" class="btn-danger-ghost" @click="onDelete(player)">מחק</button>
@@ -198,7 +201,7 @@ async function deleteImage(player, image) {
           <div v-if="deletedPlayers" class="table-wrap">
             <table class="mt-2 w-full text-start">
               <tbody>
-                <tr v-for="player in deletedPlayers" :key="player.id" class="table-row">
+                <tr v-for="player in deletedPlayers" :key="player.id" class="table-body-row">
                   <td class="py-2">{{ player.jersey_number }}</td>
                   <td class="py-2">{{ player.name }}</td>
                   <td class="py-2">
@@ -211,7 +214,7 @@ async function deleteImage(player, image) {
         </div>
       </div>
 
-      <form ref="formEl" class="card space-y-3 lg:sticky lg:top-6" @submit.prevent="onSubmit">
+      <form id="player-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
         <h2 class="section-title">{{ editing ? 'עריכת שחקן' : 'הוספת שחקן' }}</h2>
 
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
@@ -241,5 +244,6 @@ async function deleteImage(player, image) {
         </div>
       </form>
     </div>
+    <a href="#player-form" class="fab lg:hidden" aria-label="הוספת שחקן"><AppIcon name="plus" /></a>
   </section>
 </template>

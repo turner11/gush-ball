@@ -3,135 +3,249 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme {
-  --font-sans: "Segoe UI", "Rubik", "Heebo", "Arial Hebrew", Arial, system-ui, sans-serif;
+  --font-sans: "Heebo Variable", "Heebo", "Segoe UI", "Arial Hebrew", Arial, system-ui, sans-serif;
+
+  --text-display: 2.5rem;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 900;
+  --text-score: 2.75rem;
+  --text-score--line-height: 1;
+  --text-score--font-weight: 900;
+
+  --color-brand: #0c1830;
+  --shadow-card: 0 1px 2px rgb(12 24 48 / 0.06), 0 6px 20px -8px rgb(12 24 48 / 0.12);
 }
 
-/* Per-team colors: --team-* are set inline by DefaultLayout from the selected team. Unset (admin, or a team
-   without colors) falls back to the neutral, mode-aware default below — team color and dark mode stay independent. */
+/* Semantic, mode-aware tokens. `inline` because the values are runtime vars. */
 @theme inline {
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-win: var(--win);
+  --color-loss: var(--loss);
+  --color-warn: var(--warn);
+
+  /* Per-team colors: --team-* are set inline by DefaultLayout from the selected team. Unset (admin, or a team
+     without colors) falls back to the mode-aware default below — team color and dark mode stay independent. */
   --color-team: var(--team-primary, var(--team-default));
   --color-on-team: var(--team-on-primary, var(--team-on-default));
-  --color-team-2: var(--team-secondary, var(--color-neutral-400));
+  --color-team-2: var(--team-secondary, var(--muted));
 }
 
 :root {
-  --team-default: var(--color-neutral-900);
+  color-scheme: light;
+  --surface: #f3f4f7;
+  --raised: #ffffff;
+  --sunken: #e9ecf1;
+  --ink: #0c1830;
+  --muted: #505a6b;
+  --line: #dde1e8;
+  --win: #166534;
+  --loss: #991b1b;
+  --warn: #b45309;
+  --team-default: #0c1830;
   --team-on-default: #ffffff;
 }
 
 [data-theme="dark"] {
-  --team-default: var(--color-neutral-100);
-  --team-on-default: var(--color-neutral-900);
+  color-scheme: dark;
+  --surface: #070d1a;
+  --raised: #0f1a2e;
+  --sunken: #16233b;
+  --ink: #eef1f6;
+  --muted: #9aa6b8;
+  --line: #1f2d47;
+  --win: #4ade80;
+  --loss: #f87171;
+  --warn: #fbbf24;
+  --team-default: #eef1f6;
+  --team-on-default: #0c1830;
 }
 
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-surface font-sans text-ink antialiased;
+  }
+
   :focus-visible {
     outline: 2px solid currentColor;
     outline-offset: 2px;
   }
-
-  body {
-    @apply antialiased;
-  }
 }
 
 @layer components {
+  /* Headings */
   .page-title {
-    @apply text-2xl font-extrabold tracking-tight sm:text-3xl;
+    @apply text-3xl font-black leading-[1.1] tracking-tight sm:text-4xl;
   }
-
   .section-title {
-    @apply border-s-4 border-team ps-2 text-lg font-bold leading-tight;
+    @apply flex items-center gap-2.5 text-xl font-extrabold leading-tight tracking-tight sm:text-2xl;
   }
-
+  .section-title::before {
+    content: '';
+    @apply h-5 w-1 shrink-0 rounded-full bg-team;
+  }
+  .eyebrow {
+    @apply text-xs font-bold tracking-wide text-muted;
+  }
   .page-header {
-    @apply mb-6 flex flex-wrap items-end justify-between gap-3;
+    @apply mb-6 flex flex-wrap items-end justify-between gap-3 sm:mb-8;
   }
-
   .section-header {
     @apply flex items-center justify-between gap-4;
   }
-
   .section-link {
-    @apply inline-flex min-h-11 items-center gap-1 text-sm font-medium text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100;
+    @apply inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-muted transition-colors hover:text-ink;
   }
 
+  /* Surfaces */
   .card {
-    @apply rounded-xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800;
+    @apply rounded-2xl border border-line bg-raised p-4 shadow-card sm:p-5;
   }
-
-  .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 bg-team text-on-team hover:opacity-90 sm:min-h-10;
-  }
-
-  .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 border border-neutral-300 text-neutral-900 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-100 dark:hover:bg-neutral-800 sm:min-h-10;
-  }
-
-  .btn-ghost {
-    @apply inline-flex min-h-9 items-center rounded-md px-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800;
-  }
-
-  .btn-danger-ghost {
-    @apply inline-flex min-h-9 items-center rounded-md px-2 text-sm text-red-600 hover:bg-neutral-100 dark:text-red-400 dark:hover:bg-neutral-800;
-  }
-
-  .field-label {
-    @apply block text-sm font-medium;
-  }
-
-  .field-input {
-    @apply mt-1 min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-600 dark:bg-neutral-800 dark:focus:border-neutral-100 dark:focus:ring-neutral-100/20;
-  }
-
-  .error-text {
-    @apply text-sm text-red-600 dark:text-red-400;
-  }
-
   .empty-state {
-    @apply rounded-xl border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500 dark:border-neutral-700;
+    @apply rounded-2xl border border-dashed border-line px-4 py-10 text-center text-sm text-muted;
   }
-
-  .badge {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold;
-  }
-
-  .badge-win {
-    @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
-  }
-
-  .badge-loss {
-    @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
-  }
-
-  .badge-muted {
-    @apply bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300;
-  }
-
   .skeleton {
-    @apply animate-pulse rounded-lg bg-neutral-200 motion-reduce:animate-none dark:bg-neutral-800;
+    @apply animate-pulse rounded-2xl bg-sunken motion-reduce:animate-none;
   }
 
+  /* Numbers */
+  .score {
+    @apply text-score font-black tabular-nums;
+  }
+  .stat {
+    @apply rounded-xl bg-sunken px-3 py-2.5 text-center;
+  }
+  .stat-value {
+    @apply block text-2xl font-black leading-none tabular-nums;
+  }
+  .stat-label {
+    @apply mt-1 block text-xs font-medium text-muted;
+  }
+
+  /* Buttons */
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none motion-reduce:active:scale-100;
+  }
+  .btn-primary {
+    @apply bg-team text-on-team hover:brightness-110;
+  }
+  .btn-secondary {
+    @apply border border-line bg-raised text-ink hover:bg-sunken;
+  }
+  .btn-danger {
+    @apply bg-red-700 text-white hover:bg-red-800;
+  }
+  .btn-ghost,
+  .btn-danger-ghost {
+    @apply inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold transition-colors hover:bg-sunken;
+  }
+  .btn-danger-ghost {
+    @apply text-loss;
+  }
+  .fab {
+    @apply fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] end-4 z-30 inline-flex size-14 items-center justify-center rounded-full bg-team text-on-team shadow-lg;
+  }
+
+  /* Segmented control: LineupStats toggles (aria-pressed) and Media tabs (Reka data-state) */
+  .segmented {
+    @apply inline-flex gap-1 rounded-xl bg-sunken p-1;
+  }
+  .segmented-item {
+    @apply inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold text-muted transition-colors hover:text-ink aria-pressed:bg-raised aria-pressed:text-ink aria-pressed:shadow-card data-[state=active]:bg-raised data-[state=active]:text-ink data-[state=active]:shadow-card;
+  }
+
+  /* Forms */
+  .field-label {
+    @apply block text-sm font-semibold;
+  }
+  .field-input {
+    @apply mt-1.5 min-h-11 w-full rounded-xl border border-line bg-raised px-3.5 py-2 text-base text-ink focus:border-team focus:outline-none focus:ring-4 focus:ring-team/15;
+  }
+  .error-text {
+    @apply text-sm font-medium text-loss;
+  }
+
+  /* Chips */
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold;
+  }
+  .badge-win {
+    @apply bg-win/12 text-win;
+  }
+  .badge-loss {
+    @apply bg-loss/12 text-loss;
+  }
+  .badge-muted {
+    @apply bg-sunken text-muted;
+  }
+
+  /* Tables */
   .table-wrap {
     @apply -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0;
   }
-
   .table-header-row {
-    @apply border-b border-neutral-200 text-xs font-semibold text-neutral-500 dark:border-neutral-700 dark:text-neutral-400;
+    @apply border-b border-line text-xs font-semibold text-muted;
+  }
+  /* not `.table-row`: that is Tailwind's display:table-row utility, which wins over this layer and
+     broke the stacked admin cards (a table-row inside a block tbody shrink-wraps) */
+  .table-body-row {
+    @apply border-b border-line transition-colors hover:bg-sunken/60;
   }
 
-  .table-row {
-    @apply border-b border-neutral-100 hover:bg-neutral-100/60 dark:border-neutral-800 dark:hover:bg-neutral-800/60;
+  /* ponytail: display:block below sm drops table semantics for some screen readers; fine for the single-admin UI.
+     Admin tables: a real table from sm up, stacked label/value cards below sm. Each <td> gets data-label. */
+  .data-table {
+    @apply w-full text-start text-sm;
+  }
+  .data-table th {
+    @apply px-3 py-2.5 text-start text-xs font-semibold text-muted;
+  }
+  .data-table td {
+    @apply px-3 py-3 align-middle;
+  }
+  .data-table tbody tr {
+    @apply border-b border-line;
+  }
+  @media (width < 40rem) {
+    .data-table thead {
+      @apply sr-only;
+    }
+    .data-table,
+    .data-table tbody,
+    .data-table tr,
+    .data-table td {
+      display: block;
+    }
+    .data-table tbody tr {
+      @apply mb-3 rounded-2xl border border-line bg-raised p-3 shadow-card;
+    }
+    .data-table td {
+      @apply flex items-center justify-between gap-3 px-0 py-1.5;
+    }
+    .data-table td[data-label]::before {
+      content: attr(data-label);
+      @apply text-xs font-semibold text-muted;
+    }
   }
 
+  /* Navigation */
   .nav-link {
-    @apply inline-flex min-h-11 items-center whitespace-nowrap border-b-2 border-transparent px-1 text-sm font-medium opacity-80 hover:opacity-100;
+    @apply inline-flex min-h-11 items-center whitespace-nowrap border-b-2 border-transparent px-1 text-sm font-bold opacity-80 lg:text-base transition-opacity hover:opacity-100;
   }
-
   .nav-link.router-link-exact-active {
-    @apply border-current font-semibold opacity-100;
+    @apply border-current opacity-100;
   }
-
   .scroll-row {
     @apply overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
   }

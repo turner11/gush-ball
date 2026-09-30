@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatDateTime } from '../lib/format'
+import { formatGameDate } from '../lib/format'
 
 const TEAMS = [{ id: 1, name: 'קבוצה א' }]
 
@@ -76,8 +76,23 @@ describe('ScheduleView', () => {
     expect(upcomingIdx).toBeGreaterThan(-1)
     expect(pastIdx).toBeGreaterThan(-1)
     expect(upcomingIdx).toBeLessThan(pastIdx)
-    expect(text).toContain(formatDateTime('2030-05-01T18:00:00'))
+    expect(text).toContain(formatGameDate('2030-05-01T18:00:00').time)
     expect(text).not.toContain('2030-05-01T18:00:00')
+  })
+
+  it('shows scores home side first, matching the home page', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+      'GET /api/teams/1/games': () => jsonRes([PAST_GAME, { ...PAST_GAME, id: 3, is_home: true }]),
+    })
+
+    const { default: ScheduleView } = await import('./ScheduleView.vue')
+    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    // PAST_GAME is an 80–70 away win: the hosts' 70 reads first; the same result at home reads 80 first
+    const scores = wrapper.findAll('span.tabular-nums.text-xl').map((s) => s.text())
+    expect(scores.sort()).toEqual(['70 : 80', '80 : 70'])
   })
 
   it('shows the opponent logo only when it has one', async () => {
