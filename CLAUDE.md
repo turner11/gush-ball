@@ -1,6 +1,6 @@
 # Gush Ball — project spec
 
-Club basketball website: scraped external league data, curated by a single admin, served to
+Club basketball website: scraped external league data, curated by a club admin (and optional per-team admins), served to
 anonymous fans. Read this before picking up any GitHub issue — it carries the decisions and
 rationale that aren't visible from the code alone. Setup/run commands live in README.md, not here.
 
@@ -33,7 +33,7 @@ issue, before starting.
 - `LineupSnapshot`: raw per-snapshot lineup rows (5 jersey numbers, elapsed minutes, points for/against)
   belonging to a `Game`. `Game.stats_url` is the admin-set sheet they were loaded from; it is not a
   scrape field, so setting it never flags an override.
-- `AdminUser`: the only authenticated role anywhere in the system.
+- `AdminUser`: the only authenticated role. Nullable `team_id`: NULL = full admin, set = team admin who can write only that team's data (#129).
 
 ## Key decisions
 
@@ -46,8 +46,7 @@ issue, before starting.
 - **Override protection**: a scraped update to a game the admin has manually edited never
   auto-applies. It lands as a diff suggestion in the review queue for the admin to accept or
   reject. Re-scraping must never silently clobber an admin edit.
-- **Auth**: one `is_admin` flag, session cookie, no roles/OAuth/SSO. This is deliberately minimal
-  for a club with one or a few admins — don't add a role hierarchy speculatively.
+- **Auth**: one admin table plus a nullable `AdminUser.team_id` scope (NULL = full admin; set = team admin limited to that team's content/players/games plus sync), session cookie, no roles/OAuth/SSO. The server enforces the scope on every write (`RequireTeamAdmin` / `check_team_scope` in `app/deps.py`); `RequireAdmin` means full admin. Don't grow this into a role hierarchy speculatively.
 - **No fan/player accounts**: every public story (schedule, standings, scores, stats, "remembered
   team") is anonymous. "Remembered team" is a `localStorage` value, not a user profile.
 - **i18n**: Hebrew + RTL only for v1 UI. Translatable fields (team/player names, post/link/video
@@ -85,7 +84,7 @@ Don't build these ahead of their phase, even if a related task makes them tempti
 - Social media embeds (Phase 3)
 - Live/real-time score updates
 - English UI (schema is ready; UI is not)
-- Admin roles/permissions beyond the single admin flag
+- Admin roles/permissions beyond full admin + single-team admin
 
 ## Where things live
 

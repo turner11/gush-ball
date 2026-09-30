@@ -2,6 +2,7 @@
 import { onMounted, ref, watch } from 'vue'
 
 import AppIcon from '../components/AppIcon.vue'
+import { ownTeams } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -58,7 +59,7 @@ async function loadPendingGames() {
 }
 
 onMounted(async () => {
-  teams.value = await apiFetch('/teams')
+  teams.value = ownTeams(await apiFetch('/teams'))
   ensureDefault(teams.value)
   await loadGames()
   await loadPendingGames()

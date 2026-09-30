@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.deps import DbSession, RequireAdmin, get_team_or_404
+from app.deps import DbSession, RequireTeamAdmin, get_team_or_404
 from app.models import Game, GameStatus, get_or_create_opponent
 
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
@@ -94,7 +94,7 @@ def create_game(
     team_id: int,
     payload: GameCreate,
     db: DbSession,
-    _admin_id: RequireAdmin,
+    _admin_id: RequireTeamAdmin,
 ) -> Game:
     get_team_or_404(db, team_id)
     game = Game(team_id=team_id)
@@ -119,7 +119,7 @@ def list_games(team_id: int, db: DbSession) -> list[Game]:
 def list_pending_review_games(
     team_id: int,
     db: DbSession,
-    _admin_id: RequireAdmin,
+    _admin_id: RequireTeamAdmin,
 ) -> list[Game]:
     get_team_or_404(db, team_id)
     return list(
@@ -146,7 +146,7 @@ def update_game(
     game_id: int,
     payload: GameUpdate,
     db: DbSession,
-    _admin_id: RequireAdmin,
+    _admin_id: RequireTeamAdmin,
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     updates = payload.model_dump(exclude_unset=True)
@@ -170,7 +170,7 @@ def approve_game(
     team_id: int,
     game_id: int,
     db: DbSession,
-    _admin_id: RequireAdmin,
+    _admin_id: RequireTeamAdmin,
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     game.needs_review = False
@@ -185,7 +185,7 @@ def accept_game_suggestion(
     team_id: int,
     game_id: int,
     db: DbSession,
-    _admin_id: RequireAdmin,
+    _admin_id: RequireTeamAdmin,
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     if game.scrape_suggestion is None or game.scrape_suggestion_dismissed:
@@ -205,7 +205,7 @@ def reject_game_suggestion(
     team_id: int,
     game_id: int,
     db: DbSession,
-    _admin_id: RequireAdmin,
+    _admin_id: RequireTeamAdmin,
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     if game.scrape_suggestion is None or game.scrape_suggestion_dismissed:
@@ -221,7 +221,7 @@ def delete_game(
     team_id: int,
     game_id: int,
     db: DbSession,
-    _admin_id: RequireAdmin,
+    _admin_id: RequireTeamAdmin,
 ) -> None:
     game = _get_game_or_404(db, team_id, game_id)
     db.delete(game)

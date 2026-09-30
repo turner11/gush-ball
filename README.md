@@ -7,7 +7,7 @@ Website for the club: team pages, schedule/standings, scores, and (later) stats 
 
 - **Backend**: Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL
 - **Frontend**: Vue 3 (JS, not TS), Vite, Tailwind CSS v4, Vue Router
-- **Auth**: single admin role, session cookie (no fan/player accounts)
+- **Auth**: full admin or single-team admin (`team_id` scope), session cookie (no fan/player accounts)
 
 ## Local setup
 
@@ -26,7 +26,7 @@ docker compose up -d
 cd backend
 cp .env.example .env
 uv run alembic upgrade head
-uv run python scripts/create_admin.py <username> <password>
+uv run python scripts/create_admin.py <username> <password> [team-slug]
 uv run uvicorn app.main:app --reload
 ```
 
@@ -46,7 +46,7 @@ Runs on http://localhost:5173, proxying `/api/*` to the backend. Tests: `npm run
 
 ```bash
 docker compose --profile full up -d --build   # db + backend + Caddy
-docker compose exec backend uv run python scripts/create_admin.py <user> <password>
+docker compose exec backend uv run python scripts/create_admin.py <user> <password> [team-slug]
 ```
 
 Open http://localhost:8081. Uploads fail until object-storage vars are set.

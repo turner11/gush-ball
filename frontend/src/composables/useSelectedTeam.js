@@ -25,7 +25,7 @@ export function useSelectedTeam() {
   // the first team in the DB instead of an empty selection.
   function ensureDefault(teams) {
     teamsLoaded.value = true
-    if (!selectedTeamId.value && teams.length > 0) {
+    if (teams.length > 0 && !teams.some((t) => String(t.id) === selectedTeamId.value)) {
       selectedTeamId.value = String(teams[0].id)
     }
   }

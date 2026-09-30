@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.deps import DbSession, RequireAdmin, get_team_or_404
+from app.deps import DbSession, RequireTeamAdmin, get_team_or_404
 from app.models import Game, LineupSnapshot
 from app.routers.games import _get_game_or_404
 
@@ -35,7 +35,7 @@ class LineupOut(BaseModel):
 
 @router.post("/teams/{team_id}/games/{game_id}/stats", response_model=StatsLoadOut)
 def load_game_stats(
-    team_id: int, game_id: int, payload: StatsSource, db: DbSession, _admin: RequireAdmin
+    team_id: int, game_id: int, payload: StatsSource, db: DbSession, _admin: RequireTeamAdmin
 ) -> StatsLoadOut:
     # Deliberately not PATCH /games/{id}: that would set is_manually_overridden and divert
     # the next scrape into the review queue.

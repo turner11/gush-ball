@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import Base, get_db
 from app.main import app
-from app.models import AdminUser
+from app.models import AdminUser, Team
 from app.security import hash_password
 
 
@@ -47,5 +47,25 @@ def admin_client(client: TestClient, db_session: Session) -> TestClient:
     db_session.add(admin)
     db_session.commit()
     response = client.post("/auth/login", json={"username": "admin", "password": "password123"})
+    assert response.status_code == 200
+    return client
+
+
+@pytest.fixture()
+def own_team(db_session: Session) -> Team:
+    team = Team(name="Own", slug="own")
+    db_session.add(team)
+    db_session.commit()
+    return team
+
+
+@pytest.fixture()
+def team_admin_client(client: TestClient, db_session: Session, own_team: Team) -> TestClient:
+    """Logs in as a team admin. Shares the cookie jar with admin_client: never use both in one test."""
+    db_session.add(
+        AdminUser(username="teamadmin", password_hash=hash_password("password123"), team_id=own_team.id)
+    )
+    db_session.commit()
+    response = client.post("/auth/login", json={"username": "teamadmin", "password": "password123"})
     assert response.status_code == 200
     return client

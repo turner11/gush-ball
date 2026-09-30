@@ -122,6 +122,9 @@ def sync_team_games(db: Session, team: Team) -> int:
             opponent_score = None
 
         game = db.scalar(select(Game).where(Game.source_event_id == event["id"]))
+        # source_event_id is globally unique: another club team's game must not be overwritten.
+        if game is not None and game.team_id != team.id:
+            continue
 
         # ponytail: refetches known opponents each run; skip when opp already
         # has logo+source_url if runtime matters

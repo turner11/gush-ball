@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
-from app.deps import RequireAdmin
+from app.deps import RequireAnyAdmin
 from app.storage import upload_file
 
 router = APIRouter(tags=["uploads"])
@@ -17,7 +17,7 @@ class UploadOut(BaseModel):
 
 
 @router.post("/uploads", response_model=UploadOut, status_code=status.HTTP_201_CREATED)
-async def create_upload(_admin_id: RequireAdmin, file: Annotated[UploadFile, File()]) -> UploadOut:
+async def create_upload(_admin: RequireAnyAdmin, file: Annotated[UploadFile, File()]) -> UploadOut:
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

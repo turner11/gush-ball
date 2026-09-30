@@ -8,6 +8,12 @@ const error = ref(null)
 
 const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
 
+// A team admin only sees their own team in admin pickers; the server enforces the real scope.
+export function ownTeams(teams) {
+  const teamId = user.value?.team_id
+  return teamId ? teams.filter((t) => t.id === teamId) : teams
+}
+
 export function useAuth() {
   async function checkSession() {
     try {

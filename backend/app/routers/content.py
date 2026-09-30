@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, HttpUrl
 from sqlalchemy.orm import Session
 
 from app.db import Base
-from app.deps import DbSession, RequireAdmin, get_team_or_404
+from app.deps import DbSession, RequireTeamAdmin, get_team_or_404
 from app.models import TeamImage, TeamLink, TeamPost, TeamVideo
 
 router = APIRouter(tags=["content"])
@@ -120,7 +120,7 @@ def _add_crud_routes(
         return item
 
     @router.post(path, response_model=out_schema, status_code=status.HTTP_201_CREATED)
-    def create(team_id: int, payload: create_schema, db: DbSession, _admin_id: RequireAdmin):
+    def create(team_id: int, payload: create_schema, db: DbSession, _admin_id: RequireTeamAdmin):
         data = payload.model_dump()
         _check_player_ids(get_team_or_404(db, team_id), data)
         item = model(team_id=team_id, **_to_columns(data))
@@ -135,7 +135,7 @@ def _add_crud_routes(
 
     @router.patch(path + "/{item_id}", response_model=out_schema)
     def update(
-        team_id: int, item_id: int, payload: update_schema, db: DbSession, _admin_id: RequireAdmin
+        team_id: int, item_id: int, payload: update_schema, db: DbSession, _admin_id: RequireTeamAdmin
     ):
         item = get_item_or_404(db, team_id, item_id)
         data = payload.model_dump(exclude_unset=True)
@@ -151,7 +151,7 @@ def _add_crud_routes(
         return item
 
     @router.delete(path + "/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-    def delete(team_id: int, item_id: int, db: DbSession, _admin_id: RequireAdmin) -> None:
+    def delete(team_id: int, item_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> None:
         db.delete(get_item_or_404(db, team_id, item_id))
         db.commit()
 

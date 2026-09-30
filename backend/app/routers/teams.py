@@ -6,7 +6,7 @@ from pydantic import AfterValidator, AnyUrl, BaseModel, HttpUrl, StringConstrain
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.deps import DbSession, RequireAdmin, get_team_or_404
+from app.deps import DbSession, RequireAdmin, RequireTeamAdmin, get_team_or_404
 from app.models import Team
 
 router = APIRouter(prefix="/teams", tags=["teams"])
@@ -112,7 +112,7 @@ def get_team(team_id: int, db: DbSession) -> Team:
 
 
 @router.patch("/{team_id}", response_model=TeamOut)
-def update_team(team_id: int, payload: TeamUpdate, _admin_id: RequireAdmin, db: DbSession) -> Team:
+def update_team(team_id: int, payload: TeamUpdate, _admin_id: RequireTeamAdmin, db: DbSession) -> Team:
     team = get_team_or_404(db, team_id)
     updates = _stringify_urls(payload.model_dump(exclude_unset=True))
     if updates.get("background") is None:

@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 
+import { ownTeams } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import AppIcon from '../components/AppIcon.vue'
 import ImageUpload from '../components/ImageUpload.vue'
@@ -26,7 +27,7 @@ async function loadPlayers() {
 }
 
 onMounted(async () => {
-  teams.value = await apiFetch('/teams')
+  teams.value = ownTeams(await apiFetch('/teams'))
   ensureDefault(teams.value)
   await loadPlayers()
 })

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, HttpUrl
 from sqlalchemy.orm import Session
 
-from app.deps import DbSession, RequireAdmin, get_team_or_404
+from app.deps import DbSession, RequireAnyAdmin, RequireTeamAdmin, check_team_scope, get_team_or_404
 from app.models import Player, PlayerImage
 
 router = APIRouter(tags=["players"])
@@ -62,7 +62,7 @@ def _get_player_or_404(db: Session, player_id: int) -> Player:
     "/teams/{team_id}/players", response_model=PlayerOut, status_code=status.HTTP_201_CREATED
 )
 def create_player(
-    team_id: int, payload: PlayerCreate, db: DbSession, _admin_id: RequireAdmin
+    team_id: int, payload: PlayerCreate, db: DbSession, _admin_id: RequireTeamAdmin
 ) -> Player:
     get_team_or_404(db, team_id)
     player = Player(team_id=team_id, **payload.model_dump())
@@ -84,7 +84,7 @@ def update_player(
     player_id: int,
     payload: PlayerUpdate,
     db: DbSession,
-    _admin_id: RequireAdmin,
+    _admin_id: RequireTeamAdmin,
 ) -> Player:
     player = _get_team_player_or_404(db, team_id, player_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -96,7 +96,7 @@ def update_player(
 
 @router.delete("/teams/{team_id}/players/{player_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_player(
-    team_id: int, player_id: int, db: DbSession, _admin_id: RequireAdmin
+    team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin
 ) -> None:
     player = _get_team_player_or_404(db, team_id, player_id)
     player.deleted_at = datetime.now(UTC)
@@ -104,13 +104,13 @@ def delete_player(
 
 
 @router.get("/teams/{team_id}/players/deleted", response_model=list[PlayerOut])
-def list_deleted_players(team_id: int, db: DbSession, _admin_id: RequireAdmin) -> list[Player]:
+def list_deleted_players(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> list[Player]:
     team = get_team_or_404(db, team_id)
     return [p for p in team.players if p.deleted_at is not None]
 
 
 @router.post("/teams/{team_id}/players/{player_id}/restore", response_model=PlayerOut)
-def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: RequireAdmin) -> Player:
+def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> Player:
     player = _get_team_player_or_404(db, team_id, player_id)
     player.deleted_at = None
     db.commit()
@@ -132,9 +132,9 @@ def get_player(player_id: int, db: DbSession) -> Player:
     status_code=status.HTTP_201_CREATED,
 )
 def add_player_image(
-    player_id: int, payload: PlayerImageCreate, db: DbSession, _admin_id: RequireAdmin
+    player_id: int, payload: PlayerImageCreate, db: DbSession, admin: RequireAnyAdmin
 ) -> PlayerImage:
-    _get_player_or_404(db, player_id)
+    check_team_scope(admin, _get_player_or_404(db, player_id).team_id)
     image = PlayerImage(player_id=player_id, url=str(payload.url))
     db.add(image)
     db.commit()
@@ -146,8 +146,9 @@ def add_player_image(
     "/players/{player_id}/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT
 )
 def delete_player_image(
-    player_id: int, image_id: int, db: DbSession, _admin_id: RequireAdmin
+    player_id: int, image_id: int, db: DbSession, admin: RequireAnyAdmin
 ) -> None:
+    check_team_scope(admin, _get_player_or_404(db, player_id).team_id)
     image = db.get(PlayerImage, image_id)
     if image is None or image.player_id != player_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")

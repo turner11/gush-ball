@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
@@ -7,7 +8,7 @@ import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { useAuth } from '../composables/useAuth'
 
-const tabItems = [
+const allTabItems = [
   { to: { name: 'admin-home' }, label: 'ראשי', icon: 'home', exact: true },
   { to: '/admin/players', label: 'שחקנים', icon: 'users' },
   { to: '/admin/games', label: 'משחקים', icon: 'calendar' },
@@ -15,7 +16,10 @@ const tabItems = [
   { to: { name: 'admin-teams' }, label: 'קבוצות', icon: 'shield' },
 ]
 
-const { logout } = useAuth()
+const { user, logout } = useAuth()
+const tabItems = computed(() =>
+  user.value?.team_id ? allTabItems.filter((i) => i.to !== '/admin/standings') : allTabItems,
+)
 const router = useRouter()
 
 async function onLogout() {
@@ -34,7 +38,7 @@ async function onLogout() {
             <li><RouterLink :to="{ name: 'admin-home' }" active-class="" exact-active-class="font-bold" class="nav-link">ראשי</RouterLink></li>
             <li><RouterLink to="/admin/players" active-class="font-bold" class="nav-link">שחקנים</RouterLink></li>
             <li><RouterLink to="/admin/games" active-class="font-bold" class="nav-link">משחקים</RouterLink></li>
-            <li><RouterLink to="/admin/standings" active-class="font-bold" class="nav-link">טבלת ליגה</RouterLink></li>
+            <li v-if="!user?.team_id"><RouterLink to="/admin/standings" active-class="font-bold" class="nav-link">טבלת ליגה</RouterLink></li>
             <li><RouterLink :to="{ name: 'admin-teams' }" active-class="font-bold" class="nav-link">קבוצות</RouterLink></li>
           </ul>
         </nav>

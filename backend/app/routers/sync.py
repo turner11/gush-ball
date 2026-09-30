@@ -19,7 +19,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel
 
 from app.db import SessionLocal
-from app.deps import RequireAdmin
+from app.deps import RequireAnyAdmin
 from app.scrape import sync_all
 
 log = logging.getLogger(__name__)
@@ -61,7 +61,8 @@ def _run_sync() -> None:
 
 
 @router.post("/now", response_model=SyncOut, status_code=status.HTTP_202_ACCEPTED)
-async def sync_now(_admin_id: RequireAdmin, background_tasks: BackgroundTasks) -> SyncOut:
+# ponytail: global by design (same as the nightly cron); per-team sync = team_id filter through sync_team_*.
+async def sync_now(_admin: RequireAnyAdmin, background_tasks: BackgroundTasks) -> SyncOut:
     global _running
     if _running:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Sync already running")
@@ -72,5 +73,5 @@ async def sync_now(_admin_id: RequireAdmin, background_tasks: BackgroundTasks) -
 
 
 @router.get("/status", response_model=SyncStatusOut)
-async def sync_status(_admin_id: RequireAdmin) -> SyncStatusOut:
+async def sync_status(_admin: RequireAnyAdmin) -> SyncStatusOut:
     return SyncStatusOut(running=_running, **(_last or {}))
