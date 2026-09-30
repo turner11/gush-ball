@@ -184,6 +184,31 @@ def test_resync_skips_manually_overridden_game(
     assert game.scrape_suggestion_dismissed is False
 
 
+def test_sync_leaves_other_teams_game_untouched(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team_a = _make_team(db_session)
+    team_b = Team(name="Gush Ball B", slug="gush-ball-b")
+    opp = Opponent(name="Opp")
+    db_session.add_all([team_b, opp])
+    db_session.commit()
+    game = Game(
+        team_id=team_b.id, opponent_id=opp.id, is_home=True,
+        scheduled_at=datetime(2026, 10, 28, tzinfo=UTC), status=GameStatus.SCHEDULED,
+        source_event_id=9001,
+    )
+    db_session.add(game)
+    db_session.commit()
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
+
+    scrape_games.sync_team_games(db_session, team_a)
+
+    db_session.refresh(game)
+    assert game.team_id == team_b.id
+    assert game.opponent_id == opp.id
+    assert db_session.query(Game).count() == 1
+
+
 def test_resync_overridden_game_without_changes_clears_suggestion(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:

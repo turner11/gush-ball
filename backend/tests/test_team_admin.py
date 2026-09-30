@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.models import Player, PlayerImage, Team
+from app.models import AdminUser, Player, PlayerImage, Team
 
 
 @pytest.fixture()
@@ -97,3 +97,9 @@ def test_me_reports_team_scope(team_admin_client: TestClient, own_team: Team) ->
 
 def test_me_full_admin_has_no_team_scope(admin_client: TestClient) -> None:
     assert admin_client.get("/auth/me").json() == {"username": "admin", "team_id": None}
+
+
+def test_admin_team_fk_cascades() -> None:
+    # SQLite tests run with FKs off; SET NULL would promote a deleted team's admins to full admin.
+    (fk,) = AdminUser.__table__.c.team_id.foreign_keys
+    assert fk.ondelete == "CASCADE"

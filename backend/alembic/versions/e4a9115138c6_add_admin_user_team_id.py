@@ -1,6 +1,6 @@
 """add team_id to admin_users (NULL = full admin)
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: e4a9115138c6
 Revises: e4f6a8b0c2d3
 Create Date: 2026-09-30 13:00:00.000000
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'a1b2c3d4e5f6'
+revision: str = 'e4a9115138c6'
 down_revision: str | Sequence[str] | None = 'e4f6a8b0c2d3'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
