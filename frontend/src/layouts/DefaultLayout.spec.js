@@ -138,7 +138,7 @@ describe('DefaultLayout', () => {
     await router.push('/roster')
     await flushPromises()
 
-    const active = wrapper.findAll('a.router-link-exact-active').map((x) => x.text())
+    const active = wrapper.find('[data-testid="top-nav"]').findAll('a.router-link-exact-active').map((x) => x.text())
     expect(active).toEqual(['שחקנים'])
   })
 
@@ -209,7 +209,7 @@ describe('DefaultLayout', () => {
 
     expect(header.classes()).not.toContain('bg-team')
     expect(header.classes()).not.toContain('text-on-team')
-    expect(header.classes()).toContain('border-neutral-200')
+    expect(header.classes()).toContain('bg-brand')
   })
 
   it("renders the selected team's background in the hero, falling back to hoop-1", async () => {
@@ -272,32 +272,55 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('footer').exists()).toBe(false)
   })
 
-  it('hero stays pinned with the header', async () => {
+  it('hero renders only on home routes, outside the sticky header', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
     await flushPromises()
 
-    const parent = wrapper.find('header').element.parentElement
-    expect(wrapper.find('[data-testid="hero"]').element.parentElement).toBe(parent)
+    const hero = wrapper.find('[data-testid="hero"]')
+    expect(hero.exists()).toBe(true)
+    expect(hero.element.parentElement).not.toBe(wrapper.find('header').element.parentElement)
+
+    await router.push('/schedule')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="hero"]').exists()).toBe(false)
   })
 
-  it('hero has no link or image; the map pin lives in the header', async () => {
+  it('hero shows the team logo and name as the page heading; the map pin lives in the header', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
     await flushPromises()
 
     const hero = wrapper.find('[data-testid="hero"]')
     expect(hero.find('a').exists()).toBe(false)
-    expect(hero.find('img').exists()).toBe(false)
+    expect(hero.find('img[src="https://cdn.example.com/logo-a.png"]').exists()).toBe(true)
+    expect(hero.find('h1').text()).toBe('קבוצה א')
     const a = wrapper.find('header a[href^="https://www.google.com/maps"]')
     expect(a.attributes('href')).toBe(
       'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('אולם הספורט, תל אביב'),
     )
     expect(a.attributes('rel')).toContain('noopener')
+  })
+
+  it('mobile tab bar links the five primary destinations', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
+    await flushPromises()
+
+    const hrefs = wrapper
+      .find('[data-testid="tab-bar"]')
+      .findAll('a')
+      .map((a) => a.attributes('href'))
+    expect(hrefs).toEqual(['/team_a', '/schedule', '/standings', '/roster', '/media'])
   })
 
   it('header omits the map link when the team has no address', async () => {
