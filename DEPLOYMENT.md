@@ -1,18 +1,19 @@
 # Deployment
 
-The whole stack (Postgres, backend, [Caddy](https://caddyserver.com/docs/) serving the frontend and proxying `/api/*`) runs on one
-**[Hetzner](https://console.hetzner.cloud/)** machine via `docker-compose.prod.yml`. CI (`.github/workflows/ci.yml`) deploys over SSH
-on every push to `master`, after the backend and frontend jobs pass.
+The whole stack (Postgres, backend, [Caddy](https://caddyserver.com/docs/) serving the frontend and proxying `/api/*`) runs on the
+existing **[Hetzner](https://console.hetzner.cloud/)** machine, deployed by **[Coolify](https://coolify.io/docs/)** (which already
+runs another site there) from `docker-compose.prod.yml`. Coolify's proxy owns ports 80/443, routes the domain to the `web`
+container and issues the TLS certificate; the compose file publishes no ports.
 
-Order matters: storage first (you need its values for `.env`), then the machine, then CI.
+Order matters: storage first (you need its values for the env vars), then the domain, then Coolify.
 
 ## 0. What you'll end up with
 
 | Where | What |
 |---|---|
 | Cloudflare R2 | `gush-ball-media` (public) + `gush-ball-backups` (private), one API token each |
-| Hetzner box | `~/gush-ball` clone, `~/gush-ball/.env`, `~/gush-ball/.env.backup`, crontab |
-| GitHub repo secrets | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` |
+| Coolify | one Docker Compose resource: env vars, domain, scheduled scrape task |
+| Hetzner box | `~/gush-ball-backup.env`, `~/backup.sh`, one crontab line (nightly backup) |
 
 ## 1. Object storage (Cloudflare R2)
 
@@ -44,190 +45,123 @@ needed.
    `BACKUP_ACCESS_KEY_ID` / `BACKUP_SECRET_ACCESS_KEY`.
 7. `OBJECT_STORAGE_REGION=auto` (R2 ignores regions, but boto3 wants one).
 
-## 2. Hetzner machine
+## 2. Domain
 
-1. [Hetzner Cloud console](https://console.hetzner.cloud/) → [create a server](https://docs.hetzner.com/cloud/servers/getting-started/creating-a-server/) (Ubuntu LTS), add your personal SSH key.
-2. [Firewall](https://docs.hetzner.com/cloud/firewalls/getting-started/creating-a-firewall/): allow inbound **22** and **80** (add **443** when HTTPS arrives, step 9).
-3. SSH in as root and install Docker with the Compose plugin
-   ([Docker on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)):
-   ```bash
-   curl -fsSL https://get.docker.com | sh
-   ```
-4. Create the deploy user and give it Docker
-   ([non-root Docker](https://docs.docker.com/engine/install/linux-postinstall/)):
-   ```bash
-   adduser --disabled-password --gecos "" deploy
-   usermod -aG docker deploy
-   ```
-5. Generate the **CI deploy key** (on your laptop, no passphrase — CI can't type one):
-   ```bash
-   ssh-keygen -t ed25519 -N "" -C gush-ball-ci -f gush_ball_deploy
-   ```
-   Append `gush_ball_deploy.pub` to `/home/deploy/.ssh/authorized_keys` on the server
-   (`mkdir -p` the dir, `chmod 700 ~/.ssh`, `chmod 600 authorized_keys`, owned by `deploy`).
-   The private half `gush_ball_deploy` goes into GitHub in step 5.
-6. As `deploy`, clone into **exactly** `~/gush-ball` (CI's deploy command assumes that path). The
-   repo and the `stats/` submodule are public, so HTTPS needs no credentials:
-   ```bash
-   git clone --recursive https://github.com/turner11/gush-ball.git ~/gush-ball
-   ```
+Point the domain's A record at the Hetzner server IP (the same IP as your other site; Coolify's proxy tells them apart by
+hostname). Ports 80/443 are already open for the other site, so the firewall needs no change.
 
-## 3. Environment files
+## 3. Coolify resource
 
-### `~/gush-ball/.env`
-
-Passed **whole** to the backend container (`env_file: .env`) and also sourced by `backup.sh`, so
-every value must be shell-safe: no spaces, `$`, or quotes. `chmod 600 .env`.
+1. Coolify → your project → *New resource* → *Public Repository* (or *Private Repository (GitHub App)*):
+   `https://github.com/turner11/gush-ball`, branch `master`, build pack **Docker Compose**, compose file
+   `/docker-compose.prod.yml`.
+2. Enable **submodules** for the repo (advanced settings): the backend build needs `stats/`.
+3. On the `web` service set the domain to `https://<domain>` (Coolify maps it to port 80 and requests the certificate).
+   The `backend` and `db` services get no domain.
+4. *Environment Variables* (the compose file refuses to start if a required one is missing; every value must be free of
+   spaces, `$` and quotes):
 
 | Variable | Value / how to get it |
 |---|---|
-| `POSTGRES_PASSWORD` | Generate: `openssl rand -hex 24` (hex = shell- and URL-safe). Used by the `db` container on first boot only — changing it later requires `ALTER USER` inside Postgres too. |
-| `DATABASE_URL` | `postgresql+psycopg://gush_ball:<POSTGRES_PASSWORD>@db:5432/gush_ball` (`db` is the compose service name). |
-| `SESSION_SECRET` | Generate: `openssl rand -hex 32`. Required, 32+ chars — the app refuses to start without it. Rotating it logs the admin out. |
-| `CORS_ORIGINS` | `["http://<server-ip>"]` — JSON list. Switch to `https://<domain>` in step 9. |
+| `POSTGRES_PASSWORD` | Generate: `openssl rand -hex 24`. Used by the `db` container on first boot only, so changing it later requires `ALTER USER` inside Postgres too. `DATABASE_URL` is built from it in the compose file. |
+| `SESSION_SECRET` | Generate: `openssl rand -hex 32`. Required, 32+ chars; the app refuses to start without it. Rotating it logs the admin out. |
+| `CORS_ORIGINS` | `["https://<domain>"]`, a JSON list. |
 | `OBJECT_STORAGE_ENDPOINT_URL` | Step 1.2 |
 | `OBJECT_STORAGE_BUCKET` | Step 1.3 |
 | `OBJECT_STORAGE_PUBLIC_URL` | Step 1.3 |
 | `OBJECT_STORAGE_ACCESS_KEY_ID` | Step 1.5 |
 | `OBJECT_STORAGE_SECRET_ACCESS_KEY` | Step 1.5 |
-| `OBJECT_STORAGE_REGION` | `auto` |
-| `BACKUP_BUCKET` | Step 1.4 — read only by `backup.sh`. |
+| `OBJECT_STORAGE_REGION` | Optional, defaults to `auto` |
+| `STATS_URL` | Optional, the BBStats Streamlit app link |
 | `ENABLE_DOCS` | **Leave unset** in prod (keeps `/api/docs` and `/api/openapi.json` off). |
 
-Template:
-
-```bash
-POSTGRES_PASSWORD=
-DATABASE_URL=postgresql+psycopg://gush_ball:<POSTGRES_PASSWORD>@db:5432/gush_ball
-SESSION_SECRET=
-CORS_ORIGINS=["http://<server-ip>"]
-OBJECT_STORAGE_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
-OBJECT_STORAGE_BUCKET=gush-ball-media
-OBJECT_STORAGE_PUBLIC_URL=https://pub-<id>.r2.dev
-OBJECT_STORAGE_ACCESS_KEY_ID=
-OBJECT_STORAGE_SECRET_ACCESS_KEY=
-OBJECT_STORAGE_REGION=auto
-BACKUP_BUCKET=gush-ball-backups
-```
-
-`backend/.env.example` is the **local-dev** template (localhost DB, docs on) — don't copy it to prod
-as-is.
-
-### `~/gush-ball/.env.backup`
-
-Kept out of `.env` so the backend container never sees the backup credentials. `chmod 600`.
-
-```bash
-BACKUP_ACCESS_KEY_ID=       # step 1.6
-BACKUP_SECRET_ACCESS_KEY=   # step 1.6
-```
-
-Optional: if missing, `backup.sh` falls back to the media token — which works only if that token
-can also write the backup bucket, so create this file.
+`backend/.env.example` is the **local-dev** template; don't use it for prod.
 
 ## 4. First boot
 
-```bash
-cd ~/gush-ball
-docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml ps          # all three services "running"
-docker compose -f docker-compose.prod.yml logs backend # migrations ran, uvicorn started
-```
+*Deploy* in Coolify. The backend runs `alembic upgrade head` on every start, so migrations need no manual step. Check the
+deployment logs show all three services healthy and `https://<domain>/` loads.
 
-The backend runs `alembic upgrade head` on every start, so migrations need no manual step.
-
-Create the first admin:
+Create the first admin: Coolify → the `backend` service → *Terminal*:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec backend uv run python scripts/create_admin.py <username> <password>
+uv run python scripts/create_admin.py <username> <password>
 ```
 
-Check `http://<server-ip>/` loads.
+**Auto-deploy:** enable *Automatic Deployment* (GitHub App, or the webhook from the resource page) so pushes to `master`
+deploy. CI no longer deploys anything and Coolify does not wait for it, so keep `master` green via PR checks.
 
-## 5. GitHub secrets (CI deploy)
+## 5. Nightly scrape
 
-[Repo → *Settings* → *Secrets and variables* → *Actions*](https://github.com/turner11/gush-ball/settings/secrets/actions)
-→ *New repository secret* ([docs](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions)):
-
-| Secret | Value |
-|---|---|
-| `DEPLOY_HOST` | Server IP |
-| `DEPLOY_USER` | `deploy` |
-| `DEPLOY_SSH_KEY` | Full contents of the private key `gush_ball_deploy` from step 2.5 (including the `BEGIN`/`END` lines) |
-| `DEPLOY_KNOWN_HOSTS` | Output of `ssh-keyscan -t ed25519 <server-ip>`, pasted as-is — CI verifies the host instead of trusting first connect |
-
-Then delete the local private key copy, or keep it only in a password manager.
-
-Each push to `master` now runs, on the server:
-`git pull --ff-only && git submodule update --init && docker compose -f docker-compose.prod.yml up -d --build && docker image prune -f`.
-`--ff-only` means local edits to tracked files on the server will break deploys — change things in
-git, not on the box. `.env` / `.env.backup` are gitignored, so they're safe.
-
-## 6. Admin access before HTTPS
-
-No domain yet → plain HTTP on the IP. Don't log in over an untrusted network; tunnel instead:
+Coolify → the `backend` service → *Scheduled Tasks* → add, frequency `0 4 * * *`:
 
 ```bash
-ssh -L 8080:localhost:80 deploy@<server-ip>
+uv run python -m app.scrape
 ```
 
-then browse to `http://localhost:8080/`.
+`app.scrape` runs standings then games sequentially, respecting ibasketball.co.il's `Crawl-Delay: 10`; a failing team is
+logged and skipped. The admin's "סנכרון עכשיו" button does the same on demand.
 
-## 7. Cron: backups + nightly scrape
+## 6. Nightly backup
 
-As `deploy`, `crontab -e` ([crontab.guru](https://crontab.guru/) to sanity-check schedules):
+`backup.sh` runs `pg_dump` in the `gush-ball-db` container (a fixed `container_name` in the compose file) and pipes it to
+`BACKUP_BUCKET` through a throwaway `amazon/aws-cli` container. It runs on the host, outside Coolify, because the dump
+tool and the R2 upload don't share a container.
 
-```
-0 3 * * * ~/gush-ball/backup.sh
-0 4 * * * cd ~/gush-ball && docker compose -f docker-compose.prod.yml exec -T backend uv run python -m app.scrape
-```
+1. On the server, create `~/gush-ball-backup.env` (`chmod 600`):
 
-- `backup.sh` pipes a `pg_dump` to `BACKUP_BUCKET` through a throwaway `amazon/aws-cli` container
-  (no AWS CLI on the host). Run it once by hand now and confirm a `gush_ball-<date>.dump` appears in
-  the R2 bucket. Encryption is R2's server-side at-rest encryption; there is no client-side
-  encryption.
-- `app.scrape` runs standings then games sequentially, respecting ibasketball.co.il's
-  `Crawl-Delay: 10`; a failing team is logged and skipped. The admin's "סנכרון עכשיו" button does
-  the same on demand.
+   ```bash
+   BACKUP_BUCKET=gush-ball-backups
+   BACKUP_ACCESS_KEY_ID=       # step 1.6
+   BACKUP_SECRET_ACCESS_KEY=   # step 1.6
+   OBJECT_STORAGE_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
+   ```
 
-## 8. Verify a backup (restore into a scratch DB)
+2. Copy the script to the host and make it executable (re-copy it if it changes in the repo):
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/turner11/gush-ball/master/backup.sh -o ~/backup.sh && chmod +x ~/backup.sh
+   ```
+
+3. Run it once by hand and confirm a `gush_ball-<date>.dump` appears in the R2 bucket, then `crontab -e`
+   ([crontab.guru](https://crontab.guru/)):
+
+   ```
+   0 3 * * * ~/backup.sh
+   ```
+
+Encryption is R2's server-side at-rest encryption; there is no client-side encryption.
+
+## 7. Verify a backup (restore into a scratch DB)
 
 ```bash
-docker compose -f docker-compose.prod.yml exec db createdb -U gush_ball scratch
+docker exec gush-ball-db createdb -U gush_ball scratch
 docker run --rm \
   -e AWS_ACCESS_KEY_ID=<BACKUP_ACCESS_KEY_ID> -e AWS_SECRET_ACCESS_KEY=<BACKUP_SECRET_ACCESS_KEY> -e AWS_DEFAULT_REGION=auto \
   amazon/aws-cli s3 cp s3://gush-ball-backups/<file>.dump - --endpoint-url <OBJECT_STORAGE_ENDPOINT_URL> \
-  | docker compose -f docker-compose.prod.yml exec -T db pg_restore -U gush_ball -d scratch --no-owner
-docker compose -f docker-compose.prod.yml exec db dropdb -U gush_ball scratch
+  | docker exec -i gush-ball-db pg_restore -U gush_ball -d scratch --no-owner
+docker exec gush-ball-db dropdb -U gush_ball scratch
 ```
 
-For a real restore into `gush_ball`, or copying data dev ↔ prod, use `dbsync.sh` (see README,
-"Manual dump / import").
+For a real restore into `gush_ball`, or copying data dev ↔ prod, use `dbsync.sh` with `DB_CONTAINER=gush-ball-db` (see
+README, "Manual dump / import").
 
-## 9. HTTPS (once a domain exists)
+## 8. Media bucket custom domain (optional)
 
-1. Point the domain's A record at the server IP.
-2. `frontend/Caddyfile`: replace `:80` with the domain — Caddy then gets a Let's Encrypt cert itself
-   ([automatic HTTPS](https://caddyserver.com/docs/automatic-https)).
-3. `docker-compose.prod.yml`, `web` service: publish `443:443` and add a `caddy_data:/data` volume ([why](https://hub.docker.com/_/caddy))
-   (plus the top-level `caddy_data:` volume) so certificates survive rebuilds.
-4. Open port 443 in the Hetzner firewall.
-5. `.env`: `CORS_ORIGINS=["https://<domain>"]`, then
-   `docker compose -f docker-compose.prod.yml up -d backend`.
-6. Optional: connect a custom domain to the media bucket (R2 → bucket → [*Custom domains*](https://developers.cloudflare.com/r2/buckets/public-buckets/#custom-domains)) and update
-   `OBJECT_STORAGE_PUBLIC_URL`. Already-uploaded images keep their old r2.dev URLs in the DB, so
-   leave r2.dev access on.
-
-The SSH tunnel from step 6 is no longer needed after this.
+Connect a custom domain to the media bucket (R2 → bucket → [*Custom domains*](https://developers.cloudflare.com/r2/buckets/public-buckets/#custom-domains))
+and update `OBJECT_STORAGE_PUBLIC_URL`. Already-uploaded images keep their old r2.dev URLs in the DB, so leave r2.dev access on.
 
 ## Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
+| Deploy fails: `required variable ... is missing` | An env var from step 3.4 isn't set in Coolify |
 | Backend exits on start, `session_secret` validation error | `SESSION_SECRET` missing or under 32 chars |
-| Backend can't connect to DB | `DATABASE_URL` password ≠ `POSTGRES_PASSWORD`, or host isn't `db` |
+| Backend can't connect to DB | `POSTGRES_PASSWORD` changed after the first boot (the DB keeps the old one) |
+| Domain returns 502 / "no available server" | Domain set on the wrong service (must be `web`), or `web` failed to start |
+| Admin login fails / CORS errors | `CORS_ORIGINS` doesn't match `https://<domain>` exactly |
+| Build fails at the `stats` context | Submodules not enabled on the Coolify resource |
 | Upload returns 502 "Object storage is not configured correctly" | Wrong `OBJECT_STORAGE_*` value or token not scoped to that bucket |
 | Upload works but image is broken | `OBJECT_STORAGE_PUBLIC_URL` wrong, or bucket public access off |
-| CI deploy: `Host key verification failed` | `DEPLOY_KNOWN_HOSTS` missing/stale (server rebuilt → re-run `ssh-keyscan`) |
-| CI deploy: `Not possible to fast-forward` | Someone edited tracked files on the server; `git status` there and reset them |
-| `backup.sh` fails with `AccessDenied` | `.env.backup` missing/wrong, or token not scoped to `BACKUP_BUCKET` |
+| `backup.sh`: `No such container: gush-ball-db` | Stack not deployed, or Coolify renamed the container; check `docker ps` |
+| `backup.sh` fails with `AccessDenied` | `~/gush-ball-backup.env` wrong, or token not scoped to `BACKUP_BUCKET` |
