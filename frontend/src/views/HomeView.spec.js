@@ -228,6 +228,32 @@ describe('HomeView', () => {
     expect(sides(next)).toEqual(['קבוצה א', 'אורחת'])
   })
 
+  it('links our team and the opponent to their ibasketball pages on match cards', async () => {
+    const us = 'https://ibasketball.co.il/team/1/'
+    const them = 'https://ibasketball.co.il/team/2/'
+    const wrapper = await mountWithTeam(
+      { ...TEAM, ibasketball_team_url: us },
+      { games: [{ id: 1, opponent: { name: 'אורחת', source_url: them, logo_url: null }, scheduled_at: '2999-01-01T18:00:00', is_home: true, team_score: null, opponent_score: null }] },
+    )
+
+    const links = wrapper.find('div.card').findAll('p.font-bold a')
+    expect(links.map((a) => [a.text(), a.attributes('href'), a.attributes('target')])).toEqual([
+      ['קבוצה א', us, '_blank'],
+      ['אורחת', them, '_blank'],
+    ])
+  })
+
+  it('renders plain names when the ibasketball URLs are unset', async () => {
+    const wrapper = await mountWithTeam(
+      { ...TEAM, ibasketball_team_url: null },
+      { games: [{ id: 1, opponent: { name: 'אורחת', source_url: null, logo_url: null }, scheduled_at: '2999-01-01T18:00:00', is_home: true, team_score: null, opponent_score: null }] },
+    )
+
+    const card = wrapper.find('div.card')
+    expect(card.findAll('p.font-bold a')).toHaveLength(0)
+    expect(card.findAll('p.font-bold').map((p) => p.text())).toEqual(['קבוצה א', 'אורחת'])
+  })
+
   it('a lone match card spans the full row and does not repeat its date', async () => {
     const scheduled_at = '2999-01-01T18:00:00'
     const wrapper = await mountWithTeam(TEAM, {
