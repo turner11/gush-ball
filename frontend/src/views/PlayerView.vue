@@ -7,15 +7,18 @@ import { apiFetch } from '../lib/api'
 const route = useRoute()
 const player = ref(null)
 const loading = ref(true)
+const error = ref('')
 
 watch(
   () => route.params.id,
   async (id) => {
     loading.value = true
+    error.value = ''
     try {
       player.value = await apiFetch(`/players/${id}`)
-    } catch {
+    } catch (e) {
       player.value = null
+      error.value = e.status === 404 ? 'השחקן לא נמצא.' : 'שגיאה בטעינת השחקן, נסה שוב'
     } finally {
       loading.value = false
     }
@@ -39,6 +42,6 @@ watch(
       </ul>
       <p v-else class="empty-state">אין תמונות עדיין.</p>
     </template>
-    <p v-else class="empty-state">השחקן לא נמצא.</p>
+    <p v-else class="empty-state">{{ error }}</p>
   </section>
 </template>

@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -225,3 +226,13 @@ def test_get_player_public_includes_images(
 
 def test_get_player_unknown_404(client: TestClient) -> None:
     assert client.get("/players/999999").status_code == 404
+
+
+def test_get_player_soft_deleted_404(
+    client: TestClient, db_session: Session, team: Team
+) -> None:
+    player = Player(team_id=team.id, name="Gone", deleted_at=datetime.now(UTC))
+    db_session.add(player)
+    db_session.commit()
+
+    assert client.get(f"/players/{player.id}").status_code == 404

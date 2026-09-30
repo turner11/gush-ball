@@ -23,13 +23,15 @@ describe('PlayerCard', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  const shown = (w) => w.find('img').attributes('src')
+  const slide = (w) => w.find('[data-testid="slide"]')
+  const shown = (w) => slide(w).attributes('src')
 
-  it('advances through the images every 3 seconds while hovered', async () => {
+  it('fills the card with a slideshow advancing every 3 seconds while hovered', async () => {
     const w = mountCard({ player: PLAYER })
-    expect(shown(w)).toBe('/a.jpg')
+    expect(slide(w).exists()).toBe(false)
 
     await w.trigger('mouseenter')
+    expect(shown(w)).toBe('/a.jpg')
     await vi.advanceTimersByTimeAsync(3000)
     expect(shown(w)).toBe('/b.jpg')
     await vi.advanceTimersByTimeAsync(3000)
@@ -43,8 +45,14 @@ describe('PlayerCard', () => {
     await w.trigger('mouseenter')
     await vi.advanceTimersByTimeAsync(3000)
     await w.trigger('mouseleave')
+    expect(slide(w).exists()).toBe(false)
+    await w.trigger('mouseenter')
     expect(shown(w)).toBe('/a.jpg')
-    await vi.advanceTimersByTimeAsync(6000)
+  })
+
+  it('shows a single image full-card on hover too', async () => {
+    const w = mountCard({ player: { ...PLAYER, images: [{ url: '/a.jpg' }] } })
+    await w.trigger('mouseenter')
     expect(shown(w)).toBe('/a.jpg')
   })
 

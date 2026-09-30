@@ -11,11 +11,13 @@ const props = defineProps({
 
 const SLIDE_MS = 3000
 const index = ref(0)
+const hovered = ref(false)
 let timer = null
 
 const images = computed(() => props.player?.images ?? [])
 
 function startSlideshow() {
+  hovered.value = true
   if (timer || images.value.length < 2) return
   timer = setInterval(() => (index.value = (index.value + 1) % images.value.length), SLIDE_MS)
 }
@@ -23,6 +25,7 @@ function stopSlideshow() {
   clearInterval(timer)
   timer = null
   index.value = 0
+  hovered.value = false
 }
 onBeforeUnmount(stopSlideshow)
 
@@ -43,17 +46,14 @@ function onImgError(e) {
   >
     <!-- badge overlaps the photo so names line up whether or not a player has a number -->
     <div class="relative mx-auto w-fit">
-      <Transition name="slide" mode="out-in">
       <img
-        :key="index"
-        :src="images[index]?.url || '/default-player.png'"
+        :src="images[0]?.url || '/default-player.png'"
         :alt="player?.name ?? ''"
         loading="lazy"
         :class="compact ? 'size-11 ring-2 sm:size-14' : 'size-20 ring-4 sm:size-24'"
         class="rounded-full object-cover object-top ring-sunken"
         @error="onImgError"
       />
-      </Transition>
       <p
         v-if="(player?.jersey_number ?? jersey) != null"
         :class="compact ? 'text-[10px]' : 'text-xs'"
@@ -62,6 +62,17 @@ function onImgError(e) {
         #{{ player?.jersey_number ?? jersey }}
       </p>
     </div>
+    <!-- on hover the slideshow fills the whole card: the nearest positioned ancestor, i.e. the caller's `relative overflow-hidden` card -->
+    <Transition v-if="hovered && images.length && !compact" name="slide">
+      <img
+        :key="index"
+        :src="images[index].url"
+        alt=""
+        data-testid="slide"
+        class="absolute inset-0 size-full object-cover object-top"
+        @error="onImgError"
+      />
+    </Transition>
     <p v-if="player" :class="compact ? 'mt-2.5 line-clamp-2 text-[11px]' : 'mt-3 text-sm'" class="font-bold leading-tight">{{ player.name }}</p>
   </component>
 </template>
@@ -75,5 +86,11 @@ function onImgError(e) {
 .slide-leave-to {
   opacity: 0;
   transform: scale(1.05);
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-enter-active,
+  .slide-leave-active {
+    transition: none;
+  }
 }
 </style>

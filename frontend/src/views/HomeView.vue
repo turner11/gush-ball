@@ -204,7 +204,7 @@ watch(
           <ul
             class="scroll-row -mx-4 flex snap-x snap-mandatory gap-3 px-4 pb-2 sm:-mx-6 sm:px-6 md:mx-0 md:grid md:grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] md:px-0"
           >
-            <li v-for="player in players" :key="player.id" class="card w-36 shrink-0 snap-start p-3 md:w-auto">
+            <li v-for="player in players" :key="player.id" class="card w-36 shrink-0 snap-start p-3 md:w-auto relative overflow-hidden">
               <PlayerCard :player="player" />
             </li>
           </ul>
