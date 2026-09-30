@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+import httpx
 import pytest
 from sqlalchemy.orm import Session
 
@@ -54,6 +55,22 @@ class FakeApi:
         if path == f"/sportspress/v2/teams/{OPP_SP_ID}":
             return OPPONENT_DETAIL
         raise AssertionError(f"unexpected path {path}")
+
+ADDRESS_HTML = '<div class="data-address"><span>כתובת:</span>יהודה פרח, נתניה, 4223577</div>'
+ADDRESS = "יהודה פרח, נתניה, 4223577"
+
+
+@pytest.fixture(autouse=True)
+def page_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Stub the team-page fetch (no network); records the URLs requested."""
+    calls: list[str] = []
+
+    def fake(url: str) -> str:
+        calls.append(url)
+        return ADDRESS_HTML
+
+    monkeypatch.setattr(scrape_games, "_get_page", fake)
+    return calls
 
 
 def _make_team(db_session: Session) -> Team:
@@ -130,6 +147,63 @@ def test_sync_sets_opponent_name_logo_and_source_url(
     # Admin-set logo is never clobbered.
     assert game.opponent.logo_url == "https://existing.example/logo.png"
     assert game.opponent.source_url == "https://ibasketball.co.il/team/opp/"
+
+
+def test_sync_sets_opponent_address_from_team_page(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, page_calls: list[str]
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FINAL_EVENT_AWAY]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    assert db_session.query(Opponent).one().address == ADDRESS
+    assert OPPONENT_DETAIL["link"] in page_calls
+
+
+def test_sync_fills_own_team_home_court_address(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, page_calls: list[str]
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    assert team.home_court_address == ADDRESS
+    assert page_calls == [team.ibasketball_team_url]
+
+
+def test_sync_never_overwrites_admin_home_court_address(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, page_calls: list[str]
+) -> None:
+    team = _make_team(db_session)
+    team.home_court_address = "Admin Hall"
+    db_session.commit()
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    assert team.home_court_address == "Admin Hall"
+    assert page_calls == []
+
+
+@pytest.mark.parametrize("failure", ["<p>no address</p>", httpx.ConnectError("boom")])
+def test_sync_address_missing_or_fetch_error_still_syncs_games(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, failure: object
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
+
+    def fake(url: str) -> str:
+        if isinstance(failure, Exception):
+            raise failure
+        return failure
+
+    monkeypatch.setattr(scrape_games, "_get_page", fake)
+
+    assert scrape_games.sync_team_games(db_session, team) == 1
+    assert db_session.query(Opponent).one().address is None
+    assert team.home_court_address is None
 
 
 def test_resync_updates_score_without_duplicating_or_republishing(
