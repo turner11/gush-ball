@@ -52,7 +52,7 @@ jobs:
                   "[text] \(.text | gsub("\n+"; " ") | .[0:200])"
                 else empty end
               elif .type == "result" then
-                "[done] subtype=\(.subtype // "?") turns=\(.num_turns // "?") cost=$\(.cost_usd // "null") is_error=\(.is_error // false)"
+                "[done] subtype=\(.subtype // "?") turns=\(.num_turns // "?") cost=$\(.total_cost_usd // "null") is_error=\(.is_error // false)"
               else empty end
             '
 
