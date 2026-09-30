@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -303,3 +304,39 @@ def test_patch_null_player_ids_rejected(
     base = f"/teams/{team.id}/{segment}"
     item_id = admin_client.post(base, json=create_payload).json()["id"]
     assert admin_client.patch(f"{base}/{item_id}", json={"player_ids": None}).status_code == 422
+
+
+@MEDIA
+def test_player_ids_must_belong_to_team(
+    admin_client: TestClient, db_session: Session, team: Team, segment: str, create_payload: dict
+) -> None:
+    other = Team(name="Other", slug="other")
+    db_session.add(other)
+    db_session.commit()
+    foreign = Player(team_id=other.id, name="X")
+    db_session.add(foreign)
+    db_session.commit()
+    base = f"/teams/{team.id}/{segment}"
+    for bad in ([foreign.id], [999999]):
+        assert (
+            admin_client.post(base, json={**create_payload, "player_ids": bad}).status_code == 422
+        )
+    item_id = admin_client.post(base, json=create_payload).json()["id"]
+    assert (
+        admin_client.patch(f"{base}/{item_id}", json={"player_ids": [foreign.id]}).status_code
+        == 422
+    )
+
+
+@MEDIA
+def test_soft_deleted_player_id_still_accepted(
+    admin_client: TestClient, db_session: Session, team: Team, segment: str, create_payload: dict
+) -> None:
+    gone = Player(team_id=team.id, name="Gone", deleted_at=datetime.now(UTC))
+    db_session.add(gone)
+    db_session.commit()
+    base = f"/teams/{team.id}/{segment}"
+    created = admin_client.post(base, json={**create_payload, "player_ids": [gone.id]})
+    assert created.status_code == 201, created.text
+    patched = admin_client.patch(f"{base}/{created.json()['id']}", json={"title": "x"})
+    assert patched.json()["player_ids"] == [gone.id]

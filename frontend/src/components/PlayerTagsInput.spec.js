@@ -44,4 +44,10 @@ describe('PlayerTagsInput', () => {
     await wrapper.get('input').trigger('change')
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   })
+
+  it('renders a tag for a player no longer on the roster, without emitting', async () => {
+    const wrapper = await mountInput([99])
+    expect(wrapper.text()).toContain('#99')
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+  })
 })
