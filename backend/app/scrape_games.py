@@ -43,6 +43,25 @@ def _get_html(**params: Any) -> str:
     return _get(AJAX_URL, **params).text
 
 
+def _get_page(url: str) -> str:
+    return _get(url).text
+
+
+def _scrape_address(url: str) -> str | None:
+    """Club address from the static team page; never lets a failure lose the games sync."""
+    try:
+        node = BeautifulSoup(_get_page(url), "html.parser").select_one("div.data-address")
+    except httpx.HTTPError:
+        log.warning("Could not fetch address from %s", url, exc_info=True)
+        return None
+    if node is None:
+        return None
+    if label := node.find("span"):
+        label.extract()
+    address = node.get_text(strip=True)
+    return address[:300] or None
+
+
 def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -> Opponent:
     if opp_sp_id in cache:
         return cache[opp_sp_id]
@@ -54,6 +73,9 @@ def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -
     if opponent.logo_url is None:
         media = data.get("_embedded", {}).get("wp:featuredmedia") or []
         opponent.logo_url = media[0]["source_url"] if media else None
+    # ponytail: refetches while the address stays None (10s crawl delay each); add a flag if runtime matters
+    if opponent.address is None and opponent.source_url:
+        opponent.address = _scrape_address(opponent.source_url)
     cache[opp_sp_id] = opponent
     return opponent
 
@@ -68,6 +90,9 @@ def _find_sp_team(team: Team) -> dict[str, Any]:
 
 def sync_team_games(db: Session, team: Team) -> int:
     sp_id = _find_sp_team(team)["id"]
+    # Fill-only: an admin-entered address is never clobbered.
+    if team.home_court_address is None:
+        team.home_court_address = _scrape_address(team.ibasketball_team_url)
 
     # ponytail: single page (100); follow X-WP-TotalPages if a team ever exceeds it
     events = _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)

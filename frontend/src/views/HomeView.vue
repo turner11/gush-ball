@@ -178,7 +178,7 @@ watch(
             <div class="mt-auto flex flex-wrap items-center gap-2 text-sm text-muted">
               <!-- an unplayed game already shows its date in the middle -->
               <span v-if="m.played">{{ formatDateTime(m.game.scheduled_at) }}</span>
-              <GameLocationLinks v-if="m.game.is_home && team.home_court_address" :address="team.home_court_address" />
+              <GameLocationLinks v-if="m.game.is_home ? team.home_court_address : m.game.opponent.address" :address="m.game.is_home ? team.home_court_address : m.game.opponent.address" />
               <RouterLink to="/schedule" class="section-link ms-auto">ללוח המשחקים</RouterLink>
             </div>
           </div>

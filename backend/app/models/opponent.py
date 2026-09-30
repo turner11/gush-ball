@@ -14,6 +14,7 @@ class Opponent(Base):
     name_en: Mapped[str | None] = mapped_column(String(120), default=None)
     logo_url: Mapped[str | None] = mapped_column(String(500), default=None)
     source_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    address: Mapped[str | None] = mapped_column(String(300), default=None)
 
 
 def get_or_create_opponent(db: Session, name: str) -> Opponent:
