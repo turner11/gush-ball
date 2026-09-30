@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 
+import AppIcon from '../components/AppIcon.vue'
 import { apiFetch } from '../lib/api'
 
 // `column` is the (shorter) table header; `numeric` fields are sent as numbers.
@@ -89,29 +90,27 @@ async function onDelete(row) {
     <h1 class="page-title">ניהול טבלת ליגה</h1>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-      <div class="table-wrap">
-        <table class="w-full text-start">
-          <thead>
-            <tr class="table-header-row">
-              <th v-for="field in FIELDS" :key="field.key" class="px-2 py-2 text-start">{{ field.column }}</th>
-              <th class="py-2 text-start"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.id" class="table-row">
-              <td v-for="field in FIELDS" :key="field.key" class="px-2 py-2">{{ row[field.key] }}</td>
-              <td class="py-2">
-                <span class="inline-flex gap-1">
-                  <button type="button" class="btn-ghost" @click="startEdit(row)">ערוך</button>
-                  <button type="button" class="btn-danger-ghost" @click="onDelete(row)">מחק</button>
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <table class="data-table">
+        <thead>
+          <tr class="table-header-row">
+            <th v-for="field in FIELDS" :key="field.key">{{ field.column }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in rows" :key="row.id" class="table-row">
+            <td v-for="field in FIELDS" :key="field.key" :data-label="field.column">{{ row[field.key] }}</td>
+            <td class="justify-end">
+              <span class="inline-flex gap-1">
+                <button type="button" class="btn-ghost" @click="startEdit(row)">ערוך</button>
+                <button type="button" class="btn-danger-ghost" @click="onDelete(row)">מחק</button>
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-      <form ref="formEl" class="card space-y-3 lg:sticky lg:top-6" @submit.prevent="onSubmit">
+      <form id="standing-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
         <h2 class="section-title">{{ editing ? 'עריכת שורה' : 'הוספת שורה' }}</h2>
 
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
@@ -139,5 +138,6 @@ async function onDelete(row) {
         </div>
       </form>
     </div>
+    <a href="#standing-form" class="fab lg:hidden" aria-label="הוספת שורה"><AppIcon name="plus" /></a>
   </section>
 </template>
