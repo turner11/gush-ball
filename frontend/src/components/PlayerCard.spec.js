@@ -31,6 +31,7 @@ describe('PlayerCard', () => {
     expect(slide(w).exists()).toBe(false)
 
     await w.trigger('mouseenter')
+    await vi.advanceTimersByTimeAsync(1000)
     expect(shown(w)).toBe('/a.jpg')
     await vi.advanceTimersByTimeAsync(3000)
     expect(shown(w)).toBe('/b.jpg')
@@ -43,16 +44,37 @@ describe('PlayerCard', () => {
   it('stops and resets on mouseleave', async () => {
     const w = mountCard({ player: PLAYER })
     await w.trigger('mouseenter')
-    await vi.advanceTimersByTimeAsync(3000)
+    await vi.advanceTimersByTimeAsync(4000)
     await w.trigger('mouseleave')
     expect(slide(w).exists()).toBe(false)
     await w.trigger('mouseenter')
+    await vi.advanceTimersByTimeAsync(1000)
     expect(shown(w)).toBe('/a.jpg')
+  })
+
+  it('waits 1 second after hover before the slideshow appears', async () => {
+    const w = mountCard({ player: PLAYER })
+    await w.trigger('mouseenter')
+    expect(slide(w).exists()).toBe(false)
+    await vi.advanceTimersByTimeAsync(999)
+    expect(slide(w).exists()).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(shown(w)).toBe('/a.jpg')
+  })
+
+  it('mouseleave before the delay cancels it', async () => {
+    const w = mountCard({ player: PLAYER })
+    await w.trigger('mouseenter')
+    await vi.advanceTimersByTimeAsync(500)
+    await w.trigger('mouseleave')
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(slide(w).exists()).toBe(false)
   })
 
   it('shows a single image full-card on hover too', async () => {
     const w = mountCard({ player: { ...PLAYER, images: [{ url: '/a.jpg' }] } })
     await w.trigger('mouseenter')
+    await vi.advanceTimersByTimeAsync(1000)
     expect(shown(w)).toBe('/a.jpg')
   })
 

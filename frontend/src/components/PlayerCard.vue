@@ -10,18 +10,25 @@ const props = defineProps({
 })
 
 const SLIDE_MS = 3000
+const START_DELAY_MS = 1000
 const index = ref(0)
 const hovered = ref(false)
 let timer = null
+let delay = null
 
 const images = computed(() => props.player?.images ?? [])
 
 function startSlideshow() {
-  hovered.value = true
-  if (timer || images.value.length < 2) return
-  timer = setInterval(() => (index.value = (index.value + 1) % images.value.length), SLIDE_MS)
+  if (delay) return
+  delay = setTimeout(() => {
+    hovered.value = true
+    if (images.value.length < 2) return
+    timer = setInterval(() => (index.value = (index.value + 1) % images.value.length), SLIDE_MS)
+  }, START_DELAY_MS)
 }
 function stopSlideshow() {
+  clearTimeout(delay)
+  delay = null
   clearInterval(timer)
   timer = null
   index.value = 0
