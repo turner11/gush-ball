@@ -49,6 +49,7 @@ describe('DefaultLayout', () => {
   })
 
   afterEach(() => {
+    document.title = ''
     vi.restoreAllMocks()
   })
 
@@ -75,7 +76,7 @@ describe('DefaultLayout', () => {
     expect(document.title).toBe('🏀' + TEAMS[1].name)
   })
 
-  it('tab title follows the team across navigation', async () => {
+  it('tab title follows a team switch', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')

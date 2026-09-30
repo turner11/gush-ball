@@ -51,8 +51,7 @@ const teamStyle = computed(() => {
 const route = useRoute()
 const router = useRouter()
 const isHome = computed(() => ['home', 'team-home'].includes(route.name))
-// route.fullPath re-applies the title after the router's afterEach hook overwrites it.
-watch([selectedTeam, () => route.fullPath], () => {
+watch(selectedTeam, () => {
   if (selectedTeam.value) document.title = '🏀' + selectedTeam.value.name
 }, { immediate: true })
 watch([() => route.params.slug, () => route.name, teams], () => {
