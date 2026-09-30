@@ -206,3 +206,22 @@ def test_delete_player_image(admin_client: TestClient, team: Team) -> None:
 
     response = admin_client.delete(f"/players/{player_id}/images/{image_id}")
     assert response.status_code == 204
+
+
+def test_get_player_public_includes_images(
+    client: TestClient, db_session: Session, team: Team
+) -> None:
+    player = Player(team_id=team.id, name="Dana")
+    player.images.append(PlayerImage(url="https://example.com/a.jpg"))
+    db_session.add(player)
+    db_session.commit()
+
+    response = client.get(f"/players/{player.id}")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Dana"
+    assert [i["url"] for i in body["images"]] == ["https://example.com/a.jpg"]
+
+
+def test_get_player_unknown_404(client: TestClient) -> None:
+    assert client.get("/players/999999").status_code == 404
