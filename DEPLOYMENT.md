@@ -47,19 +47,87 @@ needed.
 
 ## 2. Domain
 
-Point the domain's A record at the Hetzner server IP (the same IP as your other site; Coolify's proxy tells them apart by
-hostname). Ports 80/443 are already open for the other site, so the firewall needs no change.
+**Goal:** make `https://<domain>` reach the Hetzner machine. DNS is the internet's phone book: it maps a name
+(`gushball.example`) to an IP address. An **A record** is one entry in that book: "this name → this IPv4 address".
+Your other site already lives on this machine, so your new domain gets the **same IP**. Coolify's proxy looks at which
+hostname the browser asked for and forwards the request to the right site. Ports 80/443 are already open for the other
+site, so the firewall needs no change.
+
+### 2.1 Have a domain
+
+*Why:* the TLS certificate (HTTPS) and Coolify's routing are both issued per domain name; an IP alone won't work.
+
+If you don't own one yet, buy it from any registrar (Namecheap, Cloudflare Registrar, GoDaddy, Israeli registrars, ...).
+If you do, note where its **DNS is managed**. That is usually the registrar, but it's Cloudflare (or similar) if you
+changed the domain's nameservers there. You add the record in *that* place.
+
+### 2.2 Find the server's IP
+
+*Why:* the A record needs the exact address to point at.
+
+1. Open the [Hetzner Cloud console](https://console.hetzner.cloud/) and log in.
+2. Select your project → **Servers**.
+3. Find the server that runs Coolify and your other site. Its **IPv4** address (like `203.0.113.10`) is shown in the list
+   and at the top of the server page. Copy it.
+
+Alternative: the other site's IP is the same one. Run `nslookup <other-site-domain>` in a terminal and take the
+`Address` from the answer.
+
+### 2.3 Add the A record
+
+*Why:* this is the actual "phone book" entry. Until it exists, nobody (including Coolify's certificate request) can
+find your server by name.
+
+1. Log in to wherever DNS is managed (see 2.1) and open the domain's **DNS settings** ("DNS records", "Advanced DNS",
+   "Manage DNS", depending on the provider).
+2. Click **Add record** and fill in:
+
+   | Field | Value | Meaning |
+   |---|---|---|
+   | Type | `A` | IPv4 address record |
+   | Name / Host | `@` for the bare domain (`gushball.example`), or e.g. `www` / `app` for a subdomain | `@` means "the domain itself". Use whichever hostname you'll put in Coolify in step 3.3 |
+   | Value / IPv4 / Points to | the IP from 2.2 | where the name leads |
+   | TTL | `Auto` or 300 | how long resolvers cache the answer; low is handy while setting up |
+
+3. If the provider is **Cloudflare**, set the proxy status to **DNS only** (grey cloud). Coolify requests its own
+   certificate straight from the server; Cloudflare's orange-cloud proxy sits in the middle and can break that.
+4. Optional: to also serve `www.<domain>`, add a second A record with Name `www` and the same IP.
+5. Don't add an `AAAA` (IPv6) record unless the server is set up for IPv6, or some visitors will hit a dead address.
+6. Delete any pre-existing `A` record for the same name (registrars often add a "parked page" one), or visitors will
+   randomly get the wrong server.
+7. Save.
+
+### 2.4 Check that it works
+
+*Why:* DNS changes take from seconds to a few hours to spread ("propagation"). If Coolify asks for a certificate before
+the world can see your record, it fails; checking first saves a confusing debugging session.
+
+In a terminal (PowerShell, Windows):
+
+```
+nslookup <domain>
+```
+
+The `Address` line under the answer must be your server IP. Or use a website like
+[dnschecker.org](https://dnschecker.org/) → enter the domain → type `A`. If it still shows the old/no address, wait a few
+minutes and retry. Move on to step 3 only once it shows the right IP.
 
 ## 3. Coolify resource
 
+A Coolify "resource" is one deployable app. This one tells Coolify where the code is and how to run it.
+
 1. Coolify → your project → *New resource* → *Public Repository* (or *Private Repository (GitHub App)*):
    `https://github.com/turner11/gush-ball`, branch `master`, build pack **Docker Compose**, compose file
-   `/docker-compose.prod.yml`.
-2. Enable **submodules** for the repo (advanced settings): the backend build needs `stats/`.
-3. On the `web` service set the domain to `https://<domain>` (Coolify maps it to port 80 and requests the certificate).
-   The `backend` and `db` services get no domain.
+   `/docker-compose.prod.yml`. *Why:* this is what Coolify clones and builds; Docker Compose is how the three services
+   (db, backend, web) are described.
+2. Enable **submodules** for the repo (advanced settings). *Why:* the backend build needs the `stats/` folder, which
+   is a git submodule and is skipped by a plain clone.
+3. On the `web` service set the domain to `https://<domain>` (the one from step 2). *Why:* Coolify's proxy then routes that
+   hostname to `web` (port 80) and automatically requests a free Let's Encrypt HTTPS certificate. It can only do
+   that if the A record from step 2 already points here. The `backend` and `db` services get no domain: they must
+   not be reachable from the internet (`web` proxies `/api/*` to `backend` internally).
 4. *Environment Variables* (the compose file refuses to start if a required one is missing; every value must be free of
-   spaces, `$` and quotes):
+   spaces, `$` and quotes). *Why:* secrets and per-environment settings live here, not in git:
 
 | Variable | Value / how to get it |
 |---|---|
@@ -79,10 +147,13 @@ hostname). Ports 80/443 are already open for the other site, so the firewall nee
 
 ## 4. First boot
 
-*Deploy* in Coolify. The backend runs `alembic upgrade head` on every start, so migrations need no manual step. Check the
-deployment logs show all three services healthy and `https://<domain>/` loads.
-
-Create the first admin: Coolify → the `backend` service → *Terminal*:
+1. Click **Deploy** in Coolify. *What/why:* Coolify clones the repo, builds the images and starts the three services.
+   The backend runs `alembic upgrade head` on every start, so the database tables are created without a manual step.
+2. Watch the deployment logs until all three services are healthy, then open `https://<domain>/` in a browser. If you
+   see the site with a padlock, DNS, routing and the certificate all work. (Certificate can take a minute; see
+   Troubleshooting if it doesn't load.)
+3. Create the first admin. *Why:* there is no sign-up page; the admin login has to be created by hand once.
+   Coolify → the `backend` service → *Terminal* (a shell inside the running backend container):
 
 ```bash
 uv run python scripts/create_admin.py <username> <password>
@@ -108,7 +179,11 @@ logged and skipped. The admin's "סנכרון עכשיו" button does the same o
 `BACKUP_BUCKET` through a throwaway `amazon/aws-cli` container. It runs on the host, outside Coolify, because the dump
 tool and the R2 upload don't share a container.
 
-1. On the server, create `~/gush-ball-backup.env` (`chmod 600`):
+*Why backups:* the database lives on a single machine; if the disk dies, everything is lost unless a copy exists elsewhere
+(the R2 bucket).
+
+1. On the server (SSH in: `ssh root@<server-ip>`, using the SSH key you set up in Hetzner), create
+   `~/gush-ball-backup.env` (`chmod 600`, so only your user can read the secrets in it):
 
    ```bash
    BACKUP_BUCKET=gush-ball-backups
@@ -123,8 +198,9 @@ tool and the R2 upload don't share a container.
    curl -fsSL https://raw.githubusercontent.com/turner11/gush-ball/master/backup.sh -o ~/backup.sh && chmod +x ~/backup.sh
    ```
 
-3. Run it once by hand and confirm a `gush_ball-<date>.dump` appears in the R2 bucket, then `crontab -e`
-   ([crontab.guru](https://crontab.guru/)):
+3. Run it once by hand (`~/backup.sh`) and confirm a `gush_ball-<date>.dump` appears in the R2 bucket (*why:* find
+   errors now, not on the day you need a restore). Then schedule it: `crontab -e` opens the list of timed jobs;
+   add this line to run the script every night at 03:00 ([crontab.guru](https://crontab.guru/) explains the syntax):
 
    ```
    0 3 * * * ~/backup.sh
