@@ -212,6 +212,21 @@ describe('ScheduleView', () => {
       expect(none.find('a[href*="google.com/maps"]').exists()).toBe(false)
     })
 
+    it('uses the opponent address on away games', async () => {
+      const OPP = 'רחוב היריבה 2, חיפה'
+      mockFetch({
+        'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null, home_court_address: ADDR }),
+        'GET /api/teams/1/games': () =>
+          jsonRes([FUTURE_GAME, { ...PAST_GAME, opponent: { ...PAST_GAME.opponent, address: OPP } }]),
+      })
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      const away = wrapper.findAll('li')[1]
+      expect(away.find(`a[href^="https://waze.com/ul?q=${encodeURIComponent(OPP)}"]`).exists()).toBe(true)
+    })
+
     it('renders the waze link as an icon', async () => {
       const a = (await mountWith(ADDR)).find('a[href*="waze.com"]')
       expect(a.find('svg').exists()).toBe(true)

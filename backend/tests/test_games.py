@@ -87,6 +87,17 @@ def test_list_games_is_public(client: TestClient, admin_client: TestClient, db_s
     assert len(response.json()) == 1
 
 
+def test_game_read_exposes_opponent_address(client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    game.opponent.address = "Herzl 1, Tel Aviv"
+    db_session.commit()
+
+    response = client.get(f"/teams/{team.id}/games")
+
+    assert response.json()[0]["opponent"]["address"] == "Herzl 1, Tel Aviv"
+
+
 def test_list_games_hides_games_needing_review(
     client: TestClient, admin_client: TestClient, db_session: Session
 ) -> None:

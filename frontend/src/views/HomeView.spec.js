@@ -266,7 +266,15 @@ describe('HomeView', () => {
       }
     })
 
-    it('hides location links on away games and when the team has no address', async () => {
+    it('uses the opponent address on away games', async () => {
+      const address = 'רחוב היריבה 2, חיפה'
+      const awayGame = { ...game(1, '2999-01-01T18:00:00', false), opponent: { ...opp, address } }
+      const wrapper = await mountWithTeam(TEAM, { games: [awayGame] })
+      expect(wrapper.find(`a[href^="https://waze.com/ul?q=${encodeURIComponent(address)}"]`).exists()).toBe(true)
+      expect(wrapper.find(waze).exists()).toBe(false)
+    })
+
+    it('hides location links on away games without an opponent address and when the team has no address', async () => {
       const away = await mountWithTeam(TEAM, { games: [game(1, '2999-01-01T18:00:00', false)] })
       expect(away.find(google).exists()).toBe(false)
       expect(away.find(waze).exists()).toBe(false)
