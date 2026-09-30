@@ -20,16 +20,16 @@ function youtubeId(url) {
 </script>
 
 <template>
-  <article class="grid items-start gap-3 sm:grid-cols-[3fr_2fr]">
+  <article class="space-y-2">
     <iframe
       v-if="youtubeId(video.url)"
       :src="`https://www.youtube-nocookie.com/embed/${youtubeId(video.url)}`"
       :title="video.title"
       loading="lazy"
       allowfullscreen
-      class="aspect-video w-full rounded-xl border-0 bg-black"
+      class="aspect-video w-full rounded-2xl border-0 bg-black"
     ></iframe>
     <a v-else :href="video.url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">{{ video.title }}<AppIcon name="external" /></a>
-    <h3 v-if="youtubeId(video.url)" class="font-semibold">{{ video.title }}</h3>
+    <h3 v-if="youtubeId(video.url)" class="font-bold">{{ video.title }}</h3>
   </article>
 </template>

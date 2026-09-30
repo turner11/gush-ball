@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import LineupStats from '../components/LineupStats.vue'
@@ -29,22 +30,25 @@ watch(selectedTeamId, loadPlayers, { immediate: true })
 </script>
 
 <template>
-  <section class="space-y-6">
-    <h1 class="page-title">שחקנים</h1>
+  <section class="space-y-10 sm:space-y-14">
+    <div class="page-header">
+      <h1 class="page-title">שחקנים</h1>
+      <RouterLink :to="{ hash: '#lineups' }" class="section-link">חמישיות</RouterLink>
+    </div>
 
-    <div v-if="loading" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5" aria-busy="true">
+    <div v-if="loading" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6" aria-busy="true">
       <div v-for="n in 5" :key="n" class="skeleton h-40" />
     </div>
-    <ul v-else-if="players.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-      <li v-for="player in players" :key="player.id" class="card py-5">
+    <ul v-else-if="players.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      <li v-for="player in players" :key="player.id" class="card p-4">
         <PlayerCard :player="player" />
       </li>
     </ul>
     <p v-else class="empty-state">אין שחקנים עדיין.</p>
 
-    <section v-if="selectedTeamId" id="lineups" class="scroll-mt-40 space-y-4">
+    <section v-if="selectedTeamId" id="lineups" class="scroll-mt-24 space-y-4">
       <h2 class="section-title">חמישיות</h2>
-      <p class="text-sm text-neutral-500">+/- של כל הרכב לאורך העונה, לפי נתוני המשחקים</p>
+      <p class="text-sm text-muted">+/- של כל הרכב לאורך העונה, לפי נתוני המשחקים</p>
       <LineupStats :team-id="selectedTeamId" :players="players" />
     </section>
   </section>

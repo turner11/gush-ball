@@ -17,12 +17,11 @@ describe('VideoCard', () => {
     }
   })
 
-  it('shows the title next to the player', () => {
+  it('shows the title under the player', () => {
     const w = card('https://youtu.be/xyz', 'הכותרת')
     const root = w.find('article')
     expect(root.find('iframe').exists()).toBe(true)
     expect(root.find('h3').text()).toBe('הכותרת')
-    expect(root.classes().join(' ')).toContain('sm:grid-cols-')
   })
 
   it('links non-YouTube urls', () => {

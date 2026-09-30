@@ -27,15 +27,15 @@ function onCancel() {
 <template>
   <AlertDialogRoot :open="open" @update:open="(value) => emit('update:open', value)">
     <AlertDialogPortal>
-      <AlertDialogOverlay class="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+      <AlertDialogOverlay class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
       <AlertDialogContent
-        class="card fixed left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 space-y-4"
+        class="fixed inset-x-0 bottom-0 z-50 space-y-4 rounded-t-3xl border-t border-line bg-raised p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border"
       >
         <AlertDialogTitle class="section-title">אישור פעולה</AlertDialogTitle>
         <AlertDialogDescription>{{ message }}</AlertDialogDescription>
-        <div class="flex justify-end gap-2">
+        <div class="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
           <button type="button" class="btn-secondary" @click="onCancel">ביטול</button>
-          <button type="button" class="btn-primary !bg-red-600 !text-white" @click="onConfirm">אישור</button>
+          <button type="button" class="btn-danger" @click="onConfirm">אישור</button>
         </div>
       </AlertDialogContent>
     </AlertDialogPortal>

@@ -28,8 +28,9 @@ async function onSubmit() {
 </script>
 
 <template>
-  <section class="card mx-auto mt-10 max-w-sm space-y-4 p-6">
-    <img :src="LOGO_URL" alt="" class="mx-auto h-14" />
+  <section class="mx-auto mt-6 max-w-sm sm:mt-16">
+    <div class="card space-y-4">
+    <img :src="LOGO_URL" alt="" class="mx-auto h-16" />
     <h1 class="page-title text-center">כניסת מנהל</h1>
 
     <form class="space-y-3" @submit.prevent="onSubmit">
@@ -63,5 +64,6 @@ async function onSubmit() {
         {{ submitting ? 'מתחבר…' : 'כניסה' }}
       </button>
     </form>
+    </div>
   </section>
 </template>
