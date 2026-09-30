@@ -17,10 +17,11 @@ function onImgError(e) {
     <img
       :src="player?.images?.[0]?.url || '/default-player.png'"
       :alt="player?.name ?? ''"
-      class="mx-auto h-20 w-20 rounded-full object-cover object-top"
+      loading="lazy"
+      class="mx-auto size-16 rounded-full object-cover object-top ring-2 ring-neutral-200 sm:size-20 dark:ring-neutral-700"
       @error="onImgError"
     />
-    <p class="font-semibold">#{{ player?.jersey_number ?? jersey }}</p>
-    <p v-if="player" class="text-sm">{{ player.name }}</p>
+    <p class="font-extrabold text-team">#{{ player?.jersey_number ?? jersey }}</p>
+    <p v-if="player" class="text-sm font-medium leading-tight">{{ player.name }}</p>
   </div>
 </template>

@@ -91,7 +91,7 @@ describe('ScheduleView', () => {
     const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const imgs = wrapper.findAll('tbody img')
+    const imgs = wrapper.findAll('ol img')
     expect(imgs).toHaveLength(1)
     expect(imgs[0].attributes('src')).toBe('https://l/f.png')
   })
@@ -106,7 +106,7 @@ describe('ScheduleView', () => {
     const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const links = wrapper.findAll('tbody a')
+    const links = wrapper.findAll('ol a')
     expect(links).toHaveLength(1)
     expect(links[0].text()).toBe('מכבי עתיד')
     expect(links[0].attributes('href')).toBe('https://ibasketball.co.il/team/5/')

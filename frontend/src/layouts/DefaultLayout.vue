@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
+import AppIcon from '../components/AppIcon.vue'
 import ErrorBoundary from '../components/ErrorBoundary.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
@@ -17,7 +18,7 @@ const navItems = computed(() => [
   { to: '/standings', label: 'טבלה' },
   { to: '/roster', label: 'שחקנים' },
   { to: '/media', label: 'מדיה' },
-  { to: '/roster', label: 'סטטיסטיקה' },
+  { to: '/roster#lineups', label: 'סטטיסטיקה' },
 ])
 
 const teams = ref([])
@@ -58,12 +59,14 @@ onMounted(async () => {
     ensureDefault(teams.value)
   } catch {
     // leave teams empty — the switcher simply doesn't render
+    ensureDefault([]) // still marks the list as loaded so Home shows the welcome
   }
 })
 </script>
 
 <template>
   <div :style="teamStyle" class="flex min-h-screen flex-col bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
+    <a href="#main" class="btn-primary sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50">דלג לתוכן</a>
     <div class="sticky top-0 z-40">
       <header
         :class="[
@@ -73,7 +76,7 @@ onMounted(async () => {
             : 'border-b border-neutral-200 bg-neutral-50/90 backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/90',
         ]"
       >
-        <nav class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-1">
+        <nav class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 px-4">
           <div class="flex min-w-0 items-center gap-2">
             <RouterLink
               :to="homePath"
@@ -97,29 +100,35 @@ onMounted(async () => {
               rel="noopener noreferrer"
               :aria-label="selectedTeam.home_court_address"
               :title="selectedTeam.home_court_address"
-              class="text-xl"
-              >📍</a
-            >
+              class="inline-flex size-11 items-center justify-center"
+              ><AppIcon name="pin"
+            /></a>
           </div>
-          <ul class="flex gap-4 text-sm">
+          <ul class="scroll-row order-last flex w-full gap-5 md:order-2 md:ms-auto md:w-auto">
             <li v-for="item in navItems" :key="item.label">
-              <RouterLink :to="item.to" class="hover:underline">{{ item.label }}</RouterLink>
+              <!-- exact-active ignores the hash, so the #lineups link would light up with שחקנים -->
+              <RouterLink
+                :to="item.to"
+                :exact-active-class="item.to.includes('#') ? '' : undefined"
+                class="nav-link"
+                >{{ item.label }}</RouterLink
+              >
             </li>
           </ul>
-          <ThemeToggle />
+          <div class="ms-auto md:order-3 md:ms-0"><ThemeToggle /></div>
         </nav>
       </header>
 
       <div
         v-if="selectedTeam"
         data-testid="hero"
-        class="h-16 bg-cover bg-[position:50%_65%] sm:h-20"
+        class="h-10 bg-cover bg-[position:50%_65%] sm:h-20"
         :style="{ backgroundImage: `url(/backgrounds/${selectedTeam.background ?? 'hoop-1'}.jpg)` }"
       >
       </div>
     </div>
 
-    <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-10">
       <ErrorBoundary>
         <RouterView />
       </ErrorBoundary>

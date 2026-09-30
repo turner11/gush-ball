@@ -1,26 +1,25 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 
+import AppIcon from '../components/AppIcon.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
-import { splitGames } from '../lib/games'
-
-const STATUS_LABELS = {
-  scheduled: 'מתוכנן',
-  final: 'הסתיים',
-  postponed: 'נדחה',
-  cancelled: 'בוטל',
-}
+import { result, splitGames, STATUS_LABELS } from '../lib/games'
 
 const games = ref([])
 const team = ref(null)
+const loading = ref(false)
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
 
 const upcoming = computed(() => splitGames(games.value).upcoming)
 const past = computed(() => splitGames(games.value).past)
+const sections = computed(() => [
+  { title: 'משחקים קרובים', games: upcoming.value, empty: 'אין משחקים קרובים.' },
+  { title: 'תוצאות', games: past.value, empty: 'אין תוצאות עדיין.' },
+])
 
 async function loadGames() {
   if (!selectedTeamId.value) {
@@ -28,81 +27,61 @@ async function loadGames() {
     team.value = null
     return
   }
-  ;[team.value, games.value] = await Promise.all([
-    apiFetch(`/teams/${selectedTeamId.value}`),
-    apiFetch(`/teams/${selectedTeamId.value}/games`),
-  ])
+  loading.value = true
+  try {
+    ;[team.value, games.value] = await Promise.all([
+      apiFetch(`/teams/${selectedTeamId.value}`),
+      apiFetch(`/teams/${selectedTeamId.value}/games`),
+    ])
+  } finally {
+    loading.value = false
+  }
 }
 
 watch(selectedTeamId, loadGames, { immediate: true })
+
+const scored = (g) => g.team_score !== null && g.opponent_score !== null
 </script>
 
 <template>
   <section class="space-y-8">
-    <h1 class="page-title">לוח משחקים</h1>
-    <a v-if="team?.ibasketball_team_url" :href="team.ibasketball_team_url" target="_blank" rel="noopener" class="hover:underline">{{ team.name }}</a>
+    <div class="page-header">
+      <h1 class="page-title">לוח משחקים</h1>
+      <a v-if="team?.ibasketball_team_url" :href="team.ibasketball_team_url" target="_blank" rel="noopener" class="section-link">{{ team.name }}<AppIcon name="external" /></a>
+    </div>
 
-    <p v-if="!games.length" class="empty-state">אין משחקים עדיין.</p>
+    <div v-if="loading" class="space-y-3" aria-busy="true">
+      <div class="skeleton h-16" />
+      <div class="skeleton h-16" />
+      <div class="skeleton h-16" />
+    </div>
+
+    <p v-else-if="!games.length" class="empty-state">אין משחקים עדיין.</p>
 
     <template v-else>
-      <section class="space-y-2">
-        <h2 class="section-title">משחקים קרובים</h2>
-        <table v-if="upcoming.length" class="w-full text-start">
-          <thead>
-            <tr class="table-header-row">
-              <th class="py-2 text-start">יריבה</th>
-              <th class="py-2 text-start">תאריך</th>
-              <th class="py-2 text-start">בית/חוץ</th>
-              <th class="py-2 text-start">סטטוס</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="game in upcoming" :key="game.id" class="table-row">
-              <td class="py-2">
-                <img v-if="game.opponent.logo_url" :src="game.opponent.logo_url" alt="" class="me-2 inline h-6 w-6 object-contain" />
+      <section v-for="s in sections" :key="s.title" class="space-y-2">
+        <h2 class="section-title">{{ s.title }}</h2>
+        <ol v-if="s.games.length" class="divide-y rounded-xl border bg-white dark:divide-neutral-700 dark:border-neutral-700 dark:bg-neutral-800">
+          <li v-for="game in s.games" :key="game.id" class="flex items-center gap-3 px-4 py-3">
+            <img v-if="game.opponent.logo_url" :src="game.opponent.logo_url" alt="" class="size-10 shrink-0 object-contain" />
+            <span v-else class="size-10 shrink-0 rounded-full bg-neutral-100 dark:bg-neutral-700"></span>
+            <div class="min-w-0">
+              <p class="font-semibold">
                 <a v-if="game.opponent.source_url" :href="game.opponent.source_url" target="_blank" rel="noopener" class="hover:underline">{{ game.opponent.name }}</a>
                 <template v-else>{{ game.opponent.name }}</template>
-              </td>
-              <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
-              <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
-              <td class="py-2">{{ STATUS_LABELS[game.status] ?? game.status }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="empty-state">אין משחקים קרובים.</p>
-      </section>
-
-      <section class="space-y-2">
-        <h2 class="section-title">תוצאות</h2>
-        <table v-if="past.length" class="w-full text-start">
-          <thead>
-            <tr class="table-header-row">
-              <th class="py-2 text-start">יריבה</th>
-              <th class="py-2 text-start">תאריך</th>
-              <th class="py-2 text-start">בית/חוץ</th>
-              <th class="py-2 text-start">סטטוס</th>
-              <th class="py-2 text-start">תוצאה</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="game in past" :key="game.id" class="table-row">
-              <td class="py-2">
-                <img v-if="game.opponent.logo_url" :src="game.opponent.logo_url" alt="" class="me-2 inline h-6 w-6 object-contain" />
-                <a v-if="game.opponent.source_url" :href="game.opponent.source_url" target="_blank" rel="noopener" class="hover:underline">{{ game.opponent.name }}</a>
-                <template v-else>{{ game.opponent.name }}</template>
-              </td>
-              <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
-              <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
-              <td class="py-2">{{ STATUS_LABELS[game.status] ?? game.status }}</td>
-              <td class="py-2">
-                <span v-if="game.team_score !== null && game.opponent_score !== null">
-                  {{ game.team_score }} : {{ game.opponent_score }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="empty-state">אין תוצאות עדיין.</p>
+              </p>
+              <p class="text-sm text-neutral-500">{{ formatDateTime(game.scheduled_at) }} · {{ game.is_home ? 'בית' : 'חוץ' }}</p>
+            </div>
+            <div class="ms-auto flex shrink-0 items-center gap-2 text-end">
+              <template v-if="scored(game)">
+                <span class="text-lg font-bold tabular-nums" dir="ltr">{{ game.team_score }} : {{ game.opponent_score }}</span>
+                <span v-if="result(game)" :class="['badge', result(game) === 'W' ? 'badge-win' : 'badge-loss']">{{ result(game) === 'W' ? 'ניצחון' : 'הפסד' }}</span>
+              </template>
+              <span v-else class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span>
+            </div>
+          </li>
+        </ol>
+        <p v-else class="empty-state">{{ s.empty }}</p>
       </section>
     </template>
   </section>

@@ -6,3 +6,17 @@ export function splitGames(games, now = new Date()) {
     past: games.filter((g) => at(g) < now).sort((a, b) => at(b) - at(a)),
   }
 }
+
+export const STATUS_LABELS = {
+  scheduled: 'מתוכנן',
+  final: 'הסתיים',
+  postponed: 'נדחה',
+  cancelled: 'בוטל',
+}
+
+// 'W' / 'L' for a played game, null when unscored or tied (no ties in basketball).
+export function result(game) {
+  const { team_score: a, opponent_score: b } = game
+  if (a == null || b == null || a === b) return null
+  return a > b ? 'W' : 'L'
+}

@@ -36,9 +36,12 @@ function resetForm() {
   form.value = emptyForm()
 }
 
+const formEl = ref(null)
+
 function startEdit(row) {
   editing.value = row
   form.value = { ...row }
+  formEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
 }
 
 function buildPayload() {
@@ -85,50 +88,56 @@ async function onDelete(row) {
   <section class="space-y-6">
     <h1 class="page-title">ניהול טבלת ליגה</h1>
 
-    <table class="w-full text-start">
-      <thead>
-        <tr class="table-header-row">
-          <th v-for="field in FIELDS" :key="field.key" class="py-2 text-start">{{ field.column }}</th>
-          <th class="py-2 text-start"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id" class="table-row">
-          <td v-for="field in FIELDS" :key="field.key" class="py-2">{{ row[field.key] }}</td>
-          <td class="py-2">
-            <span class="inline-flex gap-2">
-              <button type="button" class="hover:underline" @click="startEdit(row)">ערוך</button>
-              <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="onDelete(row)">מחק</button>
-            </span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
-      <h2 class="section-title">{{ editing ? 'עריכת שורה' : 'הוספת שורה' }}</h2>
-
-      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
-
-      <div v-for="field in FIELDS" :key="field.key">
-        <label :for="`standing-${field.key.replaceAll('_', '-')}`" class="field-label">{{ field.label }}</label>
-        <input
-          :id="`standing-${field.key.replaceAll('_', '-')}`"
-          v-model="form[field.key]"
-          :type="field.type"
-          required
-          class="field-input"
-        />
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div class="table-wrap">
+        <table class="w-full text-start">
+          <thead>
+            <tr class="table-header-row">
+              <th v-for="field in FIELDS" :key="field.key" class="px-2 py-2 text-start">{{ field.column }}</th>
+              <th class="py-2 text-start"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id" class="table-row">
+              <td v-for="field in FIELDS" :key="field.key" class="px-2 py-2">{{ row[field.key] }}</td>
+              <td class="py-2">
+                <span class="inline-flex gap-1">
+                  <button type="button" class="btn-ghost" @click="startEdit(row)">ערוך</button>
+                  <button type="button" class="btn-danger-ghost" @click="onDelete(row)">מחק</button>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      <div class="flex gap-2">
-        <button type="submit" class="btn-primary">
-          {{ editing ? 'שמירה' : 'הוספה' }}
-        </button>
-        <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
-          ביטול
-        </button>
-      </div>
-    </form>
+      <form ref="formEl" class="card space-y-3 lg:sticky lg:top-6" @submit.prevent="onSubmit">
+        <h2 class="section-title">{{ editing ? 'עריכת שורה' : 'הוספת שורה' }}</h2>
+
+        <p v-if="error" class="error-text" role="alert">{{ error }}</p>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div v-for="field in FIELDS" :key="field.key" :class="{ 'col-span-2': ['league_name', 'team_name'].includes(field.key) }">
+            <label :for="`standing-${field.key.replaceAll('_', '-')}`" class="field-label">{{ field.label }}</label>
+            <input
+              :id="`standing-${field.key.replaceAll('_', '-')}`"
+              v-model="form[field.key]"
+              :type="field.type"
+              required
+              class="field-input"
+            />
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button type="submit" class="btn-primary">
+            {{ editing ? 'שמירה' : 'הוספה' }}
+          </button>
+          <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
+            ביטול
+          </button>
+        </div>
+      </form>
+    </div>
   </section>
 </template>

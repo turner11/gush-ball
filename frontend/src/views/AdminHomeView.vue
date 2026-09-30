@@ -59,16 +59,29 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="space-y-4">
-    <h1 class="text-2xl font-bold">אזור ניהול</h1>
-    <nav class="flex flex-col gap-2">
-      <RouterLink to="/admin/players" class="hover:underline">ניהול שחקנים</RouterLink>
-      <RouterLink to="/admin/games" class="hover:underline">ניהול משחקים</RouterLink>
-      <RouterLink to="/admin/standings" class="hover:underline">ניהול טבלת ליגה</RouterLink>
-      <RouterLink :to="{ name: 'admin-teams' }" class="hover:underline">ניהול קבוצות</RouterLink>
+  <section class="space-y-6">
+    <h1 class="page-title">אזור ניהול</h1>
+    <nav class="grid gap-3 sm:grid-cols-2">
+      <RouterLink to="/admin/players" class="card hover:border-neutral-400">
+        <span class="block font-bold">ניהול שחקנים</span>
+        <span class="text-sm text-neutral-500">שחקנים ותמונות</span>
+      </RouterLink>
+      <RouterLink to="/admin/games" class="card hover:border-neutral-400">
+        <span class="block font-bold">ניהול משחקים</span>
+        <span class="text-sm text-neutral-500">לוח משחקים, תוצאות ותור אישור</span>
+      </RouterLink>
+      <RouterLink to="/admin/standings" class="card hover:border-neutral-400">
+        <span class="block font-bold">ניהול טבלת ליגה</span>
+        <span class="text-sm text-neutral-500">טבלת ליגה ידנית</span>
+      </RouterLink>
+      <RouterLink :to="{ name: 'admin-teams' }" class="card hover:border-neutral-400">
+        <span class="block font-bold">ניהול קבוצות</span>
+        <span class="text-sm text-neutral-500">קבוצות, מיתוג ותוכן</span>
+      </RouterLink>
     </nav>
 
-    <div class="space-y-2">
+    <div class="card space-y-2">
+      <h2 class="section-title">סנכרון מ-ibasketball</h2>
       <button type="button" :disabled="submitting || running" class="btn-primary" @click="onSyncNow">
         סנכרון עכשיו
       </button>
@@ -76,14 +89,14 @@ onUnmounted(() => {
         הסנכרון רץ… זה עלול לקחת כמה דקות.
       </p>
       <div v-else-if="result" class="text-sm text-neutral-600 dark:text-neutral-400">
-        <p v-if="result.failed" class="text-red-600 dark:text-red-400">הסנכרון נכשל.</p>
+        <p v-if="result.failed" class="error-text">הסנכרון נכשל.</p>
         <p v-else>
           הסנכרון הסתיים: {{ result.standings }} שורות טבלה, {{ result.games }} משחקים, {{ result.players }} שחקנים.        </p>
-        <ul v-if="result.errors.length" class="list-disc ps-5 text-red-600 dark:text-red-400">
+        <ul v-if="result.errors.length" class="error-text list-disc ps-5">
           <li v-for="e in result.errors" :key="e">{{ e }}</li>
         </ul>
       </div>
-      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
+      <p v-if="error" class="error-text" role="alert">{{ error }}</p>
     </div>
   </section>
 </template>

@@ -37,7 +37,10 @@ function resetForm() {
   form.value = { name: '', name_en: '', jersey_number: '' }
 }
 
+const formEl = ref(null)
+
 function startEdit(player) {
+  formEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   editing.value = player
   form.value = {
     name: player.name,
@@ -138,96 +141,105 @@ async function deleteImage(player, image) {
 
 <template>
   <section class="space-y-6">
-    <h1 class="page-title">ניהול שחקנים</h1>
-
-    <div>
-      <label for="team-select" class="field-label">קבוצה</label>
-      <select id="team-select" v-model="selectedTeamId" class="field-input">
-        <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
-      </select>
+    <div class="page-header">
+      <h1 class="page-title">ניהול שחקנים</h1>
+      <div>
+        <label for="team-select" class="field-label">קבוצה</label>
+        <select id="team-select" v-model="selectedTeamId" class="field-input">
+          <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
+        </select>
+      </div>
     </div>
 
-    <table class="w-full text-start">
-      <thead>
-        <tr class="table-header-row">
-          <th class="py-2 text-start">מספר</th>
-          <th class="py-2 text-start">שם</th>
-          <th class="py-2 text-start">תמונות</th>
-          <th class="py-2 text-start"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="player in players" :key="player.id" class="table-row">
-          <td class="py-2">{{ player.jersey_number }}</td>
-          <td class="py-2">{{ player.name }}</td>
-          <td class="py-2">
-            <ul class="space-y-1">
-              <li v-for="image in player.images" :key="image.id" class="flex items-center gap-2 text-xs">
-                <span class="truncate">{{ image.url }}</span>
-                <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="deleteImage(player, image)">
-                  הסר תמונה
-                </button>
-              </li>
-            </ul>
-            <div class="mt-1 flex gap-1">
-              <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="w-40 rounded border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-600 dark:bg-neutral-800" />
-              <button type="button" class="text-xs hover:underline" @click="addImage(player)">הוסף תמונה</button>
-            </div>
-            <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
-          </td>
-          <td class="py-2">
-            <span class="inline-flex gap-2">
-              <button type="button" class="hover:underline" @click="startEdit(player)">ערוך</button>
-              <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="onDelete(player)">מחק</button>
-            </span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div class="space-y-4">
+        <div class="table-wrap">
+          <table class="w-full text-start">
+            <thead>
+              <tr class="table-header-row">
+                <th class="py-2 text-start">מספר</th>
+                <th class="py-2 text-start">שם</th>
+                <th class="py-2 text-start">תמונות</th>
+                <th class="py-2 text-start"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="player in players" :key="player.id" class="table-row">
+                <td class="py-2">{{ player.jersey_number }}</td>
+                <td class="py-2">{{ player.name }}</td>
+                <td class="py-2">
+                  <ul class="space-y-1">
+                    <li v-for="image in player.images" :key="image.id" class="flex items-center gap-2 text-xs">
+                      <img :src="image.url" alt="" class="size-10 rounded object-cover" />
+                      <button type="button" class="btn-danger-ghost" :aria-label="`הסר תמונה — ${player.name}`" @click="deleteImage(player, image)">
+                        הסר תמונה
+                      </button>
+                    </li>
+                  </ul>
+                  <div class="mt-1 flex gap-1">
+                    <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="field-input mt-0 min-h-9 w-40 text-xs" />
+                    <button type="button" class="btn-ghost" @click="addImage(player)">הוסף תמונה</button>
+                  </div>
+                  <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
+                </td>
+                <td class="py-2">
+                  <span class="inline-flex gap-1">
+                    <button type="button" class="btn-ghost" @click="startEdit(player)">ערוך</button>
+                    <button type="button" class="btn-danger-ghost" @click="onDelete(player)">מחק</button>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-    <div>
-      <button type="button" class="btn-secondary" @click="toggleDeleted">שחקנים שנמחקו</button>
-      <table v-if="deletedPlayers" class="mt-2 w-full text-start">
-        <tbody>
-          <tr v-for="player in deletedPlayers" :key="player.id" class="table-row">
-            <td class="py-2">{{ player.jersey_number }}</td>
-            <td class="py-2">{{ player.name }}</td>
-            <td class="py-2">
-              <button type="button" class="hover:underline" @click="onRestore(player)">שחזר</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <div>
+          <button type="button" class="btn-secondary" :aria-expanded="deletedPlayers !== null" @click="toggleDeleted">שחקנים שנמחקו</button>
+          <div v-if="deletedPlayers" class="table-wrap">
+            <table class="mt-2 w-full text-start">
+              <tbody>
+                <tr v-for="player in deletedPlayers" :key="player.id" class="table-row">
+                  <td class="py-2">{{ player.jersey_number }}</td>
+                  <td class="py-2">{{ player.name }}</td>
+                  <td class="py-2">
+                    <button type="button" class="btn-ghost" @click="onRestore(player)">שחזר</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <form ref="formEl" class="card space-y-3 lg:sticky lg:top-6" @submit.prevent="onSubmit">
+        <h2 class="section-title">{{ editing ? 'עריכת שחקן' : 'הוספת שחקן' }}</h2>
+
+        <p v-if="error" class="error-text" role="alert">{{ error }}</p>
+
+        <div>
+          <label for="player-name" class="field-label">שם</label>
+          <input id="player-name" v-model="form.name" type="text" required class="field-input" />
+        </div>
+
+        <div>
+          <label for="player-name-en" class="field-label">שם באנגלית</label>
+          <input id="player-name-en" v-model="form.name_en" type="text" class="field-input" />
+        </div>
+
+        <div>
+          <label for="player-jersey-number" class="field-label">מספר חולצה</label>
+          <input id="player-jersey-number" v-model="form.jersey_number" type="number" class="field-input" />
+        </div>
+
+        <div class="flex gap-2">
+          <button type="submit" class="btn-primary">
+            {{ editing ? 'שמירה' : 'הוספה' }}
+          </button>
+          <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
+            ביטול
+          </button>
+        </div>
+      </form>
     </div>
-
-    <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
-      <h2 class="section-title">{{ editing ? 'עריכת שחקן' : 'הוספת שחקן' }}</h2>
-
-      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
-
-      <div>
-        <label for="player-name" class="field-label">שם</label>
-        <input id="player-name" v-model="form.name" type="text" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="player-name-en" class="field-label">שם באנגלית</label>
-        <input id="player-name-en" v-model="form.name_en" type="text" class="field-input" />
-      </div>
-
-      <div>
-        <label for="player-jersey-number" class="field-label">מספר חולצה</label>
-        <input id="player-jersey-number" v-model="form.jersey_number" type="number" class="field-input" />
-      </div>
-
-      <div class="flex gap-2">
-        <button type="submit" class="btn-primary">
-          {{ editing ? 'שמירה' : 'הוספה' }}
-        </button>
-        <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
-          ביטול
-        </button>
-      </div>
-    </form>
   </section>
 </template>

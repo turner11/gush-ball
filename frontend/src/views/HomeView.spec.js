@@ -102,7 +102,13 @@ describe('HomeView', () => {
     mockFetch({})
 
     const { default: HomeView } = await import('./HomeView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
     const wrapper = mount(HomeView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    // First-time visitor: no welcome until /teams has actually loaded.
+    expect(wrapper.text()).not.toContain('אין קבוצות במערכת עדיין')
+    useSelectedTeam().ensureDefault([])
     await flushPromises()
 
     expect(wrapper.text()).toContain('אין קבוצות במערכת עדיין')
