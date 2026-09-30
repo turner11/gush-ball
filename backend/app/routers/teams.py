@@ -1,13 +1,14 @@
 import re
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import AfterValidator, AnyUrl, BaseModel, HttpUrl, StringConstraints, UrlConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.deps import DbSession, RequireAdmin, RequireTeamAdmin, get_team_or_404
-from app.models import Team
+from app.models import AdminUser, Team
+from app.security import hash_password
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -72,6 +73,18 @@ class TeamOut(BaseModel):
     ibasketball_league_url: str | None
 
 
+class AdminCreate(BaseModel):
+    username: Annotated[str, StringConstraints(min_length=1, max_length=80)]
+    password: Annotated[str, StringConstraints(min_length=8)]
+
+
+class AdminOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    username: str
+
+
 def _slugify(name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     return slug or "team"
@@ -128,4 +141,33 @@ def update_team(team_id: int, payload: TeamUpdate, _admin_id: RequireTeamAdmin, 
 def delete_team(team_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
     team = get_team_or_404(db, team_id)
     db.delete(team)
+    db.commit()
+
+
+@router.get("/{team_id}/admins", response_model=list[AdminOut])
+def list_team_admins(team_id: int, _admin_id: RequireAdmin, db: DbSession) -> list[AdminUser]:
+    get_team_or_404(db, team_id)
+    return list(db.scalars(select(AdminUser).where(AdminUser.team_id == team_id).order_by(AdminUser.id)))
+
+
+@router.post("/{team_id}/admins", status_code=status.HTTP_201_CREATED, response_model=AdminOut)
+def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmin, db: DbSession) -> AdminUser:
+    get_team_or_404(db, team_id)
+    if db.scalar(select(AdminUser).where(AdminUser.username == payload.username)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "שם המשתמש כבר קיים")
+    # ponytail: a same-instant duplicate hits the unique index as a 500; catch IntegrityError if it ever matters
+    admin = AdminUser(username=payload.username, password_hash=hash_password(payload.password), team_id=team_id)
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+    return admin
+
+
+@router.delete("/{team_id}/admins/{admin_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_team_admin(team_id: int, admin_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
+    # Filtering on team_id keeps full admins (team_id NULL) and other teams' admins unreachable.
+    admin = db.scalar(select(AdminUser).where(AdminUser.id == admin_id, AdminUser.team_id == team_id))
+    if admin is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
+    db.delete(admin)
     db.commit()
