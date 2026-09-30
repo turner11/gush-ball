@@ -4,6 +4,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useTeamContent } from '../composables/useTeamContent'
 import ImageUpload from './ImageUpload.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
+import PlayerTagsInput from './PlayerTagsInput.vue'
 
 const props = defineProps({
   teamId: { type: [String, Number], required: true },
@@ -15,7 +16,8 @@ const props = defineProps({
 const { error, list, create, update, delete: destroy } = useTeamContent(props.resource)
 
 const items = ref([])
-const form = reactive(Object.fromEntries(props.fields.map((f) => [f.key, ''])))
+const blank = (field) => (field.type === 'players' ? [] : '')
+const form = reactive(Object.fromEntries(props.fields.map((f) => [f.key, blank(f)])))
 const submitting = ref(false)
 const editingId = ref(null)
 const pendingDeleteId = ref(null)
@@ -26,13 +28,13 @@ async function load() {
 
 function resetForm() {
   editingId.value = null
-  for (const key of Object.keys(form)) form[key] = ''
+  for (const field of props.fields) form[field.key] = blank(field)
 }
 
 function onEdit(item) {
   editingId.value = item.id
   for (const field of props.fields) {
-    form[field.key] = item[field.key] ?? ''
+    form[field.key] = item[field.key] ?? blank(field)
   }
 }
 
@@ -86,7 +88,7 @@ onMounted(load)
         :key="item.id"
         class="flex items-center justify-between gap-2 py-2"
       >
-        <span class="min-w-0 truncate">{{ fields.map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
+        <span class="min-w-0 truncate">{{ fields.filter((f) => f.type !== 'players').map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
         <span class="inline-flex shrink-0 gap-1">
           <button
             type="button"
@@ -115,8 +117,10 @@ onMounted(load)
     />
 
     <form class="space-y-2" @submit.prevent="onSubmit">
-      <p v-if="editingId" class="text-sm text-muted">עורך: {{ fields.map((f) => form[f.key]).filter(Boolean)[0] }}</p>
+      <p v-if="editingId" class="text-sm text-muted">עורך: {{ fields.filter((f) => f.type !== 'players').map((f) => form[f.key]).filter(Boolean)[0] }}</p>
       <div v-for="field in fields" :key="field.key">
+        <PlayerTagsInput v-if="field.type === 'players'" v-model="form[field.key]" :team-id="teamId" />
+        <template v-else>
         <label :for="`${resource}-${field.key}`" class="field-label">
           {{ field.label }}
         </label>
@@ -136,6 +140,7 @@ onMounted(load)
           class="field-input"
         />
         <ImageUpload v-if="field.upload" @uploaded="(url) => (form[field.key] = url)" />
+        </template>
       </div>
 
       <p v-if="error" class="error-text" role="alert">{{ error }}</p>

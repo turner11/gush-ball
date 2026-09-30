@@ -184,4 +184,39 @@ describe('ScheduleView', () => {
 
     expect(wrapper.find('h1 + a').exists()).toBe(false)
   })
+
+  describe('location links', () => {
+    const ADDR = 'האולם 1, תל אביב'
+    async function mountWith(address) {
+      mockFetch({
+        'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null, home_court_address: address }),
+        'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME, PAST_GAME]),
+      })
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+      return wrapper
+    }
+
+    it('shows maps and waze links on home game rows', async () => {
+      const row = (await mountWith(ADDR)).findAll('li')[0]
+      expect(row.find(`a[href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ADDR)}"]`).exists()).toBe(true)
+      expect(row.find(`a[href^="https://waze.com/ul?q=${encodeURIComponent(ADDR)}"]`).exists()).toBe(true)
+    })
+
+    it('hides location links on away games and when team has no address', async () => {
+      const away = (await mountWith(ADDR)).findAll('li')[1]
+      expect(away.find('a[href*="waze.com"]').exists()).toBe(false)
+      const none = await mountWith(null)
+      expect(none.find('a[href*="waze.com"]').exists()).toBe(false)
+      expect(none.find('a[href*="google.com/maps"]').exists()).toBe(false)
+    })
+
+    it('renders the waze link as an icon', async () => {
+      const a = (await mountWith(ADDR)).find('a[href*="waze.com"]')
+      expect(a.find('svg').exists()).toBe(true)
+      expect(a.text()).toBe('')
+      expect(a.attributes('aria-label')).toContain(ADDR)
+    })
+  })
 })

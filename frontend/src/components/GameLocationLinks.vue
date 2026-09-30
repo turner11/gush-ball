@@ -24,7 +24,7 @@ const LINK = 'inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-sm hov
       :aria-label="'וייז: ' + address"
       :title="'וייז: ' + address"
       :class="LINK"
-      >וייז</a
-    >
+      ><AppIcon name="waze"
+    /></a>
   </span>
 </template>

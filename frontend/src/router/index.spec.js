@@ -55,4 +55,17 @@ describe('router auth guard', () => {
 
     expect(router.resolve('/media').name).toBe('media')
   })
+
+  it('afterEach leaves the title alone on public routes, sets it on admin routes', async () => {
+    document.title = '🏀קבוצה'
+    const { default: router } = await import('./index.js')
+
+    await router.push('/schedule')
+    await router.push('/schedule') // duplicate navigation still fires afterEach
+    expect(document.title).toBe('🏀קבוצה')
+
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 1, is_admin: true }) })
+    await router.push('/admin')
+    expect(document.title).toBe('ניהול · גוש כדורסל')
+  })
 })
