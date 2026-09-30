@@ -88,7 +88,7 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
         <div class="grid grid-cols-5 gap-1">
           <PlayerCard v-for="n in l.players" :key="n" :player="playerFor(n)" :jersey="n" compact />
         </div>
-        <div class="grid grid-cols-4 gap-2">
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div class="stat">
             <p class="stat-value" :class="l.score_diff >= 0 ? 'text-win' : 'text-loss'" dir="ltr">{{ signed(l.score_diff) }}</p>
             <p class="stat-label">+/-</p>
@@ -98,7 +98,7 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
             <p class="stat-label">דקות</p>
           </div>
           <div class="stat">
-            <p class="stat-value" dir="ltr">{{ l.offense_diff }} : {{ l.defence_diff }}</p>
+            <p class="stat-value">{{ l.offense_diff }} : {{ l.defence_diff }}</p>
             <p class="stat-label">זכות : חובה</p>
           </div>
           <div class="stat">

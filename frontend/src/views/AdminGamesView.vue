@@ -245,33 +245,35 @@ async function onDelete(game) {
           </ul>
         </section>
 
-        <table class="data-table">
-          <thead>
-            <tr class="table-header-row">
-              <th>יריבה</th>
-              <th>תאריך</th>
-              <th>בית/חוץ</th>
-              <th>סטטוס</th>
-              <th>תוצאה</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="game in games" :key="game.id" class="table-row">
-              <td data-label="יריבה">{{ game.opponent.name }}</td>
-              <td data-label="תאריך">{{ formatDateTime(game.scheduled_at) }}</td>
-              <td data-label="בית/חוץ">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
-              <td data-label="סטטוס"><span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span></td>
-              <td data-label="תוצאה" class="tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
-              <td class="justify-end">
-                <span class="inline-flex gap-1">
-                  <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
-                  <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr class="table-header-row">
+                <th>יריבה</th>
+                <th>תאריך</th>
+                <th>בית/חוץ</th>
+                <th>סטטוס</th>
+                <th>תוצאה</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="game in games" :key="game.id" class="table-row">
+                <td data-label="יריבה">{{ game.opponent.name }}</td>
+                <td data-label="תאריך">{{ formatDateTime(game.scheduled_at) }}</td>
+                <td data-label="בית/חוץ">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
+                <td data-label="סטטוס"><span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span></td>
+                <td data-label="תוצאה" class="tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
+                <td class="justify-end">
+                  <span class="inline-flex gap-1">
+                    <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
+                    <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <form id="game-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">

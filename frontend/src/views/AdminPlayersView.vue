@@ -154,45 +154,47 @@ async function deleteImage(player, image) {
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div class="space-y-4">
-        <table class="data-table">
-          <thead>
-            <tr class="table-header-row">
-              <th>מספר</th>
-              <th>שם</th>
-              <th>תמונות</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="player in players" :key="player.id" class="table-row">
-              <td data-label="מספר">{{ player.jersey_number }}</td>
-              <td data-label="שם">{{ player.name }}</td>
-              <td data-label="תמונות" class="max-sm:flex-wrap">
-                <div>
-                  <ul class="space-y-1">
-                    <li v-for="image in player.images" :key="image.id" class="flex items-center gap-2 text-xs">
-                      <img :src="image.url" alt="" class="size-10 rounded object-cover" />
-                      <button type="button" class="btn-danger-ghost" :aria-label="`הסר תמונה — ${player.name}`" @click="deleteImage(player, image)">
-                        הסר תמונה
-                      </button>
-                    </li>
-                  </ul>
-                  <div class="mt-1 flex gap-1">
-                    <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="field-input mt-0 min-h-10 w-40" />
-                    <button type="button" class="btn-ghost" @click="addImage(player)">הוסף תמונה</button>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr class="table-header-row">
+                <th>מספר</th>
+                <th>שם</th>
+                <th>תמונות</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="player in players" :key="player.id" class="table-row">
+                <td data-label="מספר">{{ player.jersey_number }}</td>
+                <td data-label="שם">{{ player.name }}</td>
+                <td data-label="תמונות" class="max-sm:flex-wrap">
+                  <div>
+                    <ul class="space-y-1">
+                      <li v-for="image in player.images" :key="image.id" class="flex items-center gap-2 text-xs">
+                        <img :src="image.url" alt="" class="size-10 rounded object-cover" />
+                        <button type="button" class="btn-danger-ghost" :aria-label="`הסר תמונה — ${player.name}`" @click="deleteImage(player, image)">
+                          הסר תמונה
+                        </button>
+                      </li>
+                    </ul>
+                    <div class="mt-1 flex gap-1">
+                      <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="field-input mt-0 min-h-10 w-40" />
+                      <button type="button" class="btn-ghost" @click="addImage(player)">הוסף תמונה</button>
+                    </div>
+                    <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
                   </div>
-                  <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
-                </div>
-              </td>
-              <td class="justify-end">
-                <span class="inline-flex gap-1">
-                  <button type="button" class="btn-ghost" @click="startEdit(player)">ערוך</button>
-                  <button type="button" class="btn-danger-ghost" @click="onDelete(player)">מחק</button>
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                </td>
+                <td class="justify-end">
+                  <span class="inline-flex gap-1">
+                    <button type="button" class="btn-ghost" @click="startEdit(player)">ערוך</button>
+                    <button type="button" class="btn-danger-ghost" @click="onDelete(player)">מחק</button>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <div>
           <button type="button" class="btn-secondary" :aria-expanded="deletedPlayers !== null" @click="toggleDeleted">שחקנים שנמחקו</button>

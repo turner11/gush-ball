@@ -16,9 +16,10 @@ const { selectedTeamId } = useSelectedTeam()
 
 const upcoming = computed(() => splitGames(games.value).upcoming)
 const past = computed(() => splitGames(games.value).past)
+const withDate = (gs) => gs.map((g) => ({ ...g, d: formatGameDate(g.scheduled_at) }))
 const sections = computed(() => [
-  { title: 'משחקים קרובים', games: upcoming.value, empty: 'אין משחקים קרובים.' },
-  { title: 'תוצאות', games: past.value, empty: 'אין תוצאות עדיין.' },
+  { title: 'משחקים קרובים', games: withDate(upcoming.value), empty: 'אין משחקים קרובים.' },
+  { title: 'תוצאות', games: withDate(past.value), empty: 'אין תוצאות עדיין.' },
 ])
 
 async function loadGames() {
@@ -67,9 +68,9 @@ const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'borde
         <h2 class="section-title">{{ s.title }}</h2>
         <ol v-if="s.games.length" class="card divide-y divide-line overflow-hidden p-0">
           <li v-for="game in s.games" :key="game.id" :class="['flex items-center gap-3 border-s-4 px-4 py-3 sm:gap-4 sm:px-5', edge(game)]">
-            <div v-if="formatGameDate(game.scheduled_at)" class="w-11 shrink-0 text-center leading-none">
-              <span class="block text-2xl font-black tabular-nums">{{ formatGameDate(game.scheduled_at).day }}</span>
-              <span class="block text-xs font-bold text-muted">{{ formatGameDate(game.scheduled_at).month }}</span>
+            <div v-if="game.d" class="w-11 shrink-0 text-center leading-none">
+              <span class="block text-2xl font-black tabular-nums">{{ game.d.day }}</span>
+              <span class="block text-xs font-bold text-muted">{{ game.d.month }}</span>
             </div>
             <img v-if="game.opponent.logo_url" :src="game.opponent.logo_url" alt="" class="size-10 shrink-0 object-contain" />
             <span v-else class="size-10 shrink-0 rounded-full bg-sunken"></span>
@@ -78,7 +79,7 @@ const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'borde
                 <a v-if="game.opponent.source_url" :href="game.opponent.source_url" target="_blank" rel="noopener" class="hover:underline">{{ game.opponent.name }}</a>
                 <template v-else>{{ game.opponent.name }}</template>
               </p>
-              <p v-if="formatGameDate(game.scheduled_at)" class="text-sm text-muted">{{ formatGameDate(game.scheduled_at).weekday }} · {{ formatGameDate(game.scheduled_at).time }} · {{ game.is_home ? 'בית' : 'חוץ' }}</p>
+              <p v-if="game.d" class="text-sm text-muted">{{ game.d.weekday }} · {{ game.d.time }} · {{ game.is_home ? 'בית' : 'חוץ' }}</p>
             </div>
             <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
               <template v-if="scored(game)">

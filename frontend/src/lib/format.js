@@ -20,17 +20,16 @@ export function formatDateTime(value) {
   }
 }
 
+const dayFmt = new Intl.DateTimeFormat('he-IL', { day: '2-digit' })
+const monthFmt = new Intl.DateTimeFormat('he-IL', { month: 'short' })
+const weekdayFmt = new Intl.DateTimeFormat('he-IL', { weekday: 'short' })
+const timeFmt = new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
 // Parts for the schedule date block and scoreboard tiles. null for an invalid date.
 export function formatGameDate(value) {
   const d = new Date(value)
   if (isNaN(d)) return null
-  const part = (opts) => new Intl.DateTimeFormat('he-IL', opts).format(d)
-  return {
-    day: part({ day: '2-digit' }),
-    month: part({ month: 'short' }),
-    weekday: part({ weekday: 'short' }),
-    time: part({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }),
-  }
+  return { day: dayFmt.format(d), month: monthFmt.format(d), weekday: weekdayFmt.format(d), time: timeFmt.format(d) }
 }
 
 export const signed = (n) => (n > 0 ? `+${n}` : `${n}`)

@@ -60,7 +60,9 @@ const matchCards = computed(() =>
   [
     { title: 'המשחק האחרון', game: lastGame.value },
     { title: 'המשחק הבא', game: nextGame.value },
-  ].filter((m) => m.game),
+  ]
+    .filter((m) => m.game)
+    .map((m) => ({ ...m, d: formatGameDate(m.game.scheduled_at) })),
 )
 
 // ponytail: the API has no ORDER BY, so highest id = newest.
@@ -143,11 +145,11 @@ watch(
                     result(m.game) === 'W' ? 'ניצחון' : 'הפסד'
                   }}</span>
                 </template>
-                <template v-else-if="formatGameDate(m.game.scheduled_at)">
-                  <p class="text-2xl font-black tabular-nums">{{ formatGameDate(m.game.scheduled_at).time }}</p>
+                <template v-else-if="m.d">
+                  <p class="text-2xl font-black tabular-nums">{{ m.d.time }}</p>
                   <p class="text-xs text-muted">
-                    {{ formatGameDate(m.game.scheduled_at).weekday }} {{ formatGameDate(m.game.scheduled_at).day }}
-                    {{ formatGameDate(m.game.scheduled_at).month }}
+                    {{ m.d.weekday }} {{ m.d.day }}
+                    {{ m.d.month }}
                   </p>
                 </template>
               </div>
