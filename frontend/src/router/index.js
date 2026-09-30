@@ -12,6 +12,7 @@ const router = createRouter({
     { path: '/schedule', name: 'schedule', component: () => import('../views/ScheduleView.vue'), meta: { title: 'לוח משחקים' } },
     { path: '/standings', name: 'standings', component: () => import('../views/StandingsView.vue'), meta: { title: 'טבלה' } },
     { path: '/roster', name: 'roster', component: () => import('../views/RosterView.vue'), meta: { title: 'שחקנים' } },
+    { path: '/players/:id', name: 'player', component: () => import('../views/PlayerView.vue'), meta: { title: 'שחקן' } },
     { path: '/media', name: 'media', component: () => import('../views/MediaView.vue'), meta: { title: 'מדיה' } },
     { path: '/:slug', name: 'team-home', component: () => import('../views/HomeView.vue') },
     { path: '/admin/login', name: 'admin-login', component: () => import('../views/LoginView.vue'), meta: { title: 'כניסת מנהל' } },
