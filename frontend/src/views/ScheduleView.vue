@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import AppIcon from '../components/AppIcon.vue'
+import GameLocationLinks from '../components/GameLocationLinks.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatGameDate } from '../lib/format'
@@ -81,6 +82,7 @@ const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'borde
               <p v-if="game.d" class="text-sm text-muted">{{ game.d.weekday }} · {{ game.d.time }} · {{ game.is_home ? 'בית' : 'חוץ' }}</p>
             </div>
             <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+              <GameLocationLinks v-if="game.is_home && team?.home_court_address" :address="team.home_court_address" />
               <template v-if="played(game)">
                 <span class="text-xl font-black tabular-nums">{{ homeFirst(game, game.team_score, game.opponent_score).join(' : ') }}</span>
                 <span v-if="result(game)" :class="['badge', result(game) === 'W' ? 'badge-win' : 'badge-loss']">{{ result(game) === 'W' ? 'ניצחון' : 'הפסד' }}</span>
