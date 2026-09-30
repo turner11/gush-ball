@@ -1,0 +1,15 @@
+services:
+  runner-claude:
+    build:
+      context: .
+      dockerfile: .docker/runner-claude/Dockerfile
+    environment:
+      - RUNNER_SCOPE=repo
+      - REPO_URL=https://github.com/turner11/gush-ball
+      - ACCESS_TOKEN=${GITHUB_PAT}
+      - RUNNER_NAME=gush-ball-claude-agent
+      - LABELS=self-hosted,Linux,X64,claude-agent
+    restart: unless-stopped
+
+
+# docker compose -f docker-compose.runners.yml --env-file .env.runners up -d --build

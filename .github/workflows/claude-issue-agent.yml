@@ -1,0 +1,67 @@
+name: Claude Code — Issue Agent
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  solve-issue:
+    runs-on: [self-hosted, claude-agent]
+
+    # Only fire when the 'claude' label is added
+    if: github.event.label.name == 'claude'
+
+    timeout-minutes: 90
+
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Set up git identity
+        run: |
+          git config user.name "Claude Code Bot"
+          git config user.email "claude-bot@local"
+
+      - name: Run work-issue skill via Claude Code
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          set -o pipefail
+          issue_number="${{ github.event.issue.number }}"
+          timeout 85m claude -p "Read .claude/skills/work-issue/SKILL.md and follow it precisely for issue #${issue_number}. \$ARGUMENTS is ${issue_number} — skip Steps 1-2 and go directly to Step 3. You are running unattended in CI: nobody will answer questions. Never wait for user input — at every point where the skill says to ask the user, take the safe default and continue, and finish by opening the draft PR." \
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep,Agent" \
+            --max-turns 150 \
+            --verbose \
+            --output-format stream-json \
+          | jq --unbuffered -r '
+              if .type == "assistant" then
+                (.message.content // [])[] |
+                if .type == "tool_use" then
+                  "[tool:\(.name)] \(.input | tostring | .[0:200])"
+                elif .type == "text" and (.text | ltrimstr("\n") | length) > 0 then
+                  "[text] \(.text | gsub("\n+"; " ") | .[0:200])"
+                else empty end
+              elif .type == "result" then
+                "[done] subtype=\(.subtype // "?") turns=\(.num_turns // "?") cost=$\(.cost_usd // "null") is_error=\(.is_error // false)"
+              else empty end
+            '
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          issue_number="${{ github.event.issue.number }}"
+          gh issue comment "${issue_number}" \
+            --repo "${{ github.repository }}" \
+            --body "Claude Code ran but did not complete successfully. Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
