@@ -12,4 +12,9 @@ services:
     restart: unless-stopped
 
 
+# start:
 # docker compose -f docker-compose.runners.yml --env-file .env.runners up -d --build
+# Check it registered:
+# docker compose -f docker-compose.runners.yml logs -f runner-claude
+# Stop, update or reset:
+# docker compose -f docker-compose.runners.yml down

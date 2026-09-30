@@ -12,7 +12,8 @@ Order matters: storage first (you need its values for the env vars), then the do
 | Where | What |
 |---|---|
 | Cloudflare R2 | `gush-ball-media` (public) + `gush-ball-backups` (private), one API token each |
-| Coolify | one Docker Compose resource: env vars, domain, scheduled scrape task |
+| Coolify | one Docker Compose resource: env vars, domain, scheduled scrape task, auto-deploy on push to `master` |
+| GitHub | `master` ruleset requiring CI, push webhook to Coolify (Public Repository source only) |
 | Hetzner box | `~/gush-ball-backup.env`, `~/backup.sh`, one crontab line (nightly backup) |
 
 ## 1. Object storage (Cloudflare R2)
@@ -159,8 +160,29 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 uv run python scripts/create_admin.py <username> <password>
 ```
 
-**Auto-deploy:** enable *Automatic Deployment* (GitHub App, or the webhook from the resource page) so pushes to `master`
-deploy. CI no longer deploys anything and Coolify does not wait for it, so keep `master` green via PR checks.
+### 4.1 Auto-deploy on merge
+
+Coolify deploys every push to `master`. CI deploys nothing and Coolify does not wait for it, so "merged" has to mean
+"CI passed": GitHub enforces that, Coolify just follows `master`. Pushes to other branches (PR branches) are ignored.
+
+1. **Protect `master` (GitHub).** Repo *Settings → Rules → Rulesets → New branch ruleset*, target `master`:
+   require a pull request, require status checks **`backend`** and **`frontend`** (the job names in
+   `.github/workflows/ci.yml`), require branches to be up to date, block force pushes. *Why:* only green PRs can land,
+   so every deploy is a commit that passed CI.
+2. **Tell Coolify about pushes.** Coolify → the resource → *Advanced* → keep **Auto Deploy** on (default). Then:
+   - *Private Repository (GitHub App)* source: nothing else to do; the GitHub App delivers push events.
+   - *Public Repository* source: GitHub doesn't know about Coolify yet, so add a webhook by hand.
+     1. Coolify → the resource → *Webhooks* → *Manual Git Webhooks → GitHub*: set a secret (`openssl rand -hex 32`),
+        save, and copy the URL (`http(s)://<coolify-host>/webhooks/source/github/events/manual`).
+     2. GitHub repo *Settings → Webhooks → Add webhook*: Payload URL = that URL, Content type `application/json`,
+        Secret = the same secret, *Just the push event*.
+3. **Check it.** GitHub → the webhook → *Recent Deliveries*: the ping should show a green ✓. A timeout means GitHub
+   can't reach Coolify: if the URL is `http://<ip>:8000/...`, port 8000 must be open to the internet (Hetzner firewall /
+   `ufw`). Merge a PR and watch Coolify's *Deployments* tab start a build.
+
+The secret only signs payloads (it's never sent), so an `http://<ip>:8000` URL works, but payloads and the Coolify login
+travel unencrypted. Better: add an A record like `coolify.<domain>` → the same IP and set it in Coolify *Settings →
+Instance's Domain*; Coolify then serves itself over HTTPS and the webhook URL switches to that host (update it in GitHub).
 
 ## 5. Nightly scrape
 
