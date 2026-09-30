@@ -19,11 +19,12 @@ let delay = null
 const images = computed(() => props.player?.images ?? [])
 
 function startSlideshow() {
-  if (delay) return
+  hovered.value = true
+  if (delay || images.value.length < 2) return
+  const advance = () => (index.value = (index.value + 1) % images.value.length)
   delay = setTimeout(() => {
-    hovered.value = true
-    if (images.value.length < 2) return
-    timer = setInterval(() => (index.value = (index.value + 1) % images.value.length), SLIDE_MS)
+    advance()
+    timer = setInterval(advance, SLIDE_MS)
   }, START_DELAY_MS)
 }
 function stopSlideshow() {
