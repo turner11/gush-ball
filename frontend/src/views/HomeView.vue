@@ -70,6 +70,7 @@ const matchCards = computed(() =>
     }),
 )
 
+const addressOf = (g) => (g.is_home ? team.value.home_court_address : g.opponent.address)
 const lone = computed(() => matchCards.value.length === 1)
 
 // ponytail: the API has no ORDER BY, so highest id = newest.
@@ -178,7 +179,7 @@ watch(
             <div class="mt-auto flex flex-wrap items-center gap-2 text-sm text-muted">
               <!-- an unplayed game already shows its date in the middle -->
               <span v-if="m.played">{{ formatDateTime(m.game.scheduled_at) }}</span>
-              <GameLocationLinks v-if="m.game.is_home && team.home_court_address" :address="team.home_court_address" />
+              <GameLocationLinks v-if="addressOf(m.game)" :address="addressOf(m.game)" />
               <RouterLink to="/schedule" class="section-link ms-auto">ללוח המשחקים</RouterLink>
             </div>
           </div>
@@ -204,7 +205,7 @@ watch(
           <ul
             class="scroll-row -mx-4 flex snap-x snap-mandatory gap-3 px-4 pb-2 sm:-mx-6 sm:px-6 md:mx-0 md:grid md:grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] md:px-0"
           >
-            <li v-for="player in players" :key="player.id" class="card w-36 shrink-0 snap-start p-3 md:w-auto">
+            <li v-for="player in players" :key="player.id" class="card w-36 shrink-0 snap-start p-3 md:w-auto relative overflow-hidden">
               <PlayerCard :player="player" />
             </li>
           </ul>

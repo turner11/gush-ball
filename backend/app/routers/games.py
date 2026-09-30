@@ -39,6 +39,7 @@ class OpponentRead(BaseModel):
     name_en: str | None
     logo_url: str | None
     source_url: str | None
+    address: str | None
 
 
 class GameRead(BaseModel):

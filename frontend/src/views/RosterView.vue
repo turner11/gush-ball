@@ -40,7 +40,7 @@ watch(selectedTeamId, loadPlayers, { immediate: true })
       <div v-for="n in 5" :key="n" class="skeleton h-40" />
     </div>
     <ul v-else-if="players.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-      <li v-for="player in players" :key="player.id" class="card p-4">
+      <li v-for="player in players" :key="player.id" class="card p-4 relative overflow-hidden">
         <PlayerCard :player="player" />
       </li>
     </ul>

@@ -118,6 +118,14 @@ def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: Requi
     return player
 
 
+@router.get("/players/{player_id}", response_model=PlayerOut)
+def get_player(player_id: int, db: DbSession) -> Player:
+    player = _get_player_or_404(db, player_id)
+    if player.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
+    return player
+
+
 @router.post(
     "/players/{player_id}/images",
     response_model=PlayerImageOut,
