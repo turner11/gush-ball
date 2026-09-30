@@ -78,3 +78,9 @@ def test_sync_status_reports_last_result(
     assert body["players"] == 0
     assert body["errors"] == []
     assert body["finished_at"] is not None
+
+
+def test_sync_now_allowed_for_team_admin(
+    team_admin_client: TestClient, stub_scrapers: dict[str, Any]
+) -> None:
+    assert team_admin_client.post("/sync/now").status_code == 202
