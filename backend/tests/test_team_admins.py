@@ -55,7 +55,13 @@ def test_invalid_input_422(admin_client: TestClient, db_session: Session, own_te
     url = f"/teams/{own_team.id}/admins"
     assert admin_client.post(url, json={**NEW, "password": "1234567"}).status_code == 422
     assert admin_client.post(url, json={**NEW, "username": ""}).status_code == 422
+    assert admin_client.post(url, json={**NEW, "username": "x" * 65}).status_code == 422  # login caps at 64
     assert db_session.scalar(select(AdminUser).where(AdminUser.username == "coach")) is None
+
+
+def test_username_is_stripped(admin_client: TestClient, db_session: Session, own_team: Team) -> None:
+    assert admin_client.post(f"/teams/{own_team.id}/admins", json={**NEW, "username": " coach "}).status_code == 201
+    assert db_session.scalar(select(AdminUser).where(AdminUser.username == "coach")) is not None
 
 
 def test_unknown_team_404(admin_client: TestClient) -> None:

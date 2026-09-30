@@ -76,7 +76,7 @@ async function onDeleteConfirmed() {
     <form class="space-y-2" @submit.prevent="onSubmit">
       <div>
         <label for="admin-username" class="field-label">שם משתמש</label>
-        <input id="admin-username" v-model="username" type="text" required autocomplete="off" dir="ltr" class="field-input" />
+        <input id="admin-username" v-model="username" type="text" required maxlength="64" autocomplete="off" dir="ltr" class="field-input" />
       </div>
       <div>
         <label for="admin-password" class="field-label">סיסמה</label>

@@ -74,7 +74,7 @@ class TeamOut(BaseModel):
 
 
 class AdminCreate(BaseModel):
-    username: Annotated[str, StringConstraints(min_length=1, max_length=80)]
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
     password: Annotated[str, StringConstraints(min_length=8)]
 
 
