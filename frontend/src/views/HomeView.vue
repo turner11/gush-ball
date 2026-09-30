@@ -64,8 +64,8 @@ const matchCards = computed(() =>
     .filter((m) => m.game)
     .map((m) => {
       const g = m.game
-      const us = { name: team.value.name, logo: team.value.logo_url || '/logo.jpg', score: g.team_score }
-      const them = { name: g.opponent.name, logo: g.opponent.logo_url, score: g.opponent_score }
+      const us = { name: team.value.name, logo: team.value.logo_url || '/logo.jpg', score: g.team_score, url: team.value.ibasketball_team_url }
+      const them = { name: g.opponent.name, logo: g.opponent.logo_url, score: g.opponent_score, url: g.opponent.source_url }
       return { ...m, d: formatGameDate(g.scheduled_at), played: played(g), sides: homeFirst(g, us, them) }
     }),
 )
@@ -154,7 +154,8 @@ watch(
             <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
               <div class="min-w-0 space-y-1">
                 <img v-if="m.sides[0].logo" :src="m.sides[0].logo" alt="" class="mx-auto size-12 object-contain" :class="lone ? 'sm:size-24' : 'sm:size-14'" />
-                <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': lone }">{{ m.sides[0].name }}</p>
+                <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': lone }"><a v-if="m.sides[0].url" :href="m.sides[0].url" target="_blank" rel="noopener" class="hover:underline">{{ m.sides[0].name }}</a
+                  ><template v-else>{{ m.sides[0].name }}</template></p>
               </div>
               <div class="space-y-1">
                 <template v-if="m.played">
@@ -173,7 +174,8 @@ watch(
               </div>
               <div class="min-w-0 space-y-1">
                 <img v-if="m.sides[1].logo" :src="m.sides[1].logo" alt="" class="mx-auto size-12 object-contain" :class="lone ? 'sm:size-24' : 'sm:size-14'" />
-                <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': lone }">{{ m.sides[1].name }}</p>
+                <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': lone }"><a v-if="m.sides[1].url" :href="m.sides[1].url" target="_blank" rel="noopener" class="hover:underline">{{ m.sides[1].name }}</a
+                  ><template v-else>{{ m.sides[1].name }}</template></p>
               </div>
             </div>
             <div class="mt-auto flex flex-wrap items-center gap-2 text-sm text-muted">
