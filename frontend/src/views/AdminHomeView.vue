@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import { useAuth } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
 
 const POLL_MS = 3000
@@ -18,6 +19,8 @@ function stopPolling() {
   clearInterval(timer)
   timer = null
 }
+
+const { user } = useAuth()
 
 async function refreshStatus() {
   try {
@@ -73,7 +76,7 @@ onUnmounted(() => {
         <span class="block font-extrabold">ניהול משחקים</span>
         <span class="block text-sm text-muted">לוח משחקים, תוצאות ותור אישור</span>
       </RouterLink>
-      <RouterLink to="/admin/standings" class="card space-y-2 transition hover:border-team">
+      <RouterLink v-if="!user?.team_id" to="/admin/standings" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="table" /></span>
         <span class="block font-extrabold">ניהול טבלת ליגה</span>
         <span class="block text-sm text-muted">טבלת ליגה ידנית</span>

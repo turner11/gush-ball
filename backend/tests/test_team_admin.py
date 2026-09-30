@@ -2,7 +2,6 @@ import re
 from datetime import UTC, datetime
 
 import pytest
-from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -23,14 +22,15 @@ def test_team_admin_forbidden_on_every_other_team_write(
 ) -> None:
     """Sweeps every team-scoped write route, so a route that forgets the scope check fails here."""
     exercised = 0
-    for route in app.routes:
-        if not isinstance(route, APIRoute) or "{team_id}" not in route.path:
+    # openapi() flattens included routers (app.routes doesn't expose them directly)
+    for route_path, operations in app.openapi()["paths"].items():
+        if "{team_id}" not in route_path:
             continue
-        for method in route.methods & {"POST", "PATCH", "PUT", "DELETE"}:
-            path = route.path.replace("{team_id}", str(other_team.id))
+        for method in operations.keys() & {"post", "patch", "put", "delete"}:
+            path = route_path.replace("{team_id}", str(other_team.id))
             path = re.sub(r"\{[^}]+\}", "1", path)
-            response = team_admin_client.request(method, path, json={})
-            assert response.status_code == 403, f"{method} {route.path} -> {response.status_code}"
+            response = team_admin_client.request(method.upper(), path, json={})
+            assert response.status_code == 403, f"{method} {route_path} -> {response.status_code}"
             exercised += 1
     assert exercised >= 20
 

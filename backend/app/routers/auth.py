@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.deps import DbSession, RequireAdmin, client_ip
+from app.deps import DbSession, RequireAnyAdmin, client_ip
 from app.models import AdminUser
 from app.security import hash_password, verify_password
 
@@ -48,7 +48,7 @@ def _reserve_attempt(keys: list[str]) -> None:
 
 
 @router.post("/login")
-def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, str]:
+def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, str | int | None]:
     ip = client_ip(request)
     keys = [f"ip:{ip}", f"user:{payload.username}"]
     _reserve_attempt(keys)
@@ -62,7 +62,7 @@ def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, s
             _attempts.pop(key, None)
     log.info("login ok username=%r ip=%s", payload.username, ip)
     request.session["admin_id"] = admin.id
-    return {"username": admin.username}
+    return {"username": admin.username, "team_id": admin.team_id}
 
 
 @router.post("/logout")
@@ -72,6 +72,5 @@ def logout(request: Request) -> dict[str, bool]:
 
 
 @router.get("/me")
-def me(admin_id: RequireAdmin, db: DbSession) -> dict[str, str]:
-    admin = db.get(AdminUser, admin_id)
-    return {"username": admin.username}
+def me(admin: RequireAnyAdmin) -> dict[str, str | int | None]:
+    return {"username": admin.username, "team_id": admin.team_id}
