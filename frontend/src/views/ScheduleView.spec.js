@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatDateTime } from '../lib/format'
+import { formatGameDate } from '../lib/format'
 
 const TEAMS = [{ id: 1, name: 'קבוצה א' }]
 
@@ -76,7 +76,7 @@ describe('ScheduleView', () => {
     expect(upcomingIdx).toBeGreaterThan(-1)
     expect(pastIdx).toBeGreaterThan(-1)
     expect(upcomingIdx).toBeLessThan(pastIdx)
-    expect(text).toContain(formatDateTime('2030-05-01T18:00:00'))
+    expect(text).toContain(formatGameDate('2030-05-01T18:00:00').time)
     expect(text).not.toContain('2030-05-01T18:00:00')
   })
 

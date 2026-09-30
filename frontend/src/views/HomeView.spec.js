@@ -291,7 +291,7 @@ describe('HomeView', () => {
       videos: [{ id: 1, title: 'וידאו', url: 'https://vimeo.com/1' }],
     })
 
-    const titles = wrapper.findAll('h2.section-title').map((h) => h.text())
+    const titles = wrapper.findAll('h2').map((h) => h.text())
     expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'עדכונים', 'שחקנים', 'סרטונים'])
   })
 

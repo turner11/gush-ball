@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { signed } from '../lib/format'
 
 const team = ref(null)
 const rows = ref([])
@@ -51,7 +52,7 @@ watch(selectedTeamId, load, { immediate: true })
 </script>
 
 <template>
-  <section class="space-y-4">
+  <section class="space-y-6">
     <div v-if="loading" class="space-y-3" aria-busy="true">
       <div class="skeleton h-8 w-48" />
       <div class="skeleton h-64" />
@@ -59,8 +60,13 @@ watch(selectedTeamId, load, { immediate: true })
 
     <template v-else-if="myRow">
       <div>
+        <p class="eyebrow">{{ myRow.league_name }}</p>
         <h1 class="page-title">טבלת הליגה</h1>
-        <p class="text-neutral-500">{{ myRow.league_name }}</p>
+      </div>
+      <div data-testid="standing-summary" class="grid grid-cols-3 gap-3">
+        <div class="stat"><span class="stat-value">{{ myRow.rank }}</span><span class="stat-label">מקום</span></div>
+        <div class="stat"><span class="stat-value">{{ myRow.won }}–{{ myRow.lost }}</span><span class="stat-label">נ׳–ה׳</span></div>
+        <div class="stat"><span class="stat-value">{{ myRow.points }}</span><span class="stat-label">נקודות</span></div>
       </div>
       <div class="card overflow-x-auto p-0">
         <table class="w-full text-start">
@@ -73,6 +79,7 @@ watch(selectedTeamId, load, { immediate: true })
               <th class="px-3 py-2.5 text-center" title="הפסדים">ה׳</th>
               <th class="hidden px-3 py-2.5 text-center sm:table-cell" title="נקודות זכות">נק' זכות</th>
               <th class="hidden px-3 py-2.5 text-center sm:table-cell" title="נקודות חובה">נק' חובה</th>
+              <th class="hidden px-3 py-2.5 text-center sm:table-cell" title="הפרש">הפרש</th>
               <th class="px-3 py-2.5 text-center" title="נקודות">נק׳</th>
             </tr>
           </thead>
@@ -81,11 +88,11 @@ watch(selectedTeamId, load, { immediate: true })
               v-for="row in leagueRows"
               :key="row.id"
               class="table-row"
-              :class="{ 'border-s-4 border-team bg-neutral-100 font-bold dark:bg-neutral-700/50': row.id === myRow.id }"
+              :class="{ 'border-s-4 border-team bg-team/10 font-bold': row.id === myRow.id }"
             >
-              <td class="px-3 py-2.5 text-center tabular-nums">{{ row.rank }}</td>
+              <td class="px-3 py-2.5 text-center tabular-nums text-muted">{{ row.rank }}</td>
               <td class="min-w-40 px-3 py-2.5">
-                <img v-if="rowLogo(row)" :src="rowLogo(row)" alt="" class="me-2 inline size-6 object-contain" />
+                <img v-if="rowLogo(row)" :src="rowLogo(row)" alt="" class="me-2 inline size-7 object-contain" />
                 <a v-if="row.source_url" :href="row.source_url" target="_blank" rel="noopener" class="hover:underline">{{ row.team_name }}</a>
                 <template v-else>{{ row.team_name }}</template>
               </td>
@@ -94,6 +101,7 @@ watch(selectedTeamId, load, { immediate: true })
               <td class="px-3 py-2.5 text-center tabular-nums">{{ row.lost }}</td>
               <td class="hidden px-3 py-2.5 text-center tabular-nums sm:table-cell">{{ row.points_for }}</td>
               <td class="hidden px-3 py-2.5 text-center tabular-nums sm:table-cell">{{ row.points_against }}</td>
+              <td class="hidden px-3 py-2.5 text-center tabular-nums sm:table-cell"><span dir="ltr">{{ signed(row.points_for - row.points_against) }}</span></td>
               <td class="px-3 py-2.5 text-center font-bold tabular-nums">{{ row.points }}</td>
             </tr>
           </tbody>
