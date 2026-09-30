@@ -48,18 +48,21 @@ def _get_page(url: str) -> str:
 
 
 def _scrape_address(url: str) -> str | None:
-    """Club address from the static team page; never lets a failure lose the games sync."""
+    """Club address from the static team page ("" if the page has none); None on fetch error.
+
+    Never lets a failure lose the games sync.
+    """
     try:
         node = BeautifulSoup(_get_page(url), "html.parser").select_one("div.data-address")
     except httpx.HTTPError:
         log.warning("Could not fetch address from %s", url, exc_info=True)
         return None
     if node is None:
-        return None
+        return ""
     if label := node.find("span"):
         label.extract()
     address = node.get_text(strip=True)
-    return address[:300] or None
+    return address[:300]
 
 
 def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -> Opponent:
@@ -73,7 +76,7 @@ def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -
     if opponent.logo_url is None:
         media = data.get("_embedded", {}).get("wp:featuredmedia") or []
         opponent.logo_url = media[0]["source_url"] if media else None
-    # ponytail: refetches while the address stays None (10s crawl delay each); add a flag if runtime matters
+    # ponytail: "" = page has no address (never refetched); None = fetch failed, retried next sync
     if opponent.address is None and opponent.source_url:
         opponent.address = _scrape_address(opponent.source_url)
     cache[opp_sp_id] = opponent

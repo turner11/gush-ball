@@ -187,9 +187,11 @@ def test_sync_never_overwrites_admin_home_court_address(
     assert page_calls == []
 
 
-@pytest.mark.parametrize("failure", ["<p>no address</p>", httpx.ConnectError("boom")])
+@pytest.mark.parametrize(
+    ("failure", "stored"), [("<p>no address</p>", ""), (httpx.ConnectError("boom"), None)]
+)
 def test_sync_address_missing_or_fetch_error_still_syncs_games(
-    db_session: Session, monkeypatch: pytest.MonkeyPatch, failure: object
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, failure: object, stored: str | None
 ) -> None:
     team = _make_team(db_session)
     monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
@@ -202,8 +204,25 @@ def test_sync_address_missing_or_fetch_error_still_syncs_games(
     monkeypatch.setattr(scrape_games, "_get_page", fake)
 
     assert scrape_games.sync_team_games(db_session, team) == 1
-    assert db_session.query(Opponent).one().address is None
-    assert team.home_court_address is None
+    assert db_session.query(Opponent).one().address == stored
+    assert team.home_court_address == stored
+
+
+@pytest.mark.parametrize("known", [ADDRESS, ""])
+def test_sync_does_not_refetch_opponent_with_known_address(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, page_calls: list[str], known: str
+) -> None:
+    team = _make_team(db_session)
+    team.home_court_address = known
+    db_session.add(
+        Opponent(name=OPPONENT_NAME_UNESCAPED, source_url=OPPONENT_DETAIL["link"], address=known)
+    )
+    db_session.commit()
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    assert page_calls == []
 
 
 def test_resync_updates_score_without_duplicating_or_republishing(

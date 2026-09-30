@@ -42,6 +42,7 @@ async function loadGames() {
 
 watch(selectedTeamId, loadGames, { immediate: true })
 
+const addressOf = (g) => (g.is_home ? team.value?.home_court_address : g.opponent?.address)
 const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'border-transparent'
 </script>
 
@@ -82,7 +83,7 @@ const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'borde
               <p v-if="game.d" class="text-sm text-muted">{{ game.d.weekday }} · {{ game.d.time }} · {{ game.is_home ? 'בית' : 'חוץ' }}</p>
             </div>
             <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
-              <GameLocationLinks v-if="game.is_home ? team?.home_court_address : game.opponent?.address" :address="game.is_home ? team.home_court_address : game.opponent.address" />
+              <GameLocationLinks v-if="addressOf(game)" :address="addressOf(game)" />
               <template v-if="played(game)">
                 <span class="text-xl font-black tabular-nums">{{ homeFirst(game, game.team_score, game.opponent_score).join(' : ') }}</span>
                 <span v-if="result(game)" :class="['badge', result(game) === 'W' ? 'badge-win' : 'badge-loss']">{{ result(game) === 'W' ? 'ניצחון' : 'הפסד' }}</span>
