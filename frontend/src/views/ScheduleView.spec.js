@@ -234,4 +234,32 @@ describe('ScheduleView', () => {
       expect(a.attributes('aria-label')).toContain(ADDR)
     })
   })
+
+  describe('team order and home badge', () => {
+    async function rows() {
+      mockFetch({
+        'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+        'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME, PAST_GAME]),
+      })
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+      return wrapper.findAll('li')
+    }
+
+    it('lists our team first on home games and the opponent first on away games', async () => {
+      const [home, away] = await rows()
+      const h = home.text()
+      const a = away.text()
+      expect(h.indexOf('קבוצה א')).toBeGreaterThan(-1)
+      expect(h.indexOf('קבוצה א')).toBeLessThan(h.indexOf('מכבי עתיד'))
+      expect(a.indexOf('הפועל עבר')).toBeLessThan(a.indexOf('קבוצה א'))
+    })
+
+    it('marks home and away games with a badge', async () => {
+      const [home, away] = await rows()
+      expect(home.findAll('.badge').map((b) => b.text())).toContain('בית')
+      expect(away.findAll('.badge').map((b) => b.text())).toContain('חוץ')
+    })
+  })
 })
