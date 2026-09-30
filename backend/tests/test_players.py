@@ -236,3 +236,12 @@ def test_get_player_soft_deleted_404(
     db_session.commit()
 
     assert client.get(f"/players/{player.id}").status_code == 404
+
+
+def test_player_image_out_includes_focus_fields(admin_client: TestClient, team: Team) -> None:
+    player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
+    response = admin_client.post(
+        f"/players/{player_id}/images", json={"url": "https://example.com/dana.jpg"}
+    )
+    body = response.json()
+    assert (body["focus_x"], body["focus_y"], body["zoom"]) == (None, None, None)
