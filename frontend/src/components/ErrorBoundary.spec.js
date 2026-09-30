@@ -20,6 +20,7 @@ describe('ErrorBoundary', () => {
       },
     }
     const wrapper = mount(ErrorBoundary, { slots: { default: () => h(Child) }, global: { plugins: [router] } })
+    await flushPromises()
     expect(wrapper.text()).toContain('משהו השתבש')
 
     broken.value = false

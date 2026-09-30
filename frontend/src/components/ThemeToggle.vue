@@ -1,5 +1,6 @@
 <script setup>
 import { useTheme } from '../composables/useTheme'
+import AppIcon from './AppIcon.vue'
 
 const { theme, toggle } = useTheme()
 </script>
@@ -7,10 +8,10 @@ const { theme, toggle } = useTheme()
 <template>
   <button
     type="button"
-    class="rounded-full border border-current px-3 py-1 text-sm"
+    class="inline-flex size-11 items-center justify-center rounded-full hover:bg-black/10"
     :aria-label="theme === 'dark' ? 'עבור למצב בהיר' : 'עבור למצב כהה'"
     @click="toggle"
   >
-    {{ theme === 'dark' ? '☀️' : '🌙' }}
+    <AppIcon :name="theme === 'dark' ? 'sun' : 'moon'" />
   </button>
 </template>
