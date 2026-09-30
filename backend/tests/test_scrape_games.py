@@ -196,8 +196,13 @@ def test_sync_never_overwrites_admin_home_court_address(
     [
         ("<p>no address</p>", ""),
         # Empty venue (seen live on team 13673): never fall back to the club address.
-        ('<div class="data-venue"><span>אולם:</span></div>'
-         '<div class="data-address"><span>כתובת:</span> , , 0</div>', ""),
+        (
+            (
+                '<div class="data-venue"><span>אולם:</span></div>'
+                '<div class="data-address"><span>כתובת:</span> , , 0</div>'
+            ),
+            "",
+        ),
         (httpx.ConnectError("boom"), None),
     ],
 )
