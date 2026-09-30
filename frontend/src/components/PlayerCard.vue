@@ -36,6 +36,13 @@ function stopSlideshow() {
 }
 onBeforeUnmount(stopSlideshow)
 
+// Backend-detected face focus (CSS %) + zoom; without it the photo stays top-anchored.
+function focusStyle(img) {
+  if (img?.focus_x == null) return undefined
+  const at = `${img.focus_x}% ${img.focus_y}%`
+  return { objectPosition: at, transformOrigin: at, transform: `scale(${img.zoom})` }
+}
+
 const DEFAULT = '/default-player.png'
 // Dead/blocked hotlink -> default; the endsWith guard stops a loop if the default itself fails.
 function onImgError(e) {
@@ -53,14 +60,19 @@ function onImgError(e) {
   >
     <!-- badge overlaps the photo so names line up whether or not a player has a number -->
     <div class="relative mx-auto w-fit">
-      <img
-        :src="images[0]?.url || '/default-player.png'"
-        :alt="player?.name ?? ''"
-        loading="lazy"
+      <div
         :class="compact ? 'size-11 ring-2 sm:size-14' : 'size-20 ring-4 sm:size-24'"
-        class="rounded-full object-cover object-top ring-sunken"
-        @error="onImgError"
-      />
+        class="overflow-hidden rounded-full ring-sunken"
+      >
+        <img
+          :src="images[0]?.url || '/default-player.png'"
+          :alt="player?.name ?? ''"
+          loading="lazy"
+          :style="focusStyle(images[0])"
+          class="size-full object-cover object-top"
+          @error="onImgError"
+        />
+      </div>
       <p
         v-if="(player?.jersey_number ?? jersey) != null"
         :class="compact ? 'text-[10px]' : 'text-xs'"

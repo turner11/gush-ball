@@ -31,6 +31,9 @@ class PlayerImageOut(BaseModel):
     id: int
     player_id: int
     url: str
+    focus_x: float | None
+    focus_y: float | None
+    zoom: float | None
 
 
 class PlayerOut(BaseModel):

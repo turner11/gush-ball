@@ -11,7 +11,9 @@ from datetime import datetime
 from typing import Any
 from urllib.parse import urljoin
 
+import cv2
 import httpx
+import numpy as np
 from bs4 import BeautifulSoup
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
@@ -25,6 +27,12 @@ CRAWL_DELAY = 10
 AJAX_URL = "https://ibasketball.co.il/wp-admin/admin-ajax.php"
 
 log = logging.getLogger(__name__)
+
+# ponytail: calibration knobs for the avatar framing; NULL player_images.focus_x to re-detect after tuning
+FACE_SHARE = 0.5  # face width as a fraction of the circle
+MAX_ZOOM = 3.0
+HAIR_SHIFT = 0.1  # centre moves up by this fraction of face height so hair is framed
+_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
 
 def _get(url: str, **params: Any) -> httpx.Response:
@@ -45,6 +53,38 @@ def _get_html(**params: Any) -> str:
 
 def _get_page(url: str) -> str:
     return _get(url).text
+
+
+def _get_image(url: str) -> bytes:
+    return _get(url).content
+
+
+def _focus(img_w: int, img_h: int, face: tuple[int, int, int, int]) -> tuple[float, float, float]:
+    """(object-position x %, y %, zoom) that frames the face in a square circle."""
+    x, y, w, h = face
+    m = min(img_w, img_h)
+    side = min(m, max(w / FACE_SHARE, m / MAX_ZOOM))
+
+    def pos(length: int, centre: float) -> float:
+        win = side / length
+        if win >= 1:
+            return 50.0
+        start = min(max(centre / length - win / 2, 0), 1 - win)
+        return 100 * start / (1 - win)
+
+    return pos(img_w, x + w / 2), pos(img_h, y + h / 2 - HAIR_SHIFT * h), m / side
+
+
+def face_focus(data: bytes) -> tuple[float, float, float]:
+    """Focus for the largest face; (50, 0, 1) (the old top-anchored look) if none or undecodable."""
+    img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_GRAYSCALE) if data else None
+    if img is None:
+        return 50.0, 0.0, 1.0
+    m = min(img.shape)
+    faces = _CASCADE.detectMultiScale(img, scaleFactor=1.1, minNeighbors=5, minSize=(m // 10, m // 10))
+    if len(faces) == 0:
+        return 50.0, 0.0, 1.0
+    return _focus(img.shape[1], img.shape[0], tuple(int(v) for v in max(faces, key=lambda f: f[2] * f[3])))
 
 
 def _scrape_address(url: str) -> str | None:
@@ -211,7 +251,7 @@ def sync_all_games(db: Session, errors: list[str] | None = None) -> int:
 
 
 def sync_team_players(db: Session, team: Team) -> int:
-    """Fill-only: creates missing players and fills a missing image. Never overwrites admin edits,
+    """Fill-only: creates missing players, fills a missing image and each image's face focus. Never overwrites admin edits,
     never deletes.
 
     Players are matched by the roster card's href (Player.source_url), so renamed or soft-deleted
@@ -251,6 +291,14 @@ def sync_team_players(db: Session, team: Team) -> int:
         url = urljoin(BASE, img["src"]) if img else ""
         if url and len(url) <= 500 and not player.images:
             player.images.append(PlayerImage(url=url))
+        for image in player.images:
+            if image.focus_x is None:
+                try:
+                    data = _get_image(image.url)
+                except httpx.HTTPError:
+                    log.warning("Could not fetch player image %s", image.url, exc_info=True)
+                    continue
+                image.focus_x, image.focus_y, image.zoom = face_focus(data)
 
     db.commit()
     return count
