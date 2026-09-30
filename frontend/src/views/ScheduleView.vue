@@ -17,7 +17,13 @@ const { selectedTeamId } = useSelectedTeam()
 
 const upcoming = computed(() => splitGames(games.value).upcoming)
 const past = computed(() => splitGames(games.value).past)
-const withDate = (gs) => gs.map((g) => ({ ...g, d: formatGameDate(g.scheduled_at) }))
+const withDate = (gs) => {
+  const us = { name: team.value?.name, logo: team.value?.logo_url, url: team.value?.ibasketball_team_url }
+  return gs.map((g) => {
+    const them = { name: g.opponent.name, logo: g.opponent.logo_url, url: g.opponent.source_url }
+    return { ...g, d: formatGameDate(g.scheduled_at), sides: homeFirst(g, us, them) }
+  })
+}
 const sections = computed(() => [
   { title: 'משחקים קרובים', games: withDate(upcoming.value), empty: 'אין משחקים קרובים.' },
   { title: 'תוצאות', games: withDate(past.value), empty: 'אין תוצאות עדיין.' },
@@ -73,14 +79,21 @@ const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'borde
               <span class="block text-2xl font-black tabular-nums">{{ game.d.day }}</span>
               <span class="block text-xs font-bold text-muted">{{ game.d.month }}</span>
             </div>
-            <img v-if="game.opponent.logo_url" :src="game.opponent.logo_url" alt="" class="size-10 shrink-0 object-contain" />
-            <span v-else class="size-10 shrink-0 rounded-full bg-sunken"></span>
+            <div class="flex shrink-0 items-center gap-1">
+              <template v-for="(side, i) in game.sides" :key="i">
+                <img v-if="side.logo" :src="side.logo" alt="" class="size-10 shrink-0 object-contain" />
+                <span v-else class="size-10 shrink-0 rounded-full bg-sunken"></span>
+              </template>
+            </div>
             <div class="min-w-0 flex-1">
-              <p class="truncate font-bold">
-                <a v-if="game.opponent.source_url" :href="game.opponent.source_url" target="_blank" rel="noopener" class="hover:underline">{{ game.opponent.name }}</a>
-                <template v-else>{{ game.opponent.name }}</template>
+              <p class="break-words font-bold">
+                <template v-for="(side, i) in game.sides" :key="i">
+                  <span v-if="i" class="font-normal text-muted"> - </span>
+                  <a v-if="side.url" :href="side.url" target="_blank" rel="noopener" class="hover:underline">{{ side.name }}</a>
+                  <template v-else>{{ side.name }}</template>
+                </template>
               </p>
-              <p v-if="game.d" class="text-sm text-muted">{{ game.d.weekday }} · {{ game.d.time }} · {{ game.is_home ? 'בית' : 'חוץ' }}</p>
+              <p v-if="game.d" class="text-sm text-muted">{{ game.d.weekday }} · {{ game.d.time }} · <span class="badge badge-muted">{{ game.is_home ? 'בית' : 'חוץ' }}</span></p>
             </div>
             <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
               <GameLocationLinks v-if="addressOf(game)" :address="addressOf(game)" />
