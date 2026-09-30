@@ -42,6 +42,7 @@ describe('DefaultLayout', () => {
       routes: [
         { path: '/', name: 'home', component: { template: '<div/>' } },
         { path: '/schedule', name: 'schedule', component: { template: '<div/>' } },
+        { path: '/roster', name: 'roster', component: { template: '<div/>' } },
         { path: '/:slug', name: 'team-home', component: { template: '<div/>' } },
       ],
     })
@@ -127,6 +128,18 @@ describe('DefaultLayout', () => {
 
     const a = wrapper.findAll('a').find((x) => x.text() === 'סטטיסטיקה')
     expect(a.attributes('href')).toBe('/roster#lineups')
+  })
+
+  it('on /roster only שחקנים is highlighted, not the #lineups link', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/roster')
+    await flushPromises()
+
+    const active = wrapper.findAll('a.router-link-exact-active').map((x) => x.text())
+    expect(active).toEqual(['שחקנים'])
   })
 
   it('nav links מדיה to the media page', async () => {

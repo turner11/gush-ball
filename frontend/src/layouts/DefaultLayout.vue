@@ -106,7 +106,13 @@ onMounted(async () => {
           </div>
           <ul class="scroll-row order-last flex w-full gap-5 md:order-2 md:ms-auto md:w-auto">
             <li v-for="item in navItems" :key="item.label">
-              <RouterLink :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
+              <!-- exact-active ignores the hash, so the #lineups link would light up with שחקנים -->
+              <RouterLink
+                :to="item.to"
+                :exact-active-class="item.to.includes('#') ? '' : undefined"
+                class="nav-link"
+                >{{ item.label }}</RouterLink
+              >
             </li>
           </ul>
           <div class="ms-auto md:order-3 md:ms-0"><ThemeToggle /></div>
