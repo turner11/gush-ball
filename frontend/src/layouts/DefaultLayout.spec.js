@@ -217,6 +217,7 @@ describe('DefaultLayout', () => {
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
     await flushPromises()
 
     expect(wrapper.find('[data-testid="hero"]').attributes('style')).toContain('/backgrounds/hoop-1.jpg')

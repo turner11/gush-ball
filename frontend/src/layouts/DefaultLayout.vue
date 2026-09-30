@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import ErrorBoundary from '../components/ErrorBoundary.vue'
+import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -19,6 +20,14 @@ const navItems = computed(() => [
   { to: '/roster', label: 'שחקנים' },
   { to: '/media', label: 'מדיה' },
   { to: '/roster#lineups', label: 'סטטיסטיקה' },
+])
+
+const tabItems = computed(() => [
+  { to: homePath.value, label: 'בית', icon: 'home', exact: true },
+  { to: '/schedule', label: 'משחקים', icon: 'calendar' },
+  { to: '/standings', label: 'טבלה', icon: 'table' },
+  { to: '/roster', label: 'שחקנים', icon: 'users' },
+  { to: '/media', label: 'מדיה', icon: 'media' },
 ])
 
 const teams = ref([])
@@ -41,8 +50,9 @@ const teamStyle = computed(() => {
 // The URL picks the team on home routes only; other pages follow the remembered team.
 const route = useRoute()
 const router = useRouter()
+const isHome = computed(() => ['home', 'team-home'].includes(route.name))
 watch([() => route.params.slug, () => route.name, teams], () => {
-  if (!teams.value.length || !['home', 'team-home'].includes(route.name)) return
+  if (!teams.value.length || !isHome.value) return
   const slug = String(route.params.slug ?? '').toLowerCase()
   const match = teams.value.find((t) => teamSlug(t) === slug)
   if (match) {
@@ -65,73 +75,78 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div :style="teamStyle" class="flex min-h-screen flex-col bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
+  <div :style="teamStyle" class="flex min-h-dvh flex-col bg-surface text-ink">
     <a href="#main" class="btn-primary sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50">דלג לתוכן</a>
     <div class="sticky top-0 z-40">
       <header
         :class="[
-          'shadow-md',
-          teamStyle['--team-primary']
-            ? 'border-b-4 border-team-2 bg-team text-on-team'
-            : 'border-b border-neutral-200 bg-neutral-50/90 backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/90',
+          'shadow-sm',
+          teamStyle['--team-primary'] ? 'border-b-4 border-team-2 bg-team text-on-team' : 'bg-brand text-white',
         ]"
       >
-        <nav class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 px-4">
-          <div class="flex min-w-0 items-center gap-2">
-            <RouterLink
-              :to="homePath"
-              :aria-label="(selectedTeam?.name ?? 'גוש כדורסל') + ' — דף הבית'"
-              class="flex min-w-0 items-center gap-2"
-            >
-              <!-- ponytail: team logos are transparent PNGs, so no bg/rounded on them -->
-              <img
-                v-if="selectedTeam?.logo_url"
-                :src="selectedTeam.logo_url"
-                alt=""
-                class="h-10 w-10 shrink-0 object-contain"
-              />
-              <img v-else :src="LOGO_URL" alt="גוש כדורסל" class="h-10 w-auto rounded" />
-              <span v-if="selectedTeam" class="truncate font-bold">{{ selectedTeam.name }}</span>
-            </RouterLink>
-            <a
-              v-if="selectedTeam?.home_court_address"
-              :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(selectedTeam.home_court_address)"
-              target="_blank"
-              rel="noopener noreferrer"
-              :aria-label="selectedTeam.home_court_address"
-              :title="selectedTeam.home_court_address"
-              class="inline-flex size-11 items-center justify-center"
-              ><AppIcon name="pin"
-            /></a>
-          </div>
-          <ul class="scroll-row order-last flex w-full gap-5 md:order-2 md:ms-auto md:w-auto">
-            <li v-for="item in navItems" :key="item.label">
-              <!-- exact-active ignores the hash, so the #lineups link would light up with שחקנים -->
-              <RouterLink
-                :to="item.to"
-                :exact-active-class="item.to.includes('#') ? '' : undefined"
-                class="nav-link"
-                >{{ item.label }}</RouterLink
-              >
-            </li>
-          </ul>
-          <div class="ms-auto md:order-3 md:ms-0"><ThemeToggle /></div>
-        </nav>
+        <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6 md:h-16">
+          <RouterLink
+            :to="homePath"
+            :aria-label="(selectedTeam?.name ?? 'גוש כדורסל') + ' — דף הבית'"
+            class="flex min-w-0 items-center gap-2"
+          >
+            <!-- ponytail: team logos are transparent PNGs, so no bg/rounded on them -->
+            <img
+              v-if="selectedTeam?.logo_url"
+              :src="selectedTeam.logo_url"
+              alt=""
+              class="size-9 shrink-0 object-contain md:size-10"
+            />
+            <img v-else :src="LOGO_URL" alt="גוש כדורסל" class="size-9 rounded md:size-10" />
+            <span v-if="selectedTeam" class="truncate font-extrabold">{{ selectedTeam.name }}</span>
+          </RouterLink>
+          <a
+            v-if="selectedTeam?.home_court_address"
+            :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(selectedTeam.home_court_address)"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="selectedTeam.home_court_address"
+            :title="selectedTeam.home_court_address"
+            class="inline-flex size-11 items-center justify-center"
+            ><AppIcon name="pin"
+          /></a>
+          <nav data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden md:block">
+            <ul class="flex gap-6">
+              <li v-for="item in navItems" :key="item.label">
+                <!-- exact-active ignores the hash, so the #lineups link would light up with שחקנים -->
+                <RouterLink
+                  :to="item.to"
+                  :exact-active-class="item.to.includes('#') ? '' : undefined"
+                  class="nav-link"
+                  >{{ item.label }}</RouterLink
+                >
+              </li>
+            </ul>
+          </nav>
+          <ThemeToggle class="ms-auto md:ms-0" />
+        </div>
       </header>
-
-      <div
-        v-if="selectedTeam"
-        data-testid="hero"
-        class="h-10 bg-cover bg-[position:50%_65%] sm:h-20"
-        :style="{ backgroundImage: `url(/backgrounds/${selectedTeam.background ?? 'hoop-1'}.jpg)` }"
-      >
-      </div>
     </div>
 
-    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-10">
+    <section
+      v-if="selectedTeam && isHome"
+      data-testid="hero"
+      class="relative isolate overflow-hidden bg-brand bg-cover bg-[position:50%_65%] text-white"
+      :style="{ backgroundImage: `url(/backgrounds/${selectedTeam.background ?? 'hoop-1'}.jpg)` }"
+    >
+      <div class="absolute inset-0 -z-10 bg-linear-to-t from-black/85 via-black/45 to-black/10" aria-hidden="true" />
+      <div class="mx-auto flex max-w-6xl items-end gap-4 px-4 pb-6 pt-20 sm:px-6 sm:pt-28 md:pb-10 landscape:max-md:pt-8">
+        <img v-if="selectedTeam.logo_url" :src="selectedTeam.logo_url" alt="" class="size-16 object-contain drop-shadow-lg sm:size-24" />
+        <h1 class="text-display md:text-[4rem]">{{ selectedTeam.name }}</h1>
+      </div>
+    </section>
+
+    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-10 md:pb-12">
       <ErrorBoundary>
         <RouterView />
       </ErrorBoundary>
     </main>
+
+    <TabBar :items="tabItems" />
   </div>
 </template>
