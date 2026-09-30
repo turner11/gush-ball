@@ -6,6 +6,7 @@ import { apiFetch } from '../lib/api'
 
 const team = ref(null)
 const rows = ref([])
+const loading = ref(false)
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
@@ -35,10 +36,15 @@ async function load() {
     rows.value = []
     return
   }
-  ;[team.value, rows.value] = await Promise.all([
-    apiFetch(`/teams/${selectedTeamId.value}`),
-    apiFetch('/standings'),
-  ])
+  loading.value = true
+  try {
+    ;[team.value, rows.value] = await Promise.all([
+      apiFetch(`/teams/${selectedTeamId.value}`),
+      apiFetch('/standings'),
+    ])
+  } finally {
+    loading.value = false
+  }
 }
 
 watch(selectedTeamId, load, { immediate: true })
@@ -46,46 +52,57 @@ watch(selectedTeamId, load, { immediate: true })
 
 <template>
   <section class="space-y-4">
-    <h1 class="page-title">טבלת הליגה</h1>
+    <div v-if="loading" class="space-y-3" aria-busy="true">
+      <div class="skeleton h-8 w-48" />
+      <div class="skeleton h-64" />
+    </div>
 
-    <template v-if="myRow">
-      <h2 class="section-title">{{ myRow.league_name }}</h2>
-      <table class="w-full text-start">
-        <thead>
-          <tr class="table-header-row">
-            <th class="py-2 text-start">דירוג</th>
-            <th class="py-2 text-start">קבוצה</th>
-            <th class="py-2 text-start">משחקים</th>
-            <th class="py-2 text-start">נצחונות</th>
-            <th class="py-2 text-start">הפסדים</th>
-            <th class="py-2 text-start">נק' זכות</th>
-            <th class="py-2 text-start">נק' חובה</th>
-            <th class="py-2 text-start">נקודות</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="row in leagueRows"
-            :key="row.id"
-            class="table-row"
-            :class="{ 'bg-neutral-100 font-bold dark:bg-neutral-800': row.id === myRow.id }"
-          >
-            <td class="py-2">{{ row.rank }}</td>
-            <td class="py-2">
-              <img v-if="rowLogo(row)" :src="rowLogo(row)" alt="" class="me-2 inline h-6 w-6 object-contain" />
-              <a v-if="row.source_url" :href="row.source_url" target="_blank" rel="noopener" class="hover:underline">{{ row.team_name }}</a>
-              <template v-else>{{ row.team_name }}</template>
-            </td>
-            <td class="py-2">{{ row.played }}</td>
-            <td class="py-2">{{ row.won }}</td>
-            <td class="py-2">{{ row.lost }}</td>
-            <td class="py-2">{{ row.points_for }}</td>
-            <td class="py-2">{{ row.points_against }}</td>
-            <td class="py-2">{{ row.points }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <template v-else-if="myRow">
+      <div>
+        <h1 class="page-title">טבלת הליגה</h1>
+        <p class="text-neutral-500">{{ myRow.league_name }}</p>
+      </div>
+      <div class="card overflow-x-auto p-0">
+        <table class="w-full text-start">
+          <thead>
+            <tr class="table-header-row">
+              <th class="px-3 py-2.5 text-center" title="דירוג">#</th>
+              <th class="px-3 py-2.5 text-start">קבוצה</th>
+              <th class="px-3 py-2.5 text-center" title="משחקים">מש׳</th>
+              <th class="px-3 py-2.5 text-center" title="נצחונות">נ׳</th>
+              <th class="px-3 py-2.5 text-center" title="הפסדים">ה׳</th>
+              <th class="hidden px-3 py-2.5 text-center sm:table-cell" title="נקודות זכות">נק' זכות</th>
+              <th class="hidden px-3 py-2.5 text-center sm:table-cell" title="נקודות חובה">נק' חובה</th>
+              <th class="px-3 py-2.5 text-center" title="נקודות">נק׳</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in leagueRows"
+              :key="row.id"
+              class="table-row"
+              :class="{ 'border-s-4 border-team bg-neutral-100 font-bold dark:bg-neutral-700/50': row.id === myRow.id }"
+            >
+              <td class="px-3 py-2.5 text-center tabular-nums">{{ row.rank }}</td>
+              <td class="min-w-40 px-3 py-2.5">
+                <img v-if="rowLogo(row)" :src="rowLogo(row)" alt="" class="me-2 inline size-6 object-contain" />
+                <a v-if="row.source_url" :href="row.source_url" target="_blank" rel="noopener" class="hover:underline">{{ row.team_name }}</a>
+                <template v-else>{{ row.team_name }}</template>
+              </td>
+              <td class="px-3 py-2.5 text-center tabular-nums">{{ row.played }}</td>
+              <td class="px-3 py-2.5 text-center tabular-nums">{{ row.won }}</td>
+              <td class="px-3 py-2.5 text-center tabular-nums">{{ row.lost }}</td>
+              <td class="hidden px-3 py-2.5 text-center tabular-nums sm:table-cell">{{ row.points_for }}</td>
+              <td class="hidden px-3 py-2.5 text-center tabular-nums sm:table-cell">{{ row.points_against }}</td>
+              <td class="px-3 py-2.5 text-center font-bold tabular-nums">{{ row.points }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </template>
-    <p v-else class="empty-state">אין נתוני טבלה עבור קבוצה זו.</p>
+    <template v-else>
+      <h1 class="page-title">טבלת הליגה</h1>
+      <p class="empty-state">אין נתוני טבלה עבור קבוצה זו.</p>
+    </template>
   </section>
 </template>

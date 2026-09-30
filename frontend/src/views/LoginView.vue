@@ -4,6 +4,9 @@ import { useRouter } from 'vue-router'
 
 import { useAuth } from '../composables/useAuth'
 
+// Bound (not a static src) so the SFC compiler serves it from public/ as-is.
+const LOGO_URL = '/logo.jpg'
+
 const username = ref('')
 const password = ref('')
 const submitting = ref(false)
@@ -25,8 +28,9 @@ async function onSubmit() {
 </script>
 
 <template>
-  <section class="mx-auto max-w-sm space-y-4">
-    <h1 class="page-title">כניסת מנהל</h1>
+  <section class="card mx-auto mt-10 max-w-sm space-y-4 p-6">
+    <img :src="LOGO_URL" alt="" class="mx-auto h-14" />
+    <h1 class="page-title text-center">כניסת מנהל</h1>
 
     <form class="space-y-3" @submit.prevent="onSubmit">
       <div>
@@ -35,6 +39,7 @@ async function onSubmit() {
           id="username"
           v-model="username"
           type="text"
+          autocomplete="username"
           required
           class="field-input"
         />
@@ -46,15 +51,16 @@ async function onSubmit() {
           id="password"
           v-model="password"
           type="password"
+          autocomplete="current-password"
           required
           class="field-input"
         />
       </div>
 
-      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
+      <p v-if="error" class="error-text" role="alert">{{ error }}</p>
 
       <button type="submit" :disabled="submitting" class="btn-primary w-full">
-        כניסה
+        {{ submitting ? 'מתחבר…' : 'כניסה' }}
       </button>
     </form>
   </section>

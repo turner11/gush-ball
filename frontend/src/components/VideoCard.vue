@@ -1,4 +1,6 @@
 <script setup>
+import AppIcon from './AppIcon.vue'
+
 defineProps({ video: { type: Object, required: true } })
 
 function youtubeId(url) {
@@ -25,9 +27,9 @@ function youtubeId(url) {
       :title="video.title"
       loading="lazy"
       allowfullscreen
-      class="aspect-video w-full border-0"
+      class="aspect-video w-full rounded-xl border-0 bg-black"
     ></iframe>
-    <a v-else :href="video.url" target="_blank" rel="noopener" class="hover:underline">{{ video.title }}</a>
+    <a v-else :href="video.url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">{{ video.title }}<AppIcon name="external" /></a>
     <h3 v-if="youtubeId(video.url)" class="font-semibold">{{ video.title }}</h3>
   </article>
 </template>
