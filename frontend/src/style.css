@@ -239,7 +239,7 @@
 
   /* Navigation */
   .nav-link {
-    @apply inline-flex min-h-11 items-center whitespace-nowrap border-b-2 border-transparent px-1 text-sm font-semibold opacity-80 transition-opacity hover:opacity-100;
+    @apply inline-flex min-h-11 items-center whitespace-nowrap border-b-2 border-transparent px-1 text-sm font-bold opacity-80 lg:text-base transition-opacity hover:opacity-100;
   }
   .nav-link.router-link-exact-active {
     @apply border-current opacity-100;

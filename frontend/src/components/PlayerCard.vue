@@ -23,7 +23,7 @@ function onImgError(e) {
       class="mx-auto rounded-full object-cover object-top ring-sunken"
       @error="onImgError"
     />
-    <p class="mt-2 inline-flex rounded-md bg-team px-1.5 text-xs font-black tabular-nums text-on-team">#{{ player?.jersey_number ?? jersey }}</p>
+    <p v-if="(player?.jersey_number ?? jersey) != null" class="mt-2 inline-flex rounded-md bg-team px-1.5 text-xs font-black tabular-nums text-on-team">#{{ player?.jersey_number ?? jersey }}</p>
     <p v-if="player" :class="compact ? 'line-clamp-2 text-[11px]' : 'text-sm'" class="font-bold leading-tight">{{ player.name }}</p>
   </div>
 </template>

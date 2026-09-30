@@ -62,7 +62,13 @@ const matchCards = computed(() =>
     { title: 'המשחק הבא', game: nextGame.value },
   ]
     .filter((m) => m.game)
-    .map((m) => ({ ...m, d: formatGameDate(m.game.scheduled_at) })),
+    .map((m) => {
+      const g = m.game
+      const us = { name: team.value.name, logo: team.value.logo_url || '/logo.jpg', score: g.team_score }
+      const them = { name: g.opponent.name, logo: g.opponent.logo_url, score: g.opponent_score }
+      // Home side first (right, in RTL), like every scoreboard.
+      return { ...m, d: formatGameDate(g.scheduled_at), sides: g.is_home ? [us, them] : [them, us] }
+    }),
 )
 
 // ponytail: the API has no ORDER BY, so highest id = newest.
@@ -126,8 +132,9 @@ watch(
 
   <section v-else-if="team" class="space-y-10 sm:space-y-14">
     <div class="grid gap-12" :class="{ 'md:grid-cols-[3fr_2fr]': hasSocial }">
-      <div class="space-y-10 sm:space-y-14">
-        <div v-if="nextGame || lastGame" class="grid gap-3 sm:grid-cols-2 sm:gap-4">
+      <!-- min-w-0: without it the player carousel's width stretches this track and overflows the page -->
+      <div class="min-w-0 space-y-10 sm:space-y-14">
+        <div v-if="nextGame || lastGame" class="grid gap-3 sm:gap-4" :class="{ 'sm:grid-cols-2': matchCards.length > 1 }">
           <div v-for="m in matchCards" :key="m.title" class="card flex flex-col gap-4">
             <div class="section-header">
               <h2 class="eyebrow">{{ m.title }}</h2>
@@ -135,12 +142,12 @@ watch(
             </div>
             <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
               <div class="min-w-0 space-y-1">
-                <img :src="team.logo_url || '/logo.jpg'" alt="" class="mx-auto size-12 object-contain sm:size-14" />
-                <p class="truncate text-sm font-bold">{{ team.name }}</p>
+                <img v-if="m.sides[0].logo" :src="m.sides[0].logo" alt="" class="mx-auto size-12 object-contain sm:size-14" />
+                <p class="truncate text-sm font-bold">{{ m.sides[0].name }}</p>
               </div>
               <div class="space-y-1">
                 <template v-if="m.game.team_score !== null && m.game.opponent_score !== null">
-                  <p class="score">{{ m.game.team_score }} : {{ m.game.opponent_score }}</p>
+                  <p class="score">{{ m.sides[0].score }} : {{ m.sides[1].score }}</p>
                   <span v-if="result(m.game)" :class="['badge', result(m.game) === 'W' ? 'badge-win' : 'badge-loss']">{{
                     result(m.game) === 'W' ? 'ניצחון' : 'הפסד'
                   }}</span>
@@ -154,12 +161,13 @@ watch(
                 </template>
               </div>
               <div class="min-w-0 space-y-1">
-                <img v-if="m.game.opponent.logo_url" :src="m.game.opponent.logo_url" alt="" class="mx-auto size-12 object-contain sm:size-14" />
-                <p class="truncate text-sm font-bold">{{ m.game.opponent.name }}</p>
+                <img v-if="m.sides[1].logo" :src="m.sides[1].logo" alt="" class="mx-auto size-12 object-contain sm:size-14" />
+                <p class="truncate text-sm font-bold">{{ m.sides[1].name }}</p>
               </div>
             </div>
             <div class="mt-auto flex flex-wrap items-center gap-2 text-sm text-muted">
-              <span>{{ formatDateTime(m.game.scheduled_at) }}</span>
+              <!-- an unplayed game already shows its date in the middle -->
+              <span v-if="m.game.team_score !== null && m.game.opponent_score !== null">{{ formatDateTime(m.game.scheduled_at) }}</span>
               <GameLocationLinks v-if="m.game.is_home && team.home_court_address" :address="team.home_court_address" />
               <RouterLink to="/schedule" class="section-link ms-auto">ללוח המשחקים</RouterLink>
             </div>
@@ -194,7 +202,7 @@ watch(
             <h2 class="section-title">סרטונים</h2>
             <RouterLink to="/media" class="section-link">כל הסרטונים</RouterLink>
           </div>
-          <ul class="grid gap-6 sm:grid-cols-2">
+          <ul class="grid gap-6" :class="{ 'sm:grid-cols-2': latestVideos.length > 1 }">
             <li v-for="video in latestVideos" :key="video.id">
               <VideoCard :video="video" />
             </li>
@@ -220,7 +228,7 @@ watch(
         </section>
       </div>
 
-      <aside v-if="hasSocial" class="space-y-4">
+      <aside v-if="hasSocial" class="min-w-0 space-y-4">
         <div class="flex flex-wrap gap-2">
           <a v-if="team.facebook_url" :href="team.facebook_url" target="_blank" rel="noopener" class="btn-secondary">פייסבוק</a>
           <a v-if="team.instagram_url" :href="team.instagram_url" target="_blank" rel="noopener" class="btn-secondary">אינסטגרם</a>

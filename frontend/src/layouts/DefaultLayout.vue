@@ -90,12 +90,12 @@ onMounted(async () => {
             :aria-label="(selectedTeam?.name ?? 'גוש כדורסל') + ' — דף הבית'"
             class="flex min-w-0 items-center gap-2"
           >
-            <!-- ponytail: team logos are transparent PNGs, so no bg/rounded on them -->
+            <!-- white tile: uploaded logos often carry their own white background -->
             <img
               v-if="selectedTeam?.logo_url"
               :src="selectedTeam.logo_url"
               alt=""
-              class="size-9 shrink-0 object-contain md:size-10"
+              class="size-9 shrink-0 rounded-lg bg-white object-contain p-0.5 md:size-10"
             />
             <img v-else :src="LOGO_URL" alt="גוש כדורסל" class="size-9 rounded md:size-10" />
             <span v-if="selectedTeam" class="truncate font-extrabold">{{ selectedTeam.name }}</span>
@@ -111,7 +111,7 @@ onMounted(async () => {
             ><AppIcon name="pin"
           /></a>
           <nav data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden md:block">
-            <ul class="flex gap-6">
+            <ul class="flex gap-4 lg:gap-6">
               <li v-for="item in navItems" :key="item.label">
                 <!-- exact-active ignores the hash, so the #lineups link would light up with שחקנים -->
                 <RouterLink
@@ -131,14 +131,12 @@ onMounted(async () => {
     <section
       v-if="selectedTeam && isHome"
       data-testid="hero"
-      class="relative isolate overflow-hidden bg-brand bg-cover bg-[position:50%_65%] text-white"
+      class="relative isolate h-28 bg-brand bg-cover bg-[position:50%_65%] sm:h-40 landscape:max-md:h-20"
       :style="{ backgroundImage: `url(/backgrounds/${selectedTeam.background ?? 'hoop-1'}.jpg)` }"
     >
-      <div class="absolute inset-0 -z-10 bg-linear-to-t from-black/85 via-black/45 to-black/10" aria-hidden="true" />
-      <div class="mx-auto flex max-w-6xl items-end gap-4 px-4 pb-6 pt-20 sm:px-6 sm:pt-28 md:pb-10 landscape:max-md:pt-8">
-        <img v-if="selectedTeam.logo_url" :src="selectedTeam.logo_url" alt="" class="size-16 object-contain drop-shadow-lg sm:size-24" />
-        <h1 class="text-display md:text-[4rem]">{{ selectedTeam.name }}</h1>
-      </div>
+      <!-- the header already shows logo + name; the hero is atmosphere only -->
+      <div class="absolute inset-0 bg-linear-to-t from-surface to-transparent" aria-hidden="true" />
+      <h1 class="sr-only">{{ selectedTeam.name }}</h1>
     </section>
 
     <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-10 md:pb-12">

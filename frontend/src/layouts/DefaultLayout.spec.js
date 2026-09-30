@@ -290,7 +290,7 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('[data-testid="hero"]').exists()).toBe(false)
   })
 
-  it('hero shows the team logo and name as the page heading; the map pin lives in the header', async () => {
+  it('hero carries no second logo; the name is a screen-reader heading; the map pin lives in the header', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -300,8 +300,8 @@ describe('DefaultLayout', () => {
 
     const hero = wrapper.find('[data-testid="hero"]')
     expect(hero.find('a').exists()).toBe(false)
-    expect(hero.find('img[src="https://cdn.example.com/logo-a.png"]').exists()).toBe(true)
-    expect(hero.find('h1').text()).toBe('קבוצה א')
+    expect(hero.find('img').exists()).toBe(false)
+    expect(hero.find('h1.sr-only').text()).toBe('קבוצה א')
     const a = wrapper.find('header a[href^="https://www.google.com/maps"]')
     expect(a.attributes('href')).toBe(
       'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('אולם הספורט, תל אביב'),
