@@ -225,3 +225,6 @@ frontend/dist/
 *.local
 
 *.dump
+
+# Self-hosted runner secrets
+.env.runners
