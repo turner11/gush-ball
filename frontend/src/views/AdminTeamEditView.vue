@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 
 import ImageUpload from '../components/ImageUpload.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
@@ -12,28 +12,42 @@ const teamId = route.params.id
 
 const { error, get, update } = useTeams()
 
-// Plain inputs shown above and below the color pickers.
-const NAME_FIELDS = [
-  { key: 'name', label: 'שם', type: 'text', required: true },
-  { key: 'name_en', label: 'שם (אנגלית)', type: 'text' },
+// Each group is one fieldset; every field keeps its `team-${key}` input id.
+const GROUPS = [
+  {
+    legend: 'פרטים',
+    fields: [
+      { key: 'name', label: 'שם', type: 'text', required: true },
+      { key: 'name_en', label: 'שם (אנגלית)', type: 'text' },
+      { key: 'home_court_address', label: 'כתובת אולם הבית', type: 'text' },
+    ],
+  },
+  { legend: 'מיתוג', fields: [{ key: 'logo_url', label: 'כתובת לוגו', type: 'url' }] },
+  {
+    legend: 'רשתות חברתיות',
+    fields: [
+      { key: 'facebook_url', label: 'פייסבוק', type: 'url' },
+      { key: 'instagram_url', label: 'אינסטגרם', type: 'url' },
+      { key: 'youtube_url', label: 'יוטיוב', type: 'url' },
+      { key: 'tiktok_url', label: 'טיקטוק', type: 'url' },
+      { key: 'twitter_url', label: 'טוויטר (X)', type: 'url' },
+    ],
+  },
+  {
+    legend: 'מקורות נתונים',
+    fields: [
+      { key: 'ibasketball_team_url', label: 'כתובת קבוצה ב-ibasketball', type: 'url' },
+      { key: 'ibasketball_league_url', label: 'כתובת ליגה ב-ibasketball', type: 'url' },
+    ],
+  },
 ]
-const DETAIL_FIELDS = [
-  { key: 'logo_url', label: 'כתובת לוגו', type: 'url' },
-  { key: 'home_court_address', label: 'כתובת אולם הבית', type: 'text' },
-  { key: 'facebook_url', label: 'פייסבוק', type: 'url' },
-  { key: 'instagram_url', label: 'אינסטגרם', type: 'url' },
-  { key: 'youtube_url', label: 'יוטיוב', type: 'url' },
-  { key: 'tiktok_url', label: 'טיקטוק', type: 'url' },
-  { key: 'twitter_url', label: 'טוויטר (X)', type: 'url' },
-  { key: 'ibasketball_team_url', label: 'כתובת קבוצה ב-ibasketball', type: 'url' },
-  { key: 'ibasketball_league_url', label: 'כתובת ליגה ב-ibasketball', type: 'url' },
-]
+const [details, branding, socials, sources] = GROUPS
 
 const team = ref(null)
 const loading = ref(true)
 const submitting = ref(false)
 const form = reactive({
-  ...Object.fromEntries([...NAME_FIELDS, ...DETAIL_FIELDS].map((f) => [f.key, ''])),
+  ...Object.fromEntries(GROUPS.flatMap((g) => g.fields).map((f) => [f.key, ''])),
   primary_color: '#000000',
   secondary_color: '#000000',
   background: 'hoop-1',
@@ -107,73 +121,126 @@ const contentSections = [
 
 <template>
   <section class="space-y-8">
-    <h1 class="page-title">עריכת קבוצה</h1>
+    <div class="page-header">
+      <h1 class="page-title">עריכת קבוצה</h1>
+      <div class="flex gap-2">
+        <RouterLink to="/admin/teams" class="section-link">← כל הקבוצות</RouterLink>
+        <RouterLink v-if="team" :to="'/' + teamSlug(team)" class="section-link">צפייה באתר</RouterLink>
+      </div>
+    </div>
 
     <template v-if="team">
-      <form class="max-w-lg space-y-3" @submit.prevent="onSubmit">
-        <div>
-          <span class="field-label">מזהה (slug)</span>
-          <p class="mt-1 text-neutral-600 dark:text-neutral-400">{{ teamSlug(team) }}</p>
-        </div>
-
-        <div v-for="field in NAME_FIELDS" :key="field.key">
-          <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
-          <input
-            :id="`team-${field.key}`"
-            v-model="form[field.key]"
-            :type="field.type"
-            :required="field.required"
-            class="field-input"
-          />
-        </div>
-
-        <div class="flex gap-4">
+      <form class="space-y-4" @submit.prevent="onSubmit">
+        <fieldset class="card space-y-3">
+          <legend class="section-title">{{ details.legend }}</legend>
           <div>
-            <label for="team-primary-color" class="field-label">צבע ראשי</label>
-            <input id="team-primary-color" v-model="form.primary_color" type="color" class="mt-1" />
+            <span class="field-label">מזהה (slug)</span>
+            <p class="mt-1 text-neutral-600 dark:text-neutral-400">{{ teamSlug(team) }}</p>
           </div>
-          <div>
-            <label for="team-secondary-color" class="field-label">צבע משני</label>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div v-for="field in details.fields" :key="field.key">
+            <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
             <input
-              id="team-secondary-color"
-              v-model="form.secondary_color"
-              type="color"
-              class="mt-1"
+              :id="`team-${field.key}`"
+              v-model="form[field.key]"
+              :type="field.type"
+              :required="field.required"
+              class="field-input"
             />
           </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="card space-y-3">
+          <legend class="section-title">{{ branding.legend }}</legend>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label for="team-primary-color" class="field-label">צבע ראשי</label>
+              <div class="mt-1 flex items-center gap-2">
+                <input id="team-primary-color" v-model="form.primary_color" type="color" class="h-11 w-16 rounded" />
+                <span class="text-sm tabular-nums" dir="ltr">{{ form.primary_color }}</span>
+              </div>
+            </div>
+            <div>
+              <label for="team-secondary-color" class="field-label">צבע משני</label>
+              <div class="mt-1 flex items-center gap-2">
+                <input id="team-secondary-color" v-model="form.secondary_color" type="color" class="h-11 w-16 rounded" />
+                <span class="text-sm tabular-nums" dir="ltr">{{ form.secondary_color }}</span>
+              </div>
+            </div>
+            <div>
+              <label for="team-background" class="field-label">רקע</label>
+              <select id="team-background" v-model="form.background" class="field-input">
+                <option value="hoop-1">רקע 1</option>
+                <option value="hoop-2">רקע 2</option>
+              </select>
+            </div>
+            <div v-for="field in branding.fields" :key="field.key">
+              <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
+              <input :id="`team-${field.key}`" v-model="form[field.key]" :type="field.type" class="field-input" />
+              <ImageUpload v-if="field.key === 'logo_url'" @uploaded="(url) => (form.logo_url = url)" />
+              <img v-if="field.key === 'logo_url' && form.logo_url" :src="form.logo_url" alt="" class="mt-2 size-16 object-contain" />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="card space-y-3">
+          <legend class="section-title">{{ socials.legend }}</legend>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div v-for="field in socials.fields" :key="field.key">
+            <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
+            <input
+              :id="`team-${field.key}`"
+              v-model="form[field.key]"
+              :type="field.type"
+              :required="field.required"
+              class="field-input"
+            />
+          </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="card space-y-3">
+          <legend class="section-title">{{ sources.legend }}</legend>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div v-for="field in sources.fields" :key="field.key">
+            <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
+            <input
+              :id="`team-${field.key}`"
+              v-model="form[field.key]"
+              :type="field.type"
+              :required="field.required"
+              class="field-input"
+            />
+          </div>
+          </div>
+        </fieldset>
+
+        <p v-if="error" class="error-text" role="alert">{{ error }}</p>
+
+        <div class="sticky bottom-0 -mx-4 border-t bg-neutral-50/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 dark:bg-neutral-900/95">
+          <button type="submit" :disabled="submitting" class="btn-primary w-full sm:w-auto">
+            שמירה
+          </button>
         </div>
-
-        <div>
-          <label for="team-background" class="field-label">רקע</label>
-          <select id="team-background" v-model="form.background" class="field-input">
-            <option value="hoop-1">רקע 1</option>
-            <option value="hoop-2">רקע 2</option>
-          </select>
-        </div>
-
-        <div v-for="field in DETAIL_FIELDS" :key="field.key">
-          <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
-          <input :id="`team-${field.key}`" v-model="form[field.key]" :type="field.type" class="field-input" />
-          <ImageUpload v-if="field.key === 'logo_url'" @uploaded="(url) => (form.logo_url = url)" />
-        </div>
-
-        <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
-
-        <button type="submit" :disabled="submitting" class="btn-primary w-full">
-          שמירה
-        </button>
       </form>
 
-      <TeamContentSection
-        v-for="section in contentSections"
-        :key="section.resource"
-        :team-id="teamId"
-        :resource="section.resource"
-        :heading="section.heading"
-        :fields="section.fields"
-      />
+      <h2 class="page-title">תוכן הקבוצה</h2>
+      <div class="grid gap-6 lg:grid-cols-2">
+        <TeamContentSection
+          v-for="section in contentSections"
+          :key="section.resource"
+          :team-id="teamId"
+          :resource="section.resource"
+          :heading="section.heading"
+          :fields="section.fields"
+        />
+      </div>
     </template>
-    <p v-else-if="loading" class="text-neutral-500">טוען...</p>
-    <p v-else class="text-red-600 dark:text-red-400">{{ error || 'הקבוצה לא נמצאה' }}</p>
+    <div v-else-if="loading" class="space-y-3" aria-busy="true">
+      <div class="skeleton h-32" />
+      <div class="skeleton h-32" />
+    </div>
+    <p v-else class="error-text" role="alert">{{ error || 'הקבוצה לא נמצאה' }}</p>
   </section>
 </template>

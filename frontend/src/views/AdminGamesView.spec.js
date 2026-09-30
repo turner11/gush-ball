@@ -72,7 +72,7 @@ describe('AdminGamesView', () => {
 
     expect(wrapper.text()).toContain('מכבי')
     expect(wrapper.text()).toContain(formatDateTime('2026-10-01T18:00:00'))
-    expect(wrapper.text()).toContain('scheduled')
+    expect(wrapper.text()).toContain('מתוכנן')
   })
 
   it('submitting the add-game form POSTs the payload and the new game appears in the list', async () => {
@@ -145,7 +145,7 @@ describe('AdminGamesView', () => {
       '/api/teams/1/games/100',
       expect.objectContaining({ method: 'PATCH' }),
     )
-    expect(wrapper.text()).toContain('final')
+    expect(wrapper.text()).toContain('הסתיים')
     expect(wrapper.text()).toContain('80')
   })
 

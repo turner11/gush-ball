@@ -4,8 +4,18 @@ import { onMounted, ref, watch } from 'vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
+import { STATUS_LABELS } from '../lib/games'
 
-const STATUSES = ['scheduled', 'final', 'postponed', 'cancelled']
+const STATUSES = Object.keys(STATUS_LABELS)
+
+const FIELD_LABELS = {
+  scheduled_at: 'תאריך',
+  status: 'סטטוס',
+  team_score: 'תוצאה — קבוצה',
+  opponent_score: 'תוצאה — יריבה',
+  is_home: 'בית/חוץ',
+  opponent_name: 'יריבה',
+}
 
 function emptyForm() {
   return {
@@ -89,7 +99,10 @@ function resetForm() {
   form.value = emptyForm()
 }
 
+const formEl = ref(null)
+
 function startEdit(game) {
+  formEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   editing.value = game
   statsMessage.value = null
   form.value = {
@@ -186,160 +199,160 @@ async function onDelete(game) {
 
 <template>
   <section class="space-y-6">
-    <h1 class="page-title">ניהול משחקים</h1>
-
-    <div>
-      <label for="team-select" class="field-label">קבוצה</label>
-      <select id="team-select" v-model="selectedTeamId" class="field-input">
-        <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
-      </select>
-    </div>
-
-    <div v-if="pendingGames.length">
-      <h2 class="section-title">ממתינים לאישור</h2>
-      <table class="w-full text-start">
-        <thead>
-          <tr class="table-header-row">
-            <th class="py-2 text-start">יריבה</th>
-            <th class="py-2 text-start">תאריך</th>
-            <th class="py-2 text-start">בית/חוץ</th>
-            <th class="py-2 text-start">סטטוס</th>
-            <th class="py-2 text-start">תוצאה</th>
-            <th class="py-2 text-start"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <template v-for="game in pendingGames" :key="game.id">
-            <tr class="table-row">
-              <td class="py-2">{{ game.opponent.name }}</td>
-              <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
-              <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
-              <td class="py-2">{{ game.status }}</td>
-              <td class="py-2">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
-              <td class="py-2">
-                <span class="inline-flex gap-2">
-                  <button type="button" class="hover:underline" @click="startEdit(game)">ערוך</button>
-                  <button
-                    v-if="!game.scrape_suggestion"
-                    type="button"
-                    class="hover:underline"
-                    @click="approveGame(game)"
-                  >
-                    אשר
-                  </button>
-                  <template v-else>
-                    <button type="button" class="hover:underline" @click="acceptSuggestion(game)">
-                      קבל עדכון
-                    </button>
-                    <button type="button" class="hover:underline" @click="rejectSuggestion(game)">
-                      דחה
-                    </button>
-                  </template>
-                </span>
-              </td>
-            </tr>
-            <tr v-if="game.scrape_suggestion" class="table-row text-sm opacity-80">
-              <td class="py-1" colspan="6">
-                <span
-                  v-for="key in Object.keys(game.scrape_suggestion)"
-                  :key="key"
-                  class="me-4"
-                >
-                  {{ key }}: {{ suggestionCurrentValue(game, key) }} → {{ game.scrape_suggestion[key] }}
-                </span>
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
-    </div>
-
-    <table class="w-full text-start">
-      <thead>
-        <tr class="table-header-row">
-          <th class="py-2 text-start">יריבה</th>
-          <th class="py-2 text-start">תאריך</th>
-          <th class="py-2 text-start">בית/חוץ</th>
-          <th class="py-2 text-start">סטטוס</th>
-          <th class="py-2 text-start">תוצאה</th>
-          <th class="py-2 text-start"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="game in games" :key="game.id" class="table-row">
-          <td class="py-2">{{ game.opponent.name }}</td>
-          <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
-          <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
-          <td class="py-2">{{ game.status }}</td>
-          <td class="py-2">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
-          <td class="py-2">
-            <span class="inline-flex gap-2">
-              <button type="button" class="hover:underline" @click="startEdit(game)">ערוך</button>
-              <button type="button" class="text-red-600 hover:underline dark:text-red-400" @click="onDelete(game)">מחק</button>
-            </span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <form class="max-w-sm space-y-3" @submit.prevent="onSubmit">
-      <h2 class="section-title">{{ editing ? 'עריכת משחק' : 'הוספת משחק' }}</h2>
-
-      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
-
+    <div class="page-header">
+      <h1 class="page-title">ניהול משחקים</h1>
       <div>
-        <label for="game-opponent-name" class="field-label">יריבה</label>
-        <input id="game-opponent-name" v-model="form.opponent_name" type="text" required class="field-input" />
-      </div>
-
-      <div>
-        <label for="game-scheduled-at" class="field-label">תאריך ושעה</label>
-        <input id="game-scheduled-at" v-model="form.scheduled_at" type="datetime-local" required class="field-input" />
-      </div>
-
-      <div class="flex items-center gap-2">
-        <input id="game-is-home" v-model="form.is_home" type="checkbox" />
-        <label for="game-is-home" class="field-label">משחק בית</label>
-      </div>
-
-      <div>
-        <label for="game-status" class="field-label">סטטוס</label>
-        <select id="game-status" v-model="form.status" class="field-input">
-          <option v-for="s in STATUSES" :key="s" :value="s">{{ s }}</option>
+        <label for="team-select" class="field-label">קבוצה</label>
+        <select id="team-select" v-model="selectedTeamId" class="field-input">
+          <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
         </select>
       </div>
+    </div>
 
-      <div class="flex gap-2">
-        <div>
-          <label for="game-team-score" class="field-label">תוצאה — קבוצה</label>
-          <input id="game-team-score" v-model="form.team_score" type="number" class="field-input" />
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div class="min-w-0 space-y-6">
+        <section v-if="pendingGames.length" class="card space-y-2 border-amber-300 dark:border-amber-700">
+          <h2 class="section-title">
+            ממתינים לאישור <span class="badge badge-muted">{{ pendingGames.length }}</span>
+          </h2>
+          <div class="table-wrap">
+            <table class="w-full text-start">
+              <thead>
+                <tr class="table-header-row">
+                  <th class="py-2 text-start">יריבה</th>
+                  <th class="py-2 text-start">תאריך</th>
+                  <th class="py-2 text-start">בית/חוץ</th>
+                  <th class="py-2 text-start">סטטוס</th>
+                  <th class="py-2 text-start">תוצאה</th>
+                  <th class="py-2 text-start"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="game in pendingGames" :key="game.id">
+                  <tr class="table-row">
+                    <td class="py-2">{{ game.opponent.name }}</td>
+                    <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
+                    <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
+                    <td class="py-2"><span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span></td>
+                    <td class="py-2 tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
+                    <td class="py-2">
+                      <span class="inline-flex gap-1">
+                        <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
+                        <button v-if="!game.scrape_suggestion" type="button" class="btn-ghost" @click="approveGame(game)">
+                          אשר
+                        </button>
+                        <template v-else>
+                          <button type="button" class="btn-ghost" @click="acceptSuggestion(game)">קבל עדכון</button>
+                          <button type="button" class="btn-danger-ghost" @click="rejectSuggestion(game)">דחה</button>
+                        </template>
+                      </span>
+                    </td>
+                  </tr>
+                  <tr v-if="game.scrape_suggestion" class="table-row text-sm">
+                    <td class="py-1" colspan="6">
+                      <span v-for="key in Object.keys(game.scrape_suggestion)" :key="key" class="me-4">
+                        {{ FIELD_LABELS[key] ?? key }}: <del>{{ suggestionCurrentValue(game, key) }}</del> →
+                        <strong>{{ game.scrape_suggestion[key] }}</strong>
+                      </span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="table-wrap">
+          <table class="w-full text-start">
+            <thead>
+              <tr class="table-header-row">
+                <th class="py-2 text-start">יריבה</th>
+                <th class="py-2 text-start">תאריך</th>
+                <th class="py-2 text-start">בית/חוץ</th>
+                <th class="py-2 text-start">סטטוס</th>
+                <th class="py-2 text-start">תוצאה</th>
+                <th class="py-2 text-start"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="game in games" :key="game.id" class="table-row">
+                <td class="py-2">{{ game.opponent.name }}</td>
+                <td class="py-2">{{ formatDateTime(game.scheduled_at) }}</td>
+                <td class="py-2">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
+                <td class="py-2"><span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span></td>
+                <td class="py-2 tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
+                <td class="py-2">
+                  <span class="inline-flex gap-1">
+                    <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
+                    <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+      </div>
+
+      <form ref="formEl" class="card space-y-3 lg:sticky lg:top-6" @submit.prevent="onSubmit">
+        <h2 class="section-title">{{ editing ? 'עריכת משחק' : 'הוספת משחק' }}</h2>
+
+        <p v-if="error" class="error-text" role="alert">{{ error }}</p>
+
         <div>
-          <label for="game-opponent-score" class="field-label">תוצאה — יריבה</label>
-          <input id="game-opponent-score" v-model="form.opponent_score" type="number" class="field-input" />
+          <label for="game-opponent-name" class="field-label">יריבה</label>
+          <input id="game-opponent-name" v-model="form.opponent_name" type="text" required class="field-input" />
         </div>
-      </div>
 
-      <div>
-        <label for="game-description" class="field-label">תיאור</label>
-        <textarea id="game-description" v-model="form.description" class="field-input"></textarea>
-      </div>
+        <div>
+          <label for="game-scheduled-at" class="field-label">תאריך ושעה</label>
+          <input id="game-scheduled-at" v-model="form.scheduled_at" type="datetime-local" required class="field-input" />
+        </div>
 
-      <div v-if="editing">
-        <label for="stats-url" class="field-label">קישור לסטטיסטיקה (גיליון שמשותף ל"כל מי שיש לו קישור")</label>
-        <input id="stats-url" v-model="statsUrl" type="url" class="field-input" />
-        <button type="button" class="btn-secondary mt-2" @click="loadStats">טען סטטיסטיקה</button>
-        <p v-if="statsMessage" class="text-sm">{{ statsMessage }}</p>
-      </div>
+        <div class="flex items-center gap-2">
+          <input id="game-is-home" v-model="form.is_home" type="checkbox" class="size-5" />
+          <label for="game-is-home" class="field-label">משחק בית</label>
+        </div>
 
-      <div class="flex gap-2">
-        <button type="submit" class="btn-primary">
-          {{ editing ? 'שמירה' : 'הוספה' }}
-        </button>
-        <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
-          ביטול
-        </button>
-      </div>
-    </form>
+        <div>
+          <label for="game-status" class="field-label">סטטוס</label>
+          <select id="game-status" v-model="form.status" class="field-input">
+            <option v-for="s in STATUSES" :key="s" :value="s">{{ STATUS_LABELS[s] }}</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="game-team-score" class="field-label">תוצאה — קבוצה</label>
+            <input id="game-team-score" v-model="form.team_score" type="number" class="field-input" />
+          </div>
+          <div>
+            <label for="game-opponent-score" class="field-label">תוצאה — יריבה</label>
+            <input id="game-opponent-score" v-model="form.opponent_score" type="number" class="field-input" />
+          </div>
+        </div>
+
+        <div>
+          <label for="game-description" class="field-label">תיאור</label>
+          <textarea id="game-description" v-model="form.description" class="field-input"></textarea>
+        </div>
+
+        <div v-if="editing" class="space-y-2 border-t pt-3 dark:border-neutral-700">
+          <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
+          <label for="stats-url" class="field-label">קישור לסטטיסטיקה (גיליון שמשותף ל"כל מי שיש לו קישור")</label>
+          <input id="stats-url" v-model="statsUrl" type="url" class="field-input" />
+          <button type="button" class="btn-secondary" @click="loadStats">טען סטטיסטיקה</button>
+          <p v-if="statsMessage" class="text-sm">{{ statsMessage }}</p>
+        </div>
+
+        <div class="flex gap-2">
+          <button type="submit" class="btn-primary">
+            {{ editing ? 'שמירה' : 'הוספה' }}
+          </button>
+          <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
+            ביטול
+          </button>
+        </div>
+      </form>
+    </div>
   </section>
 </template>

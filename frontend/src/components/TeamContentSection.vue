@@ -77,27 +77,27 @@ onMounted(load)
 </script>
 
 <template>
-  <section class="space-y-3">
+  <section class="card space-y-3">
     <h2 class="section-title">{{ heading }}</h2>
 
-    <ul v-if="items.length" class="space-y-1">
+    <ul v-if="items.length" class="divide-y dark:divide-neutral-700">
       <li
         v-for="item in items"
         :key="item.id"
-        class="flex items-center justify-between rounded border border-neutral-300 px-3 py-2 dark:border-neutral-600"
+        class="flex items-center justify-between gap-2 py-2"
       >
-        <span>{{ fields.map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
-        <span class="inline-flex gap-3">
+        <span class="min-w-0 truncate">{{ fields.map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
+        <span class="inline-flex shrink-0 gap-1">
           <button
             type="button"
-            class="text-sm text-neutral-600 dark:text-neutral-400"
+            class="btn-ghost"
             @click="onEdit(item)"
           >
             עריכה
           </button>
           <button
             type="button"
-            class="text-sm text-red-600 dark:text-red-400"
+            class="btn-danger-ghost"
             @click="confirmDelete(item.id)"
           >
             מחיקה
@@ -115,6 +115,7 @@ onMounted(load)
     />
 
     <form class="space-y-2" @submit.prevent="onSubmit">
+      <p v-if="editingId" class="text-sm text-neutral-500">עורך: {{ fields.map((f) => form[f.key]).filter(Boolean)[0] }}</p>
       <div v-for="field in fields" :key="field.key">
         <label :for="`${resource}-${field.key}`" class="field-label">
           {{ field.label }}
@@ -137,7 +138,7 @@ onMounted(load)
         <ImageUpload v-if="field.upload" @uploaded="(url) => (form[field.key] = url)" />
       </div>
 
-      <p v-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
+      <p v-if="error" class="error-text" role="alert">{{ error }}</p>
 
       <div class="flex gap-2">
         <button type="submit" :disabled="submitting" class="btn-primary">
