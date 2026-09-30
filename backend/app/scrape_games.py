@@ -48,21 +48,19 @@ def _get_page(url: str) -> str:
 
 
 def _scrape_address(url: str) -> str | None:
-    """Club address from the static team page ("" if the page has none); None on fetch error.
+    """Home court from the team page's venue link ("" if the page has none); None on fetch error.
 
+    Never reads div.data-address: that is the club's contact address, not the court.
     Never lets a failure lose the games sync.
     """
     try:
-        node = BeautifulSoup(_get_page(url), "html.parser").select_one("div.data-address")
+        node = BeautifulSoup(_get_page(url), "html.parser").select_one("div.data-venue a")
     except httpx.HTTPError:
         log.warning("Could not fetch address from %s", url, exc_info=True)
         return None
     if node is None:
         return ""
-    if label := node.find("span"):
-        label.extract()
-    address = node.get_text(strip=True)
-    return address[:300]
+    return node.get_text(strip=True)[:300]
 
 
 def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -> Opponent:

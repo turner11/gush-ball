@@ -56,8 +56,12 @@ class FakeApi:
             return OPPONENT_DETAIL
         raise AssertionError(f"unexpected path {path}")
 
-ADDRESS_HTML = '<div class="data-address"><span>כתובת:</span>יהודה פרח, נתניה, 4223577</div>'
-ADDRESS = "יהודה פרח, נתניה, 4223577"
+ADDRESS_HTML = (
+    '<div class="data-venue"><span>אולם:</span>'
+    '<a href="https://ibasketball.co.il/venue/2087/">בי"ס זבוטינסקי, הרקפת 44, בית שמש</a></div>'
+    '<div class="data-address"><span>כתובת:</span>הצבר 19/14 ראשון לציון, ראשון לציון, 0</div>'
+)
+ADDRESS = 'בי"ס זבוטינסקי, הרקפת 44, בית שמש'
 
 
 @pytest.fixture(autouse=True)
@@ -188,7 +192,19 @@ def test_sync_never_overwrites_admin_home_court_address(
 
 
 @pytest.mark.parametrize(
-    ("failure", "stored"), [("<p>no address</p>", ""), (httpx.ConnectError("boom"), None)]
+    ("failure", "stored"),
+    [
+        ("<p>no address</p>", ""),
+        # Empty venue (seen live on team 13673): never fall back to the club address.
+        (
+            (
+                '<div class="data-venue"><span>אולם:</span></div>'
+                '<div class="data-address"><span>כתובת:</span> , , 0</div>'
+            ),
+            "",
+        ),
+        (httpx.ConnectError("boom"), None),
+    ],
 )
 def test_sync_address_missing_or_fetch_error_still_syncs_games(
     db_session: Session, monkeypatch: pytest.MonkeyPatch, failure: object, stored: str | None
