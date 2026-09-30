@@ -131,7 +131,7 @@ onMounted(async () => {
     <section
       v-if="selectedTeam && isHome"
       data-testid="hero"
-      class="relative isolate h-28 bg-brand bg-cover bg-[position:50%_65%] sm:h-40 [@media(max-height:30rem)]:h-16"
+      class="relative h-28 bg-brand bg-cover bg-[position:50%_65%] sm:h-40 [@media(max-height:30rem)]:h-16"
       :style="{ backgroundImage: `url(/backgrounds/${selectedTeam.background ?? 'hoop-1'}.jpg)` }"
     >
       <!-- the header already shows logo + name; the hero is atmosphere only -->

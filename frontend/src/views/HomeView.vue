@@ -9,7 +9,7 @@ import VideoCard from '../components/VideoCard.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime, formatGameDate } from '../lib/format'
-import { result, splitGames } from '../lib/games'
+import { homeFirst, played, result, splitGames } from '../lib/games'
 
 const team = ref(null)
 const links = ref([])
@@ -66,8 +66,7 @@ const matchCards = computed(() =>
       const g = m.game
       const us = { name: team.value.name, logo: team.value.logo_url || '/logo.jpg', score: g.team_score }
       const them = { name: g.opponent.name, logo: g.opponent.logo_url, score: g.opponent_score }
-      // Home side first (right, in RTL), like every scoreboard.
-      return { ...m, d: formatGameDate(g.scheduled_at), sides: g.is_home ? [us, them] : [them, us] }
+      return { ...m, d: formatGameDate(g.scheduled_at), played: played(g), sides: homeFirst(g, us, them) }
     }),
 )
 
@@ -157,7 +156,7 @@ watch(
                 <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': lone }">{{ m.sides[0].name }}</p>
               </div>
               <div class="space-y-1">
-                <template v-if="m.game.team_score !== null && m.game.opponent_score !== null">
+                <template v-if="m.played">
                   <p class="score" :class="{ 'sm:text-6xl': lone }">{{ m.sides[0].score }} : {{ m.sides[1].score }}</p>
                   <span v-if="result(m.game)" :class="['badge', result(m.game) === 'W' ? 'badge-win' : 'badge-loss']">{{
                     result(m.game) === 'W' ? 'ניצחון' : 'הפסד'
@@ -178,7 +177,7 @@ watch(
             </div>
             <div class="mt-auto flex flex-wrap items-center gap-2 text-sm text-muted">
               <!-- an unplayed game already shows its date in the middle -->
-              <span v-if="m.game.team_score !== null && m.game.opponent_score !== null">{{ formatDateTime(m.game.scheduled_at) }}</span>
+              <span v-if="m.played">{{ formatDateTime(m.game.scheduled_at) }}</span>
               <GameLocationLinks v-if="m.game.is_home && team.home_court_address" :address="team.home_court_address" />
               <RouterLink to="/schedule" class="section-link ms-auto">ללוח המשחקים</RouterLink>
             </div>

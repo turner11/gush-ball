@@ -5,7 +5,7 @@ import AppIcon from '../components/AppIcon.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatGameDate } from '../lib/format'
-import { result, splitGames, STATUS_LABELS } from '../lib/games'
+import { homeFirst, played, result, splitGames, STATUS_LABELS } from '../lib/games'
 
 const games = ref([])
 const team = ref(null)
@@ -41,7 +41,6 @@ async function loadGames() {
 
 watch(selectedTeamId, loadGames, { immediate: true })
 
-const scored = (g) => g.team_score !== null && g.opponent_score !== null
 const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'border-transparent'
 </script>
 
@@ -82,8 +81,8 @@ const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'borde
               <p v-if="game.d" class="text-sm text-muted">{{ game.d.weekday }} · {{ game.d.time }} · {{ game.is_home ? 'בית' : 'חוץ' }}</p>
             </div>
             <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
-              <template v-if="scored(game)">
-                <span class="text-xl font-black tabular-nums">{{ game.team_score }} : {{ game.opponent_score }}</span>
+              <template v-if="played(game)">
+                <span class="text-xl font-black tabular-nums">{{ homeFirst(game, game.team_score, game.opponent_score).join(' : ') }}</span>
                 <span v-if="result(game)" :class="['badge', result(game) === 'W' ? 'badge-win' : 'badge-loss']">{{ result(game) === 'W' ? 'ניצחון' : 'הפסד' }}</span>
               </template>
               <span v-else class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span>

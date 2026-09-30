@@ -99,7 +99,7 @@ async function onDelete(row) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in rows" :key="row.id" class="table-row">
+            <tr v-for="row in rows" :key="row.id" class="table-body-row">
               <td v-for="field in FIELDS" :key="field.key" :data-label="field.column">{{ row[field.key] }}</td>
               <td class="justify-end">
                 <span class="inline-flex gap-1">

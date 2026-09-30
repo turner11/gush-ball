@@ -197,7 +197,9 @@
   .table-header-row {
     @apply border-b border-line text-xs font-semibold text-muted;
   }
-  .table-row {
+  /* not `.table-row`: that is Tailwind's display:table-row utility, which wins over this layer and
+     broke the stacked admin cards (a table-row inside a block tbody shrink-wraps) */
+  .table-body-row {
     @apply border-b border-line transition-colors hover:bg-sunken/60;
   }
 

@@ -258,7 +258,7 @@ async function onDelete(game) {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="game in games" :key="game.id" class="table-row">
+              <tr v-for="game in games" :key="game.id" class="table-body-row">
                 <td data-label="יריבה">{{ game.opponent.name }}</td>
                 <td data-label="תאריך">{{ formatDateTime(game.scheduled_at) }}</td>
                 <td data-label="בית/חוץ">{{ game.is_home ? 'בית' : 'חוץ' }}</td>

@@ -153,7 +153,7 @@ async function deleteImage(player, image) {
     </div>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-      <div class="space-y-4">
+      <div class="min-w-0 space-y-4">
         <div class="table-wrap">
           <table class="data-table">
             <thead>
@@ -165,7 +165,7 @@ async function deleteImage(player, image) {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="player in players" :key="player.id" class="table-row">
+              <tr v-for="player in players" :key="player.id" class="table-body-row">
                 <td data-label="מספר">{{ player.jersey_number }}</td>
                 <td data-label="שם">{{ player.name }}</td>
                 <td data-label="תמונות" class="max-sm:flex-wrap">
@@ -201,7 +201,7 @@ async function deleteImage(player, image) {
           <div v-if="deletedPlayers" class="table-wrap">
             <table class="mt-2 w-full text-start">
               <tbody>
-                <tr v-for="player in deletedPlayers" :key="player.id" class="table-row">
+                <tr v-for="player in deletedPlayers" :key="player.id" class="table-body-row">
                   <td class="py-2">{{ player.jersey_number }}</td>
                   <td class="py-2">{{ player.name }}</td>
                   <td class="py-2">

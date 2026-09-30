@@ -9,4 +9,10 @@ describe('design tokens', () => {
       expect(src, path).not.toMatch(/dark:|-(neutral|green|red|amber)-\d/)
     }
   })
+
+  it('no .vue file uses the bare `table-row` class (a Tailwind display utility; rows use table-body-row)', () => {
+    for (const [path, src] of Object.entries(sources)) {
+      expect(src, path).not.toMatch(/class="[^"]*\btable-row(?![\w-])/)
+    }
+  })
 })

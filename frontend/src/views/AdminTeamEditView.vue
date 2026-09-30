@@ -181,7 +181,8 @@ const contentSections = [
       </form>
 
       <h2 class="page-title">תוכן הקבוצה</h2>
-      <div class="grid gap-6 lg:grid-cols-2">
+      <!-- grid-cols-1 = minmax(0,1fr): an implicit track grows to fit a long truncated item and overflows the page -->
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <TeamContentSection
           v-for="section in contentSections"
           :key="section.resource"

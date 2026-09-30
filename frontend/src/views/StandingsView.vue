@@ -72,37 +72,37 @@ watch(selectedTeamId, load, { immediate: true })
         <table class="w-full text-start">
           <thead>
             <tr class="table-header-row">
-              <th class="px-3 py-2.5 text-center" title="דירוג">#</th>
-              <th class="px-3 py-2.5 text-start">קבוצה</th>
-              <th class="px-3 py-2.5 text-center" title="משחקים">מש׳</th>
-              <th class="px-3 py-2.5 text-center" title="נצחונות">נ׳</th>
-              <th class="px-3 py-2.5 text-center" title="הפסדים">ה׳</th>
-              <th class="hidden px-3 py-2.5 text-center sm:table-cell" title="נקודות זכות">נק' זכות</th>
-              <th class="hidden px-3 py-2.5 text-center sm:table-cell" title="נקודות חובה">נק' חובה</th>
-              <th class="hidden px-3 py-2.5 text-center sm:table-cell" title="הפרש">הפרש</th>
-              <th class="px-3 py-2.5 text-center" title="נקודות">נק׳</th>
+              <th class="px-2 py-2.5 sm:px-3 text-center" title="דירוג">#</th>
+              <th class="px-2 py-2.5 sm:px-3 text-start">קבוצה</th>
+              <th class="px-2 py-2.5 sm:px-3 text-center" title="משחקים">מש׳</th>
+              <th class="px-2 py-2.5 sm:px-3 text-center" title="נצחונות">נ׳</th>
+              <th class="px-2 py-2.5 sm:px-3 text-center" title="הפסדים">ה׳</th>
+              <th class="hidden px-2 py-2.5 sm:px-3 text-center sm:table-cell" title="נקודות זכות">נק' זכות</th>
+              <th class="hidden px-2 py-2.5 sm:px-3 text-center sm:table-cell" title="נקודות חובה">נק' חובה</th>
+              <th class="hidden px-2 py-2.5 sm:px-3 text-center sm:table-cell" title="הפרש">הפרש</th>
+              <th class="px-2 py-2.5 sm:px-3 text-center" title="נקודות">נק׳</th>
             </tr>
           </thead>
           <tbody>
             <tr
               v-for="row in leagueRows"
               :key="row.id"
-              class="table-row"
+              class="table-body-row"
               :class="{ 'border-s-4 border-team bg-team/10 font-bold': row.id === myRow.id }"
             >
-              <td class="px-3 py-2.5 text-center tabular-nums text-muted">{{ row.rank }}</td>
-              <td class="min-w-40 px-3 py-2.5">
+              <td class="px-2 py-2.5 sm:px-3 text-center tabular-nums text-muted">{{ row.rank }}</td>
+              <td class="min-w-32 px-2 py-2.5 sm:min-w-40 sm:px-3">
                 <img v-if="rowLogo(row)" :src="rowLogo(row)" alt="" class="me-2 inline size-7 object-contain" />
                 <a v-if="row.source_url" :href="row.source_url" target="_blank" rel="noopener" class="hover:underline">{{ row.team_name }}</a>
                 <template v-else>{{ row.team_name }}</template>
               </td>
-              <td class="px-3 py-2.5 text-center tabular-nums">{{ row.played }}</td>
-              <td class="px-3 py-2.5 text-center tabular-nums">{{ row.won }}</td>
-              <td class="px-3 py-2.5 text-center tabular-nums">{{ row.lost }}</td>
-              <td class="hidden px-3 py-2.5 text-center tabular-nums sm:table-cell">{{ row.points_for }}</td>
-              <td class="hidden px-3 py-2.5 text-center tabular-nums sm:table-cell">{{ row.points_against }}</td>
-              <td class="hidden px-3 py-2.5 text-center tabular-nums sm:table-cell"><span dir="ltr">{{ signed(row.points_for - row.points_against) }}</span></td>
-              <td class="px-3 py-2.5 text-center font-bold tabular-nums">{{ row.points }}</td>
+              <td class="px-2 py-2.5 sm:px-3 text-center tabular-nums">{{ row.played }}</td>
+              <td class="px-2 py-2.5 sm:px-3 text-center tabular-nums">{{ row.won }}</td>
+              <td class="px-2 py-2.5 sm:px-3 text-center tabular-nums">{{ row.lost }}</td>
+              <td class="hidden px-2 py-2.5 sm:px-3 text-center tabular-nums sm:table-cell">{{ row.points_for }}</td>
+              <td class="hidden px-2 py-2.5 sm:px-3 text-center tabular-nums sm:table-cell">{{ row.points_against }}</td>
+              <td class="hidden px-2 py-2.5 sm:px-3 text-center tabular-nums sm:table-cell"><span dir="ltr">{{ signed(row.points_for - row.points_against) }}</span></td>
+              <td class="px-2 py-2.5 sm:px-3 text-center font-bold tabular-nums">{{ row.points }}</td>
             </tr>
           </tbody>
         </table>
