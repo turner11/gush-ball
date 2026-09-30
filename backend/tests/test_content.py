@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.models import Team, TeamImage, TeamLink, TeamPost, TeamVideo
+from app.models import Player, Team, TeamImage, TeamLink, TeamPost, TeamVideo
 
 # (segment, model_class, create_payload, patch_payload, patch_field, original_value_of_patch_field)
 RESOURCES = [
@@ -254,3 +254,52 @@ def test_patch_null_url_rejected(
     row = db_session.get(model_class, item_id)
     assert row.url == created["url"]
     assert row.url != "None"
+
+
+MEDIA = pytest.mark.parametrize(
+    ("segment", "create_payload"),
+    [(r[0], r[2]) for r in RESOURCES if r[0] in ("videos", "images")],
+    ids=["videos", "images"],
+)
+
+
+@MEDIA
+def test_media_player_tags_roundtrip(
+    admin_client: TestClient,
+    client: TestClient,
+    db_session: Session,
+    team: Team,
+    segment: str,
+    create_payload: dict,
+) -> None:
+    p1, p2 = Player(team_id=team.id, name="A"), Player(team_id=team.id, name="B")
+    db_session.add_all([p1, p2])
+    db_session.commit()
+    base = f"/teams/{team.id}/{segment}"
+
+    created = admin_client.post(base, json={**create_payload, "player_ids": [p1.id, p2.id]})
+    assert created.status_code == 201, created.text
+    assert created.json()["player_ids"] == [p1.id, p2.id]
+    item = f"{base}/{created.json()['id']}"
+
+    assert client.get(base).json()[0]["player_ids"] == [p1.id, p2.id]
+    assert admin_client.patch(item, json={"player_ids": [p2.id]}).json()["player_ids"] == [p2.id]
+    assert admin_client.patch(item, json={"title": "x"}).json()["player_ids"] == [p2.id]
+    assert admin_client.patch(item, json={"player_ids": []}).json()["player_ids"] == []
+
+
+@MEDIA
+def test_media_player_tags_default_empty(
+    admin_client: TestClient, team: Team, segment: str, create_payload: dict
+) -> None:
+    response = admin_client.post(f"/teams/{team.id}/{segment}", json=create_payload)
+    assert response.json()["player_ids"] == []
+
+
+@MEDIA
+def test_patch_null_player_ids_rejected(
+    admin_client: TestClient, team: Team, segment: str, create_payload: dict
+) -> None:
+    base = f"/teams/{team.id}/{segment}"
+    item_id = admin_client.post(base, json=create_payload).json()["id"]
+    assert admin_client.patch(f"{base}/{item_id}", json={"player_ids": None}).status_code == 422
