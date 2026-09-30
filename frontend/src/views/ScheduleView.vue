@@ -86,7 +86,7 @@ const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'borde
               </template>
             </div>
             <div class="min-w-0 flex-1">
-              <p class="truncate font-bold">
+              <p class="break-words font-bold">
                 <template v-for="(side, i) in game.sides" :key="i">
                   <span v-if="i" class="font-normal text-muted"> - </span>
                   <a v-if="side.url" :href="side.url" target="_blank" rel="noopener" class="hover:underline">{{ side.name }}</a>
