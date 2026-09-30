@@ -3,6 +3,7 @@ defineProps({ name: { type: String, required: true } })
 
 // Lucide-style paths, drawn by hand.
 const PATHS = {
+  waze: 'M12 3a8 8 0 0 0-7 11.9L4 20l4.5-1.2A8 8 0 1 0 12 3zM9 11h.01M15 11h.01M9 14.5c1 1 5 1 6 0',
   pin: 'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0zM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon: 'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z',
