@@ -26,6 +26,20 @@ describe('PlayerCard', () => {
   const slide = (w) => w.find('[data-testid="slide"]')
   const shown = (w) => slide(w).attributes('src')
 
+  it('applies the stored face focus to the circle photo', () => {
+    const w = mountCard({ player: { ...PLAYER, images: [{ url: '/a.jpg', focus_x: 50, focus_y: 40.5, zoom: 1.5 }] } })
+    const style = w.find('img').attributes('style')
+    expect(style).toContain('object-position: 50% 40.5%')
+    expect(style).toContain('transform-origin: 50% 40.5%')
+    expect(style).toContain('transform: scale(1.5)')
+  })
+
+  it('keeps top anchoring when an image has no focus', () => {
+    const img = mountCard({ player: PLAYER }).find('img')
+    expect(img.attributes('style')).toBeUndefined()
+    expect(img.classes()).toContain('object-top')
+  })
+
   it('fills the card with a slideshow advancing every 3 seconds while hovered', async () => {
     const w = mountCard({ player: PLAYER })
     expect(slide(w).exists()).toBe(false)

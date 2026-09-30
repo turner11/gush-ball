@@ -31,5 +31,9 @@ class PlayerImage(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
     url: Mapped[str] = mapped_column(String(500))
+    # Face focal point (CSS %) and zoom (>= 1) for the round avatar; NULL = not analysed yet.
+    focus_x: Mapped[float | None] = mapped_column(default=None)
+    focus_y: Mapped[float | None] = mapped_column(default=None)
+    zoom: Mapped[float | None] = mapped_column(default=None)
 
     player: Mapped["Player"] = relationship(back_populates="images")

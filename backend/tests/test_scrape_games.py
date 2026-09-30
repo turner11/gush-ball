@@ -1,6 +1,8 @@
 from datetime import UTC, datetime
 
+import cv2
 import httpx
+import numpy as np
 import pytest
 from sqlalchemy.orm import Session
 
@@ -453,6 +455,7 @@ def _fake_roster(monkeypatch: pytest.MonkeyPatch, html_text: str) -> list[dict]:
 
     monkeypatch.setattr(scrape_games, "_get_html", fake)
     monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
+    monkeypatch.setattr(scrape_games, "_get_image", lambda url: b"x")
     return calls
 
 
@@ -599,3 +602,69 @@ def test_sync_team_players_card_without_img_creates_player_without_image(
 
     assert scrape_games.sync_team_players(db_session, team) == 1
     assert _images(db_session) == {"איתי": []}
+
+
+def test_focus_centers_face_in_tall_photo() -> None:
+    assert scrape_games._focus(800, 1732, (120, 570, 520, 520)) == pytest.approx((50.0, 40.56, 1.0), abs=0.01)
+
+
+def test_focus_zooms_small_face_capped_and_clamped_to_edges() -> None:
+    assert scrape_games._focus(800, 800, (300, 300, 100, 100)) == pytest.approx((40.625, 38.75, 3.0))
+    assert scrape_games._focus(800, 1600, (0, 0, 40, 40)) == (0.0, 0.0, 3.0)
+    assert scrape_games._focus(1200, 800, (900, 100, 200, 200)) == pytest.approx((100.0, 0.0, 2.0))
+
+
+def test_face_focus_without_face_defaults_to_top_center() -> None:
+    blank = cv2.imencode(".png", np.full((400, 300), 255, np.uint8))[1].tobytes()
+    for data in (b"", b"not an image", blank):
+        assert scrape_games.face_focus(data) == (50.0, 0.0, 1.0)
+
+
+def _image_focus(db: Session) -> list[tuple]:
+    return [(i.url, i.focus_x, i.focus_y, i.zoom) for i in db.query(PlayerImage).order_by(PlayerImage.url)]
+
+
+def test_sync_team_players_stores_face_focus_once(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    player = Player(team_id=team.id, name="איתי ורולקר")
+    player.images.append(PlayerImage(url="https://cdn/admin.png"))
+    db_session.add(player)
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+    fetched: list[str] = []
+    monkeypatch.setattr(scrape_games, "_get_image", lambda url: fetched.append(url) or b"x")
+    monkeypatch.setattr(scrape_games, "face_focus", lambda data: (40.0, 30.0, 1.5))
+
+    scrape_games.sync_team_players(db_session, team)
+
+    assert _image_focus(db_session) == [
+        ("https://cdn/admin.png", 40.0, 30.0, 1.5),
+        ("https://ibasketball.co.il/b.jpg", 40.0, 30.0, 1.5),
+    ]
+    assert sorted(fetched) == ["https://cdn/admin.png", "https://ibasketball.co.il/b.jpg"]
+
+    scrape_games.sync_team_players(db_session, team)
+    assert len(fetched) == 2
+
+
+def test_sync_team_players_image_fetch_error_keeps_players_and_retries(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, ROSTER_HTML)
+    calls: list[str] = []
+
+    def boom(url: str) -> bytes:
+        calls.append(url)
+        raise httpx.ConnectError("x")
+
+    monkeypatch.setattr(scrape_games, "_get_image", boom)
+
+    assert scrape_games.sync_team_players(db_session, team) == 2
+    assert [f[1] for f in _image_focus(db_session)] == [None, None]
+    assert len(calls) == 2
+
+    scrape_games.sync_team_players(db_session, team)
+    assert len(calls) == 4
