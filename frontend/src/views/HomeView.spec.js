@@ -382,7 +382,7 @@ describe('HomeView', () => {
   it('gives the main column more width than the social aside', async () => {
     const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
 
-    expect(wrapper.html()).toContain('lg:grid-cols-[3fr_2fr]')
+    expect(wrapper.html()).toContain('lg:grid-cols-[1fr_20rem]')
     expect(wrapper.html()).toContain('gap-12')
     // grid tracks never shrink below their content without min-w-0; the carousel would overflow the page
     const grid = wrapper.find('.gap-12').element

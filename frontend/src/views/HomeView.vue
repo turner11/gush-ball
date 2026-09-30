@@ -91,7 +91,7 @@ const facebookEmbedSrc = computed(
     fbWidth.value &&
     'https://www.facebook.com/plugins/page.php?href=' +
       encodeURIComponent(team.value.facebook_url) +
-      `&tabs=timeline&width=${fbWidth.value}&height=480&small_header=true`,
+      `&tabs=timeline&width=${fbWidth.value}&height=400&small_header=true`,
 )
 
 const instagramUsername = computed(() => {
@@ -141,8 +141,8 @@ watch(
   </section>
 
   <section v-else-if="team" class="space-y-10 sm:space-y-14">
-    <!-- side-by-side only from lg: at md the aside is too narrow for the embeds -->
-    <div class="grid gap-12" :class="{ 'lg:grid-cols-[3fr_2fr]': hasSocial }">
+    <!-- side-by-side only from lg; a fixed 20rem aside keeps the embeds secondary to the content -->
+    <div class="grid gap-12" :class="{ 'lg:grid-cols-[1fr_20rem]': hasSocial }">
       <!-- min-w-0: without it the player carousel's width stretches this track and overflows the page -->
       <div class="min-w-0 space-y-10 sm:space-y-14">
         <div v-if="nextGame || lastGame" class="grid gap-3 sm:gap-4" :class="{ 'sm:grid-cols-2': !lone }">
@@ -216,7 +216,7 @@ watch(
             <h2 class="section-title">סרטונים</h2>
             <RouterLink to="/media" class="section-link">כל הסרטונים</RouterLink>
           </div>
-          <ul class="grid gap-6" :class="{ 'sm:grid-cols-2': latestVideos.length > 1 }">
+          <ul class="grid gap-6 sm:grid-cols-2">
             <li v-for="video in latestVideos" :key="video.id">
               <VideoCard :video="video" />
             </li>
@@ -260,7 +260,7 @@ watch(
               :src="facebookEmbedSrc"
               title="עמוד הפייסבוק של הקבוצה"
               loading="lazy"
-              class="h-[480px] w-full max-w-[500px] rounded-2xl border border-line"
+              class="h-[400px] w-full max-w-[500px] rounded-2xl border border-line"
             ></iframe>
             <!-- ponytail: undocumented IG profile embed (IG has no official profile-feed widget; official alternatives are per-post embeds or Graph API) -->
             <iframe
@@ -268,10 +268,10 @@ watch(
               :src="`https://www.instagram.com/${instagramUsername}/embed`"
               title="עמוד האינסטגרם של הקבוצה"
               loading="lazy"
-              class="h-[480px] w-full rounded-2xl border border-line"
+              class="h-[400px] w-full rounded-2xl border border-line"
             ></iframe>
-            <div v-if="team.twitter_url" :key="team.twitter_url" class="h-[480px] overflow-hidden rounded-2xl border border-line">
-              <a class="twitter-timeline" data-height="480" :href="team.twitter_url">הטוויטר של הקבוצה</a>
+            <div v-if="team.twitter_url" :key="team.twitter_url" class="h-[400px] overflow-hidden rounded-2xl border border-line">
+              <a class="twitter-timeline" data-height="400" :href="team.twitter_url">הטוויטר של הקבוצה</a>
             </div>
           </div>
         </section>
