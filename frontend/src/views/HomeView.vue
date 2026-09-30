@@ -71,17 +71,27 @@ const matchCards = computed(() =>
     }),
 )
 
+const lone = computed(() => matchCards.value.length === 1)
+
 // ponytail: the API has no ORDER BY, so highest id = newest.
 const newestPost = computed(() => posts.value.reduce((a, p) => (!a || p.id > a.id ? p : a), null))
 
 // ponytail: same highest-id-is-newest rule; the media page lists the rest.
 const latestVideos = computed(() => [...videos.value].sort((x, y) => y.id - x.id).slice(0, 2))
 
+// The page plugin renders at a fixed `width` (180–500) and clips inside a narrower frame, so measure the frame first.
+// ponytail: measured once on mount; a resize/rotation keeps the first width until reload.
+const fbFrame = ref(null)
+const fbWidth = ref(null)
+watch(fbFrame, (el) => {
+  if (el) fbWidth.value = Math.round(Math.min(500, Math.max(180, el.clientWidth)))
+})
 const facebookEmbedSrc = computed(
   () =>
+    fbWidth.value &&
     'https://www.facebook.com/plugins/page.php?href=' +
-    encodeURIComponent(team.value.facebook_url) +
-    '&tabs=timeline&width=500&height=600&small_header=true',
+      encodeURIComponent(team.value.facebook_url) +
+      `&tabs=timeline&width=${fbWidth.value}&height=480&small_header=true`,
 )
 
 const instagramUsername = computed(() => {
@@ -131,38 +141,39 @@ watch(
   </section>
 
   <section v-else-if="team" class="space-y-10 sm:space-y-14">
-    <div class="grid gap-12" :class="{ 'md:grid-cols-[3fr_2fr]': hasSocial }">
+    <!-- side-by-side only from lg: at md the aside is too narrow for the embeds -->
+    <div class="grid gap-12" :class="{ 'lg:grid-cols-[3fr_2fr]': hasSocial }">
       <!-- min-w-0: without it the player carousel's width stretches this track and overflows the page -->
       <div class="min-w-0 space-y-10 sm:space-y-14">
-        <div v-if="nextGame || lastGame" class="grid gap-3 sm:gap-4" :class="{ 'sm:grid-cols-2': matchCards.length > 1 }">
-          <div v-for="m in matchCards" :key="m.title" class="card flex flex-col gap-4">
+        <div v-if="nextGame || lastGame" class="grid gap-3 sm:gap-4" :class="{ 'sm:grid-cols-2': !lone }">
+          <div v-for="m in matchCards" :key="m.title" class="card flex flex-col gap-4" :class="{ 'sm:gap-6 sm:p-8': lone }">
             <div class="section-header">
               <h2 class="eyebrow">{{ m.title }}</h2>
               <span class="badge badge-muted">{{ m.game.is_home ? 'בית' : 'חוץ' }}</span>
             </div>
             <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
               <div class="min-w-0 space-y-1">
-                <img v-if="m.sides[0].logo" :src="m.sides[0].logo" alt="" class="mx-auto size-12 object-contain sm:size-14" />
-                <p class="truncate text-sm font-bold">{{ m.sides[0].name }}</p>
+                <img v-if="m.sides[0].logo" :src="m.sides[0].logo" alt="" class="mx-auto size-12 object-contain" :class="lone ? 'sm:size-24' : 'sm:size-14'" />
+                <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': lone }">{{ m.sides[0].name }}</p>
               </div>
               <div class="space-y-1">
                 <template v-if="m.game.team_score !== null && m.game.opponent_score !== null">
-                  <p class="score">{{ m.sides[0].score }} : {{ m.sides[1].score }}</p>
+                  <p class="score" :class="{ 'sm:text-6xl': lone }">{{ m.sides[0].score }} : {{ m.sides[1].score }}</p>
                   <span v-if="result(m.game)" :class="['badge', result(m.game) === 'W' ? 'badge-win' : 'badge-loss']">{{
                     result(m.game) === 'W' ? 'ניצחון' : 'הפסד'
                   }}</span>
                 </template>
                 <template v-else-if="m.d">
-                  <p class="text-2xl font-black tabular-nums">{{ m.d.time }}</p>
-                  <p class="text-xs text-muted">
+                  <p class="text-2xl font-black tabular-nums" :class="{ 'sm:text-6xl': lone }">{{ m.d.time }}</p>
+                  <p class="text-xs text-muted" :class="{ 'sm:text-sm': lone }">
                     {{ m.d.weekday }} {{ m.d.day }}
                     {{ m.d.month }}
                   </p>
                 </template>
               </div>
               <div class="min-w-0 space-y-1">
-                <img v-if="m.sides[1].logo" :src="m.sides[1].logo" alt="" class="mx-auto size-12 object-contain sm:size-14" />
-                <p class="truncate text-sm font-bold">{{ m.sides[1].name }}</p>
+                <img v-if="m.sides[1].logo" :src="m.sides[1].logo" alt="" class="mx-auto size-12 object-contain" :class="lone ? 'sm:size-24' : 'sm:size-14'" />
+                <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': lone }">{{ m.sides[1].name }}</p>
               </div>
             </div>
             <div class="mt-auto flex flex-wrap items-center gap-2 text-sm text-muted">
@@ -190,8 +201,11 @@ watch(
             <h2 class="section-title">שחקנים</h2>
             <RouterLink to="/roster" class="section-link">כל השחקנים</RouterLink>
           </div>
-          <ul class="scroll-row -mx-4 flex snap-x snap-mandatory gap-3 px-4 pb-2 sm:-mx-6 sm:px-6">
-            <li v-for="player in players" :key="player.id" class="card w-36 shrink-0 snap-start p-3">
+          <!-- swipe row on touch widths; from md a wrapping grid (mouse users can't scroll a hidden-scrollbar row) -->
+          <ul
+            class="scroll-row -mx-4 flex snap-x snap-mandatory gap-3 px-4 pb-2 sm:-mx-6 sm:px-6 md:mx-0 md:grid md:grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] md:px-0"
+          >
+            <li v-for="player in players" :key="player.id" class="card w-36 shrink-0 snap-start p-3 md:w-auto">
               <PlayerCard :player="player" />
             </li>
           </ul>
@@ -242,10 +256,11 @@ watch(
           <div class="space-y-4">
             <iframe
               v-if="team.facebook_url"
+              ref="fbFrame"
               :src="facebookEmbedSrc"
               title="עמוד הפייסבוק של הקבוצה"
               loading="lazy"
-              class="h-[600px] w-full max-w-[500px] border-0"
+              class="h-[480px] w-full max-w-[500px] rounded-2xl border border-line"
             ></iframe>
             <!-- ponytail: undocumented IG profile embed (IG has no official profile-feed widget; official alternatives are per-post embeds or Graph API) -->
             <iframe
@@ -253,10 +268,10 @@ watch(
               :src="`https://www.instagram.com/${instagramUsername}/embed`"
               title="עמוד האינסטגרם של הקבוצה"
               loading="lazy"
-              class="h-[600px] w-full border-0"
+              class="h-[480px] w-full rounded-2xl border border-line"
             ></iframe>
-            <div v-if="team.twitter_url" :key="team.twitter_url" class="h-[600px] overflow-hidden">
-              <a class="twitter-timeline" data-height="600" :href="team.twitter_url">הטוויטר של הקבוצה</a>
+            <div v-if="team.twitter_url" :key="team.twitter_url" class="h-[480px] overflow-hidden rounded-2xl border border-line">
+              <a class="twitter-timeline" data-height="480" :href="team.twitter_url">הטוויטר של הקבוצה</a>
             </div>
           </div>
         </section>

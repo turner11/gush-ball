@@ -138,6 +138,8 @@ describe('HomeView', () => {
     const src = wrapper.find('iframe').attributes('src')
     expect(src.startsWith('https://www.facebook.com/plugins/page.php?')).toBe(true)
     expect(src).toContain('href=https%3A%2F%2Fwww.facebook.com%2Fgushclub')
+    // sized to its frame (jsdom reports 0px), clamped to the plugin's 180–500 range
+    expect(src).toContain('width=180&')
   })
 
   it('renders no social embed when all social urls are null', async () => {
@@ -380,7 +382,7 @@ describe('HomeView', () => {
   it('gives the main column more width than the social aside', async () => {
     const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
 
-    expect(wrapper.html()).toContain('md:grid-cols-[3fr_2fr]')
+    expect(wrapper.html()).toContain('lg:grid-cols-[3fr_2fr]')
     expect(wrapper.html()).toContain('gap-12')
     // grid tracks never shrink below their content without min-w-0; the carousel would overflow the page
     const grid = wrapper.find('.gap-12').element
