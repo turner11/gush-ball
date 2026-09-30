@@ -38,9 +38,13 @@ jobs:
         run: |
           set -o pipefail
           issue_number="${{ github.event.issue.number }}"
-          timeout 85m claude -p "Read .claude/skills/work-issue/SKILL.md and follow it precisely for issue #${issue_number}. \$ARGUMENTS is ${issue_number} — skip Steps 1-2 and go directly to Step 3. You are running unattended in CI: nobody will answer questions. Never wait for user input — at every point where the skill says to ask the user, take the safe default and continue, and finish by opening the draft PR." \
-            --allowedTools "Bash,Read,Write,Edit,Glob,Grep,Agent" \
-            --max-turns 150 \
+          timeout 175m claude -p "Read .claude/skills/fan-out-issues/SKILL.md and follow it for exactly one issue, #${issue_number}. You are running unattended in CI: nobody will answer questions. Overrides:
+          - Skip Steps 1-4. The wave is just #${issue_number}. Use the current checkout (already on origin/master) instead of a worktree, and write the plan to ${RUNNER_TEMP}/issue-${issue_number}-plan.md.
+          - Model 'auto' does not exist here. Use model opus for plan and adversary review, sonnet for execute and fix passes, and opus for the mid-tier escalation.
+          - Run every subagent in the foreground (no run_in_background) and wait for it.
+          - Wherever a skill says to ask or hand back to the user, take the safe default. On BLOCK, stall, or hitting the cap, post the Step 8 report as a comment on the PR (or on the issue if no PR was opened) and stop." \
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep,Agent,Skill" \
+            --max-turns 200 \
             --verbose \
             --output-format stream-json \
           | jq --unbuffered -r '
