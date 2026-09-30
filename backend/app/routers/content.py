@@ -42,12 +42,14 @@ class TitledUrlCreate(BaseModel):
     title: str
     title_en: str | None = None
     url: HttpUrl
+    player_ids: list[int] = []
 
 
 class TitledUrlUpdate(BaseModel):
     title: str | None = None
     title_en: str | None = None
     url: HttpUrl | None = None
+    player_ids: list[int] = []
 
 
 class TitledUrlOut(BaseModel):
@@ -58,6 +60,7 @@ class TitledUrlOut(BaseModel):
     title: str
     title_en: str | None
     url: str
+    player_ids: list[int]
 
 
 class TeamPostCreate(BaseModel):
@@ -92,6 +95,14 @@ def _to_columns(data: dict) -> dict:
     return data
 
 
+def _check_player_ids(team, data: dict) -> None:
+    # team.players includes soft-deleted rows, so already-tagged removed players stay valid.
+    if not set(data.get("player_ids", [])) <= {p.id for p in team.players}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown player_ids"
+        )
+
+
 def _add_crud_routes(
     resource: str,
     model: type[Base],
@@ -110,8 +121,9 @@ def _add_crud_routes(
 
     @router.post(path, response_model=out_schema, status_code=status.HTTP_201_CREATED)
     def create(team_id: int, payload: create_schema, db: DbSession, _admin_id: RequireAdmin):
-        get_team_or_404(db, team_id)
-        item = model(team_id=team_id, **_to_columns(payload.model_dump()))
+        data = payload.model_dump()
+        _check_player_ids(get_team_or_404(db, team_id), data)
+        item = model(team_id=team_id, **_to_columns(data))
         db.add(item)
         db.commit()
         db.refresh(item)
@@ -127,6 +139,7 @@ def _add_crud_routes(
     ):
         item = get_item_or_404(db, team_id, item_id)
         data = payload.model_dump(exclude_unset=True)
+        _check_player_ids(get_team_or_404(db, team_id), data)
         if "url" in data and data["url"] is None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="url cannot be null"

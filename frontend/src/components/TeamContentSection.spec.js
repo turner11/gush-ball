@@ -130,4 +130,27 @@ describe('TeamContentSection', () => {
       expect.objectContaining({ method: 'DELETE' }),
     )
   })
+
+  it('players field sends an empty array and survives the payload filter', async () => {
+    mockFetch({
+      'GET /api/teams/1/images': () => jsonRes([]),
+      'GET /api/teams/1/players': () => jsonRes([]),
+      'POST /api/teams/1/images': () => jsonRes({ id: 1, title: 't', player_ids: [] }, 201),
+    })
+
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const fields = [
+      { key: 'title', label: 'כותרת', type: 'text' },
+      { key: 'player_ids', label: 'תיוג שחקנים', type: 'players' },
+    ]
+    const wrapper = mount(TeamContentSection, {
+      props: { teamId: 1, resource: 'images', heading: 'תמונות', fields },
+    })
+    await flushPromises()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    const post = global.fetch.mock.calls.find(([, o]) => o?.method === 'POST')
+    expect(JSON.parse(post[1].body)).toEqual({ player_ids: [] })
+  })
 })
