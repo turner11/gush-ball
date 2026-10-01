@@ -181,8 +181,9 @@ Only an existing admin whose `email` matches the (verified) Google account can s
 3. In Coolify open the backend service → **Environment Variables**, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`,
    then click **Redeploy**. *Why:* the backend reads them at start; the login button appears only when both are set.
 4. Give each admin an email (see above). *Why:* the email is the allowlist.
-5. Verify: `https://<domain>/admin/login` shows "כניסה עם Google", and signing in with a listed account lands on `/admin`.
-   An unlisted Google account returns to the login page with the red error.
+5. Verify: open `https://<domain>/admin/login` and click **כניסה עם Google**. A Google window opens; after you pick a
+   listed account the window closes and the login page moves to `/admin`. An unlisted account closes the window and
+   shows the red error. With popups blocked it falls back to a full-page redirect.
 
 ### 4.2 Auto-deploy on merge
 

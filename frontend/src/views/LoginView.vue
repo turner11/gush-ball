@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useAuth } from '../composables/useAuth'
@@ -12,12 +12,43 @@ const username = ref('')
 const password = ref('')
 const submitting = ref(false)
 
-const { error, login } = useAuth()
+const { error, login, checkSession } = useAuth()
 const router = useRouter()
 const route = useRoute()
 
 const googleEnabled = ref(false)
+const googleWaiting = ref(false)
+
+// The popup tells this window the result over a same-origin channel: Google's pages may sever window.opener.
+const channel = new BroadcastChannel('google-signin')
+channel.onmessage = async ({ data }) => {
+  googleWaiting.value = false
+  if (data !== true) return router.replace({ query: { error: 'google' } })
+  await checkSession() // the router guard skips /auth/me once `checked`, so refresh the user here
+  router.push({ name: 'admin-home' })
+}
+onUnmounted(() => channel.close())
+
+function openGooglePopup(event) {
+  const popup = window.open('/api/auth/google/login?popup=1', 'google-signin', 'popup,width=500,height=650')
+  if (!popup || popup.closed) return // blocked: the link's own full-page navigation is the fallback
+  event.preventDefault()
+  googleWaiting.value = true
+  if (route.query.error) router.replace({ query: {} })
+}
+
 onMounted(async () => {
+  const popupResult = route.query.google_popup
+  if (popupResult) {
+    channel.postMessage(popupResult === 'ok')
+    window.close()
+    // Still open (not script-closable)? Behave like the full-page flow in this window.
+    if (popupResult === 'ok') {
+      await checkSession()
+      return router.replace({ name: 'admin-home' })
+    }
+    return router.replace({ query: { error: 'google' } })
+  }
   try {
     googleEnabled.value = (await apiFetch('/auth/options')).google === true
   } catch {
@@ -78,8 +109,11 @@ async function onSubmit() {
 
     <RouterLink :to="{ name: 'admin-reset-password' }" class="section-link">שכחתי סיסמה</RouterLink>
 
-    <!-- Plain link: Google sign-in is a full-page navigation, not a fetch. -->
-    <a v-if="googleEnabled" href="/api/auth/google/login" class="btn-secondary w-full">כניסה עם Google</a>
+    <!-- Opens a popup; the href is the full-page fallback when popups are blocked. -->
+    <a v-if="googleEnabled" href="/api/auth/google/login" class="btn-secondary w-full" @click="openGooglePopup">
+      כניסה עם Google
+    </a>
+    <p v-if="googleWaiting" class="text-sm text-muted text-center" role="status">ממתין לכניסה בחלון Google…</p>
     <p v-if="route.query.error === 'google'" class="error-text" role="alert">
       הכניסה עם Google נכשלה או שהחשבון אינו מורשה
     </p>
