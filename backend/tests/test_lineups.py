@@ -203,9 +203,10 @@ def test_game_read_has_stats(admin_client, client, db_session, fake_sheet) -> No
 HEADER = CSV.splitlines()[0]
 
 
-def test_empty_sheet_saves_url_with_zero_snapshots(admin_client, client, db_session, monkeypatch) -> None:
-    # A headers-only template (Google exports formatted blank rows as ",,,,") is valid before tip-off.
-    monkeypatch.setattr("app.routers.lineups.fetch_csv", lambda url: HEADER + "\n,,,,,,,,\n")
+@pytest.mark.parametrize("body", [",,,,,,,,\n", "1,2,3,4,5,0,0,1,\n"], ids=["blank-rows", "rows-without-time"])
+def test_empty_sheet_saves_url_with_zero_snapshots(admin_client, client, db_session, monkeypatch, body) -> None:
+    # A template with no timed rows (Google exports formatted blank rows as ",,,,") is valid before tip-off.
+    monkeypatch.setattr("app.routers.lineups.fetch_csv", lambda url: HEADER + "\n" + body)
     game = _make_game(db_session)
 
     r = admin_client.post(_stats_path(game), json={"url": URL})

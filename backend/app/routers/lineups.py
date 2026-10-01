@@ -45,10 +45,11 @@ def load_game_stats(
     if not url:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No stats URL")
     try:
-        # ponytail: a headers-only sheet is valid pre-game but BBStats raises on it (pd.concat([])),
-        # so guard here; drop once BBStats returns an empty result.
-        raw = pd.read_csv(StringIO(fetch_csv(url))).dropna(how="all")
-        df = get_snapshots_df(raw) if len(raw) else pd.DataFrame()
+        # ponytail: a sheet with no timed rows is valid pre-game but BBStats raises on it (pd.concat([])),
+        # so guard here with BBStats' own emptiness test (null time); drop once the bumped bbstats
+        # handles empty sheets: https://github.com/turner11/BBStats/issues/10
+        raw = pd.read_csv(StringIO(fetch_csv(url)))
+        df = get_snapshots_df(raw) if raw["Time Left"].notna().any() else pd.DataFrame()
     except Exception as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,

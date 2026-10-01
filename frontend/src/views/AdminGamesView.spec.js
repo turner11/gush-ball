@@ -492,6 +492,14 @@ describe('AdminGamesView', () => {
       expect(link.attributes('target')).toBe('_blank')
     })
 
+    it('hides the template hint when no template is configured', async () => {
+      const wrapper = await mountEditing()
+      expect(wrapper.text()).toContain('צרו גיליון מהתבנית')
+      ;(await import('../composables/useAuth')).useAuth().user.value = { ...USER, stats_template_url: '' }
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('צרו גיליון מהתבנית')
+    })
+
     it('loading an empty sheet says it was saved and gives the row a live link', async () => {
       const wrapper = await mountEditing({
         'POST /api/teams/1/games/100/stats': () => jsonRes({ stats_url: SHEET, snapshots: 0 }),

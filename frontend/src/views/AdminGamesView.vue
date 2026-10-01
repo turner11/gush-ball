@@ -332,7 +332,7 @@ async function onDelete(game) {
           <label for="stats-url" class="field-label">קישור לסטטיסטיקה (גיליון שמשותף ל"כל מי שיש לו קישור")</label>
           <input id="stats-url" v-model="statsUrl" type="url" class="field-input" />
           <a v-if="user?.stats_template_url" :href="sheetCopyUrl(user.stats_template_url)" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
-          <p class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו טען. אחרי המשחק: טענו שוב.</p>
+          <p v-if="user?.stats_template_url" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו טען. אחרי המשחק: טענו שוב.</p>
           <button type="button" class="btn-secondary" @click="loadStats">טען סטטיסטיקה</button>
           <p v-if="statsMessage" class="text-sm">{{ statsMessage }}</p>
         </div>
