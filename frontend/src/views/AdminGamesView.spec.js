@@ -30,7 +30,7 @@ function mockFetch(handlers) {
 }
 
 function jsonRes(body, status = 200) {
-  return { ok: true, status, json: async () => body }
+  return { ok: true, status, json: async () => structuredClone(body) } // the view mutates rows in place
 }
 
 function errorRes(statusText = 'Server Error') {

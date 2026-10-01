@@ -32,7 +32,11 @@ export function result(game) {
 export function liveStatsUrl(game, user, origin = window.location.origin) {
   if (!user?.stats_app_url || !game.stats_url) return null
   if (user.team_id != null && user.team_id !== game.team_id) return null
-  const query = new URLSearchParams({ data: game.stats_url, team_api: `${origin}/api/teams/${game.team_id}/players` })
+  const query = new URLSearchParams({
+    data: game.stats_url,
+    team_api: `${origin}/api/teams/${game.team_id}/players`,
+    return_url: `${origin}/stats?game=${game.id}`, // BBStats shows a "Back to the game" link to it
+  })
   return `${user.stats_app_url}?${query}`
 }
 

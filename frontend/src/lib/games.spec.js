@@ -39,10 +39,10 @@ describe('liveStatsUrl', () => {
     expect(url.searchParams.get('team_api')).toBe('https://gush.example/api/teams/3/players')
   })
 
-  it('adds an encoded return_url back to the schedule', () => {
+  it('adds an encoded return_url back to the game's stats page', () => {
     const link = liveStatsUrl(game, admin, origin)
-    expect(new URL(link).searchParams.get('return_url')).toBe('https://gush.example/schedule')
-    expect(link).toContain('return_url=https%3A%2F%2Fgush.example%2Fschedule')
+    expect(new URL(link).searchParams.get('return_url')).toBe('https://gush.example/stats?game=7')
+    expect(link).toContain('return_url=https%3A%2F%2Fgush.example%2Fstats%3Fgame%3D7')
   })
 
   it('scopes team admins to their own team', () => {
