@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import AdminUser
+from app.models import AdminUser, Team
 from app.routers import auth
 from app.security import hash_password, verify_password
 
@@ -340,6 +340,19 @@ def test_google_callback_logs_in_allowlisted_admin(seeded: TestClient, google) -
     verifier = google["posted"][0]["code_verifier"]
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
     assert challenge == q["code_challenge"][0]
+
+
+def test_google_callback_keeps_team_scope(client: TestClient, db_session: Session, google) -> None:
+    team = Team(name="T", slug="t")
+    db_session.add(team)
+    db_session.flush()
+    db_session.add(
+        AdminUser(username="tadmin", email="admin@example.com", password_hash=hash_password("x"), team_id=team.id)
+    )
+    db_session.commit()
+    q = _start_google(client)
+    assert _callback(client, q["state"][0]).headers["location"] == "/admin"
+    assert client.get("/auth/me").json()["team_id"] == team.id
 
 
 def test_google_callback_rejects_bad_state(seeded: TestClient, google) -> None:
