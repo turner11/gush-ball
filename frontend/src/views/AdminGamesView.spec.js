@@ -415,6 +415,7 @@ describe('AdminGamesView', () => {
     const call = global.fetch.mock.calls.find(([u]) => u === '/api/teams/1/games/100/stats')
     expect(JSON.parse(call[1].body)).toEqual({ url: 'http://s' })
     expect(wrapper.text()).toContain('נטענו 12 רשומות')
+    expect(wrapper.text()).not.toContain('כבר יש נתונים')
     expect(wrapper.find('a[href="/stats?game=100"]').exists()).toBe(true)
   })
 
@@ -498,6 +499,41 @@ describe('AdminGamesView', () => {
       ;(await import('../composables/useAuth')).useAuth().user.value = { ...USER, stats_template_url: '' }
       await flushPromises()
       expect(wrapper.text()).not.toContain('צרו גיליון מהתבנית')
+    })
+
+    describe('when the game already has stats', () => {
+      const POST = 'POST /api/teams/1/games/100/stats'
+      const statsCalls = () => global.fetch.mock.calls.filter(([u]) => u === '/api/teams/1/games/100/stats')
+
+      async function askToReplace() {
+        const wrapper = await mountEditing(
+          { [POST]: () => jsonRes({ stats_url: SHEET, snapshots: 5 }) },
+          { ...GAMES[0], has_stats: true, stats_url: SHEET },
+        )
+        await wrapper.findAll('button').find((b) => b.text() === 'טען סטטיסטיקה').trigger('click')
+        return wrapper
+      }
+      const alertButton = (wrapper, label) => wrapper.findAll('[role="alert"] button').find((b) => b.text() === label)
+
+      it('load asks first and cancel does not call the API', async () => {
+        const wrapper = await askToReplace()
+        expect(wrapper.find('[role="alert"]').text()).toContain('למשחק זה כבר יש נתונים')
+
+        await alertButton(wrapper, 'ביטול').trigger('click')
+        await flushPromises()
+
+        expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+        expect(statsCalls()).toHaveLength(0)
+      })
+
+      it('confirming החלף loads the sheet', async () => {
+        const wrapper = await askToReplace()
+        await alertButton(wrapper, 'החלף').trigger('click')
+        await flushPromises()
+
+        expect(statsCalls()).toHaveLength(1)
+        expect(wrapper.text()).toContain('נטענו 5 רשומות')
+      })
     })
 
     it('loading an empty sheet says it was saved and gives the row a live link', async () => {

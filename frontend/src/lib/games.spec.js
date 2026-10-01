@@ -28,7 +28,7 @@ describe('result', () => {
 })
 
 describe('liveStatsUrl', () => {
-  const game = { team_id: 3, stats_url: 'https://docs.google.com/spreadsheets/d/X/edit' }
+  const game = { id: 7, team_id: 3, stats_url: 'https://docs.google.com/spreadsheets/d/X/edit' }
   const admin = { team_id: null, stats_app_url: 'https://app.streamlit.app' }
   const origin = 'https://gush.example'
 
@@ -37,6 +37,12 @@ describe('liveStatsUrl', () => {
     expect(url.origin).toBe('https://app.streamlit.app')
     expect(url.searchParams.get('data')).toBe(game.stats_url)
     expect(url.searchParams.get('team_api')).toBe('https://gush.example/api/teams/3/players')
+  })
+
+  it('adds an encoded return_url back to the schedule', () => {
+    const link = liveStatsUrl(game, admin, origin)
+    expect(new URL(link).searchParams.get('return_url')).toBe('https://gush.example/schedule')
+    expect(link).toContain('return_url=https%3A%2F%2Fgush.example%2Fschedule')
   })
 
   it('scopes team admins to their own team', () => {
