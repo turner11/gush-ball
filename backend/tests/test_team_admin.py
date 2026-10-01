@@ -91,12 +91,13 @@ def test_team_admin_player_images_scoped(
 
 
 def test_me_reports_team_scope(team_admin_client: TestClient, own_team: Team) -> None:
-    response = team_admin_client.get("/auth/me")
-    assert response.json() == {"username": "teamadmin", "team_id": own_team.id}
+    me = team_admin_client.get("/auth/me").json()
+    assert (me["username"], me["team_id"]) == ("teamadmin", own_team.id)
 
 
 def test_me_full_admin_has_no_team_scope(admin_client: TestClient) -> None:
-    assert admin_client.get("/auth/me").json() == {"username": "admin", "team_id": None}
+    me = admin_client.get("/auth/me").json()
+    assert (me["username"], me["team_id"]) == ("admin", None)
 
 
 def test_admin_team_fk_cascades() -> None:

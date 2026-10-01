@@ -24,9 +24,9 @@ def fake_sheet(monkeypatch: pytest.MonkeyPatch) -> list:
 
     def fake(url: str):
         urls.append(url)
-        return bbstats.get_snapshots_df(CSV)
+        return CSV
 
-    monkeypatch.setattr("app.routers.lineups.get_snapshots_df", fake)
+    monkeypatch.setattr("app.routers.lineups.fetch_csv", fake)
     return urls
 
 
@@ -104,7 +104,7 @@ def test_load_stats_failure_keeps_old_snapshots(admin_client, db_session, fake_s
     def boom(url: str):
         raise RuntimeError("nope")
 
-    monkeypatch.setattr("app.routers.lineups.get_snapshots_df", boom)
+    monkeypatch.setattr("app.routers.lineups.fetch_csv", boom)
     r = admin_client.post(_stats_path(game), json={"url": URL})
 
     assert r.status_code == 422
@@ -198,3 +198,32 @@ def test_game_read_has_stats(admin_client, client, db_session, fake_sheet) -> No
     assert _has_stats_by_id(client, list_url) == {game.id: True, other.id: False}
     assert client.get(one_url).json()["has_stats"] is True
     assert client.get(f"{list_url}/{other.id}").json()["has_stats"] is False
+
+
+HEADER = CSV.splitlines()[0]
+
+
+def test_empty_sheet_saves_url_with_zero_snapshots(admin_client, client, db_session, monkeypatch) -> None:
+    # A headers-only template (Google exports formatted blank rows as ",,,,") is valid before tip-off.
+    monkeypatch.setattr("app.routers.lineups.fetch_csv", lambda url: HEADER + "\n,,,,,,,,\n")
+    game = _make_game(db_session)
+
+    r = admin_client.post(_stats_path(game), json={"url": URL})
+
+    assert r.status_code == 200
+    assert r.json() == {"stats_url": URL, "snapshots": 0}
+    db_session.refresh(game)
+    assert game.stats_url == URL
+    assert game.is_manually_overridden is False
+    assert client.get(f"/teams/{game.team_id}/games/{game.id}").json()["has_stats"] is False
+
+
+def test_game_read_exposes_stats_url(admin_client, client, db_session, fake_sheet) -> None:
+    game = _make_game(db_session)
+    single = f"/teams/{game.team_id}/games/{game.id}"
+    assert client.get(single).json()["stats_url"] is None
+
+    admin_client.post(_stats_path(game), json={"url": URL})
+
+    assert client.get(single).json()["stats_url"] == URL
+    assert client.get(f"/teams/{game.team_id}/games").json()[0]["stats_url"] == URL
