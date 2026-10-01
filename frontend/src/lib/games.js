@@ -14,6 +14,8 @@ export const STATUS_LABELS = {
   cancelled: 'בוטל',
 }
 
+export const gameStatsRoute = (g) => ({ name: 'roster', query: { game: g.id }, hash: '#lineups' })
+
 export const played = (g) => g.team_score != null && g.opponent_score != null
 
 // Scoreboard order, home side first (rightmost in RTL). Pass what each side shows: scores, names, logos...

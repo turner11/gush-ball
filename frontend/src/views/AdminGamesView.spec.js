@@ -51,7 +51,10 @@ describe('AdminGamesView', () => {
     localStorage.clear()
     router = createRouter({
       history: createWebHistory(),
-      routes: [{ path: '/', component: { template: '<div/>' } }],
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/roster', name: 'roster', component: { template: '<div/>' } },
+      ],
     })
   })
 
@@ -412,6 +415,7 @@ describe('AdminGamesView', () => {
     const call = global.fetch.mock.calls.find(([u]) => u === '/api/teams/1/games/100/stats')
     expect(JSON.parse(call[1].body)).toEqual({ url: 'http://s' })
     expect(wrapper.text()).toContain('נטענו 12 רשומות')
+    expect(wrapper.find('a[href="/roster?game=100#lineups"]').exists()).toBe(true)
   })
 
   it('shows the server error when loading stats fails', async () => {
@@ -435,5 +439,20 @@ describe('AdminGamesView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Failed to load stats sheet: boom')
+  })
+
+  it("a row links to the game's lineups when has_stats", async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes([{ ...GAMES[0], has_stats: true }, { ...GAMES[0], id: 101, has_stats: false }]),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.findAll('a[href="/roster?game=100#lineups"]')).toHaveLength(1)
+    expect(wrapper.find('a[href^="/roster?game=101"]').exists()).toBe(false)
   })
 })

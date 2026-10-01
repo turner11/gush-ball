@@ -60,4 +60,12 @@ describe('LineupStats', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('אין נתוני חמישיות עדיין.')
   })
+
+  it('passes gameId through and shows the per-game empty state', async () => {
+    mockFetch([])
+    const wrapper = mount(LineupStats, { props: { teamId: 1, players: PLAYERS, gameId: 3 } })
+    await flushPromises()
+    expect(urls()).toContain('/api/teams/1/lineups?size=5&sort=top&game_id=3')
+    expect(wrapper.text()).toContain('אין נתוני חמישיות למשחק הזה.')
+  })
 })

@@ -71,13 +71,18 @@ def list_lineups(
     db: DbSession,
     size: int = Query(5, ge=1, le=5),
     sort: Literal["top", "offense", "defense"] = "top",
+    game_id: int | None = None,
 ) -> list[LineupOut]:
     get_team_or_404(db, team_id)
-    rows = db.scalars(
+    query = (
         select(LineupSnapshot)
         .join(Game)
         .where(Game.team_id == team_id, Game.needs_review.is_(False))
-    ).all()
+    )
+    if game_id is not None:
+        _get_game_or_404(db, team_id, game_id)
+        query = query.where(LineupSnapshot.game_id == game_id)
+    rows = db.scalars(query).all()
     if not rows:
         return []
     df = pd.DataFrame(
@@ -91,7 +96,7 @@ def list_lineups(
             for r in rows
         ]
     )
-    # ponytail: computed per request over all the team's snapshots; cache or vectorize if a season makes this slow
+    # ponytail: computed per request over all the team's (or one game's) snapshots; cache or vectorize if a season makes this slow
     stats = get_stats_from_raw_data(df, size, sort)
     return [
         LineupOut(

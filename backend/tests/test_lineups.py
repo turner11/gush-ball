@@ -147,3 +147,54 @@ def test_delete_game_deletes_snapshots(admin_client, db_session, fake_sheet) -> 
     admin_client.post(_stats_path(game), json={"url": URL})
     assert admin_client.delete(f"/teams/{game.team_id}/games/{game.id}").status_code == 204
     assert _count(db_session) == 0
+
+
+def _second_game(db: Session, team: Team) -> Game:
+    game = Game(
+        team=team,
+        opponent=Opponent(name="Opp B"),
+        scheduled_at=datetime(2026, 2, 1, 18, 0, tzinfo=UTC),
+    )
+    db.add(game)
+    db.commit()
+    return game
+
+
+def test_lineups_game_id_filters_to_that_game(admin_client, client, db_session, fake_sheet) -> None:
+    a = _make_game(db_session)
+    b = _second_game(db_session, a.team)
+    admin_client.post(_stats_path(a), json={"url": URL})
+    base = f"/teams/{a.team_id}/lineups"
+
+    assert client.get(base).json() != []
+    assert client.get(f"{base}?game_id={a.id}").json() != []
+    assert client.get(f"{base}?game_id={b.id}").json() == []
+
+
+def test_lineups_game_id_of_other_team_is_404(client, db_session) -> None:
+    game = _make_game(db_session)
+    other = Team(name="Other", slug="other")
+    foreign = _second_game(db_session, other)
+    base = f"/teams/{game.team_id}/lineups"
+
+    assert client.get(f"{base}?game_id={foreign.id}").status_code == 404
+    assert client.get(f"{base}?game_id=9999").status_code == 404
+
+
+def _has_stats_by_id(client, list_url: str) -> dict[int, bool]:
+    return {g["id"]: g["has_stats"] for g in client.get(list_url).json()}
+
+
+def test_game_read_has_stats(admin_client, client, db_session, fake_sheet) -> None:
+    game = _make_game(db_session)
+    other = _second_game(db_session, game.team)
+    list_url = f"/teams/{game.team_id}/games"
+    one_url = f"{list_url}/{game.id}"
+    assert _has_stats_by_id(client, list_url) == {game.id: False, other.id: False}
+    assert client.get(one_url).json()["has_stats"] is False
+
+    admin_client.post(_stats_path(game), json={"url": URL})
+
+    assert _has_stats_by_id(client, list_url) == {game.id: True, other.id: False}
+    assert client.get(one_url).json()["has_stats"] is True
+    assert client.get(f"{list_url}/{other.id}").json()["has_stats"] is False

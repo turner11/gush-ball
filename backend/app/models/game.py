@@ -2,13 +2,13 @@ import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Enum, ForeignKey, String, Text, false
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON, Enum, ForeignKey, String, Text, exists, false
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from app.db import Base
+from app.models.lineup_snapshot import LineupSnapshot
 
 if TYPE_CHECKING:
-    from app.models.lineup_snapshot import LineupSnapshot
     from app.models.opponent import Opponent
     from app.models.team import Team
 
@@ -24,6 +24,10 @@ class Game(Base):
     __tablename__ = "games"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # >=1 snapshot; EXISTS in the same SELECT so game lists stay one query.
+    has_stats: Mapped[bool] = column_property(
+        exists().where(LineupSnapshot.game_id == id).correlate_except(LineupSnapshot)
+    )
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"))
     opponent_id: Mapped[int] = mapped_column(ForeignKey("opponents.id"))
 
