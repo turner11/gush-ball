@@ -78,6 +78,22 @@ describe('AdminGamesView', () => {
     expect(wrapper.text()).toContain('מתוכנן')
   })
 
+  it('clears the list and shows the error in the list area when loading games fails', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => errorRes(),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('ol').exists()).toBe(false)
+    expect(wrapper.find('form').text()).not.toContain('שגיאה בטעינת המשחקים')
+    expect(wrapper.find('[role="alert"]').text()).toBe('שגיאה בטעינת המשחקים')
+  })
+
   it('submitting the add-game form POSTs the payload and the new game appears in the list', async () => {
     const created = {
       id: 200,

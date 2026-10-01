@@ -36,6 +36,7 @@ function emptyForm() {
 const teams = ref([])
 const games = ref([])
 const loading = ref(false)
+const listError = ref(null)
 const pendingGames = ref([])
 const editing = ref(null)
 const form = ref(emptyForm())
@@ -62,10 +63,12 @@ async function loadGames() {
     return
   }
   loading.value = true
+  listError.value = null
   try {
     games.value = await apiFetch(`/teams/${selectedTeamId.value}/games`)
   } catch {
-    error.value = 'שגיאה בטעינת המשחקים'
+    games.value = [] // never leave the previous team's games editable
+    listError.value = 'שגיאה בטעינת המשחקים'
   } finally {
     loading.value = false
   }
@@ -311,6 +314,7 @@ async function onDelete(game) {
           <div class="skeleton h-16" />
           <div class="skeleton h-16" />
         </div>
+        <p v-else-if="listError" class="error-text" role="alert">{{ listError }}</p>
         <p v-else-if="!games.length" class="empty-state">אין משחקים עדיין.</p>
         <ol v-else class="card divide-y divide-line overflow-hidden p-0">
           <GameRow v-for="game in sortedGames" :key="game.id" :game="game" :team="selectedTeam">
