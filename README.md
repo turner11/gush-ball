@@ -57,6 +57,9 @@ Open http://localhost:8081. Uploads fail until object-storage vars are set.
 To debug the BBStats Streamlit app (`stats/` submodule): `docker compose --profile stats up stats`,
 then open http://localhost:8501.
 
+To explore the local db: `docker compose --profile pgadmin up -d pgadmin`, then open
+http://localhost:5050 (db password: `gush_ball`).
+
 To run `npm run dev` against another backend, set `API_TARGET` (includes `/api`):
 
 ```bash
@@ -72,6 +75,9 @@ Don't run vite with `--host` while pointed at prod.
 Step-by-step guide (R2 storage, domain, Coolify, env vars, scrape task, backups): [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Manual dump / import (dev <-> prod)
+
+Prod → dev in one step (any OS, from the repo root; wipes the local db):
+`uv run pull_prod_db.py root@<server-ip>`. Add `--dump <file>` to restore an existing dump instead of downloading.
 
 `dbsync.sh` dumps the DB to a file and imports it (wipes the target). It targets dev by default; prefix
 `DB_CONTAINER=gush-ball-db` for prod (run on the server). Run from Git Bash/WSL (PowerShell redirection corrupts binary dumps).

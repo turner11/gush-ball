@@ -47,5 +47,28 @@ services:
     ports:
       - "8501:8501"
 
+  # pgAdmin for exploring the local db: `docker compose --profile pgadmin up -d pgadmin`
+  pgadmin:
+    profiles: [pgadmin]
+    image: dpage/pgadmin4
+    depends_on: [db]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      # Desktop mode: no pgAdmin login screen (local only).
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    configs:
+      - source: pgadmin_servers
+        target: /pgadmin4/servers.json
+    ports:
+      - "5050:80"
+
+configs:
+  pgadmin_servers:
+    content: |
+      {"Servers": {"1": {"Name": "gush_ball (local)", "Group": "Servers", "Host": "db", "Port": 5432,
+        "MaintenanceDB": "gush_ball", "Username": "gush_ball", "SSLMode": "prefer"}}}
+
 volumes:
   db_data:
