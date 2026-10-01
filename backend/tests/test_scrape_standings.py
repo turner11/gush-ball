@@ -160,6 +160,24 @@ def test_sync_all_standings_only_processes_teams_with_league_url(
     assert calls == ["https://ibasketball.co.il/league/2026-1/"]
 
 
+def test_sync_all_standings_filters_by_team_ids(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    one = _make_team(db_session, slug="gush-ball-a", league_url="https://ibasketball.co.il/league/2026-1/")
+    _make_team(db_session, slug="gush-ball-b", league_url="https://ibasketball.co.il/league/2026-2/")
+    calls: list[str] = []
+
+    def fake_get_html(url: str) -> str:
+        calls.append(url)
+        return FIXTURE_HTML
+
+    monkeypatch.setattr(scrape_standings, "_get_html", fake_get_html)
+
+    scrape_standings.sync_all_standings(db_session, team_ids=[one.id])
+
+    assert calls == ["https://ibasketball.co.il/league/2026-1/"]
+
+
 def test_sync_all_standings_continues_after_one_team_fails(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
