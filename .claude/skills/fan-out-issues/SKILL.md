@@ -48,7 +48,7 @@ count.
 ## Step 3 — Rank & Filter
 
 **Exclude:** blocked by an open issue; already has an open PR or a live `fix|feat/issue-<N>-*` branch
-(`gh pr list --state open --search "<N> in:title,body"`, `git ls-remote --heads origin`); labeled `later`.
+(`git ls-remote --heads origin "*issue-<N>-*"` is non-empty); labeled `later`.
 
 **Sort:** `bug` first → severity `critical` > `high` > `medium` > `low` > none → blocks-count desc → reactions desc →
 oldest first.
@@ -104,9 +104,8 @@ When each executor finishes:
 
 - **Success** → before review, rebase onto the latest master. The other PRs in the wave may have merged in the meantime:
   `git -C ../issue-<N> fetch origin && git -C ../issue-<N> rebase origin/master`. Resolve conflicts on the shared
-  hotspots by keeping both sides. If the branch has a migration, `uv run alembic heads` must print exactly one head;
-  otherwise re-point its `down_revision` at master's head. Compare revision ids across the wave's PRs. Re-run the CI
-  commands, then `git push --force-with-lease`.
+  hotspots by keeping both sides. Re-run the CI commands. If `test_single_alembic_head` goes red, re-point the
+  branch's migration `down_revision` at master's head. Then `git push --force-with-lease`.
 - **Failure** → record the reason and keep the worktree. No review.
 
 ## Step 7 — Adversary Review ↔ Fix Loop (max 3 rounds)

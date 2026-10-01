@@ -94,26 +94,34 @@ changed.
 Run **every** command from `.github/workflows/ci.yml` for each side you touched, exactly as CI runs them:
 
 ```bash
-cd backend  && uv run ruff check . && uv run pytest -q
-cd frontend && npm run test && npm run build
+(cd backend  && uv run ruff check . && uv run pytest -q)
+(cd frontend && npm run test && npm run build)
 ```
 
 All of them must pass. pytest alone is not the gate: ruff fails CI on its own.
 
-**Visual check (any `frontend/` change).** Run the app (README: backend + `npm run dev`). If a browser tool is
-available, open each changed page at 390px and 1280px wide, in light and dark mode. Check it against the UX bar:
-hierarchy, spacing, overflow, tap targets, contrast, RTL. Fix what looks off before the PR. With no browser tool,
-write "visual check not done" in the PR's test plan so the reviewer and user know.
+**Visual check (any `frontend/` change).** Run the app on ports unique to this issue, because parallel worktrees
+otherwise collide on 8000/5173. Copy `backend/.env` from the main checkout if the worktree has none:
+
+```bash
+# backend port = 9000 + issue number, frontend port = 7000 + issue number (e.g. #42 → 9042 / 7042)
+(cd backend  && uv run uvicorn app.main:app --port 9042)
+(cd frontend && API_TARGET=http://localhost:9042 npm run dev -- --port 7042 --strictPort)
+```
+
+If a browser tool is available, open each changed page at 390px and 1280px wide, in light and dark mode. Check it
+against the UX bar: hierarchy, spacing, overflow, tap targets, contrast, RTL. Fix what looks off before the PR. With no
+browser tool, write "visual check not done" in the PR's test plan so the reviewer and user know.
 
 Report `✅ CI: <commands> all green` (+ `✅ Visual: checked at 390/1280, light/dark`).
 
 ## Step 9 — Rebase, Push, Draft PR
 
-Rebase onto current master so the PR merges cleanly, then re-run Step 8 if anything changed:
+Rebase onto current master so the PR merges cleanly. Then re-run Step 8 if anything changed. If
+`test_single_alembic_head` goes red, master gained a migration: re-point yours with `down_revision`.
 
 ```bash
 git fetch origin && git rebase origin/master
-uv run alembic heads          # (backend/) exactly one head if you added a migration
 git push -u origin <branch>   # --force-with-lease after a rebase of an already-pushed branch
 ```
 
