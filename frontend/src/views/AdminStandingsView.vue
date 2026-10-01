@@ -1,8 +1,11 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import { useAuth } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
+import { teamRows } from '../lib/standings'
 
 // `column` is the (shorter) table header; `numeric` fields are sent as numbers.
 const FIELDS = [
@@ -17,24 +20,62 @@ const FIELDS = [
   { key: 'points', label: 'נקודות', column: 'נקודות', type: 'number' },
 ]
 
-function emptyForm() {
-  return Object.fromEntries(FIELDS.map((f) => [f.key, '']))
+// Every row in the table shares the selected league, so the table skips that column.
+const TABLE_FIELDS = FIELDS.filter((f) => f.key !== 'league_name')
+
+function emptyForm(league = '') {
+  return { ...Object.fromEntries(FIELDS.map((f) => [f.key, ''])), league_name: league }
 }
 
+// Team admins get a read-only view of their own team's league(s); the server keeps writes full-admin.
+const { user } = useAuth()
+const readOnly = computed(() => !!user.value?.team_id)
+
 const rows = ref([])
+const team = ref(null)
+const loading = ref(true)
+const loadError = ref(null)
+const selectedLeague = ref('')
 const editing = ref(null)
 const form = ref(emptyForm())
+watch(selectedLeague, (league) => {
+  if (!editing.value) form.value.league_name = league
+})
 const error = ref(null)
 
+const leagues = computed(() => {
+  const visible = readOnly.value ? teamRows(rows.value, team.value) : rows.value
+  return [...new Set(visible.map((r) => r.league_name))]
+})
+const leagueRows = computed(() => rows.value.filter((r) => r.league_name === selectedLeague.value))
+
+// Pick the first league on load, and recover when the selected league's last row is deleted.
+watch(
+  leagues,
+  (ls) => {
+    if (!ls.includes(selectedLeague.value)) selectedLeague.value = ls[0] ?? ''
+  },
+  { immediate: true },
+)
+
 async function loadRows() {
-  rows.value = await apiFetch('/standings')
+  try {
+    ;[rows.value, team.value] = await Promise.all([
+      apiFetch('/standings'),
+      readOnly.value ? apiFetch(`/teams/${user.value.team_id}`) : null,
+    ])
+  } catch {
+    loadError.value = 'שגיאה בטעינת הטבלה, נסה שוב'
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(loadRows)
 
 function resetForm() {
   editing.value = null
-  form.value = emptyForm()
+  form.value = emptyForm(selectedLeague.value)
 }
 
 const formEl = ref(null)
@@ -68,6 +109,7 @@ async function onSubmit() {
       rows.value.push(created)
     }
 
+    selectedLeague.value = payload.league_name
     resetForm()
   } catch {
     error.value = 'שגיאה בשמירת השורה, נסה שוב'
@@ -87,32 +129,53 @@ async function onDelete(row) {
 
 <template>
   <section class="space-y-6">
-    <h1 class="page-title">ניהול טבלת ליגה</h1>
+    <div class="page-header">
+      <h1 class="page-title">ניהול טבלת ליגה</h1>
+      <div v-if="leagues.length" class="w-full sm:w-64">
+        <label for="league-select" class="field-label">ליגה</label>
+        <select id="league-select" v-model="selectedLeague" class="field-input">
+          <option v-for="league in leagues" :key="league" :value="league">{{ league }}</option>
+        </select>
+      </div>
+    </div>
 
-    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr class="table-header-row">
-              <th v-for="field in FIELDS" :key="field.key">{{ field.column }}</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.id" class="table-body-row">
-              <td v-for="field in FIELDS" :key="field.key" :data-label="field.column">{{ row[field.key] }}</td>
-              <td class="justify-end">
-                <span class="inline-flex gap-1">
-                  <button type="button" class="btn-ghost" @click="startEdit(row)">ערוך</button>
-                  <button type="button" class="btn-danger-ghost" @click="onDelete(row)">מחק</button>
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <div v-if="loading" class="space-y-3" aria-busy="true">
+      <div class="skeleton h-10 w-64" />
+      <div class="skeleton h-64" />
+    </div>
+    <p v-else-if="loadError" class="error-text" role="alert">{{ loadError }}</p>
+
+    <div v-else :class="['grid gap-6 lg:items-start', { 'lg:grid-cols-[minmax(0,1fr)_22rem]': !readOnly }]">
+      <div class="min-w-0">
+        <div v-if="leagueRows.length" class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr class="table-header-row">
+                <th v-for="field in TABLE_FIELDS" :key="field.key">{{ field.column }}</th>
+                <th v-if="!readOnly"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in leagueRows" :key="row.id" class="table-body-row">
+                <td v-for="field in TABLE_FIELDS" :key="field.key" :data-label="field.column">{{ row[field.key] }}</td>
+                <td v-if="!readOnly" class="justify-end">
+                  <span class="inline-flex gap-1">
+                    <button type="button" class="btn-ghost" @click="startEdit(row)">ערוך</button>
+                    <button type="button" class="btn-danger-ghost" @click="onDelete(row)">מחק</button>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else-if="readOnly" class="empty-state">
+          לא נמצאה טבלת ליגה עבור הקבוצה. הריצו סנכרון טבלת ליגה בעמוד הראשי.
+          <RouterLink :to="{ name: 'admin-home' }" class="section-link">לסנכרון</RouterLink>
+        </p>
+        <p v-else class="empty-state">אין שורות טבלה עדיין. הוסיפו שורה או הריצו סנכרון בעמוד הראשי.</p>
       </div>
 
-      <form id="standing-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
+      <form v-if="!readOnly" id="standing-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
         <h2 class="section-title">{{ editing ? 'עריכת שורה' : 'הוספת שורה' }}</h2>
 
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
@@ -140,6 +203,6 @@ async function onDelete(row) {
         </div>
       </form>
     </div>
-    <a href="#standing-form" class="fab lg:hidden" aria-label="הוספת שורה"><AppIcon name="plus" /></a>
+    <a v-if="!readOnly" href="#standing-form" class="fab lg:hidden" aria-label="הוספת שורה"><AppIcon name="plus" /></a>
   </section>
 </template>
