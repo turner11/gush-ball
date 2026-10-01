@@ -129,7 +129,7 @@ def _find_sp_team(team: Team) -> dict[str, Any]:
     return teams[0]
 
 
-def sync_team_games(db: Session, team: Team) -> int:
+def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
     sp_id = _find_sp_team(team)["id"]
     # Fill-only: an admin-entered address is never clobbered.
     if team.home_court_address is None:
@@ -206,6 +206,8 @@ def sync_team_games(db: Session, team: Team) -> int:
                 needs_review=True,
             )
             db.add(game)
+        if auto_accept:
+            game.needs_review = False
 
         game.opponent = opponent
         game.is_home = is_home
@@ -220,11 +222,19 @@ def sync_team_games(db: Session, team: Team) -> int:
     return count
 
 
-def sync_all_games(db: Session, errors: list[str] | None = None) -> int:
+def sync_all_games(
+    db: Session,
+    errors: list[str] | None = None,
+    team_ids: list[int] | None = None,
+    auto_accept: bool = False,
+) -> int:
     """Runs unattended (nightly cron), so one team's failure must not abort every team
     after it -- log and move on instead.
     """
-    teams = db.scalars(select(Team).where(Team.ibasketball_team_url.is_not(None))).all()
+    query = select(Team).where(Team.ibasketball_team_url.is_not(None))
+    if team_ids is not None:
+        query = query.where(Team.id.in_(team_ids))
+    teams = db.scalars(query).all()
     if not teams:
         log.warning("Games sync: no team has an ibasketball_team_url set -- nothing to do")
         if errors is not None:
@@ -236,7 +246,7 @@ def sync_all_games(db: Session, errors: list[str] | None = None) -> int:
         slug = team.slug
         try:
             log.info("Games sync: fetching %r", slug)
-            count = sync_team_games(db, team)
+            count = sync_team_games(db, team, auto_accept)
             log.info("Games sync: %r created/updated %d games", slug, count)
             total += count
         except Exception as exc:
@@ -302,9 +312,14 @@ def sync_team_players(db: Session, team: Team) -> int:
     return count
 
 
-def sync_all_players(db: Session, errors: list[str] | None = None) -> int:
+def sync_all_players(
+    db: Session, errors: list[str] | None = None, team_ids: list[int] | None = None
+) -> int:
     # ponytail: 3rd copy of the per-team loop; extract a helper if a 4th scraper appears
-    teams = db.scalars(select(Team).where(Team.ibasketball_team_url.is_not(None))).all()
+    query = select(Team).where(Team.ibasketball_team_url.is_not(None))
+    if team_ids is not None:
+        query = query.where(Team.id.in_(team_ids))
+    teams = db.scalars(query).all()
     total = 0
     for team in teams:
         slug = team.slug

@@ -1,9 +1,10 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import { useAuth } from '../composables/useAuth'
+import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
 
 const POLL_MS = 3000
@@ -21,6 +22,34 @@ function stopPolling() {
 }
 
 const { user } = useAuth()
+const fullAdmin = computed(() => !user.value?.team_id)
+
+const KIND_OPTIONS = [
+  { value: 'players', label: 'שחקנים' },
+  { value: 'games', label: 'משחקים (לוח ותוצאות)' },
+  { value: 'standings', label: 'טבלת ליגה' },
+]
+const kinds = ref(KIND_OPTIONS.map((k) => k.value))
+const autoAccept = ref(true)
+const teams = ref([])
+const teamIds = ref([])
+
+const resultText = computed(() =>
+  [
+    result.value?.standings != null && `${result.value.standings} שורות טבלה`,
+    result.value?.games != null && `${result.value.games} משחקים`,
+    result.value?.players != null && `${result.value.players} שחקנים`,
+  ]
+    .filter(Boolean)
+    .join(', '),
+)
+const allTeamsSelected = computed(() => teamIds.value.length === teams.value.length)
+const toggleAllTeams = () => {
+  teamIds.value = allTeamsSelected.value ? [] : teams.value.map((t) => t.id)
+}
+const cannotSync = computed(
+  () => submitting.value || running.value || !kinds.value.length || (fullAdmin.value && !teamIds.value.length),
+)
 
 async function refreshStatus() {
   try {
@@ -45,7 +74,14 @@ async function onSyncNow() {
   result.value = null
   error.value = null
   try {
-    await apiFetch('/sync/now', { method: 'POST' })
+    await apiFetch('/sync/now', {
+      method: 'POST',
+      body: {
+        kinds: kinds.value,
+        auto_accept: autoAccept.value,
+        ...(fullAdmin.value && { team_ids: teamIds.value }),
+      },
+    })
     running.value = true
     timer ??= setInterval(refreshStatus, POLL_MS)
   } catch (err) {
@@ -55,7 +91,13 @@ async function onSyncNow() {
   }
 }
 
-onMounted(refreshStatus)
+onMounted(async () => {
+  refreshStatus()
+  if (!fullAdmin.value) return
+  const all = (await useTeams().list()) ?? []
+  teams.value = all.filter((t) => t.ibasketball_team_url || t.ibasketball_league_url)
+  teamIds.value = teams.value.map((t) => t.id)
+})
 onUnmounted(() => {
   unmounted = true
   stopPolling()
@@ -90,7 +132,36 @@ onUnmounted(() => {
 
     <div class="card space-y-2">
       <h2 class="section-title">סנכרון מ-ibasketball</h2>
-      <button type="button" :disabled="submitting || running" class="btn-primary" @click="onSyncNow">
+      <fieldset class="space-y-2">
+        <legend class="field-label">מה לסנכרן</legend>
+        <div class="flex flex-wrap gap-x-4 gap-y-2">
+          <label v-for="k in KIND_OPTIONS" :key="k.value" class="flex items-center gap-2">
+            <input v-model="kinds" type="checkbox" :value="k.value" class="size-5" />
+            {{ k.label }}
+          </label>
+        </div>
+      </fieldset>
+      <div v-if="kinds.includes('games')">
+        <label class="flex items-center gap-2">
+          <input v-model="autoAccept" type="checkbox" class="size-5" />
+          אישור אוטומטי של משחקים
+        </label>
+        <p class="text-sm text-muted">משחקים שנערכו ידנית תמיד ימתינו לאישור</p>
+      </div>
+      <fieldset v-if="fullAdmin" class="space-y-2">
+        <legend class="field-label">קבוצות</legend>
+        <div class="flex flex-wrap gap-x-4 gap-y-2">
+          <label v-for="t in teams" :key="t.id" class="flex items-center gap-2">
+            <input v-model="teamIds" type="checkbox" :value="t.id" class="size-5" />
+            {{ t.name }}
+          </label>
+        </div>
+        <button type="button" class="btn-ghost" @click="toggleAllTeams">
+          {{ allTeamsSelected ? 'נקה הכל' : 'בחר הכל' }}
+        </button>
+      </fieldset>
+      <p v-else class="text-sm text-muted">הסנכרון יתבצע לקבוצה שלך בלבד</p>
+      <button type="button" :disabled="cannotSync" class="btn-primary" @click="onSyncNow">
         סנכרון עכשיו
       </button>
       <p v-if="running" class="text-sm text-muted">
@@ -99,7 +170,8 @@ onUnmounted(() => {
       <div v-else-if="result" class="text-sm text-muted">
         <p v-if="result.failed" class="error-text">הסנכרון נכשל.</p>
         <p v-else>
-          הסנכרון הסתיים: {{ result.standings }} שורות טבלה, {{ result.games }} משחקים, {{ result.players }} שחקנים.        </p>
+          הסנכרון הסתיים: {{ resultText }}.
+        </p>
         <ul v-if="result.errors.length" class="error-text list-disc ps-5">
           <li v-for="e in result.errors" :key="e">{{ e }}</li>
         </ul>

@@ -387,10 +387,10 @@ def _two_teams(db_session: Session) -> None:
 def _fail_for_bad(monkeypatch: pytest.MonkeyPatch, db_session: Session, fail) -> None:
     real = scrape_games.sync_team_games
 
-    def fake(db: Session, team: Team) -> int:
+    def fake(db: Session, team: Team, auto_accept: bool = False) -> int:
         if team.slug == "bad":
             return fail(db)
-        return real(db, team)
+        return real(db, team, auto_accept)
 
     monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
     monkeypatch.setattr(scrape_games, "sync_team_games", fake)
@@ -412,6 +412,70 @@ def test_sync_all_games_continues_after_one_team_fails(
     assert db_session.query(Game).count() == 1
     assert "'bad'" in caplog.text
     assert errors == ["games bad: boom"]
+
+
+def test_sync_auto_accept_publishes_new_games(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT, FINAL_EVENT_AWAY]))
+
+    scrape_games.sync_team_games(db_session, team, auto_accept=True)
+
+    games = db_session.query(Game).all()
+    assert len(games) == 2
+    assert all(g.needs_review is False and g.is_scraped is True for g in games)
+
+
+def test_sync_auto_accept_publishes_previously_pending_game(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
+    scrape_games.sync_team_games(db_session, team)
+    assert db_session.query(Game).one().needs_review is True
+
+    scrape_games.sync_team_games(db_session, team, auto_accept=True)
+
+    db_session.expire_all()
+    assert db_session.query(Game).one().needs_review is False
+
+
+def test_sync_auto_accept_never_applies_suggestion_to_overridden_game(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    fake = FakeApi([FUTURE_EVENT])
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    scrape_games.sync_team_games(db_session, team)
+
+    game = db_session.query(Game).filter_by(source_event_id=9001).one()
+    game.is_manually_overridden = True
+    game.team_score = 12
+    game.status = GameStatus.FINAL
+    db_session.commit()
+
+    fake.events = [{**FUTURE_EVENT, "status": "publish", "main_results": [90, 88]}]
+    scrape_games.sync_team_games(db_session, team, auto_accept=True)
+
+    db_session.refresh(game)
+    assert game.team_score == 12
+    assert game.is_manually_overridden is True
+    assert game.scrape_suggestion == {"team_score": 90, "opponent_score": 88}
+    assert game.needs_review is True
+
+
+def test_sync_all_games_filters_by_team_ids(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _two_teams(db_session)
+    _fail_for_bad(monkeypatch, db_session, _raise_value_error)
+    good = db_session.query(Team).filter_by(slug="good").one()
+    errors: list[str] = []
+
+    assert scrape_games.sync_all_games(db_session, errors, team_ids=[good.id]) == 1
+
+    assert errors == []
 
 
 def test_sync_all_games_reports_when_no_team_has_url(db_session: Session) -> None:
