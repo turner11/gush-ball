@@ -74,7 +74,8 @@ class TeamOut(BaseModel):
 
 
 class AdminCreate(BaseModel):
-    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+    # no "@": login routes any identifier containing "@" to the email lookup
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64, pattern=r"^[^@]+$")]
     password: Annotated[str, StringConstraints(min_length=8)]
 
 

@@ -1,8 +1,9 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { useAuth } from '../composables/useAuth'
+import { apiFetch } from '../lib/api'
 
 // Bound (not a static src) so the SFC compiler serves it from public/ as-is.
 const LOGO_URL = '/logo.jpg'
@@ -13,6 +14,16 @@ const submitting = ref(false)
 
 const { error, login } = useAuth()
 const router = useRouter()
+const route = useRoute()
+
+const googleEnabled = ref(false)
+onMounted(async () => {
+  try {
+    googleEnabled.value = (await apiFetch('/auth/options')).google === true
+  } catch {
+    // button just stays hidden
+  }
+})
 
 async function onSubmit() {
   submitting.value = true
@@ -35,7 +46,7 @@ async function onSubmit() {
 
     <form class="space-y-3" @submit.prevent="onSubmit">
       <div>
-        <label for="username" class="field-label">שם משתמש</label>
+        <label for="username" class="field-label">שם משתמש או אימייל</label>
         <input
           id="username"
           v-model="username"
@@ -64,6 +75,14 @@ async function onSubmit() {
         {{ submitting ? 'מתחבר…' : 'כניסה' }}
       </button>
     </form>
+
+    <RouterLink :to="{ name: 'admin-reset-password' }" class="section-link">שכחתי סיסמה</RouterLink>
+
+    <!-- Plain link: Google sign-in is a full-page navigation, not a fetch. -->
+    <a v-if="googleEnabled" href="/api/auth/google/login" class="btn-secondary w-full">כניסה עם Google</a>
+    <p v-if="route.query.error === 'google'" class="error-text" role="alert">
+      הכניסה עם Google נכשלה או שהחשבון אינו מורשה
+    </p>
     </div>
   </section>
 </template>

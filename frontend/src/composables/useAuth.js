@@ -36,7 +36,7 @@ export function useAuth() {
       error.value = null
     } catch (err) {
       user.value = null
-      error.value = err.status ? 'שם משתמש או סיסמה שגויים' : CONNECTION_ERROR
+      error.value = err.status ? 'שם משתמש/אימייל או סיסמה שגויים' : CONNECTION_ERROR
     }
   }
 
