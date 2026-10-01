@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { homeFirst, played, result } from './games'
+import { homeFirst, liveStatsUrl, played, result, sheetCopyUrl } from './games'
 
 describe('played', () => {
   it('needs both scores', () => {
@@ -24,5 +24,41 @@ describe('result', () => {
     expect(result({ team_score: null, opponent_score: 80 })).toBeNull()
     expect(result({ team_score: 80, opponent_score: null })).toBeNull()
     expect(result({ team_score: 70, opponent_score: 70 })).toBeNull()
+  })
+})
+
+describe('liveStatsUrl', () => {
+  const game = { team_id: 3, stats_url: 'https://docs.google.com/spreadsheets/d/X/edit' }
+  const admin = { team_id: null, stats_app_url: 'https://app.streamlit.app' }
+  const origin = 'https://gush.example'
+
+  it('gives a full admin the app link with the sheet and team players api', () => {
+    const url = new URL(liveStatsUrl(game, admin, origin))
+    expect(url.origin).toBe('https://app.streamlit.app')
+    expect(url.searchParams.get('data')).toBe(game.stats_url)
+    expect(url.searchParams.get('team_api')).toBe('https://gush.example/api/teams/3/players')
+  })
+
+  it('scopes team admins to their own team', () => {
+    expect(liveStatsUrl(game, { ...admin, team_id: 3 }, origin)).not.toBeNull()
+    expect(liveStatsUrl(game, { ...admin, team_id: 4 }, origin)).toBeNull()
+  })
+
+  it('is null without a user, a sheet, or an app url', () => {
+    expect(liveStatsUrl(game, null, origin)).toBeNull()
+    expect(liveStatsUrl({ ...game, stats_url: null }, admin, origin)).toBeNull()
+    expect(liveStatsUrl(game, { ...admin, stats_app_url: '' }, origin)).toBeNull()
+  })
+})
+
+describe('sheetCopyUrl', () => {
+  it('turns a sheet url into its make-a-copy url', () => {
+    const copy = 'https://docs.google.com/spreadsheets/d/ID/copy'
+    expect(sheetCopyUrl('https://docs.google.com/spreadsheets/d/ID/edit?usp=sharing#gid=0')).toBe(copy)
+    expect(sheetCopyUrl('https://docs.google.com/spreadsheets/d/ID')).toBe(copy)
+  })
+
+  it('leaves other urls alone', () => {
+    expect(sheetCopyUrl('https://example.com/x')).toBe('https://example.com/x')
   })
 })

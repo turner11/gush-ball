@@ -1,13 +1,13 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
-import { ownTeams } from '../composables/useAuth'
+import GameStatsLink from '../components/GameStatsLink.vue'
+import { ownTeams, useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
-import { gameStatsRoute, STATUS_LABELS } from '../lib/games'
+import { sheetCopyUrl, STATUS_LABELS } from '../lib/games'
 
 const STATUSES = Object.keys(STATUS_LABELS)
 
@@ -38,6 +38,7 @@ const pendingGames = ref([])
 const editing = ref(null)
 const form = ref(emptyForm())
 const error = ref(null)
+const { user } = useAuth()
 const statsUrl = ref('')
 const statsMessage = ref(null)
 
@@ -92,7 +93,8 @@ async function loadStats() {
       body: { url: statsUrl.value || null },
     })
     editing.value.has_stats = res.snapshots > 0
-    statsMessage.value = `נטענו ${res.snapshots} רשומות`
+    editing.value.stats_url = res.stats_url
+    statsMessage.value = res.snapshots ? `נטענו ${res.snapshots} רשומות` : 'הקישור נשמר — הגיליון עדיין ריק. טענו שוב אחרי המשחק.'
   } catch (e) {
     error.value = e.message
   }
@@ -109,6 +111,7 @@ function startEdit(game) {
   formEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   editing.value = game
   statsMessage.value = null
+  statsUrl.value = game.stats_url ?? ''
   form.value = {
     opponent_name: game.opponent.name,
     scheduled_at: game.scheduled_at.slice(0, 16),
@@ -235,7 +238,7 @@ async function onDelete(game) {
                 </span>
               </p>
               <span class="flex flex-wrap gap-1">
-                <RouterLink v-if="game.has_stats" :to="gameStatsRoute(game)" class="btn-ghost" :aria-label="'חמישיות המשחק נגד ' + game.opponent.name">חמישיות</RouterLink>
+                <GameStatsLink :game="game" class="btn-ghost" />
                 <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
                 <button v-if="!game.scrape_suggestion" type="button" class="btn-ghost" @click="approveGame(game)">
                   אשר
@@ -270,7 +273,7 @@ async function onDelete(game) {
                 <td data-label="תוצאה" class="tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
                 <td class="justify-end">
                   <span class="inline-flex gap-1">
-                    <RouterLink v-if="game.has_stats" :to="gameStatsRoute(game)" class="btn-ghost" :aria-label="'חמישיות המשחק נגד ' + game.opponent.name">חמישיות</RouterLink>
+                    <GameStatsLink :game="game" class="btn-ghost" />
                     <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
                     <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
                   </span>
@@ -328,6 +331,8 @@ async function onDelete(game) {
           <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
           <label for="stats-url" class="field-label">קישור לסטטיסטיקה (גיליון שמשותף ל"כל מי שיש לו קישור")</label>
           <input id="stats-url" v-model="statsUrl" type="url" class="field-input" />
+          <a v-if="user?.stats_template_url" :href="sheetCopyUrl(user.stats_template_url)" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
+          <p v-if="user?.stats_template_url" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו טען. אחרי המשחק: טענו שוב.</p>
           <button type="button" class="btn-secondary" @click="loadStats">טען סטטיסטיקה</button>
           <p v-if="statsMessage" class="text-sm">{{ statsMessage }}</p>
         </div>

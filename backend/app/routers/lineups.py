@@ -1,7 +1,8 @@
+from io import StringIO
 from typing import Literal
 
 import pandas as pd
-from bbstats import get_snapshots_df, get_stats_from_raw_data
+from bbstats import fetch_csv, get_snapshots_df, get_stats_from_raw_data
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -44,7 +45,11 @@ def load_game_stats(
     if not url:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No stats URL")
     try:
-        df = get_snapshots_df(url)
+        # ponytail: a sheet with no timed rows is valid pre-game but BBStats raises on it (pd.concat([])),
+        # so guard here with BBStats' own emptiness test (null time); drop once the bumped bbstats
+        # handles empty sheets: https://github.com/turner11/BBStats/issues/10
+        raw = pd.read_csv(StringIO(fetch_csv(url)))
+        df = get_snapshots_df(raw) if raw["Time Left"].notna().any() else pd.DataFrame()
     except Exception as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,

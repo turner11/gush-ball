@@ -73,6 +73,16 @@ def _start_session(request: Request, admin: AdminUser) -> None:
     request.session["pw"] = password_fingerprint(admin.password_hash)
 
 
+def _session_user(admin: AdminUser) -> dict[str, str | int | None]:
+    # Admin-only routes return the live-stats links, so fans never receive them.
+    return {
+        "username": admin.username,
+        "team_id": admin.team_id,
+        "stats_app_url": settings.stats_url,
+        "stats_template_url": settings.stats_template_url,
+    }
+
+
 @router.post("/login")
 def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, str | int | None]:
     ip = client_ip(request)
@@ -91,7 +101,7 @@ def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, s
             _attempts.pop(key, None)
     log.info("login ok username=%r ip=%s", ident, ip)
     _start_session(request, admin)
-    return {"username": admin.username, "team_id": admin.team_id}
+    return _session_user(admin)
 
 
 @router.post("/logout")
@@ -102,7 +112,7 @@ def logout(request: Request) -> dict[str, bool]:
 
 @router.get("/me")
 def me(admin: RequireAnyAdmin) -> dict[str, str | int | None]:
-    return {"username": admin.username, "team_id": admin.team_id}
+    return _session_user(admin)
 
 
 # ---- password reset ----

@@ -403,3 +403,19 @@ def test_google_callback_handles_token_endpoint_error(seeded: TestClient, google
     q = _start_google(seeded)
     r = _callback(seeded, q["state"][0])
     assert r.status_code == 302 and r.headers["location"] == FAIL
+
+
+def test_login_and_me_return_stats_urls(seeded: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(auth.settings, "stats_url", "https://app.streamlit.app")
+    monkeypatch.setattr(auth.settings, "stats_template_url", "https://docs.google.com/spreadsheets/d/T/edit")
+    assert seeded.get("/auth/me").status_code == 401
+    expected = {
+        "stats_app_url": "https://app.streamlit.app",
+        "stats_template_url": "https://docs.google.com/spreadsheets/d/T/edit",
+    }
+
+    login = seeded.post("/auth/login", json=GOOD).json()
+    me = seeded.get("/auth/me").json()
+
+    for body in (login, me):
+        assert {k: body[k] for k in expected} == expected
