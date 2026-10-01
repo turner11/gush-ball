@@ -1,13 +1,18 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
+import GameStatsLink from '../components/GameStatsLink.vue'
+import { useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatGameDate } from '../lib/format'
-import { gameStatsRoute, homeFirst, played, result, splitGames, STATUS_LABELS } from '../lib/games'
+import { homeFirst, played, result, splitGames, STATUS_LABELS } from '../lib/games'
+
+// Fire and forget: the live stats link appears for admins once the session resolves.
+const { checked, checkSession } = useAuth()
+if (!checked.value) checkSession()
 
 const games = ref([])
 const team = ref(null)
@@ -95,7 +100,7 @@ const edge = (g) => ({ W: 'border-win', L: 'border-loss' })[result(g)] ?? 'borde
                 </template>
               </p>
               <p v-if="game.d" class="text-sm text-muted">{{ game.d.weekday }} · {{ game.d.time }} · <span class="badge badge-muted">{{ game.is_home ? 'בית' : 'חוץ' }}</span></p>
-              <RouterLink v-if="game.has_stats" :to="gameStatsRoute(game)" class="section-link" :aria-label="'חמישיות המשחק נגד ' + game.opponent.name">חמישיות</RouterLink>
+              <GameStatsLink :game="game" class="section-link" />
             </div>
             <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
               <GameLocationLinks v-if="addressOf(game)" :address="addressOf(game)" />

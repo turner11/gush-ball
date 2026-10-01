@@ -1,7 +1,8 @@
+from io import StringIO
 from typing import Literal
 
 import pandas as pd
-from bbstats import get_snapshots_df, get_stats_from_raw_data
+from bbstats import fetch_csv, get_snapshots_df, get_stats_from_raw_data
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -44,7 +45,10 @@ def load_game_stats(
     if not url:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No stats URL")
     try:
-        df = get_snapshots_df(url)
+        # ponytail: a headers-only sheet is valid pre-game but BBStats raises on it (pd.concat([])),
+        # so guard here; drop once BBStats returns an empty result.
+        raw = pd.read_csv(StringIO(fetch_csv(url))).dropna(how="all")
+        df = get_snapshots_df(raw) if len(raw) else pd.DataFrame()
     except Exception as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,

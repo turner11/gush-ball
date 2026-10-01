@@ -37,6 +37,8 @@ class Settings(BaseSettings):
 
     # BBStats Streamlit app. Empty default so an unset prod value is obvious, not a localhost link.
     stats_url: str = ""
+    # Google Sheet (headers only, shared "anyone with the link") that admins copy to start a game.
+    stats_template_url: str = ""
 
 
 settings = Settings()
