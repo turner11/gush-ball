@@ -19,7 +19,7 @@ const navItems = computed(() => [
   { to: '/standings', label: 'טבלה' },
   { to: '/roster', label: 'שחקנים' },
   { to: '/media', label: 'מדיה' },
-  { to: '/roster#lineups', label: 'סטטיסטיקה' },
+  { to: '/stats', label: 'סטטיסטיקה' },
 ])
 
 const tabItems = computed(() => [
@@ -116,13 +116,7 @@ onMounted(async () => {
           <nav data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden md:block">
             <ul class="flex gap-4 lg:gap-6">
               <li v-for="item in navItems" :key="item.label">
-                <!-- exact-active ignores the hash, so the #lineups link would light up with שחקנים -->
-                <RouterLink
-                  :to="item.to"
-                  :exact-active-class="item.to.includes('#') ? '' : undefined"
-                  class="nav-link"
-                  >{{ item.label }}</RouterLink
-                >
+                <RouterLink :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
               </li>
             </ul>
           </nav>

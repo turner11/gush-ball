@@ -68,4 +68,19 @@ describe('LineupStats', () => {
     expect(urls()).toContain('/api/teams/1/lineups?size=5&sort=top&game_id=3')
     expect(wrapper.text()).toContain('אין נתוני חמישיות למשחק הזה.')
   })
+
+  it('error shows retry that refetches', async () => {
+    global.fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue({ ok: true, status: 200, json: async () => [LINEUP] })
+    const wrapper = mountIt()
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+
+    await button(wrapper, 'נסה שוב').trigger('click')
+    await flushPromises()
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('יוסי כהן')
+  })
 })

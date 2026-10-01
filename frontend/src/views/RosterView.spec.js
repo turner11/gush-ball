@@ -44,7 +44,6 @@ describe('RosterView', () => {
   it("renders the selected team's players with jersey numbers", async () => {
     mockFetch({
       'GET /api/teams/1/players': () => jsonRes(PLAYERS),
-      'GET /api/teams/1/lineups?size=5&sort=top': () => jsonRes([]),
     })
 
     const { default: RosterView } = await import('./RosterView.vue')
@@ -55,62 +54,15 @@ describe('RosterView', () => {
     expect(wrapper.text()).toContain('7')
   })
 
-  it('renders the lineups section', async () => {
-    mockFetch({
-      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
-      'GET /api/teams/1/lineups?size=5&sort=top': () => jsonRes([]),
-    })
+  it('roster page no longer renders lineups', async () => {
+    mockFetch({ 'GET /api/teams/1/players': () => jsonRes(PLAYERS) })
 
     const { default: RosterView } = await import('./RosterView.vue')
     const wrapper = mount(RosterView, { global: { plugins: [router] } })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('חמישיות')
-  })
-
-  const GAME = {
-    id: 2,
-    team_id: 1,
-    scheduled_at: '2026-03-04T18:00:00',
-    opponent: { id: 6, name: 'הפועל עבר' },
-  }
-
-  it('filters lineups to ?game and the chip clears it', async () => {
-    mockFetch({
-      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
-      'GET /api/teams/1/games/2': () => jsonRes(GAME),
-      'GET /api/teams/1/lineups?size=5&sort=top&game_id=2': () => jsonRes([]),
-      'GET /api/teams/1/lineups?size=5&sort=top': () => jsonRes([]),
-    })
-    await router.push('/roster?game=2')
-
-    const { default: RosterView } = await import('./RosterView.vue')
-    const wrapper = mount(RosterView, { global: { plugins: [router] } })
-    await flushPromises()
-
-    const chip = wrapper.find('a.btn-secondary')
-    expect(chip.text()).toContain('נגד הפועל עבר')
-    await chip.trigger('click')
-    await flushPromises()
-
-    expect(router.currentRoute.value.query).toEqual({})
-    const urls = global.fetch.mock.calls.map(([u]) => u)
-    expect(urls).toContain('/api/teams/1/lineups?size=5&sort=top')
-  })
-
-  it("drops the filter when the game is not this team's", async () => {
-    mockFetch({
-      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
-      'GET /api/teams/1/games/2': () => ({ ok: false, status: 404, statusText: 'Not Found', json: async () => ({}) }),
-      'GET /api/teams/1/lineups?size=5&sort=top&game_id=2': () => jsonRes([]),
-      'GET /api/teams/1/lineups?size=5&sort=top': () => jsonRes([]),
-    })
-    await router.push('/roster?game=2')
-
-    const { default: RosterView } = await import('./RosterView.vue')
-    mount(RosterView, { global: { plugins: [router] } })
-    await flushPromises()
-
-    expect(router.currentRoute.value.query).toEqual({})
+    expect(global.fetch.mock.calls.some(([u]) => u.includes('lineups'))).toBe(false)
+    expect(wrapper.text()).not.toContain('חמישיות')
+    expect(wrapper.find('#lineups').exists()).toBe(false)
   })
 })

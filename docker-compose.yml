@@ -27,7 +27,6 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://gush_ball:gush_ball@db:5432/gush_ball
       SESSION_SECRET: local-dev-only-not-a-real-secret-0123456789
-      STATS_URL: http://localhost:8501
   web:
     profiles: [full]
     build: ./frontend

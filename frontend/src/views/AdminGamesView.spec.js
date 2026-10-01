@@ -53,7 +53,7 @@ describe('AdminGamesView', () => {
       history: createWebHistory(),
       routes: [
         { path: '/', component: { template: '<div/>' } },
-        { path: '/roster', name: 'roster', component: { template: '<div/>' } },
+        { path: '/stats', name: 'stats', component: { template: '<div/>' } },
       ],
     })
   })
@@ -415,7 +415,7 @@ describe('AdminGamesView', () => {
     const call = global.fetch.mock.calls.find(([u]) => u === '/api/teams/1/games/100/stats')
     expect(JSON.parse(call[1].body)).toEqual({ url: 'http://s' })
     expect(wrapper.text()).toContain('נטענו 12 רשומות')
-    expect(wrapper.find('a[href="/roster?game=100#lineups"]').exists()).toBe(true)
+    expect(wrapper.find('a[href="/stats?game=100"]').exists()).toBe(true)
   })
 
   it('shows the server error when loading stats fails', async () => {
@@ -452,8 +452,8 @@ describe('AdminGamesView', () => {
     const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
     await flushPromises()
 
-    expect(wrapper.findAll('a[href="/roster?game=100#lineups"]')).toHaveLength(1)
-    expect(wrapper.find('a[href^="/roster?game=101"]').exists()).toBe(false)
+    expect(wrapper.findAll('a[href="/stats?game=100"]')).toHaveLength(1)
+    expect(wrapper.find('a[href^="/stats?game=101"]').exists()).toBe(false)
   })
 
   describe('live stats flow', () => {

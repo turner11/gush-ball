@@ -67,7 +67,7 @@ issue, before starting.
   stats engine. The admin sets a Google Sheet/CSV URL per `Game` and loads it; the raw snapshots are
   stored in `LineupSnapshot`. Lineup stats for group size 1–5 and sort top/offense/defense are
   computed on read with `get_stats_from_raw_data`, with no precomputed aggregates. The public view is
-  the lineups section on the roster page.
+  the `/stats` page (per game or all games).
 - **No live scores.** Refresh-on-load is sufficient; no websockets/polling.
 - **Design bar**: "professional" is anchored to four reference sites — maccabi.co.il, paobc.gr,
   nba.com/knicks, nba.com/heat — plus Tailwind and a headless Vue component kit (e.g. Reka UI).

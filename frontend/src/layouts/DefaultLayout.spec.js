@@ -147,7 +147,7 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('select').exists()).toBe(false)
   })
 
-  it('nav links סטטיסטיקה to the roster page', async () => {
+  it('nav links סטטיסטיקה to the stats page', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -155,19 +155,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const a = wrapper.findAll('a').find((x) => x.text() === 'סטטיסטיקה')
-    expect(a.attributes('href')).toBe('/roster#lineups')
-  })
-
-  it('on /roster only שחקנים is highlighted, not the #lineups link', async () => {
-    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
-
-    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
-    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
-    await router.push('/roster')
-    await flushPromises()
-
-    const active = wrapper.find('[data-testid="top-nav"]').findAll('a.router-link-exact-active').map((x) => x.text())
-    expect(active).toEqual(['שחקנים'])
+    expect(a.attributes('href')).toBe('/stats')
   })
 
   it('nav links מדיה to the media page', async () => {

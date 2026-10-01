@@ -56,7 +56,7 @@ describe('ScheduleView', () => {
       history: createWebHistory(),
       routes: [
         { path: '/', component: { template: '<div/>' } },
-        { path: '/roster', name: 'roster', component: { template: '<div/>' } },
+        { path: '/stats', name: 'stats', component: { template: '<div/>' } },
       ],
     })
   })
@@ -278,8 +278,8 @@ describe('ScheduleView', () => {
     const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
     await flushPromises()
 
-    expect(wrapper.findAll('a[href="/roster?game=2#lineups"]')).toHaveLength(1)
-    expect(wrapper.find('a[href^="/roster?game=1"]').exists()).toBe(false)
+    expect(wrapper.findAll('a[href="/stats?game=2"]')).toHaveLength(1)
+    expect(wrapper.find('a[href^="/stats?game=1"]').exists()).toBe(false)
   })
 
   describe('live stats link', () => {
@@ -312,7 +312,7 @@ describe('ScheduleView', () => {
 
     it('yields to the lineups link once the game has stats', async () => {
       const wrapper = await mountWith(() => jsonRes(ADMIN), [{ ...PAST_GAME, stats_url: WITH_SHEET.stats_url }])
-      expect(wrapper.findAll('a[href="/roster?game=2#lineups"]')).toHaveLength(1)
+      expect(wrapper.findAll('a[href="/stats?game=2"]')).toHaveLength(1)
       expect(wrapper.find('a[href^="https://app.streamlit.app"]').exists()).toBe(false)
     })
   })
