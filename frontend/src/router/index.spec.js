@@ -43,6 +43,14 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.name).toBe('admin-login')
   })
 
+  it('/admin/reset-password is public: resolves by name and is not redirected to login', async () => {
+    const { default: router } = await import('./index.js')
+
+    expect(router.resolve('/admin/reset-password').name).toBe('admin-reset-password')
+    await router.push('/admin/reset-password')
+    expect(router.currentRoute.value.name).toBe('admin-reset-password')
+  })
+
   it('/elizur resolves to team-home and /schedule stays schedule', async () => {
     const { default: router } = await import('./index.js')
 
