@@ -295,6 +295,65 @@ def test_resync_skips_manually_overridden_game(
     assert game.scrape_suggestion_dismissed is False
 
 
+def _sync_then_reissue(db_session: Session, monkeypatch: pytest.MonkeyPatch, reissued: dict, **edits) -> tuple[Team, Game]:
+    team = _make_team(db_session)
+    fake = FakeApi([FUTURE_EVENT])
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    scrape_games.sync_team_games(db_session, team)
+    game = db_session.query(Game).filter_by(source_event_id=9001).one()
+    game.needs_review = False
+    for key, value in edits.items():
+        setattr(game, key, value)
+    db_session.commit()
+    fake.events = [reissued]
+    scrape_games.sync_team_games(db_session, team)
+    db_session.refresh(game)
+    return team, game
+
+
+def test_resync_rekeys_game_when_source_reissues_event_id(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team, game = _sync_then_reissue(
+        db_session, monkeypatch, {**FUTURE_EVENT, "id": 9101}, stats_url="https://example.com/sheet"
+    )
+
+    games = db_session.query(Game).filter_by(team_id=team.id).all()
+    assert [g.id for g in games] == [game.id]
+    assert game.source_event_id == 9101
+    assert game.stats_url == "https://example.com/sheet"
+
+
+def test_resync_rekeyed_overridden_game_keeps_admin_values_and_suggests(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reissued = {**FUTURE_EVENT, "id": 9101, "status": "publish", "main_results": [90, 88]}
+    team, game = _sync_then_reissue(
+        db_session,
+        monkeypatch,
+        reissued,
+        is_manually_overridden=True,
+        team_score=12,
+        status=GameStatus.FINAL,
+    )
+
+    assert db_session.query(Game).filter_by(team_id=team.id).count() == 1
+    assert game.source_event_id == 9101
+    assert game.team_score == 12
+    assert game.scrape_suggestion == {"team_score": 90, "opponent_score": 88}
+
+
+def test_resync_does_not_adopt_orphan_from_another_day(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team, game = _sync_then_reissue(
+        db_session, monkeypatch, {**FUTURE_EVENT, "id": 9101, "date": "2026-11-28T21:00:00"}
+    )
+
+    assert db_session.query(Game).filter_by(team_id=team.id).count() == 2
+    assert game.source_event_id == 9001
+
+
 def test_sync_leaves_other_teams_game_untouched(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -580,6 +639,21 @@ def test_sync_team_players_does_not_reimport_renamed_player(
 
     assert db_session.query(Player).count() == 2
     assert db_session.query(Player).filter_by(source_url="/p/1").one().name == "Renamed"
+
+
+def test_sync_team_players_rekeys_player_whose_href_changed(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    db_session.add(Player(team_id=team.id, name="איתי ורולקר", jersey_number=10, source_url="/old/1"))
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+
+    assert scrape_games.sync_team_players(db_session, team) == 1
+
+    assert db_session.query(Player).count() == 2
+    moved = db_session.query(Player).filter_by(jersey_number=10).one()
+    assert moved.source_url == "/p/1"
 
 
 def test_sync_team_players_does_not_reimport_soft_deleted_player(

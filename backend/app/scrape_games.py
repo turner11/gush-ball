@@ -138,6 +138,18 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
     # ponytail: single page (100); follow X-WP-TotalPages if a team ever exceeds it
     events = _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)
 
+    # Games whose event left the feed: the league re-publishes a schedule under new event ids.
+    feed_ids = {e["id"] for e in events}
+    orphans = list(
+        db.scalars(
+            select(Game).where(
+                Game.team_id == team.id,
+                Game.source_event_id.is_not(None),
+                Game.source_event_id.not_in(feed_ids),
+            )
+        )
+    )
+
     opponent_cache: dict[int, Opponent] = {}
     count = 0
     for event in events:
@@ -167,6 +179,31 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
         # ponytail: refetches known opponents each run; skip when opp already
         # has logo+source_url if runtime matters
         opponent = _resolve_opponent(db, opp_sp_id, opponent_cache)
+
+        if game is None:
+            # ponytail: matches by same day + opponent + side; an admin-edited date/opponent gets a
+            # twin (delete it in the admin UI). Unmatched orphans are left alone: deleting vanished
+            # events is a separate decision.
+            day = datetime.fromisoformat(event["date"]).date()
+            game = next(
+                (
+                    o
+                    for o in orphans
+                    if o.opponent_id == opponent.id
+                    and o.is_home == is_home
+                    and o.scheduled_at.date() == day
+                ),
+                None,
+            )
+            if game is not None:
+                orphans.remove(game)
+                log.info(
+                    "Games sync: game %d re-keyed from event %s to %s",
+                    game.id,
+                    game.source_event_id,
+                    event["id"],
+                )
+                game.source_event_id = event["id"]
 
         if game is not None and game.is_manually_overridden:
             # #16: never clobber an admin override — store what differs as a
@@ -263,7 +300,8 @@ def sync_team_players(db: Session, team: Team) -> int:
     never deletes.
 
     Players are matched by the roster card's href (Player.source_url), so renamed or soft-deleted
-    players are not re-imported. Legacy rows without source_url are adopted by name.
+    players are not re-imported. An unknown href adopts this team's same-name player (preferring a
+    live row) and re-keys its source_url, so a re-published player link creates no duplicate.
     """
     sp_id = _find_sp_team(team)["id"]
     page = BeautifulSoup(
@@ -277,16 +315,16 @@ def sync_team_players(db: Session, team: Team) -> int:
             continue
         href = card.get("href")
         # not filtering deleted_at: a soft-deleted player must still block re-import
-        # ponytail: keyed on href; if the source changes a URL the player is re-imported once
-        # (upgrade path: numeric SportsPress player id)
+        # ponytail: unknown href falls back to name; two distinct same-name players on one team
+        # would be merged (upgrade path: numeric SportsPress player id)
         player = href and db.scalar(
             select(Player).where(Player.team_id == team.id, Player.source_url == href)
         )
         if not player:
             player = db.scalar(
-                select(Player).where(
-                    Player.team_id == team.id, Player.source_url.is_(None), Player.name == name
-                )
+                select(Player)
+                .where(Player.team_id == team.id, Player.name == name)
+                .order_by(Player.deleted_at.is_not(None), Player.id)
             )
             if player is not None:
                 player.source_url = href
