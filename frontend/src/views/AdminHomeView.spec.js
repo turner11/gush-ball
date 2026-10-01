@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -41,6 +41,7 @@ describe('AdminHomeView', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    document.body.innerHTML = ''
   })
 
   it('shows counts and per-team errors from the last finished run', async () => {
@@ -111,6 +112,16 @@ describe('AdminHomeView', () => {
   const syncButton = (wrapper) => wrapper.findAll('button').find((b) => b.text() === 'סנכרון עכשיו')
   const checkbox = (wrapper, value) =>
     wrapper.findAll('input[type=checkbox]').find((i) => i.element.value === String(value))
+  const mountFull = (AdminHomeView) =>
+    mount(AdminHomeView, { global: { plugins: [router] }, attachTo: document.body })
+  const body = () => new DOMWrapper(document.body)
+  const trigger = (wrapper) => wrapper.find('#sync-teams-trigger')
+  async function openTeams(wrapper) {
+    await trigger(wrapper).trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+  }
+  const teamItem = (text) =>
+    body().findAll('[role=menuitemcheckbox]').find((i) => i.text().trim() === text)
   const postBody = () =>
     JSON.parse(global.fetch.mock.calls.find(([url]) => url === '/api/sync/now')[1].body)
 
@@ -125,17 +136,84 @@ describe('AdminHomeView', () => {
   it('full admin: unchecking a kind and a team sends the selection', async () => {
     mockSyncApis()
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
-    const wrapper = mount(AdminHomeView, { global: { plugins: [router] } })
+    const wrapper = mountFull(AdminHomeView)
     await flushPromises()
 
     await checkbox(wrapper, 'players').setValue(false)
-    await checkbox(wrapper, 2).setValue(false)
+    await openTeams(wrapper)
+    await teamItem('ב').trigger('click')
+    await flushPromises()
+    await body().trigger('keydown', { key: 'Escape' })
+    await flushPromises()
     await syncButton(wrapper).trigger('click')
 
-    const body = postBody()
-    expect(body.kinds.sort()).toEqual(['games', 'standings'])
-    expect(body.auto_accept).toBe(true)
-    expect(body.team_ids).toEqual([1])
+    const sent = postBody()
+    expect(sent.kinds.sort()).toEqual(['games', 'standings'])
+    expect(sent.auto_accept).toBe(true)
+    expect(sent.team_ids).toEqual([1])
+  })
+
+  it('team picker defaults to all teams, select-all is mixed after deselecting one', async () => {
+    mockSyncApis()
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mountFull(AdminHomeView)
+    await flushPromises()
+
+    expect(trigger(wrapper).text()).toContain('כל הקבוצות')
+    await openTeams(wrapper)
+    expect(teamItem('בחר הכל').attributes('aria-checked')).toBe('true')
+    expect(body().findAll('[role=menuitemcheckbox]')).toHaveLength(3)
+
+    await teamItem('ב').trigger('click')
+    await flushPromises()
+    expect(teamItem('בחר הכל').attributes('aria-checked')).toBe('mixed')
+    expect(trigger(wrapper).text()).toContain('א')
+    expect(body().findAll('[role=menuitemcheckbox]')).toHaveLength(3)
+  })
+
+  it('open team menu is labelled by an existing element', async () => {
+    mockSyncApis()
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mountFull(AdminHomeView)
+    await flushPromises()
+    await openTeams(wrapper)
+    const labelId = body().find('[role=menu]').attributes('aria-labelledby')
+    expect(document.getElementById(labelId)).not.toBeNull()
+  })
+
+  it('select all toggles every team on and off', async () => {
+    mockSyncApis()
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mountFull(AdminHomeView)
+    await flushPromises()
+    await openTeams(wrapper)
+
+    await teamItem('ב').trigger('click')
+    await flushPromises()
+    await teamItem('בחר הכל').trigger('click')
+    await flushPromises()
+    const checked = () => body().findAll('[role=menuitemcheckbox]').map((i) => i.attributes('aria-checked'))
+    expect(checked()).toEqual(['true', 'true', 'true'])
+
+    await teamItem('בחר הכל').trigger('click')
+    await flushPromises()
+    expect(checked()).toEqual(['false', 'false', 'false'])
+    expect(trigger(wrapper).text()).toContain('לא נבחרו קבוצות')
+    expect(syncButton(wrapper).element.disabled).toBe(true)
+  })
+
+  it('full admin with no syncable teams sees an empty state', async () => {
+    mockFetch({
+      'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }),
+      'GET /api/teams': () => jsonRes([{ id: 3, name: 'ללא' }]),
+    })
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mountFull(AdminHomeView)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('אין קבוצות עם קישור ל-ibasketball')
+    expect(trigger(wrapper).element.disabled).toBe(true)
+    expect(syncButton(wrapper).element.disabled).toBe(true)
   })
 
   it('auto accept is checked by default and hidden when games is unchecked', async () => {
@@ -165,12 +243,13 @@ describe('AdminHomeView', () => {
     await syncButton(wrapper).trigger('click')
 
     expect(postBody()).not.toHaveProperty('team_ids')
+    expect(wrapper.find('#sync-teams-trigger').exists()).toBe(false)
   })
 
   it('sync button is disabled when nothing is selected to sync', async () => {
     mockSyncApis()
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
-    const wrapper = mount(AdminHomeView, { global: { plugins: [router] } })
+    const wrapper = mountFull(AdminHomeView)
     await flushPromises()
     expect(syncButton(wrapper).element.disabled).toBe(false)
 
@@ -178,7 +257,9 @@ describe('AdminHomeView', () => {
     expect(syncButton(wrapper).element.disabled).toBe(true)
 
     await checkbox(wrapper, 'games').setValue(true)
-    await wrapper.findAll('button').find((b) => b.text() === 'נקה הכל').trigger('click')
+    await openTeams(wrapper)
+    await teamItem('בחר הכל').trigger('click')
+    await flushPromises()
     expect(syncButton(wrapper).element.disabled).toBe(true)
   })
 })
