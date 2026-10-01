@@ -95,11 +95,16 @@ def sync_team_standings(db: Session, team: Team) -> int:
     return count
 
 
-def sync_all_standings(db: Session, errors: list[str] | None = None) -> int:
+def sync_all_standings(
+    db: Session, errors: list[str] | None = None, team_ids: list[int] | None = None
+) -> int:
     """Runs unattended (nightly cron, #17), so one team's fragile parse failing must not
     abort every team after it in iteration order -- log and move on instead.
     """
-    teams = db.scalars(select(Team).where(Team.ibasketball_league_url.is_not(None))).all()
+    query = select(Team).where(Team.ibasketball_league_url.is_not(None))
+    if team_ids is not None:
+        query = query.where(Team.id.in_(team_ids))
+    teams = db.scalars(query).all()
     if not teams:
         log.warning("Standings sync: no team has an ibasketball_league_url set -- nothing to do")
         if errors is not None:

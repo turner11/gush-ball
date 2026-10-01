@@ -20,7 +20,9 @@ describe('App', () => {
   })
 
   it('renders the admin layout exactly once on an authenticated admin page', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ username: 'admin' }) })
+    global.fetch = vi.fn((url) =>
+      Promise.resolve({ ok: true, json: async () => (url === '/api/teams' ? [] : { username: 'admin' }) }),
+    )
 
     await router.push('/admin')
     const wrapper = mount(App, { global: { plugins: [router] } })
