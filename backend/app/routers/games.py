@@ -53,6 +53,7 @@ class GameRead(BaseModel):
     team_score: int | None
     opponent_score: int | None
     description: str | None
+    has_stats: bool
     opponent: OpponentRead
 
 
