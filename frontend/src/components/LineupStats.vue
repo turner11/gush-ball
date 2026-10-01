@@ -8,6 +8,7 @@ import PlayerCard from './PlayerCard.vue'
 const props = defineProps({
   teamId: { type: Number, required: true },
   players: { type: Array, default: () => [] },
+  gameId: { type: Number, default: null },
 })
 
 const SIZES = [1, 2, 3, 4, 5]
@@ -27,7 +28,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    lineups.value = await apiFetch(`/teams/${props.teamId}/lineups?size=${size.value}&sort=${sort.value}`)
+    lineups.value = await apiFetch(`/teams/${props.teamId}/lineups?size=${size.value}&sort=${sort.value}${props.gameId ? `&game_id=${props.gameId}` : ''}`)
   } catch {
     // a stats failure must not blank the whole roster page
     error.value = 'שגיאה בטעינת החמישיות'
@@ -36,7 +37,7 @@ async function load() {
   }
 }
 
-watch(() => [props.teamId, size.value, sort.value], load, { immediate: true })
+watch(() => [props.teamId, props.gameId, size.value, sort.value], load, { immediate: true })
 
 const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
 </script>
@@ -108,6 +109,6 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
         </div>
       </li>
     </ul>
-    <p v-else class="empty-state">אין נתוני חמישיות עדיין.</p>
+    <p v-else class="empty-state">{{ gameId ? 'אין נתוני חמישיות למשחק הזה.' : 'אין נתוני חמישיות עדיין.' }}</p>
   </div>
 </template>

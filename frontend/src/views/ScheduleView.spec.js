@@ -126,7 +126,7 @@ describe('ScheduleView', () => {
     const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const links = wrapper.findAll('ol a')
+    const links = wrapper.findAll('ol a[target="_blank"]')
     expect(links).toHaveLength(1)
     expect(links[0].text()).toBe('מכבי עתיד')
     expect(links[0].attributes('href')).toBe('https://ibasketball.co.il/team/5/')

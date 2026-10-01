@@ -1,12 +1,13 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import { ownTeams } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
-import { STATUS_LABELS } from '../lib/games'
+import { gameStatsRoute, STATUS_LABELS } from '../lib/games'
 
 const STATUSES = Object.keys(STATUS_LABELS)
 
@@ -90,6 +91,7 @@ async function loadStats() {
       method: 'POST',
       body: { url: statsUrl.value || null },
     })
+    editing.value.has_stats = res.snapshots > 0
     statsMessage.value = `נטענו ${res.snapshots} רשומות`
   } catch (e) {
     error.value = e.message
@@ -233,6 +235,7 @@ async function onDelete(game) {
                 </span>
               </p>
               <span class="flex flex-wrap gap-1">
+                <RouterLink v-if="game.has_stats" :to="gameStatsRoute(game)" class="btn-ghost" :aria-label="'חמישיות המשחק נגד ' + game.opponent.name">חמישיות</RouterLink>
                 <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
                 <button v-if="!game.scrape_suggestion" type="button" class="btn-ghost" @click="approveGame(game)">
                   אשר
@@ -267,6 +270,7 @@ async function onDelete(game) {
                 <td data-label="תוצאה" class="tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
                 <td class="justify-end">
                   <span class="inline-flex gap-1">
+                    <RouterLink v-if="game.has_stats" :to="gameStatsRoute(game)" class="btn-ghost" :aria-label="'חמישיות המשחק נגד ' + game.opponent.name">חמישיות</RouterLink>
                     <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
                     <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
                   </span>
