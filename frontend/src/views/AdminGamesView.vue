@@ -41,6 +41,8 @@ const error = ref(null)
 const { user } = useAuth()
 const statsUrl = ref('')
 const statsMessage = ref(null)
+const confirmingReplace = ref(false)
+const loadButton = ref(null)
 
 const { selectedTeamId, ensureDefault } = useSelectedTeam()
 
@@ -84,6 +86,25 @@ function replaceGame(updated) {
   else games.value.push(updated)
 }
 
+function requestLoadStats() {
+  if (editing.value.has_stats) {
+    confirmingReplace.value = true
+    return
+  }
+  loadStats()
+}
+
+function confirmReplace() {
+  confirmingReplace.value = false
+  loadButton.value?.focus()
+  loadStats()
+}
+
+function cancelReplace() {
+  confirmingReplace.value = false
+  loadButton.value?.focus()
+}
+
 async function loadStats() {
   error.value = null
   statsMessage.value = null
@@ -101,6 +122,7 @@ async function loadStats() {
 }
 
 function resetForm() {
+  confirmingReplace.value = false
   editing.value = null
   form.value = emptyForm()
 }
@@ -110,6 +132,7 @@ const formEl = ref(null)
 function startEdit(game) {
   formEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   editing.value = game
+  confirmingReplace.value = false
   statsMessage.value = null
   statsUrl.value = game.stats_url ?? ''
   form.value = {
@@ -333,7 +356,14 @@ async function onDelete(game) {
           <input id="stats-url" v-model="statsUrl" type="url" class="field-input" />
           <a v-if="user?.stats_template_url" :href="sheetCopyUrl(user.stats_template_url)" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
           <p v-if="user?.stats_template_url" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו טען. אחרי המשחק: טענו שוב.</p>
-          <button type="button" class="btn-secondary" @click="loadStats">טען סטטיסטיקה</button>
+          <button ref="loadButton" type="button" class="btn-secondary" @click="requestLoadStats">טען סטטיסטיקה</button>
+          <div v-if="confirmingReplace" role="alert" class="space-y-2 rounded-xl border border-warn/60 p-3">
+            <p class="text-sm">למשחק זה כבר יש נתונים. לטעון מחדש ולהחליף אותם?</p>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="btn-primary" @click="confirmReplace">החלף</button>
+              <button type="button" class="btn-secondary" @click="cancelReplace">ביטול</button>
+            </div>
+          </div>
           <p v-if="statsMessage" class="text-sm">{{ statsMessage }}</p>
         </div>
 
