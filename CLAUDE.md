@@ -33,7 +33,7 @@ issue, before starting.
 - `LineupSnapshot`: raw per-snapshot lineup rows (5 jersey numbers, elapsed minutes, points for/against)
   belonging to a `Game`. `Game.stats_url` is the admin-set sheet they were loaded from; it is not a
   scrape field, so setting it never flags an override.
-- `AdminUser`: the only authenticated role. Nullable `team_id`: NULL = full admin, set = team admin who can write only that team's data (#129).
+- `AdminUser`: the only authenticated role. Nullable unique `email` (lowercase). Nullable `team_id`: NULL = full admin, set = team admin who can write only that team's data (#129).
 
 ## Key decisions
 
@@ -46,7 +46,7 @@ issue, before starting.
 - **Override protection**: a scraped update to a game the admin has manually edited never
   auto-applies. It lands as a diff suggestion in the review queue for the admin to accept or
   reject. Re-scraping must never silently clobber an admin edit.
-- **Auth**: one admin table plus a nullable `AdminUser.team_id` scope (NULL = full admin; set = team admin limited to that team's content/players/games plus sync), session cookie, no roles/OAuth/SSO. The server enforces the scope on every write (`RequireTeamAdmin` / `check_team_scope` in `app/deps.py`); `RequireAdmin` means full admin. Don't grow this into a role hierarchy speculatively.
+- **Auth**: one admin table plus a nullable `AdminUser.team_id` scope (NULL = full admin; set = team admin limited to that team's content/players/games plus sync), session cookie. Login is username or email + password, or "Sign in with Google" allowlisted to an existing `AdminUser.email` (verified email required, no auto-signup, disabled when `GOOGLE_CLIENT_ID` is unset), plus an emailed 1h single-use password-reset link. No roles. The server enforces the scope on every write (`RequireTeamAdmin` / `check_team_scope` in `app/deps.py`); `RequireAdmin` means full admin. Don't grow this into a role hierarchy speculatively.
 - **No fan/player accounts**: every public story (schedule, standings, scores, stats, "remembered
   team") is anonymous. "Remembered team" is a `localStorage` value, not a user profile.
 - **i18n**: Hebrew + RTL only for v1 UI. Translatable fields (team/player names, post/link/video

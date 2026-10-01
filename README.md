@@ -26,9 +26,12 @@ docker compose up -d
 cd backend
 cp .env.example .env
 uv run alembic upgrade head
-uv run python scripts/create_admin.py <username> <password> [team-slug]
+uv run python scripts/create_admin.py <username> <password> [team-slug] [--email EMAIL]
 uv run uvicorn app.main:app --reload
 ```
+
+Google sign-in and reset email are optional (see `.env.example`). The local Google redirect URI is
+`http://localhost:5173/api/auth/google/callback`. Without `SMTP_HOST`, the reset link is logged to the backend console.
 
 Runs on http://localhost:8000. Tests: `uv run pytest`.
 
@@ -46,7 +49,7 @@ Runs on http://localhost:5173, proxying `/api/*` to the backend. Tests: `npm run
 
 ```bash
 docker compose --profile full up -d --build   # db + backend + Caddy
-docker compose exec backend uv run python scripts/create_admin.py <user> <password> [team-slug]
+docker compose exec backend uv run python scripts/create_admin.py <user> <password> [team-slug] [--email EMAIL]
 ```
 
 Open http://localhost:8081. Uploads fail until object-storage vars are set.

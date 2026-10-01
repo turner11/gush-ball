@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import AdminUser, Team
+from app.security import password_fingerprint
 
 DbSession = Annotated[Session, Depends(get_db)]
 
@@ -25,7 +26,7 @@ def current_admin(request: Request, db: DbSession) -> AdminUser:
     """Dependency for admin routes. Raises 401 if no admin session exists."""
     admin_id = request.session.get("admin_id")
     admin = db.get(AdminUser, admin_id) if admin_id is not None else None
-    if admin is None:
+    if admin is None or request.session.get("pw") != password_fingerprint(admin.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
         log.info("admin write admin_id=%s %s %s", admin_id, request.method, request.url.path)

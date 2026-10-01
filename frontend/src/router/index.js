@@ -16,6 +16,7 @@ const router = createRouter({
     { path: '/media', name: 'media', component: () => import('../views/MediaView.vue'), meta: { title: 'מדיה' } },
     { path: '/:slug', name: 'team-home', component: () => import('../views/HomeView.vue') },
     { path: '/admin/login', name: 'admin-login', component: () => import('../views/LoginView.vue'), meta: { title: 'כניסת מנהל' } },
+    { path: '/admin/reset-password', name: 'admin-reset-password', component: () => import('../views/PasswordResetView.vue'), meta: { title: 'איפוס סיסמה' } },
     { path: '/admin', name: 'admin-home', component: () => import('../views/AdminHomeView.vue'), meta: admin('ניהול') },
     { path: '/admin/players', name: 'admin-players', component: () => import('../views/AdminPlayersView.vue'), meta: admin('ניהול שחקנים') },
     { path: '/admin/games', name: 'admin-games', component: () => import('../views/AdminGamesView.vue'), meta: admin('ניהול משחקים') },
