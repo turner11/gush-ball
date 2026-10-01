@@ -12,6 +12,7 @@ const FUTURE_GAME = {
   is_home: true,
   scheduled_at: '2030-05-01T18:00:00',
   status: 'scheduled',
+  has_stats: false,
   team_score: null,
   opponent_score: null,
   description: null,
@@ -23,6 +24,7 @@ const PAST_GAME = {
   is_home: false,
   scheduled_at: '2020-05-01T18:00:00',
   status: 'final',
+  has_stats: true,
   team_score: 80,
   opponent_score: 70,
   description: null,
@@ -52,7 +54,10 @@ describe('ScheduleView', () => {
     localStorage.setItem('gush-ball:selected-team-id', '1')
     router = createRouter({
       history: createWebHistory(),
-      routes: [{ path: '/', component: { template: '<div/>' } }],
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/roster', name: 'roster', component: { template: '<div/>' } },
+      ],
     })
   })
 
@@ -261,5 +266,19 @@ describe('ScheduleView', () => {
       expect(home.findAll('.badge').map((b) => b.text())).toContain('בית')
       expect(away.findAll('.badge').map((b) => b.text())).toContain('חוץ')
     })
+  })
+
+  it('shows the stats link only for games with has_stats', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+      'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME, PAST_GAME]),
+    })
+
+    const { default: ScheduleView } = await import('./ScheduleView.vue')
+    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.findAll('a[href="/roster?game=2#lineups"]')).toHaveLength(1)
+    expect(wrapper.find('a[href^="/roster?game=1"]').exists()).toBe(false)
   })
 })
