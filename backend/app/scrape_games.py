@@ -138,6 +138,18 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
     # ponytail: single page (100); follow X-WP-TotalPages if a team ever exceeds it
     events = _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)
 
+    # Games whose event left the feed: the league re-publishes a schedule under new event ids.
+    feed_ids = {e["id"] for e in events}
+    orphans = list(
+        db.scalars(
+            select(Game).where(
+                Game.team_id == team.id,
+                Game.source_event_id.is_not(None),
+                Game.source_event_id.not_in(feed_ids),
+            )
+        )
+    )
+
     opponent_cache: dict[int, Opponent] = {}
     count = 0
     for event in events:
@@ -167,6 +179,31 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
         # ponytail: refetches known opponents each run; skip when opp already
         # has logo+source_url if runtime matters
         opponent = _resolve_opponent(db, opp_sp_id, opponent_cache)
+
+        if game is None:
+            # ponytail: matches by same day + opponent + side; an admin-edited date/opponent gets a
+            # twin (delete it in the admin UI). Unmatched orphans are left alone: deleting vanished
+            # events is a separate decision.
+            day = datetime.fromisoformat(event["date"]).date()
+            game = next(
+                (
+                    o
+                    for o in orphans
+                    if o.opponent_id == opponent.id
+                    and o.is_home == is_home
+                    and o.scheduled_at.date() == day
+                ),
+                None,
+            )
+            if game is not None:
+                orphans.remove(game)
+                log.info(
+                    "Games sync: game %d re-keyed from event %s to %s",
+                    game.id,
+                    game.source_event_id,
+                    event["id"],
+                )
+                game.source_event_id = event["id"]
 
         if game is not None and game.is_manually_overridden:
             # #16: never clobber an admin override — store what differs as a
