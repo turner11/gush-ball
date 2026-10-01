@@ -37,6 +37,7 @@ describe('TeamAdminsSection', () => {
 
     expect(wrapper.text()).toContain('coach')
     expect(wrapper.find('input[type="password"]').attributes('minlength')).toBe('8')
+    expect(wrapper.find('#admin-username').attributes('pattern')).toBe('[^@]+')
   })
 
   it('creates an admin, appends it and clears the inputs', async () => {
