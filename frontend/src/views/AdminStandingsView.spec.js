@@ -17,6 +17,12 @@ const ROWS = [
   },
 ]
 
+const MULTI = [
+  ...ROWS,
+  { ...ROWS[0], id: 2, team_name: 'קבוצה ב', rank: 2, source_url: 'https://x.il/team/b' },
+  { ...ROWS[0], id: 3, league_name: 'ליגה ב', team_name: 'קבוצה ג', source_url: 'https://x.il/team/c' },
+]
+
 function mockFetch(handlers) {
   global.fetch = vi.fn((url, options = {}) => {
     const method = options.method || 'GET'
@@ -48,7 +54,10 @@ describe('AdminStandingsView', () => {
     vi.resetModules()
     router = createRouter({
       history: createWebHistory(),
-      routes: [{ path: '/', component: { template: '<div/>' } }],
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
+      ],
     })
   })
 
@@ -180,5 +189,63 @@ describe('AdminStandingsView', () => {
 
     expect(wrapper.text()).toContain('שגיאה במחיקת השורה, נסה שוב')
     expect(wrapper.text()).toContain('קבוצה א')
+  })
+  async function mountView() {
+    const { default: AdminStandingsView } = await import('./AdminStandingsView.vue')
+    const wrapper = mount(AdminStandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+    return wrapper
+  }
+
+  async function asTeamAdmin(teamUrl) {
+    const { useAuth } = await import('../composables/useAuth.js')
+    useAuth().user.value = { username: 't', team_id: 1 }
+    mockFetch({
+      'GET /api/standings': () => jsonRes(MULTI),
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'x', ibasketball_team_url: teamUrl }),
+    })
+    return mountView()
+  }
+
+  it("shows only the selected league's rows and switches on select", async () => {
+    mockFetch({ 'GET /api/standings': () => jsonRes(MULTI) })
+    const wrapper = await mountView()
+
+    const options = wrapper.findAll('#league-select option').map((o) => o.text())
+    expect(options).toEqual(['ליגה א', 'ליגה ב'])
+    expect(wrapper.find('table').text()).toContain('קבוצה ב')
+    expect(wrapper.find('table').text()).not.toContain('קבוצה ג')
+
+    await wrapper.find('#league-select').setValue('ליגה ב')
+    expect(wrapper.find('table').text()).toContain('קבוצה ג')
+    expect(wrapper.find('table').text()).not.toContain('קבוצה ב')
+  })
+
+  it('new-row form defaults the league to the selected league', async () => {
+    mockFetch({ 'GET /api/standings': () => jsonRes(MULTI) })
+    const wrapper = await mountView()
+    await wrapper.find('#league-select').setValue('ליגה ב')
+    expect(wrapper.find('#standing-league-name').element.value).toBe('ליגה ב')
+  })
+
+  it("team admin sees only their team's leagues, read-only", async () => {
+    const wrapper = await asTeamAdmin('https://x.il/team/c/')
+    expect(wrapper.findAll('#league-select option').map((o) => o.text())).toEqual(['ליגה ב'])
+    const labels = wrapper.findAll('button').map((b) => b.text())
+    expect(labels).not.toContain('ערוך')
+    expect(labels).not.toContain('מחק')
+    expect(wrapper.find('form').exists()).toBe(false)
+  })
+
+  it('team admin with no matching row sees the sync empty state', async () => {
+    const wrapper = await asTeamAdmin('https://x.il/team/none')
+    expect(wrapper.text()).toContain('לא נמצאה טבלת ליגה עבור הקבוצה')
+    expect(wrapper.find('a[href="/admin"]').exists()).toBe(true)
+  })
+
+  it('a failed initial load shows an error', async () => {
+    mockFetch({ 'GET /api/standings': () => errorRes() })
+    const wrapper = await mountView()
+    expect(wrapper.text()).toContain('שגיאה בטעינת הטבלה, נסה שוב')
   })
 })

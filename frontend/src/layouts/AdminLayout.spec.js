@@ -4,8 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const stub = { template: '<div/>' }
 
-async function mountAt(path) {
+async function mountAt(path, user = null) {
   vi.resetModules()
+  if (user) (await import('../composables/useAuth.js')).useAuth().user.value = user
   const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -57,5 +58,11 @@ describe('AdminLayout nav', () => {
       .findAll('a')
       .map((a) => a.attributes('href'))
     expect(hrefs).toEqual(['/admin', '/admin/players', '/admin/games', '/admin/standings', '/admin/teams'])
+  })
+
+  it('team admin also gets the standings link', async () => {
+    const w = await mountAt('/admin', { team_id: 1 })
+    expect(link(w, '/admin/standings').exists()).toBe(true)
+    expect(w.find('[data-testid="tab-bar"]').find('a[href="/admin/standings"]').exists()).toBe(true)
   })
 })
