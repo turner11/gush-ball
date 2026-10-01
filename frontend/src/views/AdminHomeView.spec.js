@@ -121,7 +121,7 @@ describe('AdminHomeView', () => {
     await flushPromises()
   }
   const teamItem = (text) =>
-    body().findAll('[role=menuitemcheckbox]').find((i) => i.text().includes(text))
+    body().findAll('[role=menuitemcheckbox]').find((i) => i.text().trim() === text)
   const postBody = () =>
     JSON.parse(global.fetch.mock.calls.find(([url]) => url === '/api/sync/now')[1].body)
 

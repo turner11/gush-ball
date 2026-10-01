@@ -1,5 +1,14 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import {
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItemIndicator,
+  DropdownMenuPortal,
+  DropdownMenuRoot,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from 'reka-ui'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
@@ -31,7 +40,8 @@ const KIND_OPTIONS = [
 ]
 const kinds = ref(KIND_OPTIONS.map((k) => k.value))
 const autoAccept = ref(true)
-const teams = ref([])
+const teamsApi = useTeams()
+const teams = ref(null) // null = loading
 const teamIds = ref([])
 
 const resultText = computed(() =>
@@ -43,10 +53,25 @@ const resultText = computed(() =>
     .filter(Boolean)
     .join(', '),
 )
-const allTeamsSelected = computed(() => teamIds.value.length === teams.value.length)
+const allTeamsSelected = computed(() => teamIds.value.length === (teams.value?.length ?? 0))
+const selectAllState = computed(() =>
+  allTeamsSelected.value ? true : teamIds.value.length ? 'indeterminate' : false,
+)
 const toggleAllTeams = () => {
   teamIds.value = allTeamsSelected.value ? [] : teams.value.map((t) => t.id)
 }
+const toggleTeam = (id, on) => {
+  teamIds.value = on ? [...teamIds.value, id] : teamIds.value.filter((i) => i !== id)
+}
+const teamsSummary = computed(() => {
+  if (!teams.value) return 'טוען קבוצות…'
+  if (allTeamsSelected.value) return 'כל הקבוצות'
+  if (!teamIds.value.length) return 'לא נבחרו קבוצות'
+  if (teamIds.value.length === 1) return teams.value.find((t) => t.id === teamIds.value[0]).name
+  return `${teamIds.value.length} מתוך ${teams.value.length} קבוצות`
+})
+const ITEM_CLASS =
+  'flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-3 text-sm outline-none data-[highlighted]:bg-sunken'
 const cannotSync = computed(
   () => submitting.value || running.value || !kinds.value.length || (fullAdmin.value && !teamIds.value.length),
 )
@@ -94,7 +119,7 @@ async function onSyncNow() {
 onMounted(async () => {
   refreshStatus()
   if (!fullAdmin.value) return
-  const all = (await useTeams().list()) ?? []
+  const all = (await teamsApi.list()) ?? []
   teams.value = all.filter((t) => t.ibasketball_team_url || t.ibasketball_league_url)
   teamIds.value = teams.value.map((t) => t.id)
 })
@@ -148,18 +173,63 @@ onUnmounted(() => {
         </label>
         <p class="text-sm text-muted">משחקים שנערכו ידנית תמיד ימתינו לאישור</p>
       </div>
-      <fieldset v-if="fullAdmin" class="space-y-2">
-        <legend class="field-label">קבוצות</legend>
-        <div class="flex flex-wrap gap-x-4 gap-y-2">
-          <label v-for="t in teams" :key="t.id" class="flex items-center gap-2">
-            <input v-model="teamIds" type="checkbox" :value="t.id" class="size-5" />
-            {{ t.name }}
-          </label>
-        </div>
-        <button type="button" class="btn-ghost" @click="toggleAllTeams">
-          {{ allTeamsSelected ? 'נקה הכל' : 'בחר הכל' }}
-        </button>
-      </fieldset>
+      <div v-if="fullAdmin" class="space-y-1.5">
+        <span id="sync-teams-label" class="field-label">קבוצות</span>
+        <DropdownMenuRoot>
+          <DropdownMenuTrigger as-child>
+            <button
+              id="sync-teams-trigger"
+              type="button"
+              aria-labelledby="sync-teams-label sync-teams-trigger"
+              class="field-input flex items-center justify-between gap-2 text-start"
+              :disabled="!teams?.length"
+            >
+              <span class="truncate">{{ teamsSummary }}</span>
+              <AppIcon name="chevron" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuContent
+              align="start"
+              :side-offset="4"
+              class="z-50 max-h-[var(--reka-dropdown-menu-content-available-height)] min-w-[var(--reka-dropdown-menu-trigger-width)] overflow-y-auto rounded-xl border border-line bg-raised p-1 shadow-card"
+            >
+              <DropdownMenuCheckboxItem
+                :model-value="selectAllState"
+                :class="ITEM_CLASS"
+                @update:model-value="toggleAllTeams"
+                @select.prevent
+              >
+                <span class="flex size-5 shrink-0 items-center justify-center rounded border border-line">
+                  <DropdownMenuItemIndicator>
+                    <AppIcon :name="selectAllState === true ? 'check' : 'minus'" />
+                  </DropdownMenuItemIndicator>
+                </span>
+                בחר הכל
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator class="my-1 h-px bg-line" />
+              <DropdownMenuCheckboxItem
+                v-for="t in teams"
+                :key="t.id"
+                :model-value="teamIds.includes(t.id)"
+                :class="ITEM_CLASS"
+                @update:model-value="(on) => toggleTeam(t.id, on)"
+                @select.prevent
+              >
+                <span class="flex size-5 shrink-0 items-center justify-center rounded border border-line">
+                  <DropdownMenuItemIndicator><AppIcon name="check" /></DropdownMenuItemIndicator>
+                </span>
+                {{ t.name }}
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenuPortal>
+        </DropdownMenuRoot>
+        <p v-if="teams?.length === 0 && !teamsApi.error.value" class="text-sm text-muted">
+          אין קבוצות עם קישור ל-ibasketball.
+          <RouterLink :to="{ name: 'admin-teams' }" class="underline">הוסיפו קישור בניהול קבוצות</RouterLink>
+        </p>
+        <p v-if="teamsApi.error.value" class="error-text" role="alert">{{ teamsApi.error.value }}</p>
+      </div>
       <p v-else class="text-sm text-muted">הסנכרון יתבצע לקבוצה שלך בלבד</p>
       <button type="button" :disabled="cannotSync" class="btn-primary" @click="onSyncNow">
         סנכרון עכשיו
