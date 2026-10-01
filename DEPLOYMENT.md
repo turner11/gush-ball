@@ -142,7 +142,7 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `OBJECT_STORAGE_SECRET_ACCESS_KEY` | Step 1.5 |
 | `OBJECT_STORAGE_REGION` | Optional, defaults to `auto` |
 | `STATS_URL` | Optional, the Streamlit Community Cloud app URL (`https://<app>.streamlit.app`) |
-| `STATS_TEMPLATE_URL` | Optional, URL of the headers-only template Google Sheet (see §4.3) |
+| `STATS_TEMPLATE_URL` | Optional, URL or sheet ID of the headers-only template Google Sheet (see §4.3) |
 | `PUBLIC_URL` | `https://<domain>`. Required: password-reset links and the Google redirect URI are built from it. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional, enable "Sign in with Google" (see 4.1). |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Optional, password-reset email (STARTTLS, port defaults to 587). Without `SMTP_HOST` the reset link is only written to the backend logs. |
@@ -219,7 +219,8 @@ Lets admins open the BBStats Streamlit app from a game and start each game's she
 2. Click **Share → General access → Anyone with the link → Viewer**. *Why:* the site and the Streamlit app fetch the
    sheet without signing in, and copies made from it start with the same sharing. *Verify:* open the link in a private window.
 3. In Coolify open the resource (as in §3 step 4) → **Environment Variables**, set `STATS_TEMPLATE_URL` to the
-   sheet's URL. *Why:* the admin form builds its "make a copy" link from it.
+   sheet's URL (or just the sheet ID). Paste only that into *Value*, not `STATS_TEMPLATE_URL=…`; otherwise the link opens a
+   broken `/admin/STATS_TEMPLATE_URL=…` page. *Why:* the admin form builds its "make a copy" link from it.
 4. Set `STATS_URL` to the Community Cloud app URL (`https://<app>.streamlit.app`). *Why:* the live link opens it.
 5. Click **Redeploy**. *Why:* the backend reads both at start.
 6. Verify: log in, edit a game and click **גיליון חדש מתבנית**. Google's "Make a copy" page opens. Paste the copy's URL

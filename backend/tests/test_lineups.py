@@ -72,7 +72,46 @@ def test_non_http_url_rejected(admin_client, db_session, fake_sheet) -> None:
     r = admin_client.post(_stats_path(game), json={"url": "/etc/passwd"})
 
     assert r.status_code == 422
+    assert "/etc/passwd" in r.json()["detail"]
     assert fake_sheet == []
+
+
+def test_load_stats_accepts_bare_sheet_id(admin_client, db_session, fake_sheet) -> None:
+    game = _make_game(db_session)
+    full = "https://docs.google.com/spreadsheets/d/1xvlTs0ry_f-jg3iRN2wdiwM7v1YMiRC7oJwI6MDGb"
+
+    r = admin_client.post(_stats_path(game), json={"url": " 1xvlTs0ry_f-jg3iRN2wdiwM7v1YMiRC7oJwI6MDGb "})
+
+    assert r.status_code == 200
+    assert r.json()["stats_url"] == full
+    assert fake_sheet == [full]
+    db_session.refresh(game)
+    assert game.stats_url == full
+
+
+def test_delete_stats_clears_snapshots_keeps_url(admin_client, db_session, fake_sheet) -> None:
+    game = _make_game(db_session)
+    admin_client.post(_stats_path(game), json={"url": URL})
+
+    r = admin_client.delete(_stats_path(game))
+
+    assert r.status_code == 204
+    db_session.refresh(game)
+    assert _count(db_session) == 0
+    assert game.stats_url == URL
+    assert game.has_stats is False
+    assert game.is_manually_overridden is False
+
+
+def test_delete_stats_other_team_admin_forbidden(team_admin_client, db_session) -> None:
+    game = _make_game(db_session)  # not the team admin's team
+    game.lineup_snapshots = [LineupSnapshot(players=[1, 2, 3, 4, 5], elapsed=1.0, offense_diff=0, defence_diff=0)]
+    db_session.commit()
+
+    r = team_admin_client.delete(_stats_path(game))
+
+    assert r.status_code == 403
+    assert _count(db_session) == 1
 
 
 def test_reload_replaces_snapshots_and_uses_stored_url(admin_client, db_session, fake_sheet) -> None:

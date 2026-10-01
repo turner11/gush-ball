@@ -1,3 +1,4 @@
+import re
 from io import StringIO
 from typing import Literal
 from urllib.error import HTTPError
@@ -5,7 +6,7 @@ from urllib.error import HTTPError
 import pandas as pd
 from bbstats import fetch_csv, get_snapshots_df, get_stats_from_raw_data
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.deps import DbSession, RequireTeamAdmin, get_team_or_404
@@ -18,7 +19,17 @@ EXPECTED_HEADERS = "#1,#2,#3,#4,#5,Points,Points Against,Quarter,Time Left"
 
 
 class StatsSource(BaseModel):
-    url: str | None = Field(default=None, pattern=r"^https?://")
+    url: str | None = None
+
+
+def _sheet_url(value: str) -> str:
+    """A full http(s) URL as-is, or a bare Google Sheet ID expanded to its canonical URL."""
+    v = value.strip()
+    if re.fullmatch(r"[\w-]+", v):
+        return f"https://docs.google.com/spreadsheets/d/{v}"
+    if re.match(r"https?://", v):
+        return v
+    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not a sheet link or sheet ID: {v}")
 
 
 class StatsLoadOut(BaseModel):
@@ -44,7 +55,7 @@ def load_game_stats(
     # Deliberately not PATCH /games/{id}: that would set is_manually_overridden and divert
     # the next scrape into the review queue.
     game = _get_game_or_404(db, team_id, game_id)
-    url = payload.url or game.stats_url
+    url = _sheet_url(payload.url) if payload.url else game.stats_url
     if not url:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No stats URL")
     try:
@@ -76,6 +87,14 @@ def load_game_stats(
     game.stats_url = url
     db.commit()
     return StatsLoadOut(stats_url=url, snapshots=len(game.lineup_snapshots))
+
+
+@router.delete("/teams/{team_id}/games/{game_id}/stats", status_code=status.HTTP_204_NO_CONTENT)
+def delete_game_stats(team_id: int, game_id: int, db: DbSession, _admin: RequireTeamAdmin) -> None:
+    # Keeps stats_url so the sheet stays linked; not a PATCH, so no override flag (see load_game_stats).
+    game = _get_game_or_404(db, team_id, game_id)
+    game.lineup_snapshots = []
+    db.commit()
 
 
 @router.get("/teams/{team_id}/lineups", response_model=list[LineupOut])

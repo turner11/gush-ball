@@ -501,6 +501,60 @@ describe('AdminGamesView', () => {
       expect(wrapper.text()).not.toContain('צרו גיליון מהתבנית')
     })
 
+    it('hides the template link when the configured value is not a sheet', async () => {
+      const wrapper = await mountEditing()
+      ;(await import('../composables/useAuth')).useAuth().user.value = {
+        ...USER,
+        stats_template_url: 'STATS_TEMPLATE_URL=https://docs.google.com/spreadsheets/d/T',
+      }
+      await flushPromises()
+      expect(wrapper.find('a[href*="STATS_TEMPLATE_URL"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('צרו גיליון מהתבנית')
+    })
+
+    it('stats field accepts a bare sheet id without blocking save', async () => {
+      const wrapper = await mountEditing()
+      await wrapper.find('#stats-url').setValue('1xvlTs0ry_f-jg3iRN2wdiwM7v1YMiRC7oJwI6MDGb')
+      expect(wrapper.find('form').element.checkValidity()).toBe(true)
+    })
+
+    describe('deleting stats', () => {
+      const DELETE = 'DELETE /api/teams/1/games/100/stats'
+      const deleteCalls = () => global.fetch.mock.calls.filter(([, o]) => o?.method === 'DELETE')
+      const deleteButton = (wrapper) => wrapper.findAll('button').find((b) => b.text() === 'מחק סטטיסטיקה')
+
+      async function askToDelete() {
+        const wrapper = await mountEditing(
+          { [DELETE]: () => ({ ok: true, status: 204 }) },
+          { ...GAMES[0], has_stats: true, stats_url: SHEET },
+        )
+        await deleteButton(wrapper).trigger('click')
+        return wrapper
+      }
+      const alertButton = (wrapper, label) => wrapper.findAll('[role="alert"] button').find((b) => b.text() === label)
+
+      it('delete asks first and cancel does not call the API', async () => {
+        const wrapper = await askToDelete()
+        expect(wrapper.find('[role="alert"]').text()).toContain('למחוק את כל נתוני')
+
+        await alertButton(wrapper, 'ביטול').trigger('click')
+        await flushPromises()
+
+        expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+        expect(deleteCalls()).toHaveLength(0)
+      })
+
+      it('confirming מחק deletes and hides the button', async () => {
+        const wrapper = await askToDelete()
+        await alertButton(wrapper, 'מחק').trigger('click')
+        await flushPromises()
+
+        expect(deleteCalls()).toHaveLength(1)
+        expect(wrapper.text()).toContain('הסטטיסטיקה נמחקה')
+        expect(deleteButton(wrapper)).toBeUndefined()
+      })
+    })
+
     describe('when the game already has stats', () => {
       const POST = 'POST /api/teams/1/games/100/stats'
       const statsCalls = () => global.fetch.mock.calls.filter(([u]) => u === '/api/teams/1/games/100/stats')
