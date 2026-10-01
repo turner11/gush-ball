@@ -62,7 +62,10 @@ watch([() => route.params.slug, () => route.name, teams], () => {
     selectedTeamId.value = String(match.id)
     return
   }
-  const fallback = teams.value.find((t) => String(t.id) === selectedTeamId.value) ?? teams.value[0]
+  // /<team id> redirects to that team's canonical slug; slugs above always win over ids.
+  const fallback = teams.value.find((t) => String(t.id) === slug)
+    ?? teams.value.find((t) => String(t.id) === selectedTeamId.value)
+    ?? teams.value[0]
   router.replace({ name: 'team-home', params: { slug: teamSlug(fallback) } })
 })
 
