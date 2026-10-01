@@ -1,14 +1,13 @@
 ---
 name: adversary-review
-description: "Adversarially review a GitHub pull request against YAGNI and ponytail (lazy senior dev) guidelines. Flags unnecessary code, abstractions, dependencies, and boilerplate; verifies the fix targets root cause and is covered by a real check; posts notes to the PR and returns a bottom-line merge-readiness verdict. Use when reviewing a PR, gating a merge, or as the review step in fan-out-issues. Usage: /adversary-review <pr-number-or-branch>"
+description: "Adversarially review a GitHub pull request against YAGNI/ponytail and the CLAUDE.md quality bar (code + UX). Flags unnecessary code, abstractions, dependencies, boilerplate, poor cohesion, and UI that breaks the design system; verifies the fix targets root cause and is covered by a real check; posts notes to the PR and returns a bottom-line merge-readiness verdict. Use when reviewing a PR, gating a merge, or as the review step in fan-out-issues. Usage: /adversary-review <pr-number-or-branch>"
 argument-hint: "<pr-number-or-branch>"
-allowed-tools: Bash, Read, Grep, Glob, gh
+allowed-tools: Bash, PowerShell, Read, Grep, Glob
 ---
 
-Play the adversary on a pull request. Your job is not to be nice — it's to find the code that shouldn't exist, then
-decide if the PR is safe to merge. Argument: `$ARGUMENTS` = PR number or branch.
-
-**GitHub CLI:** all commands use `gh`.
+Play the adversary on a pull request. Your job is not to be nice: find the code that shouldn't exist and the code that
+breaks the quality bar in `CLAUDE.md`, then decide if the PR is safe to merge. Argument: `$ARGUMENTS` = PR number or
+branch.
 
 **Run at higher effort.** This review demands more scrutiny than the code that produced the PR — reason carefully before
 writing the verdict.
@@ -41,6 +40,24 @@ For every added chunk, ask the ladder in order and flag the first rung it fails:
    over boring → flag it.
 5. **New dependency** that could have been avoided → flag it, name the avoidance.
 
+Then the **code bar** from `CLAUDE.md`, applied to every added chunk:
+
+- **Debuggable:** could someone at 3am find the failure from the log or error alone? Swallowed exceptions, bare
+  `except`, and errors that don't name the offending id → 🟡 (🔴 if they hide data loss).
+- **Cohesion / coupling:** is the logic in the module that owns the data? Business logic in a router, a scraper
+  reaching into view concerns, or one feature edited across unrelated modules → flag it and name the right home.
+- **SOLID where it pays:** a function doing two jobs → split it. An abstraction with one implementation → inline it.
+
+**If the diff touches `frontend/`, run the UX pass** against the UX bar in `CLAUDE.md`. Read the template and classes,
+and the screenshots if the PR has any:
+
+- Raw colors, one-off spacing, or a hand-rolled button/card where a `style.css` token or class exists → 🟡
+- Missing loading / empty / error state, or a layout that breaks or scrolls sideways at 390px → 🔴
+- Unlabelled controls, click-only interactions, `left`/`right` instead of `start`/`end` (RTL) → 🟡 (🔴 if it blocks a
+  task)
+- Weak hierarchy (the main thing isn't the most prominent) or extra clicks for the main action → 🟡
+- The PR says "visual check not done" → name it in the verdict so the user knows to look.
+
 Then the correctness checks ponytail does *not* skip:
 
 - **Root cause, not symptom.** If this is a bug fix, is the shared function fixed once, or was only the reported call
@@ -51,6 +68,9 @@ Then the correctness checks ponytail does *not* skip:
   never lazy about these.
 - **Scope creep.** Anything in the diff unrelated to the issue → flag it for removal or a separate PR.
 - Any `ponytail:` shortcut comment: is the named ceiling acceptable, and is the upgrade path honest?
+- **Mergeable and green.** `gh pr checks <pr>` and `gh pr view <pr> --json mergeable,mergeStateStatus`. A failing check
+  or conflicts with master → 🔴 (quote the failing step, e.g. the ruff rule). Pending checks → wait for them
+  (`gh pr checks <pr> --watch`).
 
 ## Step 3 — Post Notes to the PR + Return the Verdict
 
@@ -93,7 +113,7 @@ glance which severities are still live. Drop the "Since last review" line entire
 
 Verdict rules:
 
-- **READY TO MERGE** — no 🔴, tests present and passing, scope matches the issue.
+- **READY TO MERGE** — no 🔴, CI checks green, no conflicts with master, scope matches the issue.
 - **NEEDS CHANGES** — one or more 🔴 or 🟡 that are cheap to address.
 - **BLOCK** — wrong approach, symptom-only fix, missing tests on non-trivial logic, or scope far beyond the issue.
 - **On a re-run**, judge the *current* state, but explicitly flag any unresolved prior 🔴 and any regression (a

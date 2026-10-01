@@ -6,181 +6,132 @@ description: >-
   a GitHub issue — e.g. "work on issue", "fix bug #N", "pick up an issue", or
   "start a new task". Usage: /work-issue [issue-number]
 argument-hint: "[issue-number]"
-allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent, terminal, powershell, gh
+allowed-tools: Bash, PowerShell, Read, Write, Edit, Glob, Grep, Agent, Skill
 ---
 
-Work on a GitHub issue from the repo using TDD. Argument: `$ARGUMENTS`
-
-**GitHub CLI:** all issue/PR commands use `gh`.
+Work on a GitHub issue using TDD. Argument: `$ARGUMENTS`. The **quality bar** in `CLAUDE.md` (code, UX, "Done") is the
+standard for every step.
 
 ## Step 1 — Parse Arguments
 
-If `$ARGUMENTS` is a non-empty positive integer → treat it as the issue number and jump to **Step 3**.
-If `$ARGUMENTS` is empty → continue to Step 2.
-Otherwise (non-numeric string, URL, negative number, etc.) → inform the user the argument is invalid and ask for a valid issue number or leave blank to browse open issues.
+A positive integer (with or without `#`) → the issue number; go to **Step 3**. Empty → Step 2. Anything else → say it's
+invalid and ask for an issue number, or blank to browse.
 
-## Step 2 — Fetch & Rank Open Issues
+## Step 2 — Rank Open Issues
 
-Fetch open issues as JSON:
 ```bash
 gh issue list --state open --limit 100 --json number,title,labels,createdAt,reactionGroups
 ```
 
-**Rank by (in order):**
-1. Issues labeled `bug` come before `enhancement`, `feature`, or anything else.
-2. Within the same type, rank by label severity: `critical` > `high` > `medium` > `low` > unlabeled.
-3. Tiebreak: total reaction count descending (sum all reaction counts across `reactionGroups`).
-4. Final tiebreak: oldest `createdAt` first (they've waited longest).
+Rank: `bug` first → severity `critical` > `high` > `medium` > `low` > none → reactions desc → oldest first. Show a
+numbered table and ask which one to work on.
 
-Display a clean numbered table:
-```
- 1. #42 [bug][high] Crash when POI list is empty (reactions: 5)
- 2. #37 [bug]       Map not loading on first launch (reactions: 2)
- 3. #51 [enhancement] Add filter by language (reactions: 0)
-```
+## Step 3 — Read the Issue & Explore
 
-Ask the user which issue number they'd like to work on.
-
-## Step 3 — Read the Issue & Explore Context
+Fetch it fresh, even if you read it earlier in the session. The user edits issue bodies to answer questions:
 
 ```bash
 gh issue view <number> --comments
 ```
 
-If the command fails (issue doesn't exist, permissions error, etc.), report the error clearly and return to Step 2.
-If the issue is closed, inform the user and ask whether to proceed anyway or pick a different issue.
+Closed issue → ask before proceeding. `Depends on #N` still open → say it's blocked and ask.
 
-**Understand the issue:**
-- What is broken or needed.
-- Expected vs. actual behavior from the issue body.
-- If the body has a `Depends on` line naming another issue, confirm that issue is closed first — if it's still open, tell the user this issue is blocked and ask whether to proceed anyway.
+Trace the real flow end to end before planning: grep for the names in the issue, read the code and its tests, and find
+the helpers, components, and `style.css` classes you will reuse. Backend tests live in `backend/tests/` (pytest).
+Frontend specs sit next to their component as `*.spec.js` (vitest).
 
-**Explore the relevant codebase:**
-- Make sure to understand the code base, the problem and affects before starting to work
-- Use grep/glob to find source files related to the issue (search for relevant function names, class names, keywords from the issue).
-- Read existing tests for the affected module to understand naming conventions, fixture patterns, and assertion styles.
-- Note any shared utilities or helpers that might be reusable — avoid duplicating existing code.
+Print: issue title, affected layer(s), files found, and your plan.
 
-For test commands, see `references/test-commands.md`.
+## Step 4 — Clean State & Branch
 
-Print a brief summary: issue title, affected layer(s), relevant files found, and your plan.
+**Already in a worktree on a feature branch** (fan-out did this) → skip this step.
 
-## Step 4 — Ensure Clean State & Create Branch
-
-**Check for uncommitted changes:**
-```bash
-git status --porcelain
-```
-If the output is non-empty, warn the user and ask whether to stash (`git stash`), commit, or abort. If stashing, restore later with `git stash apply` — never `git stash pop` (see CLAUDE.md).
-
-**Sync with master:**
-```bash
-git checkout master && git pull origin master
-```
-
-**Create the feature branch.** Choose the prefix based on labels (per CLAUDE.md):
-- `bug` label → `fix/issue-{number}-{slug}`
-- Anything else → `feat/issue-{number}-{slug}`
-
-Slug = issue title lowercased, spaces and punctuation replaced by `-`, truncated at a word boundary to max 40 chars (never cut mid-word).
+Otherwise: `git status --porcelain` must be empty. If it isn't, ask whether to stash (restore with `git stash apply`),
+commit, or abort. Then:
 
 ```bash
-git checkout -b <branch-name>
+git fetch origin
+git checkout -b <branch> origin/master        # bug → fix/issue-<N>-<slug>, else feat/issue-<N>-<slug>
+git submodule update --init                    # stats/ is required for backend tests
 ```
 
-If the branch already exists locally or on the remote, ask the user whether to check it out and continue from where it left off, or delete it and start fresh.
+Slug = title lowercased, non-alphanumerics → `-`, ≤40 chars at a word boundary. If the branch already exists, ask
+whether to continue it or start fresh.
 
-## Step 5 — 🔴 Red Phase: Write Failing Tests
+**Before every commit in the steps below**, `git branch --show-current` must not be `master`. The user may merge or
+switch branches between turns.
 
-Write test(s) that **precisely** capture the expected behavior described in the issue.
+## Step 5 — 🔴 Red: Failing Tests
 
-Rules:
-- Check for existing tests related to this issue first. Extend rather than duplicate.
-- Tests must be specific — test the exact behavior from the issue, not general coverage.
-- Do NOT write implementation code yet.
-- Place tests following this repo's pytest convention (check `tests/` for the existing layout before creating a new test file — see `references/test-commands.md`).
-- Run the suite and confirm the new test(s) **fail** (see `references/test-commands.md` for commands with `-t`/name filtering).
+Write tests that pin down the exact behaviour in the issue's "Definition of done". Extend existing tests rather than
+duplicating them. Run them and watch them fail for the right reason.
 
-Report: `🔴 Red: <N> test(s) failing as expected`
+Report `🔴 Red: <N> test(s) failing as expected`. Commit `test: add failing tests for #<N> — <what>`.
 
-Commit:
-```
-test: add failing tests for #<number> — <brief description>
-```
+## Step 6 — 🟢 Green: Minimal Implementation
 
-## Step 6 — 🟢 Green Phase: Implement the Fix
+Write the smallest change that turns the tests green. Reuse existing helpers and components. Leave unrelated code
+alone.
 
-Write the **minimal** code change to make the failing tests pass.
+If you add a migration, generate it with `uv run alembic revision -m "<what>"`. That gives it a random revision id, and
+`test_single_alembic_head` guards it. Delete unused `op`/`sa` imports and `pass` bodies from the generated file so ruff
+passes.
 
-- Before writing new logic, check for existing utility functions, helpers, or patterns in the codebase that can be reused.
-- Make sure to understand the code base, the problem and affects before starting to work
-- Keep it simple and do not modify whatever is not related directly to the task at hand
-- Run the targeted tests again to confirm they now pass.
-- If tests still fail, investigate and adjust the implementation.
+**UI changes** must meet the UX bar: compose the existing `style.css` tokens and component classes, handle the
+loading / empty / error states, keep RTL correct, and keep everything keyboard-reachable.
 
-Report: `🟢 Green: <N> test(s) passing`
+Report `🟢 Green: <N> test(s) passing`. Commit `fix:` (bug label) or `feat:` + `Closes #<N>`.
 
-Commit prefix based on labels:
-- Issue has `bug` label → `fix:`
-- Otherwise → `feat:`
+## Step 7 — ✅ Refactor
 
-```
-<prefix> <short description>
+Re-read the diff against the code bar in `CLAUDE.md`. Is it debuggable? Does each function have one job? Is new code
+placed in the module that owns the behaviour? Is it duplicated with an existing helper? Fix whatever fails and re-run
+the tests. Report `✅ Refactor: <what changed>` or `✅ Refactor: no changes needed`. Commit `refactor: <what>` if code
+changed.
 
-Closes #<number>
-```
+## Step 8 — CI Gate (+ visual check for UI)
 
-## Step 7 — ✅ Refactor Phase
-
-Review the new code for:
-- Clarity and readability
-- Duplication with existing helpers/utilities
-- Consistency with surrounding code patterns (check nearby files if unsure)
-
-Refactor if improvements are clear. Re-run targeted tests to confirm still green.
-
-Report: `✅ Refactor: <what changed>` OR `✅ Refactor: no changes needed`
-
-If code changed, commit:
-```
-refactor: clean up <description>
-```
-
-## Step 8 — Full Regression Check
-
-Run the **complete** test suite to catch regressions (see `references/test-commands.md`).
-
-If any pre-existing tests break, investigate and fix before proceeding. Do not push code that breaks existing tests.
-
-Report: `✅ Full suite: <N> tests passing, 0 failures`
-
-## Step 9 — Push + Open Draft PR
+Run **every** command from `.github/workflows/ci.yml` for each side you touched, exactly as CI runs them:
 
 ```bash
-git push -u origin <branch-name>
+(cd backend  && uv run ruff check . && uv run pytest -q)
+(cd frontend && npm run test && npm run build)
 ```
 
-If push fails (e.g., upstream changes), rebase and retry:
-```bash
-git pull --rebase origin master
-git push -u origin <branch-name>
-```
+All of them must pass. pytest alone is not the gate: ruff fails CI on its own.
 
-Then open a draft PR using the template in `assets/pr-template.md`. Populate the template with:
-
-- The issue number for `Closes #<number>`.
-- A 1-3 sentence summary of the change.
-- The list of files changed and what was modified in each.
-- The number of new tests added.
-- Confirmation that the full suite passes.
-- Specific manual smoke-test steps from the issue.
-
-Write the filled-in template to a temp file, then create the PR (head branch defaults to the current branch):
+**Visual check (any `frontend/` change).** Run the app on ports unique to this issue, because parallel worktrees
+otherwise collide on 8000/5173. Copy `backend/.env` from the main checkout if the worktree has none:
 
 ```bash
-gh pr create --draft --base master --title "<issue title>" --body-file <filled-template-file>
+# backend port = 9000 + issue number, frontend port = 7000 + issue number (e.g. #42 → 9042 / 7042)
+(cd backend  && uv run uvicorn app.main:app --port 9042)
+(cd frontend && API_TARGET=http://localhost:9042 npm run dev -- --port 7042 --strictPort)
 ```
 
-If `gh pr create` reports a PR already exists for this branch, open it with `gh pr view <branch-name> --web` instead of creating a duplicate.
+If a browser tool is available, open each changed page at 390px and 1280px wide, in light and dark mode. Check it
+against the UX bar: hierarchy, spacing, overflow, tap targets, contrast, RTL. Fix what looks off before the PR. With no
+browser tool, write "visual check not done" in the PR's test plan so the reviewer and user know.
 
-Return the PR URL to the user.
+Report `✅ CI: <commands> all green` (+ `✅ Visual: checked at 390/1280, light/dark`).
+
+## Step 9 — Rebase, Push, Draft PR
+
+Rebase onto current master so the PR merges cleanly. Then re-run Step 8 if anything changed. If
+`test_single_alembic_head` goes red, master gained a migration: re-point yours with `down_revision`.
+
+```bash
+git fetch origin && git rebase origin/master
+git push -u origin <branch>   # --force-with-lease after a rebase of an already-pushed branch
+```
+
+Fill `assets/pr-template.md`, write it to a temp file, and open the PR:
+
+```bash
+gh pr create --draft --base master --title "<issue title>" --body-file <file>
+```
+
+If a PR already exists for the branch, `gh pr view <branch>` instead.
+
+**Verify before you report:** `git log origin/<branch> -1` shows your last commit, and `gh pr checks <pr>` is pending
+or green. Then return the PR URL.
