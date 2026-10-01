@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatDateTime } from '../lib/format'
+import { formatGameDate } from '../lib/format'
 
 const TEAMS = [{ id: 1, name: 'קבוצה א' }]
 const GAMES = [
@@ -74,8 +74,24 @@ describe('AdminGamesView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('מכבי')
-    expect(wrapper.text()).toContain(formatDateTime('2026-10-01T18:00:00'))
+    expect(wrapper.text()).toContain(formatGameDate('2026-10-01T18:00:00').time)
     expect(wrapper.text()).toContain('מתוכנן')
+  })
+
+  it('clears the list and shows the error in the list area when loading games fails', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => errorRes(),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('ol').exists()).toBe(false)
+    expect(wrapper.find('form').text()).not.toContain('שגיאה בטעינת המשחקים')
+    expect(wrapper.find('[role="alert"]').text()).toBe('שגיאה בטעינת המשחקים')
   })
 
   it('submitting the add-game form POSTs the payload and the new game appears in the list', async () => {
@@ -255,7 +271,7 @@ describe('AdminGamesView', () => {
       expect.objectContaining({ method: 'PATCH' }),
     )
     expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(false)
-    const rows = wrapper.findAll('tbody')
+    const rows = wrapper.findAll('ol > li')
     expect(rows[rows.length - 1].text()).toContain('הפועל ירושלים')
   })
 
@@ -457,6 +473,39 @@ describe('AdminGamesView', () => {
     expect(wrapper.find('a[href^="/stats?game=101"]').exists()).toBe(false)
   })
 
+  it('games render sorted by date regardless of API order, and stay sorted after an edit', async () => {
+    const early = { ...GAMES[0], id: 1, scheduled_at: '2026-10-01T18:00:00', opponent: { ...GAMES[0].opponent, name: 'ראשון' } }
+    const late = { ...GAMES[0], id: 2, scheduled_at: '2026-11-01T18:00:00', opponent: { ...GAMES[0].opponent, name: 'שני' } }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes([late, early]),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+      'PATCH /api/teams/1/games/1': () => jsonRes({ ...early, scheduled_at: '2026-12-01T18:00:00' }),
+    })
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+    const names = () => wrapper.findAll('ol > li').map((li) => li.text().match(/ראשון|שני/)[0])
+    expect(names()).toEqual(['ראשון', 'שני'])
+
+    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(names()).toEqual(['שני', 'ראשון'])
+  })
+
+  it('shows an empty state when the team has no games', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes([]),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+    })
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.find('.empty-state').text()).toContain('אין משחקים')
+  })
+
   describe('live stats flow', () => {
     const SHEET = 'https://docs.google.com/spreadsheets/d/X/edit'
     const USER = {
@@ -510,6 +559,29 @@ describe('AdminGamesView', () => {
       await flushPromises()
       expect(wrapper.find('a[href*="STATS_TEMPLATE_URL"]').exists()).toBe(false)
       expect(wrapper.text()).not.toContain('צרו גיליון מהתבנית')
+    })
+
+    it('clearing the stats field and saving PATCHes stats_url: null and drops the live link', async () => {
+      const wrapper = await mountEditing(
+        { 'PATCH /api/teams/1/games/100': () => jsonRes({ ...GAMES[0], stats_url: null }) },
+        { ...GAMES[0], stats_url: SHEET },
+      )
+      expect(wrapper.find('a[href^="https://app.streamlit.app"]').exists()).toBe(true)
+      await wrapper.find('#stats-url').setValue('')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      const patch = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
+      expect(JSON.parse(patch[1].body).stats_url).toBeNull()
+      expect(wrapper.find('a[href^="https://app.streamlit.app"]').exists()).toBe(false)
+    })
+
+    it('saving sends the typed stats link', async () => {
+      const wrapper = await mountEditing({ 'PATCH /api/teams/1/games/100': () => jsonRes(GAMES[0]) })
+      await wrapper.find('#stats-url').setValue(` ${SHEET} `)
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      const patch = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
+      expect(JSON.parse(patch[1].body).stats_url).toBe(SHEET)
     })
 
     it('stats field accepts a bare sheet id without blocking save', async () => {

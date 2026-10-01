@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, status
@@ -29,6 +30,17 @@ class GameUpdate(BaseModel):
     team_score: int | None = None
     opponent_score: int | None = None
     description: str | None = None
+    stats_url: str | None = None
+
+
+def _sheet_url(value: str) -> str:
+    """A full http(s) URL as-is, or a bare Google Sheet ID expanded to its canonical URL."""
+    v = value.strip()
+    if re.fullmatch(r"[\w-]+", v, re.ASCII):
+        return f"https://docs.google.com/spreadsheets/d/{v}"
+    if re.match(r"https?://", v):
+        return v
+    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not a sheet link or sheet ID: {v}")
 
 
 class OpponentRead(BaseModel):
@@ -152,7 +164,10 @@ def update_game(
 ) -> Game:
     game = _get_game_or_404(db, team_id, game_id)
     updates = payload.model_dump(exclude_unset=True)
-    has_changes = bool(updates)
+    # stats_url is admin bookkeeping, not a scrape field: editing it never flags an override.
+    has_changes = bool(updates.keys() - {"stats_url"})
+    if "stats_url" in updates:
+        updates["stats_url"] = _sheet_url(updates["stats_url"]) if updates["stats_url"] else None
     _apply_game_updates(db, game, updates)
     if has_changes:
         game.is_manually_overridden = True

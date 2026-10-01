@@ -1,4 +1,3 @@
-import re
 from io import StringIO
 from typing import Literal
 from urllib.error import HTTPError
@@ -11,7 +10,7 @@ from sqlalchemy import select
 
 from app.deps import DbSession, RequireTeamAdmin, get_team_or_404
 from app.models import Game, LineupSnapshot
-from app.routers.games import _get_game_or_404
+from app.routers.games import _get_game_or_404, _sheet_url
 
 router = APIRouter(tags=["lineups"])
 
@@ -20,16 +19,6 @@ EXPECTED_HEADERS = "#1,#2,#3,#4,#5,Points,Points Against,Quarter,Time Left"
 
 class StatsSource(BaseModel):
     url: str | None = None
-
-
-def _sheet_url(value: str) -> str:
-    """A full http(s) URL as-is, or a bare Google Sheet ID expanded to its canonical URL."""
-    v = value.strip()
-    if re.fullmatch(r"[\w-]+", v, re.ASCII):
-        return f"https://docs.google.com/spreadsheets/d/{v}"
-    if re.match(r"https?://", v):
-        return v
-    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not a sheet link or sheet ID: {v}")
 
 
 class StatsLoadOut(BaseModel):

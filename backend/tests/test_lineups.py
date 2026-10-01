@@ -293,3 +293,16 @@ def test_game_read_exposes_stats_url(admin_client, client, db_session, fake_shee
 
     assert client.get(single).json()["stats_url"] == URL
     assert client.get(f"/teams/{game.team_id}/games").json()[0]["stats_url"] == URL
+
+
+def test_load_stats_uses_gid_tab(admin_client, db_session, fake_sheet) -> None:
+    game = _make_game(db_session)
+    url = "https://docs.google.com/spreadsheets/d/X/edit?gid=77"
+
+    r = admin_client.post(_stats_path(game), json={"url": url})
+
+    assert r.status_code == 200
+    assert fake_sheet == [url]
+    db_session.refresh(game)
+    assert game.stats_url == url
+    assert bbstats.to_csv_url(url).endswith("&gid=77")
