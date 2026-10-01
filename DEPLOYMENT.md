@@ -143,7 +143,7 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `OBJECT_STORAGE_REGION` | Optional, defaults to `auto` |
 | `STATS_URL` | Optional, the BBStats Streamlit app link |
 | `PUBLIC_URL` | `https://<domain>`. Required: password-reset links and the Google redirect URI are built from it. |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional, enable "Sign in with Google" (see 4.2). |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional, enable "Sign in with Google" (see 4.1). |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Optional, password-reset email (STARTTLS, port defaults to 587). Without `SMTP_HOST` the reset link is only written to the backend logs. |
 | `ENABLE_DOCS` | **Leave unset** in prod (keeps `/api/docs` and `/api/openapi.json` off). |
 
@@ -166,14 +166,14 @@ uv run python scripts/create_admin.py <username> <password> [team-slug] [--email
 An email is needed for password reset and Google sign-in. To give an existing admin one:
 `UPDATE admin_users SET email = lower('me@example.com') WHERE username = 'admin';`
 
-### 4.2 Google sign-in (optional)
+### 4.1 Google sign-in (optional)
 
 Google Cloud Console → APIs & Services → OAuth consent screen (External, scopes `openid`/`email`, publish) →
 Credentials → *OAuth client ID*, type *Web application*, authorized redirect URI
 `https://<domain>/api/auth/google/callback`. Put the client ID and secret in Coolify as `GOOGLE_CLIENT_ID` /
 `GOOGLE_CLIENT_SECRET`. Only an existing admin whose `email` matches the Google account (verified) can sign in.
 
-### 4.1 Auto-deploy on merge
+### 4.2 Auto-deploy on merge
 
 Coolify deploys every push to `master`. CI deploys nothing and Coolify does not wait for it, so "merged" has to mean
 "CI passed": GitHub enforces that, Coolify just follows `master`. Pushes to other branches (PR branches) are ignored.

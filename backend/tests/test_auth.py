@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import logging
+import ssl
 import time
 from urllib.parse import parse_qs, urlparse
 
@@ -252,8 +253,9 @@ def test_reset_email_uses_starttls(monkeypatch: pytest.MonkeyPatch) -> None:
         def __exit__(self, *a):
             return False
 
-        def starttls(self):
+        def starttls(self, context=None):
             calls.append("starttls")
+            assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
 
         def login(self, user, password):
             calls.append("login")

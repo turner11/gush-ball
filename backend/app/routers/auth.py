@@ -4,6 +4,7 @@ import json
 import logging
 import secrets
 import smtplib
+import ssl
 import threading
 import time
 from email.message import EmailMessage
@@ -124,7 +125,7 @@ def _send_reset_email(to: str, link: str) -> None:
     )
     # ponytail: STARTTLS (587) only; add SMTP_SSL if a provider needs 465
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
-        smtp.starttls()
+        smtp.starttls(context=ssl.create_default_context())
         if settings.smtp_user:
             smtp.login(settings.smtp_user, settings.smtp_password)
         smtp.send_message(msg)

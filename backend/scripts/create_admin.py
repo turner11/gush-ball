@@ -24,6 +24,10 @@ def main() -> None:
     parser.add_argument("--email")
     args = parser.parse_args()
 
+    if "@" in args.username:
+        print("Username must not contain '@' (login treats it as an email).")
+        raise SystemExit(1)
+
     email = args.email.strip().lower() if args.email else None
     if email is not None and "@" not in email:
         print(f"Invalid email '{args.email}'.")
