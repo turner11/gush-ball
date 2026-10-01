@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { signed } from '../lib/format'
+import { teamRows } from '../lib/standings'
 
 const team = ref(null)
 const rows = ref([])
@@ -12,21 +13,8 @@ const loading = ref(false)
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
 
-const normUrl = (u) => {
-  try {
-    return decodeURIComponent(u).replace(/\/$/, '')
-  } catch {
-    return u // admin-pasted URLs can be truncated/invalid percent-encoding
-  }
-}
-// URL is the reliable key (names differ between our Team and ibasketball); name is the fallback.
-const urlMatch = (r) =>
-  r.source_url &&
-  team.value?.ibasketball_team_url &&
-  normUrl(r.source_url) === normUrl(team.value.ibasketball_team_url)
 const rowLogo = (r) => (r.id === myRow.value?.id ? team.value?.logo_url : r.logo_url)
-const nameMatch = (r) => r.team_name === team.value?.name
-const myRow = computed(() => rows.value.find(urlMatch) ?? rows.value.find(nameMatch) ?? null)
+const myRow = computed(() => teamRows(rows.value, team.value)[0] ?? null)
 const leagueRows = computed(() =>
   myRow.value ? rows.value.filter((r) => r.league_name === myRow.value.league_name) : [],
 )

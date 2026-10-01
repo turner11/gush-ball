@@ -118,10 +118,10 @@ onUnmounted(() => {
         <span class="block font-extrabold">ניהול משחקים</span>
         <span class="block text-sm text-muted">לוח משחקים, תוצאות ותור אישור</span>
       </RouterLink>
-      <RouterLink v-if="!user?.team_id" to="/admin/standings" class="card space-y-2 transition hover:border-team">
+      <RouterLink to="/admin/standings" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="table" /></span>
         <span class="block font-extrabold">ניהול טבלת ליגה</span>
-        <span class="block text-sm text-muted">טבלת ליגה ידנית</span>
+        <span class="block text-sm text-muted">טבלאות ליגה לפי ליגה</span>
       </RouterLink>
       <RouterLink :to="{ name: 'admin-teams' }" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="shield" /></span>
