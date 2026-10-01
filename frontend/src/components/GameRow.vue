@@ -6,7 +6,7 @@ import { homeFirst, played, result, STATUS_LABELS } from '../lib/games'
 import GameLocationLinks from './GameLocationLinks.vue'
 import GameStatsLink from './GameStatsLink.vue'
 
-// One schedule row. The default slot replaces the live-stats link (the admin list puts its actions there).
+// One schedule row. The optional `actions` slot is a full-width row under the content and replaces the live-stats link (the admin list uses it).
 const props = defineProps({ game: { type: Object, required: true }, team: { type: Object, default: null } })
 
 const d = computed(() => formatGameDate(props.game.scheduled_at))
@@ -21,7 +21,7 @@ const edge = computed(() => ({ W: 'border-win', L: 'border-loss' })[result(props
 </script>
 
 <template>
-  <li :class="['flex items-center gap-3 border-s-4 px-4 py-3 sm:gap-4 sm:px-5', edge]">
+  <li :class="['flex flex-wrap items-center gap-3 border-s-4 px-4 py-3 sm:gap-4 sm:px-5', edge]">
     <div v-if="d" class="w-11 shrink-0 text-center leading-none">
       <span class="block text-2xl font-black tabular-nums">{{ d.day }}</span>
       <span class="block text-xs font-bold text-muted">{{ d.month }}</span>
@@ -41,7 +41,7 @@ const edge = computed(() => ({ W: 'border-win', L: 'border-loss' })[result(props
         </template>
       </p>
       <p v-if="d" class="text-sm text-muted">{{ d.weekday }} · {{ d.time }} · <span class="badge badge-muted">{{ game.is_home ? 'בית' : 'חוץ' }}</span></p>
-      <slot><GameStatsLink :game="game" class="section-link" /></slot>
+      <GameStatsLink v-if="!$slots.actions" :game="game" class="section-link" />
     </div>
     <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
       <GameLocationLinks v-if="address" :address="address" />
@@ -51,5 +51,6 @@ const edge = computed(() => ({ W: 'border-win', L: 'border-loss' })[result(props
       </template>
       <span v-else class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span>
     </div>
+    <div v-if="$slots.actions" class="flex basis-full flex-wrap gap-1"><slot name="actions" /></div>
   </li>
 </template>

@@ -318,11 +318,11 @@ async function onDelete(game) {
         <p v-else-if="!games.length" class="empty-state">אין משחקים עדיין.</p>
         <ol v-else class="card divide-y divide-line overflow-hidden p-0">
           <GameRow v-for="game in sortedGames" :key="game.id" :game="game" :team="selectedTeam">
-            <span class="mt-1 flex flex-wrap gap-1">
+            <template #actions>
               <GameStatsLink :game="game" class="btn-ghost min-h-11" />
               <button type="button" class="btn-ghost min-h-11" @click="startEdit(game)">ערוך</button>
               <button type="button" class="btn-danger-ghost min-h-11" @click="onDelete(game)">מחק</button>
-            </span>
+            </template>
           </GameRow>
         </ol>
       </div>
