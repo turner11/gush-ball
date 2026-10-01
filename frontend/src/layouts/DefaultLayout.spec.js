@@ -126,6 +126,42 @@ describe('DefaultLayout', () => {
     expect(router.currentRoute.value.path).toBe('/team_a')
   })
 
+  it("/<id> redirects to that team's canonical slug and selects it", async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/2')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/team_b')
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBe('2')
+  })
+
+  it('a name_en slug that is all digits wins over a team id', async () => {
+    const teams = [{ id: 1, name: 'א', name_en: 'Team A' }, { id: 2, name: 'ב', name_en: '1' }]
+    mockFetch({ 'GET /api/teams': () => jsonRes(teams) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/1')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/1')
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBe('2')
+  })
+
+  it('unknown numeric id falls back to the remembered/first team', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/99')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/team_a')
+  })
+
   it('non-home pages never redirect', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
