@@ -163,15 +163,27 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 uv run python scripts/create_admin.py <username> <password> [team-slug] [--email EMAIL]
 ```
 
-An email is needed for password reset and Google sign-in. To give an existing admin one:
+An email is needed for password reset and Google sign-in. Team admins get theirs in the "מנהלי הקבוצה" section of the
+team edit page. For a full admin use `create_admin.py --email`, or this SQL for an existing one:
 `UPDATE admin_users SET email = lower('me@example.com') WHERE username = 'admin';`
 
 ### 4.1 Google sign-in (optional)
 
-Google Cloud Console → APIs & Services → OAuth consent screen (External, scopes `openid`/`email`, publish) →
-Credentials → *OAuth client ID*, type *Web application*, authorized redirect URI
-`https://<domain>/api/auth/google/callback`. Put the client ID and secret in Coolify as `GOOGLE_CLIENT_ID` /
-`GOOGLE_CLIENT_SECRET`. Only an existing admin whose `email` matches the Google account (verified) can sign in.
+Only an existing admin whose `email` matches the (verified) Google account can sign in.
+
+1. Open the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent) in Google Cloud Console.
+   Choose **External**, add the scopes `openid` and `email`, and click **Publish app**. *Why:* without publishing, only
+   listed test users can sign in. *Verify:* the status reads "In production".
+2. Open [Credentials](https://console.cloud.google.com/apis/credentials) → **Create credentials → OAuth client ID** →
+   type **Web application**. Under **Authorized redirect URIs** add `https://<domain>/api/auth/google/callback`.
+   *Why:* the server-side redirect flow needs the redirect URI (not an "authorized JavaScript origin"); a mismatch gives
+   `redirect_uri_mismatch`. Copy the client ID and secret.
+3. In Coolify open the resource (as in §3 step 4) → **Environment Variables**, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`,
+   then click **Redeploy**. *Why:* the backend reads them at start; the login button appears only when both are set.
+4. Give each admin an email (see above). *Why:* the email is the allowlist.
+5. Verify: open `https://<domain>/admin/login` and click **כניסה עם Google**. A Google window opens; after you pick a
+   listed account the window closes and the login page moves to `/admin`. An unlisted account closes the window and
+   shows the red error. With popups blocked it falls back to a full-page redirect.
 
 ### 4.2 Auto-deploy on merge
 

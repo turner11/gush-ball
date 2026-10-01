@@ -24,7 +24,7 @@ def test_full_admin_creates_lists_and_deletes_team_admin(
     created = admin_client.post(url, json=NEW)
     assert created.status_code == 201
     body = created.json()
-    assert set(body) == {"id", "username"}
+    assert set(body) == {"id", "username", "email"}
     assert body["username"] == "coach"
 
     row = db_session.scalar(select(AdminUser).where(AdminUser.username == "coach"))
@@ -103,3 +103,22 @@ def test_deleted_admin_session_ends_immediately(
     db_session.delete(db_session.scalar(select(AdminUser).where(AdminUser.username == "teamadmin")))
     db_session.commit()
     assert team_admin_client.get("/auth/me").status_code == 401
+
+
+def test_team_admin_email_is_saved_lowercase_and_unique(
+    admin_client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    url = f"/teams/{own_team.id}/admins"
+    created = admin_client.post(url, json={**NEW, "email": " Coach@Club.COM "})
+    assert created.status_code == 201
+    assert created.json()["email"] == "coach@club.com"
+    row = db_session.scalar(select(AdminUser).where(AdminUser.username == "coach"))
+    assert row.email == "coach@club.com"
+
+    dup = {"username": "coach2", "password": "longenough", "email": "COACH@club.com"}
+    assert admin_client.post(url, json=dup).status_code == 409
+    assert admin_client.post(url, json={**dup, "email": "not-an-email"}).status_code == 422
+
+    plain = admin_client.post(url, json={**dup, "email": None})
+    assert plain.status_code == 201
+    assert plain.json()["email"] is None

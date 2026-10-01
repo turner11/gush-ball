@@ -77,6 +77,10 @@ class AdminCreate(BaseModel):
     # no "@": login routes any identifier containing "@" to the email lookup
     username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64, pattern=r"^[^@]+$")]
     password: Annotated[str, StringConstraints(min_length=8)]
+    # lowercase: login, forgot-password and the Google callback all look emails up lowercase
+    email: Annotated[
+        str, StringConstraints(strip_whitespace=True, to_lower=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$")
+    ] | None = None
 
 
 class AdminOut(BaseModel):
@@ -84,6 +88,7 @@ class AdminOut(BaseModel):
 
     id: int
     username: str
+    email: str | None
 
 
 def _slugify(name: str) -> str:
@@ -156,8 +161,15 @@ def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmi
     get_team_or_404(db, team_id)
     if db.scalar(select(AdminUser).where(AdminUser.username == payload.username)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "שם המשתמש כבר קיים")
+    if payload.email and db.scalar(select(AdminUser).where(AdminUser.email == payload.email)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "האימייל כבר קיים")
     # ponytail: a same-instant duplicate hits the unique index as a 500; catch IntegrityError if it ever matters
-    admin = AdminUser(username=payload.username, password_hash=hash_password(payload.password), team_id=team_id)
+    admin = AdminUser(
+        username=payload.username,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        team_id=team_id,
+    )
     db.add(admin)
     db.commit()
     db.refresh(admin)

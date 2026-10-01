@@ -168,6 +168,8 @@ def reset_password(payload: ResetPasswordRequest, request: Request, db: DbSessio
 # ---- Google sign-in (OIDC code flow + PKCE; logs in an existing admin by verified email, no signup) ----
 
 _GOOGLE_FAIL = "/admin/login?error=google"
+_GOOGLE_POPUP_OK = "/admin/login?google_popup=ok"
+_GOOGLE_POPUP_FAIL = "/admin/login?google_popup=error"
 
 
 def _google_enabled() -> bool:
@@ -217,13 +219,13 @@ def options() -> dict[str, bool]:
 
 
 @router.get("/google/login")
-def google_login(request: Request) -> RedirectResponse:
+def google_login(request: Request, popup: bool = False) -> RedirectResponse:
     if not _google_enabled():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     state = secrets.token_urlsafe(32)
     verifier = secrets.token_urlsafe(64)
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
-    request.session["google_oauth"] = {"state": state, "verifier": verifier}
+    request.session["google_oauth"] = {"state": state, "verifier": verifier, "popup": popup}
     query = urlencode(
         {
             "client_id": settings.google_client_id,
@@ -246,6 +248,7 @@ def google_callback(
     if not _google_enabled():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     saved = request.session.pop("google_oauth", None)  # pop: the state is single-use
+    popup = bool(saved and saved.get("popup"))
     email = None
     admin = None
     if saved and code and state and secrets.compare_digest(state.encode(), saved["state"].encode()):
@@ -254,7 +257,7 @@ def google_callback(
     # Fixed redirect targets, no next= parameter: nothing for an open redirect to hang on.
     if admin is None:
         log.warning("google login rejected email=%r ip=%s", email, client_ip(request))
-        return RedirectResponse(_GOOGLE_FAIL, status.HTTP_302_FOUND)
+        return RedirectResponse(_GOOGLE_POPUP_FAIL if popup else _GOOGLE_FAIL, status.HTTP_302_FOUND)
     _start_session(request, admin)
     log.info("login ok (google) username=%r ip=%s", admin.username, client_ip(request))
-    return RedirectResponse("/admin", status.HTTP_302_FOUND)
+    return RedirectResponse(_GOOGLE_POPUP_OK if popup else "/admin", status.HTTP_302_FOUND)

@@ -1,7 +1,7 @@
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const ADMINS = [{ id: 7, username: 'coach' }]
+const ADMINS = [{ id: 7, username: 'coach', email: 'c@x.com' }]
 
 // ConfirmDialog renders through a portal teleported to document.body.
 const body = () => new DOMWrapper(document.body)
@@ -36,6 +36,8 @@ describe('TeamAdminsSection', () => {
     const wrapper = await mountSection()
 
     expect(wrapper.text()).toContain('coach')
+    expect(wrapper.text()).toContain('c@x.com')
+    expect(wrapper.find('#admin-email').attributes('type')).toBe('email')
     expect(wrapper.find('input[type="password"]').attributes('minlength')).toBe('8')
     expect(wrapper.find('#admin-username').attributes('pattern')).toBe('[^@]+')
   })
@@ -52,14 +54,22 @@ describe('TeamAdminsSection', () => {
     const wrapper = await mountSection()
 
     await wrapper.find('input[type="text"]').setValue('newbie')
+    await wrapper.find('#admin-email').setValue(' n@x.com ')
     await wrapper.find('input[type="password"]').setValue('longenough')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(postBody).toEqual({ username: 'newbie', password: 'longenough' })
+    expect(postBody).toEqual({ username: 'newbie', password: 'longenough', email: 'n@x.com' })
     expect(wrapper.text()).toContain('newbie')
     expect(wrapper.find('input[type="text"]').element.value).toBe('')
     expect(wrapper.find('input[type="password"]').element.value).toBe('')
+    expect(wrapper.find('#admin-email').element.value).toBe('')
+
+    await wrapper.find('input[type="text"]').setValue('plain')
+    await wrapper.find('input[type="password"]').setValue('longenough')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(postBody.email).toBeNull()
   })
 
   it('shows the server detail on a 409 and does not append', async () => {

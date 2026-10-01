@@ -12,6 +12,7 @@ const base = `/teams/${props.teamId}/admins`
 
 const admins = ref([])
 const username = ref('')
+const email = ref('')
 const password = ref('')
 const submitting = ref(false)
 const error = ref('')
@@ -30,12 +31,16 @@ async function onSubmit() {
   error.value = ''
   try {
     admins.value.push(
-      await apiFetch(base, { method: 'POST', body: { username: username.value, password: password.value } }),
+      await apiFetch(base, {
+        method: 'POST',
+        body: { username: username.value, password: password.value, email: email.value.trim() || null },
+      }),
     )
     username.value = ''
+    email.value = ''
     password.value = ''
   } catch (err) {
-    // Only the duplicate-username 409 carries a message worth showing.
+    // Only the duplicate username/email 409 carries a message worth showing.
     error.value = err.status === 409 ? err.message : 'שגיאה ביצירת המנהל, נסה שוב'
   } finally {
     submitting.value = false
@@ -60,7 +65,10 @@ async function onDeleteConfirmed() {
 
     <ul v-if="admins.length" class="divide-y divide-line">
       <li v-for="admin in admins" :key="admin.id" class="flex items-center justify-between gap-2 py-2">
-        <span class="min-w-0 truncate" dir="ltr">{{ admin.username }}</span>
+        <span class="min-w-0">
+          <span class="block truncate" dir="ltr">{{ admin.username }}</span>
+          <span v-if="admin.email" class="block truncate text-sm text-muted" dir="ltr">{{ admin.email }}</span>
+        </span>
         <button type="button" class="btn-danger-ghost shrink-0" @click="pendingDeleteId = admin.id">מחיקה</button>
       </li>
     </ul>
@@ -77,6 +85,10 @@ async function onDeleteConfirmed() {
       <div>
         <label for="admin-username" class="field-label">שם משתמש</label>
         <input id="admin-username" v-model="username" type="text" required maxlength="64" pattern="[^@]+" title="שם המשתמש לא יכול להכיל @" autocomplete="off" dir="ltr" class="field-input" />
+      </div>
+      <div>
+        <label for="admin-email" class="field-label">אימייל (לכניסה עם Google ולאיפוס סיסמה)</label>
+        <input id="admin-email" v-model="email" type="email" maxlength="254" autocomplete="off" dir="ltr" class="field-input" />
       </div>
       <div>
         <label for="admin-password" class="field-label">סיסמה</label>
