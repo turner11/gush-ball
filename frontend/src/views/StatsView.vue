@@ -81,7 +81,14 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
             <option v-for="g in statsGames" :key="g.id" :value="g.id">{{ optionLabel(g) }}</option>
           </select>
         </div>
-        <a v-if="liveUrl" :href="liveUrl" target="_blank" rel="noopener" class="section-link">סטטיסטיקה חיה<AppIcon name="external" /></a>
+        <a
+          v-if="liveUrl"
+          :href="liveUrl"
+          target="_blank"
+          rel="noopener"
+          class="section-link"
+          :aria-label="'סטטיסטיקה חיה למשחק נגד ' + selectedGame.opponent.name + ' (נפתח בלשונית חדשה)'"
+        >סטטיסטיקה חיה<AppIcon name="external" /></a>
       </div>
       <p v-if="fellBack" class="text-sm text-muted" role="status">המשחק המבוקש לא נמצא — מוצגים כל המשחקים</p>
       <p class="text-sm text-muted">{{ selectedGame ? '+/- של כל הרכב במשחק הזה' : '+/- של כל הרכב לאורך העונה, לפי נתוני המשחקים' }}</p>
