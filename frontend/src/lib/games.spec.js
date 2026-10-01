@@ -64,7 +64,13 @@ describe('sheetCopyUrl', () => {
     expect(sheetCopyUrl('https://docs.google.com/spreadsheets/d/ID')).toBe(copy)
   })
 
-  it('leaves other urls alone', () => {
-    expect(sheetCopyUrl('https://example.com/x')).toBe('https://example.com/x')
+  it('accepts a bare sheet id', () => {
+    expect(sheetCopyUrl('1xvl_T-s')).toBe('https://docs.google.com/spreadsheets/d/1xvl_T-s/copy')
+  })
+
+  it('returns null for anything else', () => {
+    expect(sheetCopyUrl('https://example.com/x')).toBeNull()
+    expect(sheetCopyUrl('STATS_TEMPLATE_URL=https://docs.google.com/spreadsheets/d/ID')).toBeNull()
+    expect(sheetCopyUrl('')).toBeNull()
   })
 })

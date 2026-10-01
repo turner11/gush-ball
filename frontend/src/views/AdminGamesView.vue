@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import AppIcon from '../components/AppIcon.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
@@ -41,7 +41,12 @@ const error = ref(null)
 const { user } = useAuth()
 const statsUrl = ref('')
 const statsMessage = ref(null)
-const confirmingReplace = ref(false)
+const confirming = ref(null) // null | 'replace' | 'delete'
+const CONFIRMS = {
+  replace: { text: 'למשחק זה כבר יש נתונים. לטעון מחדש ולהחליף אותם?', button: 'החלף', cls: 'btn-primary' },
+  delete: { text: 'למחוק את כל נתוני הסטטיסטיקה של המשחק? הקישור לגיליון יישמר.', button: 'מחק', cls: 'btn-danger' },
+}
+const templateCopyUrl = computed(() => sheetCopyUrl(user.value?.stats_template_url ?? ''))
 const loadButton = ref(null)
 
 const { selectedTeamId, ensureDefault } = useSelectedTeam()
@@ -88,21 +93,34 @@ function replaceGame(updated) {
 
 function requestLoadStats() {
   if (editing.value.has_stats) {
-    confirmingReplace.value = true
+    confirming.value = 'replace'
     return
   }
   loadStats()
 }
 
-function confirmReplace() {
-  confirmingReplace.value = false
-  loadButton.value?.focus()
-  loadStats()
+function confirmStats() {
+  const action = confirming.value
+  cancelConfirm()
+  if (action === 'delete') deleteStats()
+  else loadStats()
 }
 
-function cancelReplace() {
-  confirmingReplace.value = false
+function cancelConfirm() {
+  confirming.value = null
   loadButton.value?.focus()
+}
+
+async function deleteStats() {
+  error.value = null
+  statsMessage.value = null
+  try {
+    await apiFetch(`/teams/${selectedTeamId.value}/games/${editing.value.id}/stats`, { method: 'DELETE' })
+    editing.value.has_stats = false
+    statsMessage.value = 'הסטטיסטיקה נמחקה'
+  } catch (e) {
+    error.value = e.message
+  }
 }
 
 async function loadStats() {
@@ -122,7 +140,7 @@ async function loadStats() {
 }
 
 function resetForm() {
-  confirmingReplace.value = false
+  confirming.value = null
   editing.value = null
   form.value = emptyForm()
 }
@@ -132,7 +150,7 @@ const formEl = ref(null)
 function startEdit(game) {
   formEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   editing.value = game
-  confirmingReplace.value = false
+  confirming.value = null
   statsMessage.value = null
   statsUrl.value = game.stats_url ?? ''
   form.value = {
@@ -352,16 +370,19 @@ async function onDelete(game) {
 
         <div v-if="editing" class="space-y-2 border-t border-line pt-3">
           <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
-          <label for="stats-url" class="field-label">קישור לסטטיסטיקה (גיליון שמשותף ל"כל מי שיש לו קישור")</label>
-          <input id="stats-url" v-model="statsUrl" type="url" class="field-input" />
-          <a v-if="user?.stats_template_url" :href="sheetCopyUrl(user.stats_template_url)" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
-          <p v-if="user?.stats_template_url" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו טען. אחרי המשחק: טענו שוב.</p>
-          <button ref="loadButton" type="button" class="btn-secondary" @click="requestLoadStats">טען סטטיסטיקה</button>
-          <div v-if="confirmingReplace" role="alert" class="space-y-2 rounded-xl border border-warn/60 p-3">
-            <p class="text-sm">למשחק זה כבר יש נתונים. לטעון מחדש ולהחליף אותם?</p>
+          <label for="stats-url" class="field-label">קישור או מזהה של הגיליון (משותף ל"כל מי שיש לו קישור")</label>
+          <input id="stats-url" v-model="statsUrl" type="text" inputmode="url" dir="ltr" autocomplete="off" spellcheck="false" class="field-input" />
+          <a v-if="templateCopyUrl" :href="templateCopyUrl" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
+          <p v-if="templateCopyUrl" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו טען. אחרי המשחק: טענו שוב.</p>
+          <div class="flex flex-wrap gap-2">
+            <button ref="loadButton" type="button" class="btn-secondary" @click="requestLoadStats">טען סטטיסטיקה</button>
+            <button v-if="editing.has_stats" type="button" class="btn-danger-ghost" @click="confirming = 'delete'">מחק סטטיסטיקה</button>
+          </div>
+          <div v-if="confirming" role="alert" class="space-y-2 rounded-xl border border-warn/60 p-3">
+            <p class="text-sm">{{ CONFIRMS[confirming].text }}</p>
             <div class="flex flex-wrap gap-2">
-              <button type="button" class="btn-primary" @click="confirmReplace">החלף</button>
-              <button type="button" class="btn-secondary" @click="cancelReplace">ביטול</button>
+              <button type="button" :class="CONFIRMS[confirming].cls" @click="confirmStats">{{ CONFIRMS[confirming].button }}</button>
+              <button type="button" class="btn-secondary" @click="cancelConfirm">ביטול</button>
             </div>
           </div>
           <p v-if="statsMessage" class="text-sm">{{ statsMessage }}</p>

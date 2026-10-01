@@ -40,8 +40,9 @@ export function liveStatsUrl(game, user, origin = window.location.origin) {
   return `${user.stats_app_url}?${query}`
 }
 
-// Google Sheets "make a copy" link for a sheet URL; anything else comes back unchanged.
-export function sheetCopyUrl(url) {
-  const sheet = url.match(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/?#]+/)
-  return sheet ? `${sheet[0]}/copy` : url
+// Google Sheets "make a copy" link for a sheet URL or bare sheet ID; null for anything else.
+export function sheetCopyUrl(value) {
+  const v = value.trim()
+  const id = v.match(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/([^/?#]+)/)?.[1] ?? v.match(/^[\w-]+$/)?.[0]
+  return id ? `https://docs.google.com/spreadsheets/d/${id}/copy` : null
 }
