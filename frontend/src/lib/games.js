@@ -35,7 +35,7 @@ export function liveStatsUrl(game, user, origin = window.location.origin) {
   const query = new URLSearchParams({
     data: game.stats_url,
     team_api: `${origin}/api/teams/${game.team_id}/players`,
-    return_url: `${origin}/stats?game=${game.id}`, // BBStats shows a "Back to the game" link to it
+    return_url: `${origin}/schedule`, // BBStats shows a "Back to the game" link to it
   })
   return `${user.stats_app_url}?${query}`
 }
