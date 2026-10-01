@@ -71,7 +71,7 @@ const teamsSummary = computed(() => {
   return `${teamIds.value.length} מתוך ${teams.value.length} קבוצות`
 })
 const ITEM_CLASS =
-  'flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-3 text-sm outline-none data-[highlighted]:bg-sunken'
+  'flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-3 text-sm data-[highlighted]:bg-sunken'
 const cannotSync = computed(
   () => submitting.value || running.value || !kinds.value.length || (fullAdmin.value && !teamIds.value.length),
 )
@@ -190,6 +190,7 @@ onUnmounted(() => {
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
             <DropdownMenuContent
+              aria-labelledby="sync-teams-label"
               align="start"
               :side-offset="4"
               class="z-50 max-h-[var(--reka-dropdown-menu-content-available-height)] min-w-[var(--reka-dropdown-menu-trigger-width)] overflow-y-auto rounded-xl border border-line bg-raised p-1 shadow-card"
@@ -200,7 +201,7 @@ onUnmounted(() => {
                 @update:model-value="toggleAllTeams"
                 @select.prevent
               >
-                <span class="flex size-5 shrink-0 items-center justify-center rounded border border-line">
+                <span class="flex size-5 shrink-0 items-center justify-center rounded border border-muted">
                   <DropdownMenuItemIndicator>
                     <AppIcon :name="selectAllState === true ? 'check' : 'minus'" />
                   </DropdownMenuItemIndicator>
@@ -216,7 +217,7 @@ onUnmounted(() => {
                 @update:model-value="(on) => toggleTeam(t.id, on)"
                 @select.prevent
               >
-                <span class="flex size-5 shrink-0 items-center justify-center rounded border border-line">
+                <span class="flex size-5 shrink-0 items-center justify-center rounded border border-muted">
                   <DropdownMenuItemIndicator><AppIcon name="check" /></DropdownMenuItemIndicator>
                 </span>
                 {{ t.name }}

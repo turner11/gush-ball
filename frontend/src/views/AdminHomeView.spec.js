@@ -171,6 +171,16 @@ describe('AdminHomeView', () => {
     expect(body().findAll('[role=menuitemcheckbox]')).toHaveLength(3)
   })
 
+  it('open team menu is labelled by an existing element', async () => {
+    mockSyncApis()
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mountFull(AdminHomeView)
+    await flushPromises()
+    await openTeams(wrapper)
+    const labelId = body().find('[role=menu]').attributes('aria-labelledby')
+    expect(document.getElementById(labelId)).not.toBeNull()
+  })
+
   it('select all toggles every team on and off', async () => {
     mockSyncApis()
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
