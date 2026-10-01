@@ -2,15 +2,21 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import AppIcon from '../components/AppIcon.vue'
 import LineupStats from '../components/LineupStats.vue'
+import { useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatGameDate } from '../lib/format'
+import { liveStatsUrl } from '../lib/games'
 
 const route = useRoute()
 const router = useRouter()
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
+// Fire and forget: the live stats link appears for admins once the session resolves.
+const { user, checked, checkSession } = useAuth()
+if (!checked.value) checkSession()
 
 const players = ref([])
 const games = ref([])
@@ -39,6 +45,7 @@ const statsGames = computed(() =>
 )
 const requestedId = computed(() => Number(route.query.game) || null)
 const selectedGame = computed(() => statsGames.value.find((g) => g.id === requestedId.value) ?? null)
+const liveUrl = computed(() => selectedGame.value && liveStatsUrl(selectedGame.value, user.value))
 const fellBack = computed(() => requestedId.value && !selectedGame.value && !loading.value)
 
 function optionLabel(g) {
@@ -66,12 +73,15 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
     </div>
     <p v-else-if="!statsGames.length" class="empty-state">עדיין אין נתונים לקבוצה</p>
     <template v-else>
-      <div class="sm:max-w-sm">
-        <label for="stats-game" class="field-label">משחק</label>
-        <select id="stats-game" class="field-input" :value="selectedGame?.id ?? ''" @change="pick">
-          <option value="">כל המשחקים</option>
-          <option v-for="g in statsGames" :key="g.id" :value="g.id">{{ optionLabel(g) }}</option>
-        </select>
+      <div class="flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div class="w-full sm:max-w-sm">
+          <label for="stats-game" class="field-label">משחק</label>
+          <select id="stats-game" class="field-input" :value="selectedGame?.id ?? ''" @change="pick">
+            <option value="">כל המשחקים</option>
+            <option v-for="g in statsGames" :key="g.id" :value="g.id">{{ optionLabel(g) }}</option>
+          </select>
+        </div>
+        <a v-if="liveUrl" :href="liveUrl" target="_blank" rel="noopener" class="section-link">סטטיסטיקה חיה<AppIcon name="external" /></a>
       </div>
       <p v-if="fellBack" class="text-sm text-muted" role="status">המשחק המבוקש לא נמצא — מוצגים כל המשחקים</p>
       <p class="text-sm text-muted">{{ selectedGame ? '+/- של כל הרכב במשחק הזה' : '+/- של כל הרכב לאורך העונה, לפי נתוני המשחקים' }}</p>

@@ -110,6 +110,38 @@ describe('StatsView', () => {
     expect(urls().some((u) => u.includes('lineups'))).toBe(false)
   })
 
+  describe('live stats link', () => {
+    const SHEET = 'https://docs.google.com/spreadsheets/d/X/edit'
+    const ADMIN = { username: 'a', team_id: null, stats_app_url: 'https://app.streamlit.app', stats_template_url: '' }
+    const LIVE = 'a[target="_blank"][href^="https://app.streamlit.app"]'
+
+    async function mountAs(me, path) {
+      mockFetch({
+        'GET /api/auth/me': me,
+        'GET /api/teams/1/games': () => jsonRes(GAMES.map((g) => ({ ...g, stats_url: SHEET }))),
+      })
+      await router.push(path)
+      return mountView()
+    }
+
+    it('shows for an admin on a selected game', async () => {
+      const wrapper = await mountAs(() => jsonRes(ADMIN), '/stats?game=2')
+      const link = wrapper.find(LIVE)
+      expect(link.text()).toContain('סטטיסטיקה חיה')
+      expect(new URL(link.attributes('href')).searchParams.get('data')).toBe(SHEET)
+    })
+
+    it('is hidden on "all games"', async () => {
+      const wrapper = await mountAs(() => jsonRes(ADMIN), '/stats')
+      expect(wrapper.find(LIVE).exists()).toBe(false)
+    })
+
+    it('is hidden from fans', async () => {
+      const wrapper = await mountAs(() => ({ ok: false, status: 401, statusText: 'x', json: async () => ({}) }), '/stats?game=2')
+      expect(wrapper.find(LIVE).exists()).toBe(false)
+    })
+  })
+
   it('games load error shows retry that reloads', async () => {
     global.fetch = vi.fn((url) =>
       url.endsWith('/games') ? Promise.reject(new Error('boom')) : Promise.resolve(jsonRes(url.includes('players') ? PLAYERS : [])),

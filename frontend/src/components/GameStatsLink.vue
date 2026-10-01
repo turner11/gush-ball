@@ -14,7 +14,7 @@ const liveUrl = computed(() => liveStatsUrl(props.game, user.value))
 </script>
 
 <template>
-  <RouterLink v-if="game.has_stats" :to="gameStatsRoute(game)" :aria-label="'חמישיות המשחק נגד ' + game.opponent.name">חמישיות</RouterLink>
+  <RouterLink v-if="game.has_stats" :to="gameStatsRoute(game)" :aria-label="'סטטיסטיקת המשחק נגד ' + game.opponent.name">סטטיסטיקה</RouterLink>
   <a
     v-else-if="liveUrl"
     :href="liveUrl"
