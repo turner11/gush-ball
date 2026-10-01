@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+import bbstats
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -433,3 +434,50 @@ def test_patch_while_suggestion_pending_clears_it(admin_client: TestClient, db_s
 
     accept_response = admin_client.post(f"/teams/{team.id}/games/{game.id}/suggestion/accept")
     assert accept_response.status_code == 409
+
+
+def _patch_stats_url(admin_client: TestClient, game: Game, value: object):
+    return admin_client.patch(f"/teams/{game.team_id}/games/{game.id}", json={"stats_url": value})
+
+
+def test_patch_stats_url_null_unlinks_without_override(admin_client: TestClient, db_session: Session) -> None:
+    game = _make_game(db_session, _make_team(db_session))
+    game.stats_url = "https://docs.google.com/spreadsheets/d/X"
+    db_session.commit()
+
+    r = _patch_stats_url(admin_client, game, None)
+
+    assert r.status_code == 200
+    assert r.json()["stats_url"] is None
+    db_session.refresh(game)
+    assert game.stats_url is None
+    assert game.is_manually_overridden is False
+
+
+def test_patch_stats_url_expands_bare_sheet_id(admin_client: TestClient, db_session: Session) -> None:
+    game = _make_game(db_session, _make_team(db_session))
+
+    r = _patch_stats_url(admin_client, game, "abc_123")
+
+    assert r.status_code == 200
+    assert r.json()["stats_url"] == "https://docs.google.com/spreadsheets/d/abc_123"
+
+
+def test_patch_stats_url_rejects_non_url(admin_client: TestClient, db_session: Session) -> None:
+    game = _make_game(db_session, _make_team(db_session))
+
+    r = _patch_stats_url(admin_client, game, "not a url")
+
+    assert r.status_code == 422
+    db_session.refresh(game)
+    assert game.stats_url is None
+
+
+def test_patch_stats_url_keeps_gid(admin_client: TestClient, db_session: Session) -> None:
+    game = _make_game(db_session, _make_team(db_session))
+    url = "https://docs.google.com/spreadsheets/d/X/edit?gid=123#gid=123"
+
+    r = _patch_stats_url(admin_client, game, url)
+
+    assert r.json()["stats_url"] == url
+    assert bbstats.to_csv_url(url).endswith("&gid=123")
