@@ -10,6 +10,7 @@ import { formatGameDate } from '../lib/format'
 
 const players = ref([])
 const loading = ref(false)
+const route = useRoute()
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
@@ -29,17 +30,15 @@ async function loadPlayers() {
 }
 
 // The router scrolled to #lineups while the player skeletons were showing; the real grid has another
-// height, so re-land once it is laid out (96 = the router's scrollBehavior offset).
+// height, so re-land once it is laid out (scroll-mt-24 supplies the offset; instant, like the router).
 async function scrollToLineups() {
   if (route.hash !== '#lineups') return
   await nextTick()
-  const el = document.getElementById('lineups')
-  if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 96 })
+  document.getElementById('lineups')?.scrollIntoView?.()
 }
 
 watch(selectedTeamId, loadPlayers, { immediate: true })
 
-const route = useRoute()
 const router = useRouter()
 const gameId = computed(() => Number(route.query.game) || null)
 const game = ref(null)
