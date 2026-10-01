@@ -415,6 +415,7 @@ describe('AdminGamesView', () => {
     const call = global.fetch.mock.calls.find(([u]) => u === '/api/teams/1/games/100/stats')
     expect(JSON.parse(call[1].body)).toEqual({ url: 'http://s' })
     expect(wrapper.text()).toContain('נטענו 12 רשומות')
+    expect(wrapper.find('a[href="/roster?game=100#lineups"]').exists()).toBe(true)
   })
 
   it('shows the server error when loading stats fails', async () => {

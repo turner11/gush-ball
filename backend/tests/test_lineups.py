@@ -181,14 +181,20 @@ def test_lineups_game_id_of_other_team_is_404(client, db_session) -> None:
     assert client.get(f"{base}?game_id=9999").status_code == 404
 
 
+def _has_stats_by_id(client, list_url: str) -> dict[int, bool]:
+    return {g["id"]: g["has_stats"] for g in client.get(list_url).json()}
+
+
 def test_game_read_has_stats(admin_client, client, db_session, fake_sheet) -> None:
     game = _make_game(db_session)
+    other = _second_game(db_session, game.team)
     list_url = f"/teams/{game.team_id}/games"
     one_url = f"{list_url}/{game.id}"
-    assert client.get(list_url).json()[0]["has_stats"] is False
+    assert _has_stats_by_id(client, list_url) == {game.id: False, other.id: False}
     assert client.get(one_url).json()["has_stats"] is False
 
     admin_client.post(_stats_path(game), json={"url": URL})
 
-    assert client.get(list_url).json()[0]["has_stats"] is True
+    assert _has_stats_by_id(client, list_url) == {game.id: True, other.id: False}
     assert client.get(one_url).json()["has_stats"] is True
+    assert client.get(f"{list_url}/{other.id}").json()["has_stats"] is False

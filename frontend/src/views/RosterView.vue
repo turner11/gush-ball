@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
@@ -24,7 +24,17 @@ async function loadPlayers() {
     players.value = await apiFetch(`/teams/${selectedTeamId.value}/players`)
   } finally {
     loading.value = false
+    scrollToLineups()
   }
+}
+
+// The router scrolled to #lineups while the player skeletons were showing; the real grid has another
+// height, so re-land once it is laid out (96 = the router's scrollBehavior offset).
+async function scrollToLineups() {
+  if (route.hash !== '#lineups') return
+  await nextTick()
+  const el = document.getElementById('lineups')
+  if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 96 })
 }
 
 watch(selectedTeamId, loadPlayers, { immediate: true })
