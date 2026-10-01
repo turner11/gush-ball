@@ -30,7 +30,7 @@ async function load() {
   try {
     lineups.value = await apiFetch(`/teams/${props.teamId}/lineups?size=${size.value}&sort=${sort.value}${props.gameId ? `&game_id=${props.gameId}` : ''}`)
   } catch {
-    // a stats failure must not blank the whole roster page
+    // a stats failure must not blank the whole page
     error.value = 'שגיאה בטעינת החמישיות'
   } finally {
     loading.value = false
@@ -77,7 +77,10 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
       </div>
     </div>
 
-    <p v-if="error" class="error-text" role="alert">{{ error }}</p>
+    <div v-if="error" class="space-y-3">
+      <p class="error-text" role="alert">{{ error }}</p>
+      <button type="button" class="btn-secondary" @click="load">נסה שוב</button>
+    </div>
     <div v-else-if="loading && !lineups.length" class="space-y-4" aria-busy="true">
       <div class="skeleton h-44" />
       <div class="skeleton h-44" />

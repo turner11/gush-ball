@@ -14,7 +14,7 @@ export const STATUS_LABELS = {
   cancelled: 'בוטל',
 }
 
-export const gameStatsRoute = (g) => ({ name: 'roster', query: { game: g.id }, hash: '#lineups' })
+export const gameStatsRoute = (g) => ({ name: 'stats', query: { game: g.id } })
 
 export const played = (g) => g.team_score != null && g.opponent_score != null
 
