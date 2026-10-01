@@ -25,7 +25,7 @@ class StatsSource(BaseModel):
 def _sheet_url(value: str) -> str:
     """A full http(s) URL as-is, or a bare Google Sheet ID expanded to its canonical URL."""
     v = value.strip()
-    if re.fullmatch(r"[\w-]+", v):
+    if re.fullmatch(r"[\w-]+", v, re.ASCII):
         return f"https://docs.google.com/spreadsheets/d/{v}"
     if re.match(r"https?://", v):
         return v

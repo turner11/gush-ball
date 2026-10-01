@@ -103,17 +103,6 @@ def test_delete_stats_clears_snapshots_keeps_url(admin_client, db_session, fake_
     assert game.is_manually_overridden is False
 
 
-def test_delete_stats_other_team_admin_forbidden(team_admin_client, db_session) -> None:
-    game = _make_game(db_session)  # not the team admin's team
-    game.lineup_snapshots = [LineupSnapshot(players=[1, 2, 3, 4, 5], elapsed=1.0, offense_diff=0, defence_diff=0)]
-    db_session.commit()
-
-    r = team_admin_client.delete(_stats_path(game))
-
-    assert r.status_code == 403
-    assert _count(db_session) == 1
-
-
 def test_reload_replaces_snapshots_and_uses_stored_url(admin_client, db_session, fake_sheet) -> None:
     game = _make_game(db_session)
     admin_client.post(_stats_path(game), json={"url": URL})

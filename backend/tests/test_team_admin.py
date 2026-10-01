@@ -57,6 +57,7 @@ def test_team_admin_can_write_own_team(team_admin_client: TestClient, own_team: 
     )
     assert game.status_code == 201
     assert c.post(f"/teams/{t}/games/{game.json()['id']}/approve").status_code == 200
+    assert c.delete(f"/teams/{t}/games/{game.json()['id']}/stats").status_code == 204
 
 
 def test_team_admin_cannot_do_club_wide_actions(
