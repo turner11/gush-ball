@@ -1,3 +1,4 @@
+import urllib.error
 from datetime import UTC, datetime
 
 import bbstats
@@ -110,6 +111,42 @@ def test_load_stats_failure_keeps_old_snapshots(admin_client, db_session, fake_s
     assert r.status_code == 422
     assert "nope" in r.json()["detail"]
     assert _count(db_session) == before
+
+
+def test_load_stats_accepts_alternate_header_spelling(admin_client, db_session, monkeypatch) -> None:
+    game = _make_game(db_session)
+    alt = CSV.replace("#1,#2,#3,#4,#5,Points,Points Against,Quarter,Time Left", "player 1,player 2,player 3,player 4,player 5,Team,Opponent,Quarter,Time left")
+    monkeypatch.setattr("app.routers.lineups.fetch_csv", lambda url: alt)
+
+    r = admin_client.post(_stats_path(game), json={"url": URL})
+
+    assert r.status_code == 200
+    assert r.json()["snapshots"] == len(bbstats.get_snapshots_df(CSV))
+
+
+def test_load_stats_missing_column_names_it(admin_client, db_session, monkeypatch) -> None:
+    game = _make_game(db_session)
+    monkeypatch.setattr("app.routers.lineups.fetch_csv", lambda url: CSV.replace("Time Left", "Clock"))
+
+    r = admin_client.post(_stats_path(game), json={"url": URL})
+
+    detail = r.json()["detail"]
+    assert r.status_code == 422
+    assert "time" in detail and "Time Left" in detail
+    assert "anyone with the link" not in detail
+
+
+def test_load_stats_private_sheet_says_share(admin_client, db_session, monkeypatch) -> None:
+    game = _make_game(db_session)
+
+    def private(url: str):
+        raise urllib.error.HTTPError(url, 401, "Unauthorized", None, None)
+
+    monkeypatch.setattr("app.routers.lineups.fetch_csv", private)
+    r = admin_client.post(_stats_path(game), json={"url": URL})
+
+    assert r.status_code == 422
+    assert "anyone with the link" in r.json()["detail"]
 
 
 def test_load_stats_does_not_mark_override(admin_client, db_session, fake_sheet) -> None:
