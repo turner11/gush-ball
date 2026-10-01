@@ -73,6 +73,40 @@ issue, before starting.
   nba.com/knicks, nba.com/heat — plus Tailwind and a headless Vue component kit (e.g. Reka UI).
   Treat these as the concrete bar for any UI work, not a vague adjective.
 
+## Quality bar
+
+Every plan, change, and review is judged against this bar. The skills in `.claude/skills/` point here.
+
+**Code**
+
+1. **Debuggable and readable.** Names say what a thing is. Functions are short with early returns. Errors fail loud with
+   the offending id or value in the message. A reader can follow the flow without jumping across files.
+2. **KISS and YAGNI first, SOLID where it pays.** Build the smallest change that solves the issue. Give each function or
+   module a single responsibility. Add an abstraction only when two real callers need it today.
+3. **High cohesion, low coupling.** Behaviour lives in the module that owns its data: routers stay thin, scraping stays
+   in `app/scrape*.py`, and Vue views compose components instead of copying them. A change to one feature touches one
+   area. If a diff spreads across unrelated modules, find the missing seam before you continue.
+
+**UX** (public site and admin alike; the reference sites above set the bar)
+
+- **Beautiful and professional:** polished like a commercial sports site. Every UI change has deliberate loading,
+  empty, and error states.
+- **Intuitive and efficient:** the main action on each screen is obvious and takes the fewest clicks. No dead ends.
+- **Fast to understand:** strong visual hierarchy. Score, opponent, and date read at a glance. Information is dense
+  without clutter.
+- **Consistent:** use the design system in `frontend/src/style.css`. That means the semantic color tokens (`surface`,
+  `ink`, `muted`, `team`, …) and the component classes (`.card`, `.btn-primary`, `.page-header`, `.badge-*`,
+  `.data-table`, …). Use a new token or class only after checking the existing ones; `design-tokens.spec.js` enforces
+  part of this.
+- **Responsive:** check at phone width (390px) and desktop width (1280px). There is no horizontal scroll. Tap targets
+  are at least 44px.
+- **Accessible:** AA contrast in both light and dark mode. Use semantic elements and labelled controls, and every
+  interaction must work with the keyboard. Keep RTL correct by using logical `start`/`end` utilities, not
+  `left`/`right`.
+
+**Done** means every command in `.github/workflows/ci.yml` passes for each side you touched (backend: ruff + pytest;
+frontend: test + build). A UI change also needs a visual check at both widths.
+
 ## Non-goals right now
 
 Don't build these ahead of their phase, even if a related task makes them tempting:

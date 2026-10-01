@@ -2,97 +2,92 @@
 name: plan-issue
 description: "Produce a minimal, YAGNI/ponytail-aligned implementation plan for a GitHub issue: root cause, exact files and functions to change, the failing tests to write, the smallest fix, reuse notes, and what to leave alone. Runs at higher effort and hands the plan to a cheaper worker to execute. Use as the planning step in fan-out-issues, or before implementing any issue. Usage: /plan-issue <issue-number>"
 argument-hint: "<issue-number>"
-allowed-tools: Bash, Read, Grep, Glob, Write, gh
+allowed-tools: Bash, PowerShell, Read, Grep, Glob, Write
 ---
 
-Plan the smallest correct change for a GitHub issue, then hand the plan off for a cheaper worker to execute. You do the
-thinking so the executor doesn't have to. **Do NOT write implementation or test code** — only the plan. Argument:
-`$ARGUMENTS` = issue number.
+Plan the smallest correct change for a GitHub issue so a cheaper model can execute it without re-deriving anything.
+Write **only the plan**: no implementation or test code. Argument: `$ARGUMENTS` = issue number. The **quality bar** in
+`CLAUDE.md` is what the plan must deliver.
 
-**GitHub CLI:** all commands use `gh`.
-
-**Run at higher effort.** Planning is where over-engineering is prevented or introduced — reason hard about the
-*smallest* change before committing to the plan.
-
-## Step 1 — Read the Issue
+## Step 1 — Read the Issue (fresh)
 
 ```bash
 gh issue view <number> --comments
 ```
 
-Nail down: what's actually broken or needed, expected vs. actual behavior, and the real acceptance criteria (this
-repo's issues use a `Goal` / `Scope` / `Definition of done` / `Out of scope` format — treat those verbatim as the
-acceptance criteria and the scope boundary). If the body has a `Depends on` line, confirm that issue is closed before
-planning against it.
+Always re-fetch it. The user edits issue bodies to answer questions. Issues use `Goal` / `Scope` /
+`Definition of done` / `Out of scope`: treat these verbatim as the acceptance criteria and the scope boundary. If there's
+a `Depends on` line, confirm that issue is closed. If the caller passed a user hint (e.g. "might already be
+implemented"), verify it against the code first. An already-done issue gets a one-line plan that says so.
 
 ## Step 2 — Explore Before You Plan
 
-- `grep`/`glob` for the function/class/keyword names from the issue to find the true source files.
-- Read the affected code **and** its existing tests (learn the naming, fixtures, assertion style — this repo uses
-  pytest; check `tests/` for the current layout).
-- Hunt for reusable helpers/utils/patterns already in the repo — the plan must reuse, not reinvent.
-- Note the test command: `pytest -v` for the full suite, `pytest -v -k "<name>"` targeted (see work-issue's
-  `references/test-commands.md`).
+The step is done when you can name every file the change touches and what reads or writes that data.
 
-## Step 3 — Pick the Smallest Correct Change (ponytail ladder)
+- Grep the names from the issue and trace the real flow end to end: router → model → scraper, or view → component →
+  API.
+- Read the affected code **and** its tests (`backend/tests/` pytest; `frontend/src/**/*.spec.js` vitest) to learn
+  their fixtures and style.
+- Hunt for reuse: backend helpers in `app/deps.py`, `app/storage.py`, `app/scrape.py`; frontend components in
+  `frontend/src/components/`, `composables/`, `lib/` (api, format, games), and the `style.css` tokens and classes.
+- For a bug, grep **every caller** of the function you'd touch. Fix the shared function once.
 
-Stop at the first rung that holds, and record which one in the plan:
+## Step 3 — Pick the Smallest Correct Change
 
-1. Does this need to be built at all? (YAGNI)
+Stop at the first rung that holds, and record it:
+
+1. Does this need building at all? (YAGNI)
 2. Does it already exist in this codebase? Reuse it.
-3. Does the stdlib / an installed dep / a native feature already do this?
+3. Does the stdlib, an installed dependency, or a native platform feature do it?
 4. Can it be one line?
 5. Only then: the minimum code that works.
 
-If it's a bug: find the **root cause**, not the symptom. Grep every caller of the function you'd touch — fix the shared
-function once rather than patching one call path and leaving siblings broken.
+Then place it for **cohesion**: which module owns this behaviour? The change goes there, and callers stay thin.
 
-## Step 4 — Write the Plan to the Handoff File
+## Step 4 — Write the Plan
 
-Write the plan to the path given by the caller (fan-out uses `../issue-<number>-plan.md`, a sibling of the worktree so
-it's never committed). Use this format:
+Write it to the path the caller gave (fan-out uses `../issue-<N>-plan.md`, outside the worktree):
 
 ```markdown
-# Plan: #<number> <title>
+# Plan: #<N> <title>
 
 ## Root cause / goal
-
-<what and why, 2-4 sentences. For bugs: the actual cause, not the symptom.>
+<2-4 sentences. For bugs: the actual cause, not the symptom.>
 
 ## Ladder rung
-
-<which rung the change stops at, e.g. "Rung 2 — reuse existing `foo` helper">
+<e.g. "Rung 2 — reuse `check_team_scope` in app/deps.py">
 
 ## Files to change
-
-- `src/path/to/file.py` — <exact function/class and what changes>
+- `backend/app/…` — <function/class and what changes>
+<Each behaviour lives in its owning module; say which and why if not obvious.>
 
 ## Reuse (do not reinvent)
+- <existing helper / component / style.css class, with path>
 
-- <existing helper/pattern to use, with its path>
+## UX design  (only if the issue touches frontend/)
+- Layout at 390px and 1280px: <what goes where, what collapses or stacks>
+- Hierarchy: <the one thing the eye lands on first>
+- States: loading <…>, empty <…>, error <…>
+- Building blocks: <existing components + style.css classes/tokens; any new class justified>
+- A11y: <keyboard path, labels, contrast-sensitive bits, RTL notes>
 
 ## 🔴 Red — tests to add
-
-- `tests/path/to/test_file.py::<test name>` — <exact behavior it asserts, tied to acceptance criteria>
+- `<path>::<test name>` — <behaviour asserted, tied to Definition of done>
 
 ## 🟢 Green — minimal implementation
-
-<the smallest approach that makes the tests pass. No code, just the approach.>
+<approach in words, no code. Migrations: `uv run alembic revision`, never a hand-typed id.>
 
 ## The one runnable check
-
-<the single check that fails if this logic breaks (unless the change is a trivial one-liner)>
+<the single check that fails if this logic breaks (trivial one-liners exempt)>
 
 ## Out of scope — do NOT touch
-
-<files/behaviors the executor must leave alone, to prevent scope creep — copy the issue's own "Out of scope" line>
+<copy the issue's Out of scope + anything tempting nearby>
 
 ## Open risks
-
-<edge cases, calibration needs, or unknowns the executor should watch>
+<edge cases, shared hotspots (main.py, alembic, router) likely to conflict, unknowns>
 ```
 
 ## Step 5 — Hand Off
 
-Return: the plan file path and a 2-3 sentence summary (root cause + chosen rung + number of tests planned) so the caller
-can launch the cheaper execution worker.
+Return the plan path and a 2–3 sentence summary: the root cause, the rung, and the number of tests planned. Mark it
+`[UI]` if it has a UX design section.
