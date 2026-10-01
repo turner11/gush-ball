@@ -96,6 +96,17 @@ describe('LoginView', () => {
       wrapper.unmount()
     })
 
+    it('without BroadcastChannel still renders and the Google link does a full-page redirect', async () => {
+      vi.stubGlobal('BroadcastChannel', undefined)
+      window.open = vi.fn(() => ({ closed: false }))
+      const wrapper = await mountLogin('/admin/login', byUrl)
+      expect(wrapper.find('form').exists()).toBe(true)
+      expect((await clickGoogle(wrapper)).defaultPrevented).toBe(false)
+      expect(window.open).not.toHaveBeenCalled()
+      wrapper.unmount()
+      vi.unstubAllGlobals()
+    })
+
     it('goes to admin when the popup reports success', async () => {
       const wrapper = await mountLogin('/admin/login', byUrl)
       const router = wrapper.vm.$router

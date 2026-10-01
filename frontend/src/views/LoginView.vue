@@ -20,16 +20,18 @@ const googleEnabled = ref(false)
 const googleWaiting = ref(false)
 
 // The popup tells this window the result over a same-origin channel: Google's pages may sever window.opener.
-const channel = new BroadcastChannel('google-signin')
-channel.onmessage = async ({ data }) => {
+// Safari < 15.4 has none: then there is no popup flow and the link does the full-page redirect.
+const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('google-signin')
+if (channel) channel.onmessage = async ({ data }) => {
   googleWaiting.value = false
   if (data !== true) return router.replace({ query: { error: 'google' } })
   await checkSession() // the router guard skips /auth/me once `checked`, so refresh the user here
   router.push({ name: 'admin-home' })
 }
-onUnmounted(() => channel.close())
+onUnmounted(() => channel?.close())
 
 function openGooglePopup(event) {
+  if (!channel) return
   const popup = window.open('/api/auth/google/login?popup=1', 'google-signin', 'popup,width=500,height=650')
   if (!popup || popup.closed) return // blocked: the link's own full-page navigation is the fallback
   event.preventDefault()
@@ -40,7 +42,7 @@ function openGooglePopup(event) {
 onMounted(async () => {
   const popupResult = route.query.google_popup
   if (popupResult) {
-    channel.postMessage(popupResult === 'ok')
+    channel?.postMessage(popupResult === 'ok')
     window.close()
     // Still open (not script-closable)? Behave like the full-page flow in this window.
     if (popupResult === 'ok') {

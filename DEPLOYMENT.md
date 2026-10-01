@@ -178,7 +178,7 @@ Only an existing admin whose `email` matches the (verified) Google account can s
    type **Web application**. Under **Authorized redirect URIs** add `https://<domain>/api/auth/google/callback`.
    *Why:* the server-side redirect flow needs the redirect URI (not an "authorized JavaScript origin"); a mismatch gives
    `redirect_uri_mismatch`. Copy the client ID and secret.
-3. In Coolify open the backend service → **Environment Variables**, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`,
+3. In Coolify open the resource (as in §3 step 4) → **Environment Variables**, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`,
    then click **Redeploy**. *Why:* the backend reads them at start; the login button appears only when both are set.
 4. Give each admin an email (see above). *Why:* the email is the allowlist.
 5. Verify: open `https://<domain>/admin/login` and click **כניסה עם Google**. A Google window opens; after you pick a
