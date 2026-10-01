@@ -528,8 +528,12 @@ describe('AdminGamesView', () => {
 
       it('confirming החלף loads the sheet', async () => {
         const wrapper = await askToReplace()
+        const focus = vi.spyOn(HTMLElement.prototype, 'focus')
         await alertButton(wrapper, 'החלף').trigger('click')
         await flushPromises()
+
+        expect(focus.mock.contexts.some((el) => el.textContent === 'טען סטטיסטיקה')).toBe(true)
+        focus.mockRestore()
 
         expect(statsCalls()).toHaveLength(1)
         expect(wrapper.text()).toContain('נטענו 5 רשומות')

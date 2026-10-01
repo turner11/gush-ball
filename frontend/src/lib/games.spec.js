@@ -28,7 +28,7 @@ describe('result', () => {
 })
 
 describe('liveStatsUrl', () => {
-  const game = { id: 7, team_id: 3, stats_url: 'https://docs.google.com/spreadsheets/d/X/edit' }
+  const game = { team_id: 3, stats_url: 'https://docs.google.com/spreadsheets/d/X/edit' }
   const admin = { team_id: null, stats_app_url: 'https://app.streamlit.app' }
   const origin = 'https://gush.example'
 

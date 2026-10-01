@@ -96,6 +96,7 @@ function requestLoadStats() {
 
 function confirmReplace() {
   confirmingReplace.value = false
+  loadButton.value?.focus()
   loadStats()
 }
 
