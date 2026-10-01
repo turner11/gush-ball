@@ -455,4 +455,62 @@ describe('AdminGamesView', () => {
     expect(wrapper.findAll('a[href="/stats?game=100"]')).toHaveLength(1)
     expect(wrapper.find('a[href^="/stats?game=101"]').exists()).toBe(false)
   })
+
+  describe('live stats flow', () => {
+    const SHEET = 'https://docs.google.com/spreadsheets/d/X/edit'
+    const USER = {
+      username: 'a',
+      team_id: null,
+      stats_app_url: 'https://app.streamlit.app',
+      stats_template_url: 'https://docs.google.com/spreadsheets/d/T/edit?usp=sharing',
+    }
+
+    async function mountEditing(extra = {}, game = GAMES[0]) {
+      mockFetch({
+        'GET /api/teams': () => jsonRes(TEAMS),
+        'GET /api/teams/1/games': () => jsonRes([game]),
+        'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+        ...extra,
+      })
+      ;(await import('../composables/useAuth')).useAuth().user.value = USER
+      const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+      const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+      await flushPromises()
+      await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+      return wrapper
+    }
+
+    it('edit starts the stats field with the saved stats_url', async () => {
+      const wrapper = await mountEditing({}, { ...GAMES[0], stats_url: SHEET })
+      expect(wrapper.find('#stats-url').element.value).toBe(SHEET)
+    })
+
+    it('shows a template link rewritten to /copy', async () => {
+      const wrapper = await mountEditing()
+      const link = wrapper.find('a[href="https://docs.google.com/spreadsheets/d/T/copy"]')
+      expect(link.exists()).toBe(true)
+      expect(link.attributes('target')).toBe('_blank')
+    })
+
+    it('hides the template hint when no template is configured', async () => {
+      const wrapper = await mountEditing()
+      expect(wrapper.text()).toContain('צרו גיליון מהתבנית')
+      ;(await import('../composables/useAuth')).useAuth().user.value = { ...USER, stats_template_url: '' }
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('צרו גיליון מהתבנית')
+    })
+
+    it('loading an empty sheet says it was saved and gives the row a live link', async () => {
+      const wrapper = await mountEditing({
+        'POST /api/teams/1/games/100/stats': () => jsonRes({ stats_url: SHEET, snapshots: 0 }),
+      })
+      await wrapper.find('#stats-url').setValue(SHEET)
+      await wrapper.findAll('button').find((b) => b.text() === 'טען סטטיסטיקה').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('הקישור נשמר')
+      expect(wrapper.text()).not.toContain('נטענו 0')
+      expect(wrapper.find('a[target="_blank"][href^="https://app.streamlit.app"]').exists()).toBe(true)
+    })
+  })
 })

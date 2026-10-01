@@ -27,3 +27,17 @@ export function result(game) {
   if (a == null || b == null || a === b) return null
   return a > b ? 'W' : 'L'
 }
+
+// BBStats Streamlit link for an admin who can edit this game's team; null when any piece is missing.
+export function liveStatsUrl(game, user, origin = window.location.origin) {
+  if (!user?.stats_app_url || !game.stats_url) return null
+  if (user.team_id != null && user.team_id !== game.team_id) return null
+  const query = new URLSearchParams({ data: game.stats_url, team_api: `${origin}/api/teams/${game.team_id}/players` })
+  return `${user.stats_app_url}?${query}`
+}
+
+// Google Sheets "make a copy" link for a sheet URL; anything else comes back unchanged.
+export function sheetCopyUrl(url) {
+  const sheet = url.match(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/?#]+/)
+  return sheet ? `${sheet[0]}/copy` : url
+}

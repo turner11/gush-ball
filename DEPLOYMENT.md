@@ -141,7 +141,8 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `OBJECT_STORAGE_ACCESS_KEY_ID` | Step 1.5 |
 | `OBJECT_STORAGE_SECRET_ACCESS_KEY` | Step 1.5 |
 | `OBJECT_STORAGE_REGION` | Optional, defaults to `auto` |
-| `STATS_URL` | Optional, the BBStats Streamlit app link |
+| `STATS_URL` | Optional, the Streamlit Community Cloud app URL (`https://<app>.streamlit.app`) |
+| `STATS_TEMPLATE_URL` | Optional, URL of the headers-only template Google Sheet (see §4.3) |
 | `PUBLIC_URL` | `https://<domain>`. Required: password-reset links and the Google redirect URI are built from it. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional, enable "Sign in with Google" (see 4.1). |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Optional, password-reset email (STARTTLS, port defaults to 587). Without `SMTP_HOST` the reset link is only written to the backend logs. |
@@ -208,6 +209,22 @@ Coolify deploys every push to `master`. CI deploys nothing and Coolify does not 
 The secret only signs payloads (it's never sent), so an `http://<ip>:8000` URL works, but payloads and the Coolify login
 travel unencrypted. Better: add an A record like `coolify.<domain>` → the same IP and set it in Coolify *Settings →
 Instance's Domain*; Coolify then serves itself over HTTPS and the webhook URL switches to that host (update it in GitHub).
+
+### 4.3 Live stats (optional)
+
+Lets admins open the BBStats Streamlit app from a game and start each game's sheet from a template.
+
+1. Create a Google Sheet whose row 1 is exactly `#1,#2,#3,#4,#5,Points,Points Against,Quarter,Time Left` (one header
+   per cell) and has no data rows. *Why:* BBStats reads these column names. *Verify:* the sheet has one filled row.
+2. Click **Share → General access → Anyone with the link → Viewer**. *Why:* the site and the Streamlit app fetch the
+   sheet without signing in, and copies made from it start with the same sharing. *Verify:* open the link in a private window.
+3. In Coolify open the resource (as in §3 step 4) → **Environment Variables**, set `STATS_TEMPLATE_URL` to the
+   sheet's URL. *Why:* the admin form builds its "make a copy" link from it.
+4. Set `STATS_URL` to the Community Cloud app URL (`https://<app>.streamlit.app`). *Why:* the live link opens it.
+5. Click **Redeploy**. *Why:* the backend reads both at start.
+6. Verify: log in, edit a game and click **גיליון חדש מתבנית**. Google's "Make a copy" page opens. Paste the copy's URL
+   and click **טען סטטיסטיקה**. You see "הקישור נשמר — הגיליון עדיין ריק" and the schedule card shows
+   **סטטיסטיקה חיה**.
 
 ## 5. Nightly scrape
 

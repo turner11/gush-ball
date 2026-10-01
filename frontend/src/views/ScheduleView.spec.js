@@ -281,4 +281,39 @@ describe('ScheduleView', () => {
     expect(wrapper.findAll('a[href="/stats?game=2"]')).toHaveLength(1)
     expect(wrapper.find('a[href^="/stats?game=1"]').exists()).toBe(false)
   })
+
+  describe('live stats link', () => {
+    const ADMIN = { username: 'a', team_id: null, stats_app_url: 'https://app.streamlit.app', stats_template_url: '' }
+    const WITH_SHEET = { ...FUTURE_GAME, stats_url: 'https://docs.google.com/spreadsheets/d/X/edit' }
+
+    async function mountWith(me, games) {
+      mockFetch({
+        'GET /api/auth/me': me,
+        'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+        'GET /api/teams/1/games': () => jsonRes(games),
+      })
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+      return wrapper
+    }
+
+    it('shows for an in-scope admin when stats_url is set and there are no stats yet', async () => {
+      const wrapper = await mountWith(() => jsonRes(ADMIN), [WITH_SHEET])
+      const link = wrapper.find('a[target="_blank"][href^="https://app.streamlit.app"]')
+      expect(link.exists()).toBe(true)
+      expect(link.text()).toContain('סטטיסטיקה חיה')
+    })
+
+    it('is hidden from fans', async () => {
+      const wrapper = await mountWith(() => ({ ok: false, status: 401, statusText: 'x', json: async () => ({}) }), [WITH_SHEET])
+      expect(wrapper.find('a[href^="https://app.streamlit.app"]').exists()).toBe(false)
+    })
+
+    it('yields to the lineups link once the game has stats', async () => {
+      const wrapper = await mountWith(() => jsonRes(ADMIN), [{ ...PAST_GAME, stats_url: WITH_SHEET.stats_url }])
+      expect(wrapper.findAll('a[href="/roster?game=2#lineups"]')).toHaveLength(1)
+      expect(wrapper.find('a[href^="https://app.streamlit.app"]').exists()).toBe(false)
+    })
+  })
 })
