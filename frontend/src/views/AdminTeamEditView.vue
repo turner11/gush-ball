@@ -3,7 +3,9 @@ import { onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import ImageUpload from '../components/ImageUpload.vue'
+import TeamAdminsSection from '../components/TeamAdminsSection.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
+import { useAuth } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
 
@@ -11,6 +13,7 @@ const route = useRoute()
 const teamId = route.params.id
 
 const { error, get, update } = useTeams()
+const { user } = useAuth()
 
 // Each group is one fieldset; every field keeps its `team-${key}` input id.
 const GROUPS = [
@@ -194,6 +197,7 @@ const contentSections = [
           :fields="section.fields"
         />
       </div>
+      <TeamAdminsSection v-if="!user?.team_id" :team-id="teamId" />
     </template>
     <div v-else-if="loading" class="space-y-3" aria-busy="true">
       <div class="skeleton h-32" />

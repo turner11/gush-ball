@@ -35,7 +35,7 @@ function jsonRes(body, status = 200) {
 }
 
 const CONTENT_HANDLERS = Object.fromEntries(
-  ['links', 'videos', 'images', 'posts', 'players'].map((r) => [`GET /api/teams/1/${r}`, () => jsonRes([])]),
+  ['links', 'videos', 'images', 'posts', 'players', 'admins'].map((r) => [`GET /api/teams/1/${r}`, () => jsonRes([])]),
 )
 
 describe('AdminTeamEditView', () => {
@@ -100,5 +100,23 @@ describe('AdminTeamEditView', () => {
       ibasketball_league_url: TEAM.ibasketball_league_url,
     })
     expect(patchBody).not.toHaveProperty('youtube_url')
+  })
+
+  it('shows the team admins card to a full admin', async () => {
+    mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
+
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).toContain('מנהלי הקבוצה')
+  })
+
+  it('hides the team admins card from a team admin and never requests it', async () => {
+    mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
+    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 't', team_id: 1 }
+
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).not.toContain('מנהלי הקבוצה')
+    expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1/admins', expect.anything())
   })
 })
