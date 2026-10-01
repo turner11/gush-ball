@@ -2,12 +2,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import AppIcon from '../components/AppIcon.vue'
+import GameRow from '../components/GameRow.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import { ownTeams, useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
-import { sheetCopyUrl, STATUS_LABELS } from '../lib/games'
+import { byDate, sheetCopyUrl, STATUS_LABELS } from '../lib/games'
 
 const STATUSES = Object.keys(STATUS_LABELS)
 
@@ -34,6 +35,7 @@ function emptyForm() {
 
 const teams = ref([])
 const games = ref([])
+const loading = ref(false)
 const pendingGames = ref([])
 const editing = ref(null)
 const form = ref(emptyForm())
@@ -51,12 +53,22 @@ const loadButton = ref(null)
 
 const { selectedTeamId, ensureDefault } = useSelectedTeam()
 
+const sortedGames = computed(() => [...games.value].sort(byDate))
+const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value) ?? null)
+
 async function loadGames() {
   if (!selectedTeamId.value) {
     games.value = []
     return
   }
-  games.value = await apiFetch(`/teams/${selectedTeamId.value}/games`)
+  loading.value = true
+  try {
+    games.value = await apiFetch(`/teams/${selectedTeamId.value}/games`)
+  } catch {
+    error.value = 'שגיאה בטעינת המשחקים'
+  } finally {
+    loading.value = false
+  }
 }
 
 async function loadPendingGames() {
@@ -178,6 +190,7 @@ async function onSubmit() {
   error.value = null
   try {
     if (editing.value) {
+      payload.stats_url = statsUrl.value.trim() || null
       const updated = await apiFetch(`/teams/${selectedTeamId.value}/games/${editing.value.id}`, {
         method: 'PATCH',
         body: payload,
@@ -293,36 +306,21 @@ async function onDelete(game) {
           </ul>
         </section>
 
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr class="table-header-row">
-                <th>יריבה</th>
-                <th>תאריך</th>
-                <th>בית/חוץ</th>
-                <th>סטטוס</th>
-                <th>תוצאה</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="game in games" :key="game.id" class="table-body-row">
-                <td data-label="יריבה">{{ game.opponent.name }}</td>
-                <td data-label="תאריך">{{ formatDateTime(game.scheduled_at) }}</td>
-                <td data-label="בית/חוץ">{{ game.is_home ? 'בית' : 'חוץ' }}</td>
-                <td data-label="סטטוס"><span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span></td>
-                <td data-label="תוצאה" class="tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</td>
-                <td class="justify-end">
-                  <span class="inline-flex gap-1">
-                    <GameStatsLink :game="game" class="btn-ghost" />
-                    <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
-                    <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-if="loading" class="space-y-3" aria-busy="true">
+          <div class="skeleton h-16" />
+          <div class="skeleton h-16" />
+          <div class="skeleton h-16" />
         </div>
+        <p v-else-if="!games.length" class="empty-state">אין משחקים עדיין.</p>
+        <ol v-else class="card divide-y divide-line overflow-hidden p-0">
+          <GameRow v-for="game in sortedGames" :key="game.id" :game="game" :team="selectedTeam">
+            <span class="mt-1 flex flex-wrap gap-1">
+              <GameStatsLink :game="game" class="btn-ghost min-h-11" />
+              <button type="button" class="btn-ghost min-h-11" @click="startEdit(game)">ערוך</button>
+              <button type="button" class="btn-danger-ghost min-h-11" @click="onDelete(game)">מחק</button>
+            </span>
+          </GameRow>
+        </ol>
       </div>
 
       <form id="game-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
@@ -370,7 +368,7 @@ async function onDelete(game) {
 
         <div v-if="editing" class="space-y-2 border-t border-line pt-3">
           <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
-          <label for="stats-url" class="field-label">קישור או מזהה של הגיליון (משותף ל"כל מי שיש לו קישור")</label>
+          <label for="stats-url" class="field-label">קישור ללשונית הנתונים (כולל gid) או מזהה הגיליון — משותף ל"כל מי שיש לו קישור"</label>
           <input id="stats-url" v-model="statsUrl" type="text" inputmode="url" dir="ltr" autocomplete="off" spellcheck="false" class="field-input" />
           <a v-if="templateCopyUrl" :href="templateCopyUrl" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
           <p v-if="templateCopyUrl" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו טען. אחרי המשחק: טענו שוב.</p>
