@@ -816,6 +816,29 @@ def test_sync_team_players_stores_face_focus_once(
     assert len(fetched) == 2
 
 
+def test_sync_team_players_fills_focus_for_off_roster_player_images(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    live = Player(team_id=team.id, name="משה קולקר")
+    live.images.append(PlayerImage(url="https://cdn/off.webp"))
+    gone = Player(team_id=team.id, name="נמחק", deleted_at=datetime.now(UTC))
+    gone.images.append(PlayerImage(url="https://cdn/gone.webp"))
+    db_session.add_all([live, gone])
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+    fetched: list[str] = []
+    monkeypatch.setattr(scrape_games, "_get_image", lambda url: fetched.append(url) or b"x")
+    monkeypatch.setattr(scrape_games, "face_focus", lambda data: (40.0, 30.0, 1.5))
+
+    scrape_games.sync_team_players(db_session, team)
+
+    focus = {url: (x, y, z) for url, x, y, z in _image_focus(db_session)}
+    assert focus["https://cdn/off.webp"] == (40.0, 30.0, 1.5)
+    assert focus["https://cdn/gone.webp"] == (None, None, None)
+    assert "https://cdn/gone.webp" not in fetched
+
+
 def test_sync_team_players_image_fetch_error_keeps_players_and_retries(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
