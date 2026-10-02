@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.scrape_games import sync_all_games, sync_all_players
+from app.scrape_games import _sp_team_id, sync_all_games, sync_all_players
 from app.scrape_standings import sync_all_standings
 
 log = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ def sync_all(
     auto_accept: bool = False,
 ) -> dict[str, Any]:
     # sync_all_standings logs and skips per-team failures, so games always run.
+    _sp_team_id.cache_clear()
     errors: list[str] = []
     standings = sync_all_standings(db, errors, team_ids=team_ids) if "standings" in kinds else None
     games = sync_all_games(db, errors, team_ids=team_ids, auto_accept=auto_accept) if "games" in kinds else None

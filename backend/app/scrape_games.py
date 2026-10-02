@@ -4,6 +4,7 @@ a re-scrape disagrees with an admin-overridden game, for the admin to accept/rej
 adds the nightly trigger. This module is a manual, synchronous entry point until then.
 """
 
+import functools
 import html
 import logging
 import time
@@ -111,10 +112,7 @@ def _scrape_address(url: str) -> str | None:
     return node.get_text(strip=True)[:300]
 
 
-def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -> Opponent:
-    if opp_sp_id in cache:
-        return cache[opp_sp_id]
-    data = _get_json(f"/sportspress/v2/teams/{opp_sp_id}", _embed="wp:featuredmedia")
+def _resolve_opponent(db: Session, data: dict[str, Any]) -> Opponent:
     name = html.unescape(data["title"]["rendered"])
     opponent = get_or_create_opponent(db, name)
     opponent.source_url = data["link"]  # the link is the source id: newest published link wins
@@ -124,20 +122,46 @@ def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -
     # ponytail: "" = page has no address (never refetched); None = fetch failed, retried next sync
     if opponent.address is None and opponent.source_url:
         opponent.address = _scrape_address(opponent.source_url)
-    cache[opp_sp_id] = opponent
     return opponent
 
 
-def _find_sp_team(team: Team) -> dict[str, Any]:
-    slug = team.ibasketball_team_url.rstrip("/").rsplit("/", 1)[-1]
+# ponytail: per-run cache (sync_all clears it); the league re-publishes posts under new ids, so don't keep it longer
+@functools.cache
+def _sp_team_id(team_url: str) -> int:
+    slug = team_url.rstrip("/").rsplit("/", 1)[-1]
     teams = _get_json("/sportspress/v2/teams", slug=slug)
     if not teams:
         raise ValueError(f"No SportsPress team found for slug {slug!r}")
-    return teams[0]
+    return teams[0]["id"]
+
+
+def _fetch_opponents(events: list[dict[str, Any]], sp_id: int) -> dict[int, dict[str, Any]]:
+    """All opponents of this team's two-team events, in one request (not one per opponent)."""
+    ids = {
+        o
+        for e in events
+        if sp_id in e["teams"] and len(e["teams"]) == 2
+        for o in e["teams"]
+        if o != sp_id
+    }
+    if not ids:
+        return {}
+    # ponytail: assumes <= 100 opponents per team feed (one page)
+    teams = _get_json(
+        "/sportspress/v2/teams",
+        include=",".join(map(str, sorted(ids))),
+        per_page=100,
+        _embed="wp:featuredmedia",
+    )
+    by_id = {t["id"]: t for t in teams}
+    for opp_sp_id in ids:
+        if opp_sp_id not in by_id:
+            raise ValueError(f"SportsPress team {opp_sp_id} missing from include batch")
+    return by_id
 
 
 def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
-    sp_id = _find_sp_team(team)["id"]
+    sp_id = _sp_team_id(team.ibasketball_team_url)
     # Fill-only: an admin-entered address is never clobbered.
     if team.home_court_address is None:
         team.home_court_address = _scrape_address(team.ibasketball_team_url)
@@ -157,7 +181,8 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
         )
     )
 
-    opponent_cache: dict[int, Opponent] = {}
+    opponent_details = _fetch_opponents(events, sp_id)
+    opponents: dict[int, Opponent] = {}
     count = 0
     for event in events:
         event_teams = event["teams"]
@@ -183,9 +208,9 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
         if game is not None and game.team_id != team.id:
             continue
 
-        # ponytail: refetches known opponents each run; skip when opp already
-        # has logo+source_url if runtime matters
-        opponent = _resolve_opponent(db, opp_sp_id, opponent_cache)
+        if opp_sp_id not in opponents:
+            opponents[opp_sp_id] = _resolve_opponent(db, opponent_details[opp_sp_id])
+        opponent = opponents[opp_sp_id]
 
         if game is None:
             # ponytail: matches by same day + opponent + side; an admin-edited date/opponent gets a
@@ -311,7 +336,7 @@ def sync_team_players(db: Session, team: Team) -> int:
     live row) and re-keys its source_url, so a re-published player link creates no duplicate.
     A soft-deleted twin's href moves to the live same-name player.
     """
-    sp_id = _find_sp_team(team)["id"]
+    sp_id = _sp_team_id(team.ibasketball_team_url)
     page = BeautifulSoup(
         _get_html(action="ibba", template="players", id=sp_id, type="sp_team"), "html.parser"
     )

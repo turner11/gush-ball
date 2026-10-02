@@ -41,21 +41,39 @@ OPPONENT_DETAIL = {
 OPPONENT_NAME_UNESCAPED = "מכבי – תל אביב"
 
 
+def _opponent_detail(sp_id: int) -> dict:
+    if sp_id == OPP_SP_ID:
+        return {**OPPONENT_DETAIL, "id": sp_id}
+    return {
+        "id": sp_id,
+        "title": {"rendered": f"Other {sp_id}"},
+        "link": f"https://ibasketball.co.il/team/{sp_id}/",
+        "_embedded": {"wp:featuredmedia": [{"source_url": f"https://ibasketball.co.il/{sp_id}.png"}]},
+    }
+
+
+@pytest.fixture(autouse=True)
+def _clear_sp_team_cache() -> None:
+    scrape_games._sp_team_id.cache_clear()
+
+
 class FakeApi:
     """Path-keyed fake for app.scrape_games._get_json. Records calls, no network/sleep."""
 
-    def __init__(self, events: list[dict]) -> None:
+    def __init__(self, events: list[dict], known_opponents: tuple[int, ...] = (OPP_SP_ID,)) -> None:
         self.events = events
+        self.known_opponents = known_opponents
         self.calls: list[tuple[str, dict]] = []
 
     def __call__(self, path: str, **params: object) -> object:
         self.calls.append((path, params))
+        if path == "/sportspress/v2/teams" and "include" in params:
+            ids = [int(i) for i in str(params["include"]).split(",")]
+            return [_opponent_detail(i) for i in ids if i in self.known_opponents]
         if path == "/sportspress/v2/teams":
             return [{"id": OUR_SP_ID}]
         if path == "/sportspress/v2/events":
             return self.events
-        if path == f"/sportspress/v2/teams/{OPP_SP_ID}":
-            return OPPONENT_DETAIL
         raise AssertionError(f"unexpected path {path}")
 
 ADDRESS_HTML = (
@@ -77,6 +95,51 @@ def page_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
     monkeypatch.setattr(scrape_games, "_get_page", fake)
     return calls
+
+
+def test_sync_fetches_all_opponents_in_one_request(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    other_event = {**FUTURE_EVENT, "id": 9003, "teams": [OUR_SP_ID, 2002]}
+    fake = FakeApi([FUTURE_EVENT, FINAL_EVENT_AWAY, other_event], known_opponents=(OPP_SP_ID, 2002))
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+
+    scrape_games.sync_team_games(db_session, team)
+
+    batches = [c for c in fake.calls if "include" in c[1]]
+    assert len(batches) == 1
+    assert batches[0][0] == "/sportspress/v2/teams"
+    opponents = {o.name: o.logo_url for o in db_session.query(Opponent)}
+    assert opponents == {
+        OPPONENT_NAME_UNESCAPED: "https://ibasketball.co.il/logo.png",
+        "Other 2002": "https://ibasketball.co.il/2002.png",
+    }
+
+
+def test_sync_fails_loud_when_opponent_missing_from_batch(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT], known_opponents=()))
+
+    with pytest.raises(ValueError, match=str(OPP_SP_ID)):
+        scrape_games.sync_team_games(db_session, team)
+
+
+def test_sp_team_lookup_is_fetched_once_per_team_url(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, "")
+    fake = FakeApi([])
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+
+    scrape_games.sync_team_games(db_session, team)
+    scrape_games.sync_team_players(db_session, team)
+
+    lookups = [c for c in fake.calls if c[0] == "/sportspress/v2/teams" and "include" not in c[1]]
+    assert len(lookups) == 1
 
 
 def _make_team(db_session: Session) -> Team:
