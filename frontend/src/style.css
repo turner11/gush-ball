@@ -148,7 +148,7 @@
   }
   .btn-ghost,
   .btn-danger-ghost {
-    @apply inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold transition-colors hover:bg-sunken;
+    @apply inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold transition-colors hover:bg-sunken;
   }
   .btn-danger-ghost {
     @apply text-loss;
@@ -162,7 +162,7 @@
     @apply inline-flex gap-1 rounded-xl bg-sunken p-1;
   }
   .segmented-item {
-    @apply inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold text-muted transition-colors hover:text-ink aria-pressed:bg-raised aria-pressed:text-ink aria-pressed:shadow-card data-[state=active]:bg-raised data-[state=active]:text-ink data-[state=active]:shadow-card;
+    @apply inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold text-muted transition-colors hover:text-ink aria-pressed:bg-raised aria-pressed:text-ink aria-pressed:shadow-card data-[state=active]:bg-raised data-[state=active]:text-ink data-[state=active]:shadow-card;
   }
 
   /* Forms */

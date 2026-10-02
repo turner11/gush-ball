@@ -3,7 +3,7 @@ import AppIcon from './AppIcon.vue'
 
 defineProps({ address: { type: String, required: true } })
 
-const LINK = 'inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-sm hover:bg-sunken'
+const LINK = 'inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md px-2 text-sm hover:bg-sunken'
 </script>
 
 <template>

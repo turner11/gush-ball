@@ -28,7 +28,7 @@ async function onLogout() {
   <div class="flex min-h-dvh flex-col bg-surface text-ink">
     <header class="sticky top-0 z-40 bg-brand text-white shadow-sm">
       <div class="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:px-6">
-        <RouterLink :to="{ name: 'admin-home' }" class="font-black">ניהול</RouterLink>
+        <RouterLink :to="{ name: 'admin-home' }" class="inline-flex min-h-11 items-center font-black">ניהול</RouterLink>
         <nav class="ms-6 hidden md:block">
           <ul class="flex gap-5">
             <li><RouterLink :to="{ name: 'admin-home' }" active-class="" exact-active-class="font-bold" class="nav-link">ראשי</RouterLink></li>
@@ -38,7 +38,7 @@ async function onLogout() {
             <li><RouterLink :to="{ name: 'admin-teams' }" active-class="font-bold" class="nav-link">קבוצות</RouterLink></li>
           </ul>
         </nav>
-        <RouterLink to="/" class="section-link ms-auto">לאתר</RouterLink>
+        <RouterLink to="/" class="nav-link ms-auto">לאתר</RouterLink>
         <ThemeToggle />
         <button type="button" class="btn-ghost" @click="onLogout">
           <AppIcon name="logout" />

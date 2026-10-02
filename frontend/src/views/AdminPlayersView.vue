@@ -180,7 +180,7 @@ async function deleteImage(player, image) {
                       </li>
                     </ul>
                     <div class="mt-1 flex gap-1">
-                      <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="field-input mt-0 min-h-10 w-40" />
+                      <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="field-input mt-0 w-40" />
                       <button type="button" class="btn-ghost" @click="addImage(player)">הוסף תמונה</button>
                     </div>
                     <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
