@@ -75,16 +75,24 @@ def _focus(img_w: int, img_h: int, face: tuple[int, int, int, int]) -> tuple[flo
     return pos(img_w, x + w / 2), pos(img_h, y + h / 2 - HAIR_SHIFT * h), m / side
 
 
+def _largest_face(gray) -> tuple[int, int, int, int] | None:
+    """(x, y, w, h) of the largest face in a grayscale image, or None."""
+    m = min(gray.shape)
+    faces = _CASCADE.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(m // 10, m // 10))
+    if len(faces) == 0:
+        return None
+    return tuple(int(v) for v in max(faces, key=lambda f: f[2] * f[3]))
+
+
 def face_focus(data: bytes) -> tuple[float, float, float]:
     """Focus for the largest face; (50, 0, 1) (the old top-anchored look) if none or undecodable."""
     img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_GRAYSCALE) if data else None
     if img is None:
         return 50.0, 0.0, 1.0
-    m = min(img.shape)
-    faces = _CASCADE.detectMultiScale(img, scaleFactor=1.1, minNeighbors=5, minSize=(m // 10, m // 10))
-    if len(faces) == 0:
+    face = _largest_face(img)
+    if face is None:
         return 50.0, 0.0, 1.0
-    return _focus(img.shape[1], img.shape[0], tuple(int(v) for v in max(faces, key=lambda f: f[2] * f[3])))
+    return _focus(img.shape[1], img.shape[0], face)
 
 
 def _scrape_address(url: str) -> str | None:

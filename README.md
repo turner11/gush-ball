@@ -57,6 +57,9 @@ Open http://localhost:8081. Uploads fail until object-storage vars are set.
 To debug the BBStats Streamlit app (`stats/` submodule): `docker compose --profile stats up stats`,
 then open http://localhost:8501.
 
+To debug player-avatar framing (local-only lab, `lab/`): `docker compose --profile lab up --build lab`,
+then open http://localhost:8502.
+
 To explore the local db: `docker compose --profile pgadmin up -d pgadmin`, then open
 http://localhost:5050 (db password: `gush_ball`).
 
