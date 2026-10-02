@@ -40,6 +40,28 @@ describe('PlayerCard', () => {
     expect(img.classes()).toContain('object-top')
   })
 
+  it("applies each image's face focus to the hover slide", async () => {
+    const images = [
+      { url: '/a.jpg', focus_x: 50, focus_y: 40.5, zoom: 1.5 },
+      { url: '/b.jpg', focus_x: 30, focus_y: 20, zoom: 2 },
+    ]
+    const w = mountCard({ player: { ...PLAYER, images } })
+    await w.trigger('mouseenter')
+    expect(slide(w).attributes('style')).toContain('object-position: 50% 40.5%')
+    expect(slide(w).attributes('style')).toContain('transform-origin: 50% 40.5%')
+    expect(slide(w).attributes('style')).toContain('transform: scale(1.5)')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(slide(w).attributes('style')).toContain('object-position: 30% 20%')
+    expect(slide(w).attributes('style')).toContain('transform: scale(2)')
+  })
+
+  it('keeps top anchoring on the slide when an image has no focus', async () => {
+    const w = mountCard({ player: PLAYER })
+    await w.trigger('mouseenter')
+    expect(slide(w).attributes('style')).toBeUndefined()
+    expect(slide(w).classes()).toContain('object-top')
+  })
+
   it('fills the card at once, advances after 1s, then every 3 seconds while hovered', async () => {
     const w = mountCard({ player: PLAYER })
     expect(slide(w).exists()).toBe(false)
