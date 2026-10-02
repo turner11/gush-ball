@@ -672,6 +672,35 @@ def test_sync_team_players_does_not_reimport_soft_deleted_player(
     assert db_session.query(Player).filter_by(source_url="/p/2").one().deleted_at is not None
 
 
+def test_sync_team_players_moves_href_from_soft_deleted_twin_to_live_player(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    live = Player(team_id=team.id, name="איתי ורולקר", jersey_number=10, source_url="/old/1")
+    twin = Player(
+        team_id=team.id,
+        name="איתי ורולקר",
+        source_url="/p/1",
+        deleted_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    db_session.add_all([live, twin])
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+
+    scrape_games.sync_team_players(db_session, team)
+
+    db_session.refresh(live)
+    db_session.refresh(twin)
+    assert live.source_url == "/p/1"
+    assert twin.source_url is None
+    assert twin.deleted_at is not None
+    assert db_session.query(Player).count() == 3
+
+    assert scrape_games.sync_team_players(db_session, team) == 0
+    db_session.refresh(live)
+    assert live.source_url == "/p/1"
+
+
 def test_sync_team_players_handles_empty_roster(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -806,3 +835,21 @@ def test_sync_team_players_image_fetch_error_keeps_players_and_retries(
 
     scrape_games.sync_team_players(db_session, team)
     assert len(calls) == 4
+
+
+def test_resync_refreshes_opponent_source_url_to_latest_link(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    opponent = Opponent(
+        name=OPPONENT_NAME_UNESCAPED, source_url="https://ibasketball.co.il/team/old-opp/"
+    )
+    db_session.add(opponent)
+    db_session.commit()
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FINAL_EVENT_AWAY]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    db_session.refresh(opponent)
+    assert db_session.query(Opponent).count() == 1
+    assert opponent.source_url == OPPONENT_DETAIL["link"]
