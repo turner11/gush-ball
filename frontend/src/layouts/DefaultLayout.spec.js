@@ -361,7 +361,7 @@ describe('DefaultLayout', () => {
     expect(a.attributes('rel')).toContain('noopener')
   })
 
-  it('mobile tab bar links the five primary destinations', async () => {
+  it('mobile tab bar links the six primary destinations', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -373,7 +373,7 @@ describe('DefaultLayout', () => {
       .find('[data-testid="tab-bar"]')
       .findAll('a')
       .map((a) => a.attributes('href'))
-    expect(hrefs).toEqual(['/team_a', '/schedule', '/standings', '/roster', '/media'])
+    expect(hrefs).toEqual(['/team_a', '/schedule', '/standings', '/roster', '/media', '/stats'])
   })
 
   it('header omits the map link when the team has no address', async () => {

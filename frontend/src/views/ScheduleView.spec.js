@@ -261,6 +261,15 @@ describe('ScheduleView', () => {
       expect(a.indexOf('הפועל עבר')).toBeLessThan(a.indexOf('קבוצה א'))
     })
 
+    it('hides our own team (not the opponent) below sm', async () => {
+      const [home, away] = await rows()
+      const hidden = (row, name) => row.findAll('span').find((s) => s.text() === name).classes()
+      expect(hidden(home, 'קבוצה א')).toContain('max-sm:hidden')
+      expect(hidden(home, 'מכבי עתיד')).not.toContain('max-sm:hidden')
+      expect(hidden(away, 'קבוצה א')).toContain('max-sm:hidden')
+      expect(hidden(away, 'הפועל עבר')).not.toContain('max-sm:hidden')
+    })
+
     it('marks home and away games with a badge', async () => {
       const [home, away] = await rows()
       expect(home.findAll('.badge').map((b) => b.text())).toContain('בית')
