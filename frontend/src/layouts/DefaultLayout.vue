@@ -28,7 +28,7 @@ const tabItems = computed(() => [
   { to: '/standings', label: 'טבלה', icon: 'table' },
   { to: '/roster', label: 'שחקנים', icon: 'users' },
   { to: '/media', label: 'מדיה', icon: 'media' },
-  { to: '/stats', label: 'סטטיסטיקה', icon: 'chart' },
+  { to: '/stats', label: 'נתונים', icon: 'chart' },
 ])
 
 const teams = ref([])

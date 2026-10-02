@@ -96,7 +96,7 @@ describe('ScheduleView', () => {
     await flushPromises()
 
     // PAST_GAME is an 80–70 away win: the hosts' 70 reads first; the same result at home reads 80 first
-    const scores = wrapper.findAll('span.tabular-nums.text-xl').map((s) => s.text())
+    const scores = wrapper.findAll('[data-score=desktop]').map((s) => s.text())
     expect(scores.sort()).toEqual(['70 : 80', '80 : 70'])
   })
 

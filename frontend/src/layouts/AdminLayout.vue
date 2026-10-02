@@ -40,7 +40,7 @@ async function onLogout() {
         </nav>
         <RouterLink to="/" class="nav-link ms-auto">לאתר</RouterLink>
         <ThemeToggle />
-        <button type="button" class="btn-ghost" @click="onLogout">
+        <button type="button" class="btn-ghost hover:bg-white/10" @click="onLogout">
           <AppIcon name="logout" />
           <span class="max-sm:sr-only">התנתקות</span>
         </button>

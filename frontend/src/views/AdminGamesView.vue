@@ -350,10 +350,10 @@ async function onDelete(game) {
           <input id="game-scheduled-at" v-model="form.scheduled_at" type="datetime-local" required class="field-input" />
         </div>
 
-        <div class="flex min-h-11 items-center gap-2">
-          <input id="game-is-home" v-model="form.is_home" type="checkbox" class="size-5" />
-          <label for="game-is-home" class="field-label">משחק בית</label>
-        </div>
+        <label class="flex min-h-11 items-center gap-2">
+          <input v-model="form.is_home" type="checkbox" class="size-5" />
+          <span class="field-label">משחק בית</span>
+        </label>
 
         <div>
           <label for="game-status" class="field-label">סטטוס</label>
