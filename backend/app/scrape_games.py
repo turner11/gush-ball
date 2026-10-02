@@ -117,8 +117,7 @@ def _resolve_opponent(db: Session, opp_sp_id: int, cache: dict[int, Opponent]) -
     data = _get_json(f"/sportspress/v2/teams/{opp_sp_id}", _embed="wp:featuredmedia")
     name = html.unescape(data["title"]["rendered"])
     opponent = get_or_create_opponent(db, name)
-    if opponent.source_url is None:
-        opponent.source_url = data["link"]
+    opponent.source_url = data["link"]  # the link is the source id: newest published link wins
     if opponent.logo_url is None:
         media = data.get("_embedded", {}).get("wp:featuredmedia") or []
         opponent.logo_url = media[0]["source_url"] if media else None
@@ -310,6 +309,7 @@ def sync_team_players(db: Session, team: Team) -> int:
     Players are matched by the roster card's href (Player.source_url), so renamed or soft-deleted
     players are not re-imported. An unknown href adopts this team's same-name player (preferring a
     live row) and re-keys its source_url, so a re-published player link creates no duplicate.
+    A soft-deleted twin's href moves to the live same-name player.
     """
     sp_id = _find_sp_team(team)["id"]
     page = BeautifulSoup(
@@ -328,6 +328,16 @@ def sync_team_players(db: Session, team: Team) -> int:
         player = href and db.scalar(
             select(Player).where(Player.team_id == team.id, Player.source_url == href)
         )
+        if player and player.deleted_at is not None:
+            live_twin = db.scalar(
+                select(Player)
+                .where(Player.team_id == team.id, Player.name == name, Player.deleted_at.is_(None))
+                .order_by(Player.id)
+            )
+            if live_twin is not None:
+                player.source_url = None
+                live_twin.source_url = href
+                player = live_twin
         if not player:
             player = db.scalar(
                 select(Player)
