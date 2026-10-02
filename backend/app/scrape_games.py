@@ -303,8 +303,8 @@ def sync_all_games(
 
 
 def sync_team_players(db: Session, team: Team) -> int:
-    """Fill-only: creates missing players, fills a missing image and face focus for every image of the team's live players. Never overwrites admin edits,
-    never deletes.
+    """Fill-only: creates missing players, fills a missing image, and fills face focus for every
+    image of the team's live players. Never overwrites admin edits, never deletes.
 
     Players are matched by the roster card's href (Player.source_url), so renamed or soft-deleted
     players are not re-imported. An unknown href adopts this team's same-name player (preferring a
