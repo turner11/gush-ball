@@ -125,7 +125,7 @@ def _resolve_opponent(db: Session, data: dict[str, Any]) -> Opponent:
     return opponent
 
 
-# ponytail: process-lifetime cache; a slug's SportsPress id never changes
+# ponytail: per-run cache (sync_all clears it); the league re-publishes posts under new ids, so don't keep it longer
 @functools.cache
 def _sp_team_id(team_url: str) -> int:
     slug = team_url.rstrip("/").rsplit("/", 1)[-1]
