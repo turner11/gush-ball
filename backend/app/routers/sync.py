@@ -12,6 +12,7 @@ Starlette's threadpool executor, where two near-simultaneous requests could both
 """
 
 import logging
+import time
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -43,6 +44,7 @@ class SyncOut(BaseModel):
 class SyncStatusOut(BaseModel):
     running: bool
     finished_at: datetime | None = None
+    elapsed_seconds: int | None = None
     standings: int | None = None
     games: int | None = None
     players: int | None = None
@@ -53,15 +55,21 @@ class SyncStatusOut(BaseModel):
 def _run_sync(team_ids: list[int] | None, kinds: set[str], auto_accept: bool) -> None:
     global _running, _last
     log.info("Sync started")
+    started = time.monotonic()
     try:
         # Background tasks run after the request's own `Depends(get_db)` session may already
         # be closed, so open a fresh one here -- same pattern as the scrapers' own __main__ blocks.
         with SessionLocal() as db:
             result = {**sync_all(db, team_ids, kinds, auto_accept), "failed": False}
-        _last = {**result, "finished_at": datetime.now(UTC)}
+        _last = {**result, "finished_at": datetime.now(UTC), "elapsed_seconds": round(time.monotonic() - started)}
     except Exception as exc:
         log.exception("Sync crashed")
-        _last = {"errors": [str(exc)], "failed": True, "finished_at": datetime.now(UTC)}
+        _last = {
+            "errors": [str(exc)],
+            "failed": True,
+            "finished_at": datetime.now(UTC),
+            "elapsed_seconds": round(time.monotonic() - started),
+        }
     finally:
         _running = False
 

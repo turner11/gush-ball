@@ -52,6 +52,7 @@ describe('AdminHomeView', () => {
           finished_at: '2026-09-29T10:00:00Z',
           standings: 8,
           games: 12,
+          elapsed_seconds: 125,
           errors: ['games gush: boom'],
           failed: false,
         }),
@@ -62,6 +63,7 @@ describe('AdminHomeView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('8 שורות טבלה, 12 משחקים')
+    expect(wrapper.text()).toContain('תוך שתי דקות, 5 שניות')
     expect(wrapper.text()).toContain('games gush: boom')
   })
 

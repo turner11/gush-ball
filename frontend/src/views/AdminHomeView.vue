@@ -15,6 +15,7 @@ import AppIcon from '../components/AppIcon.vue'
 import { useAuth } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
+import { formatDuration } from '../lib/format'
 
 const POLL_MS = 3000
 
@@ -52,6 +53,9 @@ const resultText = computed(() =>
   ]
     .filter(Boolean)
     .join(', '),
+)
+const elapsedText = computed(() =>
+  typeof result.value?.elapsed_seconds === 'number' ? formatDuration(result.value.elapsed_seconds) : '',
 )
 const allTeamsSelected = computed(() => teamIds.value.length === (teams.value?.length ?? 0))
 const selectAllState = computed(() =>
@@ -241,7 +245,7 @@ onUnmounted(() => {
       <div v-else-if="result" class="text-sm text-muted">
         <p v-if="result.failed" class="error-text">הסנכרון נכשל.</p>
         <p v-else>
-          הסנכרון הסתיים: {{ resultText }}.
+          הסנכרון הסתיים<template v-if="elapsedText"> תוך {{ elapsedText }}</template>: {{ resultText }}.
         </p>
         <ul v-if="result.errors.length" class="error-text list-disc ps-5">
           <li v-for="e in result.errors" :key="e">{{ e }}</li>
