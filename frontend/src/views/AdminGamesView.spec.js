@@ -535,6 +535,26 @@ describe('AdminGamesView', () => {
       expect(wrapper.find('#stats-url').element.value).toBe(SHEET)
     })
 
+    it('game card links to the saved stats sheet in a new tab', async () => {
+      const wrapper = await mountEditing({}, { ...GAMES[0], stats_url: SHEET })
+      const link = wrapper.find(`ol a[href="${SHEET}"]`)
+      expect(link.exists()).toBe(true)
+      expect(link.attributes('target')).toBe('_blank')
+      expect(link.attributes('aria-label')).toContain('מכבי')
+    })
+
+    it('edit form links to the saved sheet, not the unsaved input', async () => {
+      const wrapper = await mountEditing({}, { ...GAMES[0], stats_url: SHEET })
+      await wrapper.find('#stats-url').setValue('other-id')
+      expect(wrapper.find(`#game-form a[href="${SHEET}"]`).exists()).toBe(true)
+    })
+
+    it('no sheet link when the game has no stats_url', async () => {
+      const wrapper = await mountEditing()
+      expect(wrapper.find(`a[href="${SHEET}"]`).exists()).toBe(false)
+      expect(wrapper.findAll('a').some((a) => a.text() === 'פתיחת הגיליון')).toBe(false)
+    })
+
     it('shows a template link rewritten to /copy', async () => {
       const wrapper = await mountEditing()
       const link = wrapper.find('a[href="https://docs.google.com/spreadsheets/d/T/copy"]')

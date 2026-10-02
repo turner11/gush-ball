@@ -320,6 +320,14 @@ async function onDelete(game) {
           <GameRow v-for="game in sortedGames" :key="game.id" :game="game" :team="selectedTeam">
             <template #actions>
               <GameStatsLink :game="game" class="btn-ghost min-h-11" />
+              <a
+                v-if="game.stats_url"
+                :href="game.stats_url"
+                target="_blank"
+                rel="noopener"
+                class="btn-ghost min-h-11"
+                :aria-label="'גיליון הסטטיסטיקה של המשחק נגד ' + game.opponent.name + ' (נפתח בלשונית חדשה)'"
+              >גיליון<AppIcon name="external" /></a>
               <button type="button" class="btn-ghost min-h-11" @click="startEdit(game)">ערוך</button>
               <button type="button" class="btn-danger-ghost min-h-11" @click="onDelete(game)">מחק</button>
             </template>
@@ -374,7 +382,10 @@ async function onDelete(game) {
           <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
           <label for="stats-url" class="field-label">קישור ללשונית הנתונים (כולל gid) או מזהה הגיליון — משותף ל"כל מי שיש לו קישור"</label>
           <input id="stats-url" v-model="statsUrl" type="text" inputmode="url" dir="ltr" autocomplete="off" spellcheck="false" class="field-input" />
-          <a v-if="templateCopyUrl" :href="templateCopyUrl" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
+          <div class="flex flex-wrap gap-x-4">
+            <a v-if="editing.stats_url" :href="editing.stats_url" target="_blank" rel="noopener" class="section-link">פתיחת הגיליון<AppIcon name="external" /></a>
+            <a v-if="templateCopyUrl" :href="templateCopyUrl" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
+          </div>
           <p v-if="templateCopyUrl" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו טען. אחרי המשחק: טענו שוב.</p>
           <div class="flex flex-wrap gap-2">
             <button ref="loadButton" type="button" class="btn-secondary" @click="requestLoadStats">טען סטטיסטיקה</button>
