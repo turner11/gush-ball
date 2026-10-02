@@ -37,7 +37,7 @@ function stopSlideshow() {
 }
 onBeforeUnmount(stopSlideshow)
 
-// Backend-detected face focus (CSS %) + zoom; without it the photo stays top-anchored.
+// Backend-detected face focus (CSS %) + zoom, for the circle and the hover slide; without it the photo stays top-anchored.
 function focusStyle(img) {
   if (img?.focus_x == null) return undefined
   const at = `${img.focus_x}% ${img.focus_y}%`
@@ -89,6 +89,7 @@ function onImgError(e) {
         :src="images[index].url"
         alt=""
         data-testid="slide"
+        :style="focusStyle(images[index])"
         class="absolute inset-0 size-full object-cover object-top"
         @error="onImgError"
       />
@@ -100,12 +101,12 @@ function onImgError(e) {
 <style scoped>
 .slide-enter-active,
 .slide-leave-active {
-  transition: opacity 0.4s ease, transform 0.4s ease;
+  transition: opacity 0.4s ease, scale 0.4s ease;
 }
 .slide-enter-from,
 .slide-leave-to {
   opacity: 0;
-  transform: scale(1.05);
+  scale: 1.05; /* not `transform`: the inline focus zoom owns that */
 }
 @media (prefers-reduced-motion: reduce) {
   .slide-enter-active,
