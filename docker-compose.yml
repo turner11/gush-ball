@@ -47,6 +47,23 @@ services:
     ports:
       - "8501:8501"
 
+  # Debug lab (#198), local only: `docker compose --profile lab up --build lab`
+  lab:
+    profiles: [lab]
+    build:
+      context: ./backend
+      additional_contexts:
+        stats: ./stats
+    environment:
+      # app.scrape_games imports app.config, which requires a >=32-char secret (no db connection is made).
+      SESSION_SECRET: local-dev-only-not-a-real-secret-0123456789
+    volumes:
+      - ./lab:/lab:ro
+      - ./backend/app:/app/app:ro
+    command: uv run --with streamlit streamlit run /lab/framing.py --server.address 0.0.0.0 --server.headless true
+    ports:
+      - "8502:8501"
+
   # pgAdmin for exploring the local db: `docker compose --profile pgadmin up -d pgadmin`
   pgadmin:
     profiles: [pgadmin]
