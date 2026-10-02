@@ -72,7 +72,9 @@ def test_sync_status_reports_last_result(
     admin_client: TestClient, stub_scrapers: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(sync_router, "_last", None)
-    assert admin_client.get("/sync/status").json()["finished_at"] is None
+    initial = admin_client.get("/sync/status").json()
+    assert initial["finished_at"] is None
+    assert initial["elapsed_seconds"] is None
 
     admin_client.post("/sync/now")
     body = admin_client.get("/sync/status").json()
@@ -83,6 +85,7 @@ def test_sync_status_reports_last_result(
     assert body["players"] == 0
     assert body["errors"] == []
     assert body["finished_at"] is not None
+    assert isinstance(body["elapsed_seconds"], int)
 
 
 def test_sync_now_allowed_for_team_admin(

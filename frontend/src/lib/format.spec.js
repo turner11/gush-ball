@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { formatDateTime, formatGameDate, signed } from './format'
+import { formatDateTime, formatDuration, formatGameDate, signed } from './format'
 
 const OPTS = { weekday: 'long', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }
 
@@ -43,5 +43,13 @@ describe('signed', () => {
     expect(signed(5)).toBe('+5')
     expect(signed(0)).toBe('0')
     expect(signed(-3)).toBe('-3')
+  })
+})
+
+describe('formatDuration', () => {
+  it('balances seconds into hours and minutes and omits zero units', () => {
+    expect(formatDuration(45)).toBe('45 שניות')
+    expect(formatDuration(125)).toBe('שתי דקות, 5 שניות')
+    expect(formatDuration(3780)).toBe('1 שעה, 3 דקות')
   })
 })
