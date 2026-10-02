@@ -46,7 +46,7 @@ col_x.metric("focus x", f"{x:.1f}%")
 col_y.metric("focus y", f"{y:.1f}%")
 col_zoom.metric("zoom", f"{zoom:.2f}x")
 
-face = scrape_games._largest_face(cv2.cvtColor(color, cv2.COLOR_BGR2GRAY))
+face = scrape_games._largest_face(cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_GRAYSCALE))
 if face is None:
     st.warning("No face detected — top-anchored default (50%, 0%, 1x)")
 else:
