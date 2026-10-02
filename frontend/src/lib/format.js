@@ -32,4 +32,13 @@ export function formatGameDate(value) {
   return { day: dayFmt.format(d), month: monthFmt.format(d), weekday: weekdayFmt.format(d), time: timeFmt.format(d) }
 }
 
+const durationFmt = new Intl.DurationFormat('he', { style: 'long' })
+
+// "שתי דקות, 5 שניות". DurationFormat doesn't balance units, so split the seconds first.
+export function formatDuration(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  return durationFmt.format({ hours, minutes, seconds: totalSeconds % 60 })
+}
+
 export const signed = (n) => (n > 0 ? `+${n}` : `${n}`)
