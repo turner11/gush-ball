@@ -55,6 +55,8 @@ services:
       additional_contexts:
         stats: ./stats
     environment:
+      # streamlit puts only /lab on sys.path; make the backend's app package importable.
+      PYTHONPATH: /app
       # app.scrape_games imports app.config, which requires a >=32-char secret (no db connection is made).
       SESSION_SECRET: local-dev-only-not-a-real-secret-0123456789
     volumes:
