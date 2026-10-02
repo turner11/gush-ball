@@ -8,66 +8,108 @@ import streamlit as st
 
 from app import scrape_games
 
+KNOBS = {
+    "FACE_SHARE": (0.2, 1.0, 0.05),
+    "MAX_ZOOM": (1.0, 5.0, 0.1),
+    "HAIR_SHIFT": (0.0, 0.5, 0.01),
+}
+COLUMNS = {"Photo": 1, "Focus": 1, "With focus": 2, "Without focus": 2}
+PHOTO_WIDTH = 160
+
+
+@st.cache_resource
+def prod_defaults() -> dict[str, float]:
+    # First call runs before any slider patches the module, so these are the shipped values.
+    return {name: float(getattr(scrape_games, name)) for name in KNOBS}
+
+
+def reset_knobs() -> None:
+    st.session_state.update(prod_defaults())
+
+
+@st.cache_data
+def fetch(url: str) -> bytes:
+    resp = httpx.get(url, timeout=30, follow_redirects=True)
+    resp.raise_for_status()
+    return resp.content
+
+
+def circles(uri: str, style: str) -> str:
+    return (
+        '<div style="display:flex;gap:16px;align-items:center">'
+        + "".join(
+            f'<div style="width:{s}px;height:{s}px;border-radius:50%;overflow:hidden;background:#ddd;flex:none">'
+            f'<img src="{uri}" style="width:100%;height:100%;object-fit:cover;{style}"></div>'
+            for s in (44, 56, 80, 96)
+        )
+        + "</div>"
+    )
+
+
+def show_row(name: str, data: bytes) -> None:
+    photo, info, with_focus, without_focus = st.columns(
+        list(COLUMNS.values()), vertical_alignment="center"
+    )
+    color = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    if color is None:
+        info.error(f"Could not decode {name}")
+        return
+
+    x, y, zoom = scrape_games.face_focus(data)
+    uri = (
+        "data:image/png;base64,"
+        + base64.b64encode(cv2.imencode(".png", color)[1].tobytes()).decode()
+    )
+    face = scrape_games._largest_face(
+        cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_GRAYSCALE)
+    )
+    if face is not None:
+        fx, fy, fw, fh = face
+        cv2.rectangle(
+            color, (fx, fy), (fx + fw, fy + fh), (0, 255, 0), max(2, color.shape[1] // 200)
+        )
+
+    photo.image(color, channels="BGR", width=PHOTO_WIDTH)
+    info.markdown(f"`{name}`  \nx **{x:.1f}%** · y **{y:.1f}%** · zoom **{zoom:.2f}x**")
+    if face is None:
+        info.warning("No face detected — top-anchored default")
+    # mirrors focusStyle() in frontend/src/components/PlayerCard.vue
+    with_focus.html(
+        circles(
+            uri, f"object-position:{x}% {y}%;transform-origin:{x}% {y}%;transform:scale({zoom})"
+        )
+    )
+    without_focus.html(circles(uri, "object-position:top"))
+
+
 st.set_page_config(page_title="Gush Ball lab", layout="wide")
 st.title("Player avatar framing")
 
-upload = st.file_uploader("Photo", type=["jpg", "jpeg", "png", "webp"])
-url = st.text_input("...or image URL")
-if upload:
-    data = upload.getvalue()
-elif url:
+for name, (lo, hi, step) in KNOBS.items():
+    st.session_state.setdefault(name, prod_defaults()[name])
+    # ponytail: patches module knobs in-process; fine for a single-user local lab
+    setattr(
+        scrape_games,
+        name,
+        st.sidebar.slider(name, lo, hi, step=step, key=name, help=f"prod: {prod_defaults()[name]}"),
+    )
+st.sidebar.button("Reset to prod defaults", on_click=reset_knobs)
+st.sidebar.code("\n".join(f"{name} = {getattr(scrape_games, name)}" for name in KNOBS))
+
+uploads = st.file_uploader(
+    "Photos", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True
+)
+images = [(upload.name, upload.getvalue()) for upload in uploads]
+for url in st.text_area("...or image URLs, one per line").split():
     try:
-        resp = httpx.get(url, timeout=30, follow_redirects=True)
-        resp.raise_for_status()
+        images.append((url, fetch(url)))
     except httpx.HTTPError as exc:
         st.error(f"Could not fetch {url}: {exc}")
-        st.stop()
-    data = resp.content
-else:
-    st.info("Upload a photo or paste an image URL")
+if not images:
+    st.info("Upload photos or paste image URLs")
     st.stop()
 
-# ponytail: patches module knobs in-process; fine for a single-user local lab
-scrape_games.FACE_SHARE = st.sidebar.slider("FACE_SHARE", 0.2, 1.0, scrape_games.FACE_SHARE, 0.05)
-scrape_games.MAX_ZOOM = st.sidebar.slider("MAX_ZOOM", 1.0, 5.0, scrape_games.MAX_ZOOM, 0.1)
-scrape_games.HAIR_SHIFT = st.sidebar.slider("HAIR_SHIFT", 0.0, 0.5, scrape_games.HAIR_SHIFT, 0.01)
-st.sidebar.code(
-    f"FACE_SHARE = {scrape_games.FACE_SHARE}\nMAX_ZOOM = {scrape_games.MAX_ZOOM}\nHAIR_SHIFT = {scrape_games.HAIR_SHIFT}"
-)
-
-color = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
-if color is None:
-    st.error("Could not decode the image")
-    st.stop()
-
-x, y, zoom = scrape_games.face_focus(data)
-col_x, col_y, col_zoom = st.columns(3)
-col_x.metric("focus x", f"{x:.1f}%")
-col_y.metric("focus y", f"{y:.1f}%")
-col_zoom.metric("zoom", f"{zoom:.2f}x")
-
-face = scrape_games._largest_face(cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_GRAYSCALE))
-if face is None:
-    st.warning("No face detected — top-anchored default (50%, 0%, 1x)")
-else:
-    fx, fy, fw, fh = face
-    boxed = color.copy()
-    cv2.rectangle(boxed, (fx, fy), (fx + fw, fy + fh), (0, 255, 0), max(2, color.shape[1] // 200))
-    st.image(boxed, channels="BGR", caption="Detected face")
-
-uri = "data:image/png;base64," + base64.b64encode(cv2.imencode(".png", color)[1].tobytes()).decode()
-# mirrors focusStyle() in frontend/src/components/PlayerCard.vue
-focused = f"object-position:{x}% {y}%;transform-origin:{x}% {y}%;transform:scale({zoom})"
-plain = "object-position:top"
-
-
-def row(title: str, style: str) -> str:
-    circles = "".join(
-        f'<div style="width:{s}px;height:{s}px;border-radius:50%;overflow:hidden;background:#ddd">'
-        f'<img src="{uri}" style="width:100%;height:100%;object-fit:cover;{style}"></div>'
-        for s in (44, 56, 80, 96)
-    )
-    return f'<h4>{title}</h4><div style="display:flex;gap:16px;align-items:center">{circles}</div>'
-
-
-st.html(row("With focus", focused) + row("Without focus", plain))
+for col, title in zip(st.columns(list(COLUMNS.values())), COLUMNS):
+    col.markdown(f"**{title}**")
+for name, data in images:
+    show_row(name, data)
