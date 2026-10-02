@@ -303,7 +303,7 @@ def sync_all_games(
 
 
 def sync_team_players(db: Session, team: Team) -> int:
-    """Fill-only: creates missing players, fills a missing image and each image's face focus. Never overwrites admin edits,
+    """Fill-only: creates missing players, fills a missing image and face focus for every image of the team's live players. Never overwrites admin edits,
     never deletes.
 
     Players are matched by the roster card's href (Player.source_url), so renamed or soft-deleted
@@ -355,14 +355,25 @@ def sync_team_players(db: Session, team: Team) -> int:
         url = urljoin(BASE, img["src"]) if img else ""
         if url and len(url) <= 500 and not player.images:
             player.images.append(PlayerImage(url=url))
-        for image in player.images:
-            if image.focus_x is None:
-                try:
-                    data = _get_image(image.url)
-                except httpx.HTTPError:
-                    log.warning("Could not fetch player image %s", image.url, exc_info=True)
-                    continue
-                image.focus_x, image.focus_y, image.zoom = face_focus(data)
+
+    # every image of the team's live players, not just roster-card matches (admin-added images too)
+    db.flush()  # new players' images must be visible to the query
+    unfocused = db.scalars(
+        select(PlayerImage)
+        .join(Player)
+        .where(
+            Player.team_id == team.id,
+            Player.deleted_at.is_(None),
+            PlayerImage.focus_x.is_(None),
+        )
+    ).all()
+    for image in unfocused:
+        try:
+            data = _get_image(image.url)
+        except httpx.HTTPError:
+            log.warning("Could not fetch player image %s", image.url, exc_info=True)
+            continue
+        image.focus_x, image.focus_y, image.zoom = face_focus(data)
 
     db.commit()
     return count
