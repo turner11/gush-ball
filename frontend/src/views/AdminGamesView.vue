@@ -319,17 +319,17 @@ async function onDelete(game) {
         <ol v-else class="card divide-y divide-line overflow-hidden p-0">
           <GameRow v-for="game in sortedGames" :key="game.id" :game="game" :team="selectedTeam">
             <template #actions>
-              <GameStatsLink :game="game" class="btn-ghost min-h-11" />
+              <GameStatsLink :game="game" class="btn-ghost" />
               <a
                 v-if="game.stats_url"
                 :href="game.stats_url"
                 target="_blank"
                 rel="noopener"
-                class="btn-ghost min-h-11"
+                class="btn-ghost"
                 :aria-label="'גיליון הסטטיסטיקה של המשחק נגד ' + game.opponent.name + ' (נפתח בלשונית חדשה)'"
               >גיליון<AppIcon name="external" /></a>
-              <button type="button" class="btn-ghost min-h-11" @click="startEdit(game)">ערוך</button>
-              <button type="button" class="btn-danger-ghost min-h-11" @click="onDelete(game)">מחק</button>
+              <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
+              <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
             </template>
           </GameRow>
         </ol>
@@ -350,10 +350,10 @@ async function onDelete(game) {
           <input id="game-scheduled-at" v-model="form.scheduled_at" type="datetime-local" required class="field-input" />
         </div>
 
-        <div class="flex items-center gap-2">
-          <input id="game-is-home" v-model="form.is_home" type="checkbox" class="size-5" />
-          <label for="game-is-home" class="field-label">משחק בית</label>
-        </div>
+        <label class="flex min-h-11 items-center gap-2">
+          <input v-model="form.is_home" type="checkbox" class="size-5" />
+          <span class="field-label">משחק בית</span>
+        </label>
 
         <div>
           <label for="game-status" class="field-label">סטטוס</label>

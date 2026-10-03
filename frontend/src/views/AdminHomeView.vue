@@ -164,14 +164,14 @@ onUnmounted(() => {
       <fieldset class="space-y-2">
         <legend class="field-label">מה לסנכרן</legend>
         <div class="flex flex-wrap gap-x-4 gap-y-2">
-          <label v-for="k in KIND_OPTIONS" :key="k.value" class="flex items-center gap-2">
+          <label v-for="k in KIND_OPTIONS" :key="k.value" class="flex min-h-11 items-center gap-2">
             <input v-model="kinds" type="checkbox" :value="k.value" class="size-5" />
             {{ k.label }}
           </label>
         </div>
       </fieldset>
       <div v-if="kinds.includes('games')">
-        <label class="flex items-center gap-2">
+        <label class="flex min-h-11 items-center gap-2">
           <input v-model="autoAccept" type="checkbox" class="size-5" />
           אישור אוטומטי של משחקים
         </label>

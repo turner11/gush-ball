@@ -28,6 +28,7 @@ const tabItems = computed(() => [
   { to: '/standings', label: 'טבלה', icon: 'table' },
   { to: '/roster', label: 'שחקנים', icon: 'users' },
   { to: '/media', label: 'מדיה', icon: 'media' },
+  { to: '/stats', label: 'נתונים', icon: 'chart' },
 ])
 
 const teams = ref([])
@@ -94,7 +95,7 @@ onMounted(async () => {
           <RouterLink
             :to="homePath"
             :aria-label="(selectedTeam?.name ?? 'גוש כדורסל') + ' — דף הבית'"
-            class="flex min-w-0 items-center gap-2"
+            class="flex min-h-11 min-w-0 items-center gap-2"
           >
             <!-- white tile: uploaded logos often carry their own white background -->
             <img
