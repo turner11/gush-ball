@@ -85,7 +85,8 @@ describe('router auth guard', () => {
     expect(publicRoutes.length).toBeGreaterThan(0)
     for (const r of publicRoutes) {
       expect(typeof r.meta.description, r.name).toBe('function')
-      expect(r.meta.description('קבוצה'), r.name).toContain('קבוצה')
+      // player pages belong to the player's team, not the remembered one, so no team name there
+      if (r.name !== 'player') expect(r.meta.description('קבוצה'), r.name).toContain('קבוצה')
     }
     expect(router.getRoutes().find((r) => r.name === 'not-found').meta.noindex).toBe(true)
   })
