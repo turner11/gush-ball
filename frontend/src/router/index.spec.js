@@ -76,4 +76,17 @@ describe('router auth guard', () => {
     await router.push('/admin')
     expect(document.title).toBe('ניהול · גוש כדורסל')
   })
+
+  it('every public route except not-found/login/reset has a description; not-found is noindex', async () => {
+    const { default: router } = await import('./index.js')
+
+    const skip = ['not-found', 'admin-login', 'admin-reset-password']
+    const publicRoutes = router.getRoutes().filter((r) => !r.path.startsWith('/admin') && !skip.includes(r.name))
+    expect(publicRoutes.length).toBeGreaterThan(0)
+    for (const r of publicRoutes) {
+      expect(typeof r.meta.description, r.name).toBe('function')
+      expect(r.meta.description('קבוצה'), r.name).toContain('קבוצה')
+    }
+    expect(router.getRoutes().find((r) => r.name === 'not-found').meta.noindex).toBe(true)
+  })
 })

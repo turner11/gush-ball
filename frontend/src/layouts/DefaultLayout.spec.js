@@ -45,9 +45,10 @@ describe('DefaultLayout', () => {
       history: createWebHistory(),
       routes: [
         { path: '/', name: 'home', component: { template: '<div/>' } },
-        { path: '/schedule', name: 'schedule', component: { template: '<div/>' } },
+        { path: '/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { description: (t) => `לוח של ${t}` } },
         { path: '/roster', name: 'roster', component: { template: '<div/>' } },
-        { path: '/:slug', name: 'team-home', component: { template: '<div/>' } },
+        { path: '/gone/:rest(.*)*', name: 'not-found', component: { template: '<div/>' }, meta: { noindex: true } },
+        { path: '/:slug', name: 'team-home', component: { template: '<div/>' }, meta: { description: (t) => `בית ${t}` } },
       ],
     })
   })
@@ -55,7 +56,67 @@ describe('DefaultLayout', () => {
   afterEach(() => {
     document.title = ''
     document.querySelector('link[rel="icon"]')?.remove()
+    document.head.querySelectorAll('meta[name], link[rel="canonical"], script[data-page]').forEach((el) => el.remove())
     vi.restoreAllMocks()
+  })
+
+  it('sets meta description from route meta with the selected team name', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/schedule')
+    await flushPromises()
+
+    expect(document.head.querySelector('meta[name="description"]').content).toBe('לוח של קבוצה א')
+  })
+
+  it('canonical is origin + path, query dropped', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/schedule?x=1')
+    await flushPromises()
+
+    expect(document.head.querySelector('link[rel="canonical"]').getAttribute('href')).toBe(`${location.origin}/schedule`)
+  })
+
+  it('not-found route sets robots noindex and removes canonical; navigating away clears noindex', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/schedule')
+    await flushPromises()
+    await router.push('/gone/x')
+    await flushPromises()
+
+    expect(document.head.querySelector('meta[name="robots"]').content).toBe('noindex')
+    expect(document.head.querySelector('link[rel="canonical"]')).toBeNull()
+
+    await router.push('/schedule')
+    await flushPromises()
+    expect(document.head.querySelector('meta[name="robots"]')).toBeNull()
+    expect(document.head.querySelector('link[rel="canonical"]')).not.toBeNull()
+  })
+
+  it('team home gets SportsTeam JSON-LD; /schedule removes it', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
+    await flushPromises()
+
+    const ld = JSON.parse(document.head.querySelector('script[type="application/ld+json"][data-page]').textContent)
+    expect(ld['@type']).toBe('SportsTeam')
+    expect(ld.name).toBe('קבוצה א')
+    expect(ld.url).toBe(`${location.origin}/team_a`)
+
+    await router.push('/schedule')
+    await flushPromises()
+    expect(document.head.querySelector('script[data-page]')).toBeNull()
   })
 
   it('visiting /team_b selects team 2 and remembers it', async () => {

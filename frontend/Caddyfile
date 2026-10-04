@@ -11,7 +11,12 @@
         }
         reverse_proxy backend:8000
     }
+    header /admin* X-Robots-Tag "noindex, nofollow"
+    handle /sitemap.xml {
+        reverse_proxy backend:8000
+    }
     handle {
+        templates
         root * /srv
         try_files {path} /index.html
         file_server

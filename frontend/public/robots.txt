@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+
+Sitemap: {{env "PUBLIC_URL"}}/sitemap.xml

@@ -8,6 +8,7 @@ import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from '../lib/head'
 import { onColor } from '../lib/teamColors'
 
 // Bound (not a static src) so the SFC compiler serves it from public/ as-is.
@@ -56,6 +57,16 @@ watch(selectedTeam, () => {
   if (!selectedTeam.value) return
   document.title = selectedTeam.value.name
   document.querySelector('link[rel="icon"]').href = selectedTeam.value.logo_url || LOGO_URL
+}, { immediate: true })
+// Crawler-facing head: description, canonical (query dropped), noindex on 404, SportsTeam on team home.
+watch([selectedTeam, () => route.path, () => route.name], () => {
+  const noindex = route.meta.noindex
+  setMeta('robots', noindex ? 'noindex' : null)
+  setCanonical(noindex ? null : location.origin + route.path)
+  const team = selectedTeam.value
+  if (!team) return
+  setMeta('description', route.meta.description?.(team.name))
+  setJsonLd(route.name === 'team-home' ? sportsTeamJsonLd(team, location.origin + homePath.value) : null)
 }, { immediate: true })
 watch([() => route.params.slug, () => route.name, teams], () => {
   if (!teams.value.length || !isHome.value) return
