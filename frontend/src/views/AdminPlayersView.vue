@@ -26,7 +26,10 @@ async function loadPlayers() {
     players.value = []
     return
   }
-  players.value = await apiFetch(`/teams/${selectedTeamId.value}/players`)
+  const id = selectedTeamId.value
+  const loaded = await apiFetch(`/teams/${id}/players`)
+  if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+  players.value = loaded
 }
 
 onMounted(async () => {

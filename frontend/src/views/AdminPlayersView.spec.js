@@ -63,6 +63,30 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('7')
   })
 
+  it('ignores a late response for a team that is no longer selected', async () => {
+    let resolveFirst
+    const first = new Promise((r) => (resolveFirst = r))
+    const other = [{ id: 30, team_id: 2, name: 'עמית', name_en: null, jersey_number: 3, images: [] }]
+    global.fetch = vi.fn((url) => {
+      if (url === '/api/teams') return Promise.resolve(jsonRes(TEAMS))
+      if (url === '/api/teams/1/players') return first
+      if (url === '/api/teams/2/players') return Promise.resolve(jsonRes(other))
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`))
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+    useSelectedTeam().selectedTeamId.value = '2'
+    await flushPromises()
+    resolveFirst(jsonRes(PLAYERS))
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('עמית')
+    expect(wrapper.text()).not.toContain('יוסי')
+  })
+
   it('submitting the add-player form POSTs and the new player appears in the list', async () => {
     const created = { id: 20, team_id: 1, name: 'דני', name_en: null, jersey_number: 9, images: [] }
     mockFetch({

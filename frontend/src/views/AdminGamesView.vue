@@ -65,15 +65,19 @@ async function loadGames() {
     games.value = []
     return
   }
+  const id = selectedTeamId.value
   loading.value = true
   listError.value = null
   try {
-    games.value = await apiFetch(`/teams/${selectedTeamId.value}/games`)
+    const loaded = await apiFetch(`/teams/${id}/games`)
+    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+    games.value = loaded
   } catch {
+    if (id !== selectedTeamId.value) return
     games.value = [] // never leave the previous team's games editable
     listError.value = 'שגיאה בטעינת המשחקים'
   } finally {
-    loading.value = false
+    if (id === selectedTeamId.value) loading.value = false
   }
 }
 
@@ -82,7 +86,10 @@ async function loadPendingGames() {
     pendingGames.value = []
     return
   }
-  pendingGames.value = await apiFetch(`/teams/${selectedTeamId.value}/games/pending-review`)
+  const id = selectedTeamId.value
+  const pending = await apiFetch(`/teams/${id}/games/pending-review`)
+  if (id !== selectedTeamId.value) return
+  pendingGames.value = pending
 }
 
 onMounted(async () => {
