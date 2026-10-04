@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App.vue'
+import { useAuth } from './composables/useAuth'
 import router from './router'
 
 describe('App', () => {
@@ -24,6 +25,7 @@ describe('App', () => {
       Promise.resolve({ ok: true, json: async () => (url === '/api/teams' ? [] : { username: 'admin' }) }),
     )
 
+    useAuth().checked.value = false // the first test's header check already marked the session as checked
     await router.push('/admin')
     const wrapper = mount(App, { global: { plugins: [router] } })
     await flushPromises()

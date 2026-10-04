@@ -6,6 +6,7 @@ import AppIcon from '../components/AppIcon.vue'
 import ErrorBoundary from '../components/ErrorBoundary.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
+import { useAuth } from '../composables/useAuth'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from '../lib/head'
@@ -33,6 +34,7 @@ const tabItems = computed(() => [
 ])
 
 const teams = ref([])
+const { user, checked, checkSession, logout } = useAuth()
 const { selectedTeamId, ensureDefault } = useSelectedTeam()
 
 // Scoped to this layout's root so admin pages stay neutral; unset vars fall back in style.css.
@@ -84,6 +86,7 @@ watch([() => route.params.slug, () => route.name, teams], () => {
 })
 
 onMounted(async () => {
+  if (!checked.value) checkSession() // not awaited: don't delay the teams fetch
   try {
     teams.value = await apiFetch('/teams')
     ensureDefault(teams.value)
@@ -138,6 +141,29 @@ onMounted(async () => {
             </ul>
           </nav>
           <ThemeToggle class="ms-auto md:ms-0" />
+          <template v-if="checked">
+            <template v-if="user">
+              <RouterLink :to="{ name: 'admin-home' }" class="nav-link">ניהול</RouterLink>
+              <button
+                type="button"
+                aria-label="התנתקות"
+                title="התנתקות"
+                class="inline-flex size-11 items-center justify-center rounded-full hover:bg-black/10"
+                @click="logout"
+              >
+                <AppIcon name="logout" />
+              </button>
+            </template>
+            <RouterLink
+              v-else
+              :to="{ name: 'admin-login' }"
+              aria-label="כניסת מנהל"
+              title="כניסת מנהל"
+              class="inline-flex size-11 items-center justify-center rounded-full hover:bg-black/10"
+            >
+              <AppIcon name="login" />
+            </RouterLink>
+          </template>
         </div>
       </header>
     </div>
