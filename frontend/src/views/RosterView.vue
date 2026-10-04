@@ -16,11 +16,14 @@ async function loadPlayers() {
     players.value = []
     return
   }
+  const id = selectedTeamId.value
   loading.value = true
   try {
-    players.value = await apiFetch(`/teams/${selectedTeamId.value}/players`)
+    const loaded = await apiFetch(`/teams/${id}/players`)
+    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+    players.value = loaded
   } finally {
-    loading.value = false
+    if (id === selectedTeamId.value) loading.value = false
   }
 }
 

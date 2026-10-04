@@ -25,14 +25,15 @@ async function load() {
     rows.value = []
     return
   }
+  const id = selectedTeamId.value
   loading.value = true
   try {
-    ;[team.value, rows.value] = await Promise.all([
-      apiFetch(`/teams/${selectedTeamId.value}`),
-      apiFetch('/standings'),
-    ])
+    const [loadedTeam, loadedRows] = await Promise.all([apiFetch(`/teams/${id}`), apiFetch('/standings')])
+    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+    team.value = loadedTeam
+    rows.value = loadedRows
   } finally {
-    loading.value = false
+    if (id === selectedTeamId.value) loading.value = false
   }
 }
 
