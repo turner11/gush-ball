@@ -34,6 +34,10 @@ describe('DefaultLayout', () => {
   let router
 
   beforeEach(() => {
+    const icon = document.createElement('link')
+    icon.rel = 'icon'
+    icon.href = '/logo.jpg'
+    document.head.appendChild(icon)
     vi.resetModules()
     localStorage.clear()
     window.history.replaceState({}, '', '/') // jsdom keeps the URL between tests
@@ -50,6 +54,7 @@ describe('DefaultLayout', () => {
 
   afterEach(() => {
     document.title = ''
+    document.querySelector('link[rel="icon"]')?.remove()
     vi.restoreAllMocks()
   })
 
@@ -73,7 +78,7 @@ describe('DefaultLayout', () => {
     await router.push('/team_b')
     await flushPromises()
 
-    expect(document.title).toBe('🏀' + TEAMS[1].name)
+    expect(document.title).toBe(TEAMS[1].name)
   })
 
   it('tab title follows a team switch', async () => {
@@ -85,11 +90,26 @@ describe('DefaultLayout', () => {
     await flushPromises()
     await router.push('/schedule')
     await flushPromises()
-    expect(document.title).toBe('🏀' + TEAMS[0].name)
+    expect(document.title).toBe(TEAMS[0].name)
 
     await router.push('/team_b')
     await flushPromises()
-    expect(document.title).toBe('🏀' + TEAMS[1].name)
+    expect(document.title).toBe(TEAMS[1].name)
+  })
+
+  it("tab icon is the selected team's logo, club logo when it has none", async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    const icon = () => document.querySelector('link[rel="icon"]').getAttribute('href')
+    await router.push('/team_a')
+    await flushPromises()
+    expect(icon()).toBe(TEAMS[0].logo_url)
+
+    await router.push('/team_b')
+    await flushPromises()
+    expect(icon()).toBe('/logo.jpg')
   })
 
   it("bare / redirects to the remembered team's slug", async () => {

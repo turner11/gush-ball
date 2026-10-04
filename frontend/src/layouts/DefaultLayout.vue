@@ -53,7 +53,9 @@ const route = useRoute()
 const router = useRouter()
 const isHome = computed(() => ['home', 'team-home'].includes(route.name))
 watch(selectedTeam, () => {
-  if (selectedTeam.value) document.title = '🏀' + selectedTeam.value.name
+  if (!selectedTeam.value) return
+  document.title = selectedTeam.value.name
+  document.querySelector('link[rel="icon"]').href = selectedTeam.value.logo_url || LOGO_URL
 }, { immediate: true })
 watch([() => route.params.slug, () => route.name, teams], () => {
   if (!teams.value.length || !isHome.value) return
