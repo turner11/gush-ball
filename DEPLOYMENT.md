@@ -292,6 +292,19 @@ README, "Manual dump / import").
 Connect a custom domain to the media bucket (R2 → bucket → [*Custom domains*](https://developers.cloudflare.com/r2/buckets/public-buckets/#custom-domains))
 and update `OBJECT_STORAGE_PUBLIC_URL`. Already-uploaded images keep their old r2.dev URLs in the DB, so leave r2.dev access on.
 
+## 9. Search engines (SEO)
+
+The site publishes `robots.txt`, a generated `/sitemap.xml`, social-preview tags and an admin `noindex` header. Absolute
+URLs in them come from `PUBLIC_URL`.
+
+1. In Coolify, confirm `PUBLIC_URL` (for example `https://example.com`, no trailing slash) is set for the whole app. The
+   `web` service now reads it too, and the deploy fails with `required variable` if it is missing.
+2. After the deploy, open `https://<domain>/robots.txt` and `https://<domain>/sitemap.xml`. The first must end with an
+   absolute `Sitemap:` line with no `{{` in it; the second lists the team, player and page URLs.
+3. View source on the home page and check that `og:image` is an absolute URL.
+4. Optional: add the site in [Google Search Console](https://search.google.com/search-console) and submit
+   `/sitemap.xml`. It shows which pages are indexed and any rendering problems.
+
 ## Troubleshooting
 
 | Symptom | Likely cause |

@@ -52,6 +52,8 @@ services:
     logging: *logging
     # No published ports: Coolify's proxy routes the domain to this container's port 80 and
     # terminates TLS.
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL:?}  # absolute og:image / robots.txt Sitemap (Caddy templates)
     depends_on:
       - backend
 
