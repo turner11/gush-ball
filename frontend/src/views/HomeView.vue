@@ -40,7 +40,7 @@ async function load() {
   const id = selectedTeamId.value
   loading.value = true
   try {
-    ;[team.value, links.value, videos.value, images.value, posts.value, players.value, games.value] = await Promise.all([
+    const loaded = await Promise.all([
       apiFetch(`/teams/${id}`),
       apiFetch(`/teams/${id}/links`),
       apiFetch(`/teams/${id}/videos`),
@@ -49,8 +49,10 @@ async function load() {
       apiFetch(`/teams/${id}/players`),
       apiFetch(`/teams/${id}/games`),
     ])
+    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+    ;[team.value, links.value, videos.value, images.value, posts.value, players.value, games.value] = loaded
   } finally {
-    loading.value = false
+    if (id === selectedTeamId.value) loading.value = false
   }
 }
 
