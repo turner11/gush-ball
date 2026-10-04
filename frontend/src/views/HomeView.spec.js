@@ -50,8 +50,8 @@ describe('HomeView', () => {
       history: createWebHistory(),
       routes: [
         { path: '/', component: { template: '<div/>' } },
-        { path: '/roster', component: { template: '<div/>' } },
-        { path: '/media', component: { template: '<div/>' } },
+        { path: '/:slug/roster', component: { template: '<div/>' } },
+        { path: '/:slug/media', component: { template: '<div/>' } },
       ],
     })
   })
@@ -131,6 +131,17 @@ describe('HomeView', () => {
     await flushPromises()
     return wrapper
   }
+
+  it("section links point at the team's pages", async () => {
+    const wrapper = await mountWithTeam(
+      { ...TEAM, name_en: 'Elizur' },
+      { players: [{ id: 1, name: 'דני', jersey_number: 4, images: [] }], posts: POSTS },
+    )
+
+    const hrefOf = (text) => wrapper.findAll('a').find((a) => a.text() === text).attributes('href')
+    expect(hrefOf('כל השחקנים')).toBe('/elizur/roster')
+    expect(hrefOf('כל העדכונים')).toBe('/elizur/media')
+  })
 
   it('embeds the Facebook page plugin when facebook_url is set', async () => {
     const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })

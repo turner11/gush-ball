@@ -23,10 +23,14 @@ def _locs(client) -> list[str]:
     return [loc.text for loc in ET.fromstring(response.content).findall("s:url/s:loc", NS)]
 
 
-def test_sitemap_is_xml_with_static_pages(client) -> None:
+def test_sitemap_lists_team_pages_under_team_slug(client, db_session: Session) -> None:
+    db_session.add(Team(name="א", slug="a", name_en="Elizur"))
+    db_session.commit()
+
     locs = _locs(client)
     for page in ("schedule", "standings", "roster", "media", "stats"):
-        assert f"https://example.org/{page}" in locs
+        assert f"https://example.org/elizur/{page}" in locs
+    assert "https://example.org/schedule" not in locs
 
 
 def test_sitemap_lists_team_homes_by_url_slug(client, db_session: Session) -> None:

@@ -35,9 +35,13 @@ describe('AdminPlayersView', () => {
   beforeEach(() => {
     vi.resetModules()
     localStorage.clear()
+    localStorage.setItem('gush-ball:selected-team-id', '1')
     router = createRouter({
       history: createWebHistory(),
-      routes: [{ path: '/', component: { template: '<div/>' } }],
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/:slug/admin/players', name: 'admin-players', component: { template: '<div/>' } },
+      ],
     })
   })
 
@@ -203,5 +207,22 @@ describe('AdminPlayersView', () => {
     )
     expect(wrapper.findAll('button').some((b) => b.text() === 'שחזר')).toBe(false)
     expect(wrapper.findAll('tbody')[0].text()).toContain('דני')
+  })
+
+  it("changing the team select navigates to that team's URL", async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes([{ id: 1, name: 'קבוצה א', name_en: 'Team A' }, { id: 2, name: 'קבוצה ב', name_en: 'Team B' }]),
+      'GET /api/teams/1/players': () => jsonRes([]),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+    })
+    await router.push('/team_a/admin/players')
+
+    const { default: View } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(View, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.find('#team-select').setValue('team_b')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/team_b/admin/players')
   })
 })

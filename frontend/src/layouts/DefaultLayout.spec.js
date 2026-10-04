@@ -47,10 +47,13 @@ describe('DefaultLayout', () => {
       history: createWebHistory(),
       routes: [
         { path: '/', name: 'home', component: { template: '<div/>' } },
-        { path: '/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { description: (t) => `לוח של ${t}` } },
+        { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { description: (t) => `לוח של ${t}` } },
+        { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' } },
+        { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
         { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
         { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
-        { path: '/roster', name: 'roster', component: { template: '<div/>' } },
+        { path: '/:slug/roster', name: 'roster', component: { template: '<div/>' } },
+        { path: '/:slug/media', name: 'media', component: { template: '<div/>' } },
         { path: '/gone/:rest(.*)*', name: 'not-found', component: { template: '<div/>' }, meta: { noindex: true } },
         { path: '/:slug', name: 'team-home', component: { template: '<div/>' }, meta: { description: (t) => `בית ${t}` } },
       ],
@@ -69,7 +72,7 @@ describe('DefaultLayout', () => {
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     mount(DefaultLayout, { global: { plugins: [router] } })
-    await router.push('/schedule')
+    await router.push('/team_a/schedule')
     await flushPromises()
 
     expect(document.head.querySelector('meta[name="description"]').content).toBe('לוח של קבוצה א')
@@ -80,10 +83,10 @@ describe('DefaultLayout', () => {
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     mount(DefaultLayout, { global: { plugins: [router] } })
-    await router.push('/schedule?x=1')
+    await router.push('/team_a/schedule?x=1')
     await flushPromises()
 
-    expect(document.head.querySelector('link[rel="canonical"]').getAttribute('href')).toBe(`${location.origin}/schedule`)
+    expect(document.head.querySelector('link[rel="canonical"]').getAttribute('href')).toBe(`${location.origin}/team_a/schedule`)
   })
 
   it('not-found route sets robots noindex and removes canonical; navigating away clears noindex', async () => {
@@ -91,7 +94,7 @@ describe('DefaultLayout', () => {
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     mount(DefaultLayout, { global: { plugins: [router] } })
-    await router.push('/schedule')
+    await router.push('/team_a/schedule')
     await flushPromises()
     await router.push('/gone/x')
     await flushPromises()
@@ -99,7 +102,7 @@ describe('DefaultLayout', () => {
     expect(document.head.querySelector('meta[name="robots"]').content).toBe('noindex')
     expect(document.head.querySelector('link[rel="canonical"]')).toBeNull()
 
-    await router.push('/schedule')
+    await router.push('/team_a/schedule')
     await flushPromises()
     expect(document.head.querySelector('meta[name="robots"]')).toBeNull()
     expect(document.head.querySelector('link[rel="canonical"]')).not.toBeNull()
@@ -118,7 +121,7 @@ describe('DefaultLayout', () => {
     expect(ld.name).toBe('קבוצה א')
     expect(ld.url).toBe(`${location.origin}/team_a`)
 
-    await router.push('/schedule')
+    await router.push('/team_a/schedule')
     await flushPromises()
     expect(document.head.querySelector('script[data-page]')).toBeNull()
   })
@@ -153,7 +156,7 @@ describe('DefaultLayout', () => {
     mount(DefaultLayout, { global: { plugins: [router] } })
     await router.push('/team_a')
     await flushPromises()
-    await router.push('/schedule')
+    await router.push('/team_a/schedule')
     await flushPromises()
     expect(document.title).toBe(TEAMS[0].name)
 
@@ -247,15 +250,54 @@ describe('DefaultLayout', () => {
     expect(router.currentRoute.value.path).toBe('/team_a')
   })
 
-  it('non-home pages never redirect', async () => {
+  it('slug-less pages never redirect', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     mount(DefaultLayout, { global: { plugins: [router] } })
-    await router.push('/schedule')
+    await router.push('/players/1')
     await flushPromises()
 
-    expect(router.currentRoute.value.path).toBe('/schedule')
+    expect(router.currentRoute.value.path).toBe('/players/1')
+  })
+
+  it('visiting /team_b/schedule selects team 2', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_b/schedule')
+    await flushPromises()
+
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBe('2')
+    expect(wrapper.find('header a').text()).toContain('קבוצה ב')
+  })
+
+  it('unknown slug on a team page keeps the page and query', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/nope/stats?game=5')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/team_a/stats?game=5')
+
+    await router.push('/2/schedule')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/team_b/schedule')
+  })
+
+  it('nav, tab bar and ניהול links carry the team slug', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin' }) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const nav = wrapper.find('[data-testid="top-nav"]').findAll('a').map((a) => a.attributes('href'))
+    expect(nav).toEqual(['/team_a', '/team_a/schedule', '/team_a/standings', '/team_a/roster', '/team_a/media', '/team_a/stats'])
+    expect(wrapper.find('header a[href="/team_a/admin"]').text()).toBe('ניהול')
   })
 
   it('renders no team <select>', async () => {
@@ -276,7 +318,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const a = wrapper.findAll('a').find((x) => x.text() === 'סטטיסטיקה')
-    expect(a.attributes('href')).toBe('/stats')
+    expect(a.attributes('href')).toBe('/team_a/stats')
   })
 
   it('nav links מדיה to the media page', async () => {
@@ -287,7 +329,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const a = wrapper.findAll('a').find((x) => x.text() === 'מדיה')
-    expect(a.attributes('href')).toBe('/media')
+    expect(a.attributes('href')).toBe('/team_a/media')
   })
 
   it("exposes the selected team's colors as CSS custom properties", async () => {
@@ -422,7 +464,7 @@ describe('DefaultLayout', () => {
     expect(hero.exists()).toBe(true)
     expect(hero.element.parentElement).not.toBe(wrapper.find('header').element.parentElement)
 
-    await router.push('/schedule')
+    await router.push('/team_a/schedule')
     await flushPromises()
     expect(wrapper.find('[data-testid="hero"]').exists()).toBe(false)
   })
@@ -458,7 +500,7 @@ describe('DefaultLayout', () => {
       .find('[data-testid="tab-bar"]')
       .findAll('a')
       .map((a) => a.attributes('href'))
-    expect(hrefs).toEqual(['/team_a', '/schedule', '/standings', '/roster', '/media', '/stats'])
+    expect(hrefs).toEqual(['/team_a', '/team_a/schedule', '/team_a/standings', '/team_a/roster', '/team_a/media', '/team_a/stats'])
   })
 
   it('header omits the map link when the team has no address', async () => {
@@ -496,7 +538,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const header = wrapper.find('header')
-    expect(header.find('a[href="/admin"]').text()).toBe('ניהול')
+    expect(header.find('a[href="/team_a/admin"]').text()).toBe('ניהול')
     expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(true)
     expect(header.find('a[href="/admin/login"]').exists()).toBe(false)
   })
@@ -510,13 +552,13 @@ describe('DefaultLayout', () => {
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
-    await router.push('/schedule')
+    await router.push('/team_a/schedule')
     await flushPromises()
     await wrapper.find('button[aria-label="התנתקות"]').trigger('click')
     await flushPromises()
 
     expect(global.fetch).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({ method: 'POST' }))
     expect(wrapper.find('header a[href="/admin/login"]').exists()).toBe(true)
-    expect(router.currentRoute.value.path).toBe('/schedule')
+    expect(router.currentRoute.value.path).toBe('/team_a/schedule')
   })
 })
