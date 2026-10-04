@@ -10,7 +10,7 @@ from app.models import Player, Team
 
 router = APIRouter(tags=["seo"])
 
-STATIC_PAGES = ("schedule", "standings", "roster", "media", "stats")
+TEAM_PAGES = ("schedule", "standings", "roster", "media", "stats")
 
 
 def _url_slug(team: Team) -> str:
@@ -22,8 +22,10 @@ def _url_slug(team: Team) -> str:
 @router.get("/sitemap.xml")
 def sitemap(db: DbSession) -> Response:
     base = settings.public_url.rstrip("/")
-    paths = list(STATIC_PAGES)
-    paths += [_url_slug(team) for team in db.scalars(select(Team).order_by(Team.id))]
+    paths: list[str] = []
+    for team in db.scalars(select(Team).order_by(Team.id)):
+        slug = _url_slug(team)
+        paths += [slug, *(f"{slug}/{page}" for page in TEAM_PAGES)]
     paths += [f"players/{pid}" for pid in db.scalars(select(Player.id).where(Player.deleted_at.is_(None)).order_by(Player.id))]
     urls = "".join(f"<url><loc>{escape(f'{base}/{path}')}</loc></url>" for path in paths)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'

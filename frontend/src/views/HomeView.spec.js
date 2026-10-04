@@ -404,7 +404,7 @@ describe('HomeView', () => {
   it('links to all videos on the media page', async () => {
     const wrapper = await mountWithTeam(TEAM, { videos: [{ id: 1, title: 'א', url: 'https://vimeo.com/1' }] })
 
-    expect(wrapper.find('a[href="/media"]').text()).toBe('כל הסרטונים')
+    expect(wrapper.find('a[href="/1/media"]').text()).toBe('כל הסרטונים')
   })
 
   it('hides sections with no content', async () => {

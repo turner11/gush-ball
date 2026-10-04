@@ -6,12 +6,14 @@ import AppIcon from '../components/AppIcon.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import VideoCard from '../components/VideoCard.vue'
-import { useSelectedTeam } from '../composables/useSelectedTeam'
+import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime, formatGameDate } from '../lib/format'
 import { homeFirst, played, result, splitGames } from '../lib/games'
 
 const team = ref(null)
+// Path strings, not named routes: this view also renders on the slug-less home route.
+const base = computed(() => (team.value ? '/' + teamSlug(team.value) : ''))
 const links = ref([])
 const videos = ref([])
 const images = ref([])
@@ -182,7 +184,7 @@ watch(
               <!-- an unplayed game already shows its date in the middle -->
               <span v-if="m.played">{{ formatDateTime(m.game.scheduled_at) }}</span>
               <GameLocationLinks v-if="addressOf(m.game)" :address="addressOf(m.game)" />
-              <RouterLink to="/schedule" class="section-link ms-auto">ללוח המשחקים</RouterLink>
+              <RouterLink :to="base + '/schedule'" class="section-link ms-auto">ללוח המשחקים</RouterLink>
             </div>
           </div>
         </div>
@@ -190,7 +192,7 @@ watch(
         <section v-if="newestPost" class="space-y-3">
           <div class="section-header">
             <h2 class="section-title">עדכונים</h2>
-            <RouterLink to="/media" class="section-link">כל העדכונים</RouterLink>
+            <RouterLink :to="base + '/media'" class="section-link">כל העדכונים</RouterLink>
           </div>
           <article class="card space-y-1">
             <h3 class="text-lg font-extrabold">{{ newestPost.title }}</h3>
@@ -201,7 +203,7 @@ watch(
         <section v-if="players.length" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">שחקנים</h2>
-            <RouterLink to="/roster" class="section-link">כל השחקנים</RouterLink>
+            <RouterLink :to="base + '/roster'" class="section-link">כל השחקנים</RouterLink>
           </div>
           <!-- swipe row on touch widths; from md a wrapping grid (mouse users can't scroll a hidden-scrollbar row) -->
           <ul
@@ -216,7 +218,7 @@ watch(
         <section v-if="videos.length" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">סרטונים</h2>
-            <RouterLink to="/media" class="section-link">כל הסרטונים</RouterLink>
+            <RouterLink :to="base + '/media'" class="section-link">כל הסרטונים</RouterLink>
           </div>
           <ul class="grid gap-6 sm:grid-cols-2">
             <li v-for="video in latestVideos" :key="video.id">

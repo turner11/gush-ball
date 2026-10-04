@@ -1,13 +1,13 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import ErrorBoundary from '../components/ErrorBoundary.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { useAuth } from '../composables/useAuth'
-import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
+import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from '../lib/head'
 import { onColor } from '../lib/teamColors'
@@ -17,20 +17,20 @@ const LOGO_URL = '/logo.jpg'
 
 const navItems = computed(() => [
   { to: homePath.value, label: 'בית' },
-  { to: '/schedule', label: 'לוח משחקים' },
-  { to: '/standings', label: 'טבלה' },
-  { to: '/roster', label: 'שחקנים' },
-  { to: '/media', label: 'מדיה' },
-  { to: '/stats', label: 'סטטיסטיקה' },
+  { to: teamBase.value + '/schedule', label: 'לוח משחקים' },
+  { to: teamBase.value + '/standings', label: 'טבלה' },
+  { to: teamBase.value + '/roster', label: 'שחקנים' },
+  { to: teamBase.value + '/media', label: 'מדיה' },
+  { to: teamBase.value + '/stats', label: 'סטטיסטיקה' },
 ])
 
 const tabItems = computed(() => [
   { to: homePath.value, label: 'בית', icon: 'home', exact: true },
-  { to: '/schedule', label: 'משחקים', icon: 'calendar' },
-  { to: '/standings', label: 'טבלה', icon: 'table' },
-  { to: '/roster', label: 'שחקנים', icon: 'users' },
-  { to: '/media', label: 'מדיה', icon: 'media' },
-  { to: '/stats', label: 'נתונים', icon: 'chart' },
+  { to: teamBase.value + '/schedule', label: 'משחקים', icon: 'calendar' },
+  { to: teamBase.value + '/standings', label: 'טבלה', icon: 'table' },
+  { to: teamBase.value + '/roster', label: 'שחקנים', icon: 'users' },
+  { to: teamBase.value + '/media', label: 'מדיה', icon: 'media' },
+  { to: teamBase.value + '/stats', label: 'נתונים', icon: 'chart' },
 ])
 
 const teams = ref([])
@@ -39,7 +39,9 @@ const { selectedTeamId, ensureDefault } = useSelectedTeam()
 
 // Scoped to this layout's root so admin pages stay neutral; unset vars fall back in style.css.
 const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value))
-const homePath = computed(() => (selectedTeam.value ? '/' + teamSlug(selectedTeam.value) : '/'))
+// Empty until teams load, so links fall back to the bare legacy paths (which redirect).
+const teamBase = computed(() => (selectedTeam.value ? '/' + teamSlug(selectedTeam.value) : ''))
+const homePath = computed(() => teamBase.value || '/')
 const teamStyle = computed(() => {
   const team = selectedTeam.value
   const style = {}
@@ -51,9 +53,8 @@ const teamStyle = computed(() => {
   return style
 })
 
-// The URL picks the team on home routes only; other pages follow the remembered team.
+// The URL slug picks the team (useTeamFromRoute); slug-less pages follow the remembered team.
 const route = useRoute()
-const router = useRouter()
 const isHome = computed(() => ['home', 'team-home'].includes(route.name))
 watch(selectedTeam, () => {
   if (!selectedTeam.value) return
@@ -70,20 +71,7 @@ watch([selectedTeam, () => route.path, () => route.name], () => {
   setMeta('description', route.meta.description?.(team.name))
   setJsonLd(route.name === 'team-home' ? sportsTeamJsonLd(team, location.origin + homePath.value) : null)
 }, { immediate: true })
-watch([() => route.params.slug, () => route.name, teams], () => {
-  if (!teams.value.length || !isHome.value) return
-  const slug = String(route.params.slug ?? '').toLowerCase()
-  const match = teams.value.find((t) => teamSlug(t) === slug)
-  if (match) {
-    selectedTeamId.value = String(match.id)
-    return
-  }
-  // /<team id> redirects to that team's canonical slug; slugs above always win over ids.
-  const fallback = teams.value.find((t) => String(t.id) === slug)
-    ?? teams.value.find((t) => String(t.id) === selectedTeamId.value)
-    ?? teams.value[0]
-  router.replace({ name: 'team-home', params: { slug: teamSlug(fallback) } })
-})
+useTeamFromRoute(teams)
 
 onMounted(async () => {
   if (!checked.value) checkSession() // not awaited: don't delay the teams fetch
@@ -143,7 +131,7 @@ onMounted(async () => {
           <ThemeToggle class="ms-auto md:ms-0" />
           <template v-if="checked">
             <template v-if="user">
-              <RouterLink :to="{ name: 'admin-home' }" class="nav-link">ניהול</RouterLink>
+              <RouterLink :to="teamBase + '/admin'" class="nav-link">ניהול</RouterLink>
               <button
                 type="button"
                 aria-label="התנתקות"

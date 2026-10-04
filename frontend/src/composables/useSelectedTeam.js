@@ -1,4 +1,5 @@
 import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const STORAGE_KEY = 'gush-ball:selected-team-id'
 
@@ -31,4 +32,31 @@ export function useSelectedTeam() {
   }
 
   return { selectedTeamId, teamsLoaded, ensureDefault }
+}
+
+// The URL slug picks the team on every route that has one (home, /:slug/schedule, /:slug/admin, …).
+// An unknown slug or a team id is replaced by the canonical slug, keeping the page, query and hash.
+export function useTeamFromRoute(teams) {
+  const route = useRoute()
+  const router = useRouter()
+  watch([() => route.params.slug, () => route.name, teams], () => {
+    if (!teams.value.length) return
+    if (route.name !== 'home' && route.params.slug === undefined) return
+    const slug = String(route.params.slug ?? '').toLowerCase()
+    const match = teams.value.find((t) => teamSlug(t) === slug)
+    if (match) {
+      selectedTeamId.value = String(match.id)
+      return
+    }
+    // /<team id> redirects to that team's canonical slug; slugs above always win over ids.
+    const fallback = teams.value.find((t) => String(t.id) === slug)
+      ?? teams.value.find((t) => String(t.id) === selectedTeamId.value)
+      ?? teams.value[0]
+    router.replace({
+      name: route.name === 'home' ? 'team-home' : route.name,
+      params: { ...route.params, slug: teamSlug(fallback) },
+      query: route.query,
+      hash: route.hash,
+    })
+  })
 }
