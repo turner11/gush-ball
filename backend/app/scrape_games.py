@@ -26,6 +26,7 @@ from app.models import Game, GameStatus, Opponent, Player, PlayerImage, Team, ge
 BASE = "https://ibasketball.co.il/wp-json"
 CRAWL_DELAY = 10
 AJAX_URL = "https://ibasketball.co.il/wp-admin/admin-ajax.php"
+NO_IMAGE_MARKER = "player-no-image"  # ibasketball's m-/f- silhouette; not a real photo
 
 log = logging.getLogger(__name__)
 
@@ -378,7 +379,7 @@ def sync_team_players(db: Session, team: Team) -> int:
         img = card.select_one("img[src]")
         # ponytail: hotlinks the source URL; copy to object storage if it ever breaks
         url = urljoin(BASE, img["src"]) if img else ""
-        if url and len(url) <= 500 and not player.images:
+        if url and len(url) <= 500 and NO_IMAGE_MARKER not in url and not player.images:
             player.images.append(PlayerImage(url=url))
 
     # every image of the team's live players, not just roster-card matches (admin-added images too)

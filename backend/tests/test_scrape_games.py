@@ -792,6 +792,22 @@ def test_sync_team_players_saves_scraped_image(
     }
 
 
+def test_sync_team_players_ignores_placeholder_and_fills_real_photo_later(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    card = '<a class="player data-item male" href="/p/1"><img src="{}"/>איתי ורולקר<br /><span></span><span></span></a>'
+    placeholder = "https://ibasketball.co.il/wp-content/uploads/2020/10/m-player-no-image.jpg"
+    _fake_roster(monkeypatch, card.format(placeholder))
+    scrape_games.sync_team_players(db_session, team)
+    assert _images(db_session) == {"איתי ורולקר": []}
+
+    _fake_roster(monkeypatch, card.format("real.jpg"))
+    scrape_games.sync_team_players(db_session, team)
+
+    assert _images(db_session) == {"איתי ורולקר": ["https://ibasketball.co.il/real.jpg"]}
+
+
 def test_sync_team_players_fills_image_for_existing_player_without_one(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
