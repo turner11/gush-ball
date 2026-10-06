@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const read = (rel) => readFileSync(resolve(rel)) // ponytail: relative to cwd (frontend/), where CI runs vitest
+const read = (rel) => readFileSync(resolve(__dirname, '..', rel))
 
 describe('web app manifest', () => {
   it('index.html links the manifest', () => {
