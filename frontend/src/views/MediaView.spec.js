@@ -82,4 +82,25 @@ describe('MediaView', () => {
     const wrapper = await mountView({ videos: [] })
     expect(wrapper.find('.empty-state').exists()).toBe(true)
   })
+
+  it('ignores a late response for a team that is no longer selected', async () => {
+    let resolveFirst
+    const first = new Promise((r) => (resolveFirst = r))
+    global.fetch = vi.fn((url) => {
+      const [, , , team, kind] = String(url).split('/')
+      if (team === '1') return kind === 'videos' ? first : Promise.resolve(jsonRes([]))
+      return Promise.resolve(jsonRes(kind === 'videos' ? [{ id: 9, title: 'סרטון קבוצה ב', url: 'https://youtu.be/b' }] : []))
+    })
+    const { default: MediaView } = await import('./MediaView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(MediaView)
+    await flushPromises()
+    useSelectedTeam().selectedTeamId.value = '2'
+    await flushPromises()
+    resolveFirst(jsonRes(VIDEOS))
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('סרטון קבוצה ב')
+    expect(wrapper.text()).not.toContain('חדש')
+  })
 })

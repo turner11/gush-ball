@@ -49,10 +49,12 @@ describe('AdminGamesView', () => {
   beforeEach(() => {
     vi.resetModules()
     localStorage.clear()
+    localStorage.setItem('gush-ball:selected-team-id', '1')
     router = createRouter({
       history: createWebHistory(),
       routes: [
         { path: '/', component: { template: '<div/>' } },
+        { path: '/:slug/admin/games', name: 'admin-games', component: { template: '<div/>' } },
         { path: '/stats', name: 'stats', component: { template: '<div/>' } },
       ],
     })
@@ -698,5 +700,22 @@ describe('AdminGamesView', () => {
       expect(wrapper.text()).not.toContain('נטענו 0')
       expect(wrapper.find('a[target="_blank"][href^="https://app.streamlit.app"]').exists()).toBe(true)
     })
+  })
+
+  it("changing the team select navigates to that team's URL", async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes([{ id: 1, name: 'קבוצה א', name_en: 'Team A' }, { id: 2, name: 'קבוצה ב', name_en: 'Team B' }]),
+      'GET /api/teams/1/games': () => jsonRes([]),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+    })
+    await router.push('/team_a/admin/games')
+
+    const { default: View } = await import('./AdminGamesView.vue')
+    const wrapper = mount(View, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.find('#team-select').setValue('team_b')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/team_b/admin/games')
   })
 })

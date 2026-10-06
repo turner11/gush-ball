@@ -25,15 +25,17 @@ const error = ref(false)
 
 async function load() {
   if (!selectedTeamId.value) return
+  const id = selectedTeamId.value
   loading.value = true
   error.value = false
   try {
-    const id = selectedTeamId.value
-    ;[players.value, games.value] = await Promise.all([apiFetch(`/teams/${id}/players`), apiFetch(`/teams/${id}/games`)])
+    const loaded = await Promise.all([apiFetch(`/teams/${id}/players`), apiFetch(`/teams/${id}/games`)])
+    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+    ;[players.value, games.value] = loaded
   } catch {
-    error.value = true
+    if (id === selectedTeamId.value) error.value = true
   } finally {
-    loading.value = false
+    if (id === selectedTeamId.value) loading.value = false
   }
 }
 

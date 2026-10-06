@@ -65,4 +65,27 @@ describe('RosterView', () => {
     expect(wrapper.text()).not.toContain('חמישיות')
     expect(wrapper.find('#lineups').exists()).toBe(false)
   })
+
+  it('ignores a late response for a team that is no longer selected', async () => {
+    let resolveFirst
+    const first = new Promise((r) => (resolveFirst = r))
+    const other = [{ id: 30, team_id: 2, name: 'עמית', name_en: null, jersey_number: 3, images: [] }]
+    global.fetch = vi.fn((url) => {
+      if (url === '/api/teams/1/players') return first
+      if (url === '/api/teams/2/players') return Promise.resolve(jsonRes(other))
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`))
+    })
+
+    const { default: RosterView } = await import('./RosterView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(RosterView, { global: { plugins: [router] } })
+    await flushPromises()
+    useSelectedTeam().selectedTeamId.value = '2'
+    await flushPromises()
+    resolveFirst(jsonRes(PLAYERS))
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('עמית')
+    expect(wrapper.text()).not.toContain('יוסי')
+  })
 })

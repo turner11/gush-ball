@@ -11,7 +11,8 @@
         }
         reverse_proxy backend:8000
     }
-    header /admin* X-Robots-Tag "noindex, nofollow"
+    @admin path_regexp ^/([^/]+/)?admin(/|$)
+    header @admin X-Robots-Tag "noindex, nofollow"
     handle /sitemap.xml {
         reverse_proxy backend:8000
     }

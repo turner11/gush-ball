@@ -35,9 +35,13 @@ describe('AdminPlayersView', () => {
   beforeEach(() => {
     vi.resetModules()
     localStorage.clear()
+    localStorage.setItem('gush-ball:selected-team-id', '1')
     router = createRouter({
       history: createWebHistory(),
-      routes: [{ path: '/', component: { template: '<div/>' } }],
+      routes: [
+        { path: '/', component: { template: '<div/>' } },
+        { path: '/:slug/admin/players', name: 'admin-players', component: { template: '<div/>' } },
+      ],
     })
   })
 
@@ -57,6 +61,30 @@ describe('AdminPlayersView', () => {
 
     expect(wrapper.text()).toContain('יוסי')
     expect(wrapper.text()).toContain('7')
+  })
+
+  it('ignores a late response for a team that is no longer selected', async () => {
+    let resolveFirst
+    const first = new Promise((r) => (resolveFirst = r))
+    const other = [{ id: 30, team_id: 2, name: 'עמית', name_en: null, jersey_number: 3, images: [] }]
+    global.fetch = vi.fn((url) => {
+      if (url === '/api/teams') return Promise.resolve(jsonRes(TEAMS))
+      if (url === '/api/teams/1/players') return first
+      if (url === '/api/teams/2/players') return Promise.resolve(jsonRes(other))
+      return Promise.reject(new Error(`Unhandled fetch: ${url}`))
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+    useSelectedTeam().selectedTeamId.value = '2'
+    await flushPromises()
+    resolveFirst(jsonRes(PLAYERS))
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('עמית')
+    expect(wrapper.text()).not.toContain('יוסי')
   })
 
   it('submitting the add-player form POSTs and the new player appears in the list', async () => {
@@ -203,5 +231,22 @@ describe('AdminPlayersView', () => {
     )
     expect(wrapper.findAll('button').some((b) => b.text() === 'שחזר')).toBe(false)
     expect(wrapper.findAll('tbody')[0].text()).toContain('דני')
+  })
+
+  it("changing the team select navigates to that team's URL", async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes([{ id: 1, name: 'קבוצה א', name_en: 'Team A' }, { id: 2, name: 'קבוצה ב', name_en: 'Team B' }]),
+      'GET /api/teams/1/players': () => jsonRes([]),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+    })
+    await router.push('/team_a/admin/players')
+
+    const { default: View } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(View, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.find('#team-select').setValue('team_b')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/team_b/admin/players')
   })
 })

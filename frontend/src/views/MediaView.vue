@@ -30,11 +30,12 @@ async function load() {
       apiFetch(`/teams/${id}/posts`),
       apiFetch(`/teams/${id}/images`),
     ])
+    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     videos.value = newestFirst(v)
     posts.value = newestFirst(p)
     images.value = newestFirst(i)
   } finally {
-    loading.value = false
+    if (id === selectedTeamId.value) loading.value = false
   }
 }
 

@@ -1,11 +1,12 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import GameRow from '../components/GameRow.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import { ownTeams, useAuth } from '../composables/useAuth'
-import { useSelectedTeam } from '../composables/useSelectedTeam'
+import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { byDate, sheetCopyUrl, STATUS_LABELS } from '../lib/games'
@@ -52,7 +53,9 @@ const CONFIRMS = {
 const templateCopyUrl = computed(() => sheetCopyUrl(user.value?.stats_template_url ?? ''))
 const loadButton = ref(null)
 
-const { selectedTeamId, ensureDefault } = useSelectedTeam()
+const { selectedTeamId } = useSelectedTeam()
+const route = useRoute()
+const router = useRouter()
 
 const sortedGames = computed(() => [...games.value].sort(byDate))
 const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value) ?? null)
@@ -62,15 +65,19 @@ async function loadGames() {
     games.value = []
     return
   }
+  const id = selectedTeamId.value
   loading.value = true
   listError.value = null
   try {
-    games.value = await apiFetch(`/teams/${selectedTeamId.value}/games`)
+    const loaded = await apiFetch(`/teams/${id}/games`)
+    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+    games.value = loaded
   } catch {
+    if (id !== selectedTeamId.value) return
     games.value = [] // never leave the previous team's games editable
     listError.value = 'שגיאה בטעינת המשחקים'
   } finally {
-    loading.value = false
+    if (id === selectedTeamId.value) loading.value = false
   }
 }
 
@@ -79,12 +86,14 @@ async function loadPendingGames() {
     pendingGames.value = []
     return
   }
-  pendingGames.value = await apiFetch(`/teams/${selectedTeamId.value}/games/pending-review`)
+  const id = selectedTeamId.value
+  const pending = await apiFetch(`/teams/${id}/games/pending-review`)
+  if (id !== selectedTeamId.value) return
+  pendingGames.value = pending
 }
 
 onMounted(async () => {
   teams.value = ownTeams(await apiFetch('/teams'))
-  ensureDefault(teams.value)
   await loadGames()
   await loadPendingGames()
 })
@@ -267,8 +276,13 @@ async function onDelete(game) {
       <h1 class="page-title">ניהול משחקים</h1>
       <div class="w-full sm:w-64">
         <label for="team-select" class="field-label">קבוצה</label>
-        <select id="team-select" v-model="selectedTeamId" class="field-input">
-          <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
+        <select
+          id="team-select"
+          :value="route.params.slug"
+          class="field-input"
+          @change="router.push({ params: { slug: $event.target.value } })"
+        >
+          <option v-for="team in teams" :key="team.id" :value="teamSlug(team)">{{ team.name }}</option>
         </select>
       </div>
     </div>

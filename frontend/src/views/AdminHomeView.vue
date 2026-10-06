@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from 'reka-ui'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import { useAuth } from '../composables/useAuth'
@@ -18,6 +18,10 @@ import { apiFetch } from '../lib/api'
 import { formatDuration } from '../lib/format'
 
 const POLL_MS = 3000
+
+// The slug (when present) scopes the players/games links to one team.
+const route = useRoute()
+const base = computed(() => (route.params.slug ? '/' + route.params.slug : ''))
 
 const submitting = ref(false)
 const running = ref(false)
@@ -137,12 +141,12 @@ onUnmounted(() => {
   <section class="space-y-6">
     <h1 class="page-title">אזור ניהול</h1>
     <nav class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <RouterLink to="/admin/players" class="card space-y-2 transition hover:border-team">
+      <RouterLink :to="base + '/admin/players'" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
         <span class="block font-extrabold">ניהול שחקנים</span>
         <span class="block text-sm text-muted">שחקנים ותמונות</span>
       </RouterLink>
-      <RouterLink to="/admin/games" class="card space-y-2 transition hover:border-team">
+      <RouterLink :to="base + '/admin/games'" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="calendar" /></span>
         <span class="block font-extrabold">ניהול משחקים</span>
         <span class="block text-sm text-muted">לוח משחקים, תוצאות ותור אישור</span>

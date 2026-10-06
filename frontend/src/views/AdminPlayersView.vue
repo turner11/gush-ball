@@ -1,8 +1,9 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { ownTeams } from '../composables/useAuth'
-import { useSelectedTeam } from '../composables/useSelectedTeam'
+import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import AppIcon from '../components/AppIcon.vue'
 import ImageUpload from '../components/ImageUpload.vue'
 import { apiFetch } from '../lib/api'
@@ -15,7 +16,9 @@ const form = ref({ name: '', name_en: '', jersey_number: '' })
 const newImageUrl = ref({})
 const error = ref(null)
 
-const { selectedTeamId, ensureDefault } = useSelectedTeam()
+const { selectedTeamId } = useSelectedTeam()
+const route = useRoute()
+const router = useRouter()
 
 async function loadPlayers() {
   deletedPlayers.value = null
@@ -23,12 +26,14 @@ async function loadPlayers() {
     players.value = []
     return
   }
-  players.value = await apiFetch(`/teams/${selectedTeamId.value}/players`)
+  const id = selectedTeamId.value
+  const loaded = await apiFetch(`/teams/${id}/players`)
+  if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+  players.value = loaded
 }
 
 onMounted(async () => {
   teams.value = ownTeams(await apiFetch('/teams'))
-  ensureDefault(teams.value)
   await loadPlayers()
 })
 
@@ -147,8 +152,13 @@ async function deleteImage(player, image) {
       <h1 class="page-title">ניהול שחקנים</h1>
       <div class="w-full sm:w-64">
         <label for="team-select" class="field-label">קבוצה</label>
-        <select id="team-select" v-model="selectedTeamId" class="field-input">
-          <option v-for="team in teams" :key="team.id" :value="String(team.id)">{{ team.name }}</option>
+        <select
+          id="team-select"
+          :value="route.params.slug"
+          class="field-input"
+          @change="router.push({ params: { slug: $event.target.value } })"
+        >
+          <option v-for="team in teams" :key="team.id" :value="teamSlug(team)">{{ team.name }}</option>
         </select>
       </div>
     </div>
