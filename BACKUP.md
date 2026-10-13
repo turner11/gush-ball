@@ -1,7 +1,17 @@
 # Backups
 
-How to back up the production database, check a backup, and restore one. Production Postgres runs in the
-`gush-ball-db` container on the Hetzner machine (the fixed `container_name` in `docker-compose.prod.yml`).
+How to back up the production database, check a backup, and restore one. Production Postgres runs in a container on
+the Hetzner machine that Coolify names `db-uk44s8kc08ggkoksoo80skcw-<deploy-timestamp>`, for example
+`db-uk44s8kc08ggkoksoo80skcw-20261013T104907`. The timestamp changes on every deploy, so never type the full name:
+look the container up by its stable prefix (`uk44s8kc08ggkoksoo80skcw` is the Coolify resource id):
+
+```bash
+docker ps -qf name=db-uk44s8kc08ggkoksoo80skcw     # prints the container id; must print exactly one line
+```
+
+If the Coolify resource is ever recreated, the id changes. Find the new one with
+`docker ps --format '{{.Names}}' | grep '^db-'` and update it in `backup.sh`, `dbsync.sh`, `pull_prod_db.py` and this
+file. `coolify-db` is Coolify's own database: never touch it.
 
 *Why this matters:* the database lives on that one machine. If its disk dies, or a bad migration damages data, the only
 way back is a copy kept somewhere else.
@@ -27,10 +37,14 @@ left on the server.
 2. Run:
 
    ```bash
-   ssh root@<server-ip> 'docker exec gush-ball-db pg_dump -U gush_ball -Fc gush_ball' > prod-$(date +%F-%H%M).dump
+   ssh root@<server-ip> 'docker exec $(docker ps -qf name=db-uk44s8kc08ggkoksoo80skcw) pg_dump -U gush_ball -Fc gush_ball' > prod-$(date +%F-%H%M).dump
    ```
 
 3. **Verify:** the file is not empty (`ls -lh prod-*.dump`, expect at least tens of KB), then do [section 2](#2-check-a-dump).
+
+Run this on **your PC**, not on the server: the quotes send the command through `ssh`. Already logged in on the
+server? Drop the `ssh` and the quotes, write to `~/prod-<timestamp>.dump`, then copy it down from your PC with
+`scp root@<server-ip>:/root/prod-<timestamp>.dump .` (note the `:` after the host and the `.` destination).
 
 If `ssh` asks for a password, your SSH key isn't loaded. Use the key you added in Hetzner.
 
@@ -51,7 +65,7 @@ if that fails.
 
 ## 3. Set up the nightly backup to R2
 
-**What:** `backup.sh` runs `pg_dump` in `gush-ball-db` every night and uploads the dump to a private Cloudflare R2
+**What:** every night, `backup.sh` finds the DB container by its prefix, runs `pg_dump` in it, and uploads the dump to a private Cloudflare R2
 bucket through a throwaway `amazon/aws-cli` container. It runs from the server's crontab, outside Coolify, because the
 dump tool and the upload don't share a container.
 
@@ -95,7 +109,8 @@ dump tool and the upload don't share a container.
 
 ### 3.3 Test it, then schedule it
 
-1. Run it once by hand: `~/backup.sh`. No output means success.
+1. Run it once by hand: `~/backup.sh`. No output means success. `expected 1 running container matching ...` means the
+   prefix found no DB container (or two, mid-redeploy): see the container note at the top of this file.
 2. **Verify:** Cloudflare → *R2* → `gush-ball-backups` → a `gush_ball-<today>.dump` object exists and isn't tiny.
    *Why now:* find a wrong key or endpoint today, not on the day you need a restore.
 3. Schedule it: `crontab -e`, then add this line to run it every night at 03:00
@@ -117,13 +132,14 @@ touched. **Why:** a backup you've never restored is a guess.
 On the server, with the values from `~/gush-ball-backup.env`:
 
 ```bash
-docker exec gush-ball-db createdb -U gush_ball scratch
+DB=$(docker ps -qf name=db-uk44s8kc08ggkoksoo80skcw)
+docker exec $DB createdb -U gush_ball scratch
 docker run --rm \
   -e AWS_ACCESS_KEY_ID=<BACKUP_ACCESS_KEY_ID> -e AWS_SECRET_ACCESS_KEY=<BACKUP_SECRET_ACCESS_KEY> -e AWS_DEFAULT_REGION=auto \
   amazon/aws-cli s3 cp s3://gush-ball-backups/<file>.dump - --endpoint-url <OBJECT_STORAGE_ENDPOINT_URL> \
-  | docker exec -i gush-ball-db pg_restore -U gush_ball -d scratch --no-owner
-docker exec gush-ball-db psql -U gush_ball -d scratch -c 'select count(*) from teams'
-docker exec gush-ball-db dropdb -U gush_ball scratch
+  | docker exec -i $DB pg_restore -U gush_ball -d scratch --no-owner
+docker exec $DB psql -U gush_ball -d scratch -c 'select count(*) from teams'
+docker exec $DB dropdb -U gush_ball scratch
 ```
 
 **Verify:** the `count(*)` matches roughly what the site shows.
@@ -147,18 +163,20 @@ data as soon as it starts.
 3. **Stop the backend.** Open connections block the restore. On the server:
 
    ```bash
-   docker ps --format '{{.Names}}' | grep backend    # Coolify names it backend-<id>
-   docker stop <backend-container-name>
+   BACKEND=$(docker ps -qf name=backend-uk44s8kc08ggkoksoo80skcw)   # same naming as the DB container
+   docker stop $BACKEND
    ```
 
 4. **Restore:**
 
    ```bash
-   docker exec -i gush-ball-db pg_restore -U gush_ball -d gush_ball --clean --if-exists --no-owner < ~/prod-<timestamp>.dump
+   DB=$(docker ps -qf name=db-uk44s8kc08ggkoksoo80skcw)
+   docker exec -i $DB pg_restore -U gush_ball -d gush_ball --clean --if-exists --no-owner < ~/prod-<timestamp>.dump
    ```
 
-   This is what `DB_CONTAINER=gush-ball-db ./dbsync.sh import <file>` runs, if you have the repo on the server.
-5. **Start the backend:** `docker start <backend-container-name>`, or *Restart* the resource in Coolify.
+   This is what `DB_CONTAINER=db-uk44s8kc08ggkoksoo80skcw ./dbsync.sh import <file>` runs, if you have the repo on the
+   server.
+5. **Start the backend:** `docker start $BACKEND`, or *Restart* the resource in Coolify.
 6. **Verify:** open the site, check that teams and games are there, and log in as admin.
 
 To copy production data into your **local dev** database instead, use `uv run pull_prod_db.py root@<server-ip>`
