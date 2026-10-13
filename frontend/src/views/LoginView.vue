@@ -12,7 +12,9 @@ const username = ref('')
 const password = ref('')
 const submitting = ref(false)
 
-const { error, login, checkSession } = useAuth()
+const { user, error, login, checkSession } = useAuth()
+// Admins land on the admin home, everyone else (a signed-up player) on the join page.
+const landing = () => (user.value?.is_admin ? { name: 'admin-home' } : { name: 'join' })
 const router = useRouter()
 const route = useRoute()
 
@@ -26,7 +28,7 @@ if (channel) channel.onmessage = async ({ data }) => {
   googleWaiting.value = false
   if (data !== true) return router.replace({ query: { error: 'google' } })
   await checkSession() // the router guard skips /auth/me once `checked`, so refresh the user here
-  router.push({ name: 'admin-home' })
+  router.push(landing())
 }
 onUnmounted(() => channel?.close())
 
@@ -47,7 +49,7 @@ onMounted(async () => {
     // Still open (not script-closable)? Behave like the full-page flow in this window.
     if (popupResult === 'ok') {
       await checkSession()
-      return router.replace({ name: 'admin-home' })
+      return router.replace(landing())
     }
     return router.replace({ query: { error: 'google' } })
   }
@@ -63,7 +65,7 @@ async function onSubmit() {
   try {
     await login(username.value, password.value)
     if (!error.value) {
-      router.push({ name: 'admin-home' })
+      router.push(landing())
     }
   } finally {
     submitting.value = false
@@ -75,7 +77,8 @@ async function onSubmit() {
   <section class="mx-auto mt-6 max-w-sm sm:mt-16">
     <div class="card space-y-4">
     <img :src="LOGO_URL" alt="" class="mx-auto h-16" />
-    <h1 class="page-title text-center">כניסת מנהל</h1>
+    <h1 class="page-title text-center">כניסה</h1>
+    <p v-if="googleEnabled" class="text-center text-sm text-muted">שחקנים: היכנסו עם Google כדי להירשם ולבקש הצטרפות לקבוצה</p>
 
     <form class="space-y-3" @submit.prevent="onSubmit">
       <div>
@@ -117,7 +120,7 @@ async function onSubmit() {
     </a>
     <p v-if="googleWaiting" class="text-sm text-muted text-center" role="status">ממתין לכניסה בחלון Google…</p>
     <p v-if="route.query.error === 'google'" class="error-text" role="alert">
-      הכניסה עם Google נכשלה או שהחשבון אינו מורשה
+      הכניסה עם Google נכשלה, נסו שוב
     </p>
     </div>
   </section>

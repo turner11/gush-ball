@@ -7,6 +7,7 @@ function makeRouter() {
     history: createWebHistory(),
     routes: [
       { path: '/', component: { template: '<div/>' } },
+      { path: '/join', name: 'join', component: { template: '<div/>' } },
       { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
       { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
       { path: '/admin/reset-password', name: 'admin-reset-password', component: { template: '<div/>' } },
@@ -26,10 +27,11 @@ async function mountLogin(path, optionsFetch) {
 }
 
 const GOOGLE_HREF = 'a[href="/api/auth/google/login"]'
-const byUrl = (url) =>
+const byUrl = (url, isAdmin = true) =>
   url === '/api/auth/me'
-    ? Promise.resolve({ ok: true, status: 200, json: async () => ({ username: 'a', team_id: null, is_admin: true }) })
+    ? Promise.resolve({ ok: true, status: 200, json: async () => ({ username: 'a', team_id: null, is_admin: isAdmin }) })
     : Promise.resolve({ ok: true, status: 200, json: async () => ({ google: true }) })
+const asPlayer = (url) => byUrl(url, false)
 
 async function clickGoogle(wrapper) {
   const event = new MouseEvent('click', { bubbles: true, cancelable: true })
@@ -61,6 +63,23 @@ describe('LoginView', () => {
   it('shows the Google error alert for ?error=google', async () => {
     const wrapper = await mountLogin('/admin/login?error=google', options({ google: false }))
     expect(wrapper.find('[role="alert"]').text()).toContain('הכניסה עם Google נכשלה')
+  })
+
+  it('a non-admin password login goes to join', async () => {
+    const wrapper = await mountLogin('/admin/login', (url) =>
+      url === '/api/auth/login'
+        ? Promise.resolve({ ok: true, status: 200, json: async () => ({ username: 'p', is_admin: false }) })
+        : byUrl(url),
+    )
+    await wrapper.find('#username').setValue('p')
+    await wrapper.find('#password').setValue('password123')
+    await wrapper.find('form').trigger('submit')
+    await vi.waitFor(() => expect(wrapper.vm.$router.currentRoute.value.name).toBe('join'))
+  })
+
+  it('tells players to sign up with Google when it is enabled', async () => {
+    const wrapper = await mountLogin('/admin/login', options({ google: true }))
+    expect(wrapper.text()).toContain('שחקנים: היכנסו עם Google')
   })
 
   it('links to the forgot-password page', async () => {
@@ -113,6 +132,14 @@ describe('LoginView', () => {
       channel.postMessage(true)
       await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('admin-home'))
       expect(global.fetch.mock.calls.map((c) => c[0])).toContain('/api/auth/me')
+      wrapper.unmount()
+    })
+
+    it('goes to join when the popup reports success for a non-admin', async () => {
+      const wrapper = await mountLogin('/admin/login', asPlayer)
+      const router = wrapper.vm.$router
+      channel.postMessage(true)
+      await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('join'))
       wrapper.unmount()
     })
 

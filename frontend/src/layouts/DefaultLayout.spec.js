@@ -52,6 +52,7 @@ describe('DefaultLayout', () => {
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
         { path: '/teams', name: 'teams', component: { template: '<div/>' } },
         { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
+        { path: '/join', name: 'join', component: { template: '<div/>' } },
         { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
         { path: '/:slug/roster', name: 'roster', component: { template: '<div/>' } },
         { path: '/:slug/media', name: 'media', component: { template: '<div/>' } },
@@ -537,7 +538,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const header = wrapper.find('header')
-    expect(header.find('a[href="/admin/login"]').attributes('aria-label')).toBe('כניסת מנהל')
+    expect(header.find('a[href="/admin/login"]').attributes('aria-label')).toBe('כניסה')
     expect(header.find('a[href="/admin"]').exists()).toBe(false)
     expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(false)
   })
@@ -551,6 +552,7 @@ describe('DefaultLayout', () => {
 
     const header = wrapper.find('header')
     expect(header.find('a[href="/team_a/admin"]').text()).toBe('ניהול')
+    expect(header.find('a[aria-label="החשבון שלי"]').exists()).toBe(false)
     expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(true)
     expect(header.find('a[href="/admin/login"]').exists()).toBe(false)
   })
@@ -568,6 +570,7 @@ describe('DefaultLayout', () => {
     const header = wrapper.find('header')
     expect(header.find('a[href="/team_a/admin"]').exists()).toBe(false)
     expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(true)
+    expect(header.find('a[aria-label="החשבון שלי"]').attributes('href')).toBe('/join')
   })
 
   it('logout posts /auth/logout, swaps to the login link and stays on the page', async () => {
