@@ -120,6 +120,13 @@ class AdminOut(BaseModel):
     club: str | None
 
 
+class AssignableAdminOut(BaseModel):
+    id: int
+    username: str
+    team_id: int
+    team_name: str
+
+
 def _slugify(name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     return slug or "team"
@@ -197,6 +204,17 @@ def list_teams(db: DbSession) -> list[Team]:
     return list(db.scalars(select(Team)).all())
 
 
+@router.get("/admins", response_model=list[AssignableAdminOut])  # before /{team_id}, which would swallow "admins"
+def list_assignable_admins(_admin_id: RequireAdmin, db: DbSession) -> list[AssignableAdminOut]:
+    # The join keeps only team admins: full and club admins have team_id NULL.
+    rows = db.execute(
+        select(AdminUser.id, AdminUser.username, AdminUser.team_id, Team.name)
+        .join(Team, AdminUser.team_id == Team.id)
+        .order_by(AdminUser.username)
+    )
+    return [AssignableAdminOut(id=i, username=u, team_id=t, team_name=n) for i, u, t, n in rows]
+
+
 @router.get("/{team_id}", response_model=TeamOut)
 def get_team(team_id: int, db: DbSession) -> Team:
     return get_team_or_404(db, team_id)
@@ -269,4 +287,16 @@ def delete_team_admin(team_id: int, admin_id: int, _admin_id: RequireAdmin, db: 
     if admin is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
     db.delete(admin)
+    db.commit()
+
+
+@router.put("/{team_id}/admins/{admin_id}", status_code=status.HTTP_204_NO_CONTENT)
+def assign_team_admin(team_id: int, admin_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
+    """Move an existing team admin to this team (an admin has one team)."""
+    team = get_team_or_404(db, team_id)
+    # team_id IS NOT NULL keeps full and club admins unreachable: this can never create or demote a full admin.
+    admin = db.scalar(select(AdminUser).where(AdminUser.id == admin_id, AdminUser.team_id.is_not(None)))
+    if admin is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
+    admin.team_id = team.id
     db.commit()

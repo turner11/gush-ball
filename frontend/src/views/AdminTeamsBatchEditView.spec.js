@@ -45,6 +45,7 @@ async function mountView(teams) {
     routes: [
       { path: '/:p(.*)*', component: { template: '<div/>' } },
       { path: '/admin/teams', name: 'admin-teams', component: { template: '<div/>' } },
+      { path: '/admin/teams/import', name: 'admin-teams-import', component: { template: '<div/>' } },
     ],
   })
   const push = vi.spyOn(router, 'push')
