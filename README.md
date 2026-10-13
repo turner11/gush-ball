@@ -76,6 +76,7 @@ Don't run vite with `--host` while pointed at prod.
 ## Deployment
 
 Step-by-step guide (R2 storage, domain, Coolify, env vars, scrape task, backups): [DEPLOYMENT.md](DEPLOYMENT.md).
+Backing up, checking and restoring the production DB: [BACKUP.md](BACKUP.md).
 
 ### Manual dump / import (dev <-> prod)
 
@@ -83,13 +84,13 @@ Prod → dev in one step (any OS, from the repo root; wipes the local db):
 `uv run pull_prod_db.py root@<server-ip>`. Add `--dump <file>` to restore an existing dump instead of downloading.
 
 `dbsync.sh` dumps the DB to a file and imports it (wipes the target). It targets dev by default; prefix
-`DB_CONTAINER=gush-ball-db` for prod (run on the server). Run from Git Bash/WSL (PowerShell redirection corrupts binary dumps).
+`DB_CONTAINER=db-uk44s8kc08ggkoksoo80skcw` for prod (run on the server). Run from Git Bash/WSL (PowerShell redirection corrupts binary dumps).
 
 ```
-DB_CONTAINER=gush-ball-db ./dbsync.sh dump prod.dump   # on the server; scp it down
+DB_CONTAINER=db-uk44s8kc08ggkoksoo80skcw ./dbsync.sh dump prod.dump   # on the server; scp it down
 ./dbsync.sh import prod.dump                                       # into dev
 ./dbsync.sh dump dev.dump                                          # scp it up, then on the server:
-DB_CONTAINER=gush-ball-db ./dbsync.sh import dev.dump
+DB_CONTAINER=db-uk44s8kc08ggkoksoo80skcw ./dbsync.sh import dev.dump
 ```
 
 Stop `backend` first on prod (open connections block `--clean`), start it after. Dumps include admin password

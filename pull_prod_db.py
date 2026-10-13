@@ -18,7 +18,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-PROD_CONTAINER = "gush-ball-db"  # fixed container_name in docker-compose.prod.yml
+# Coolify names the prod DB container db-<resource-id>-<deploy-timestamp>; match the stable prefix.
+PROD_DB_MATCH = "db-uk44s8kc08ggkoksoo80skcw"
 
 
 def run(cmd: list[str], **kwargs) -> None:
@@ -35,7 +36,7 @@ def dump_prod(ssh_target: str, out: Path) -> None:
                 [
                     "ssh",
                     ssh_target,
-                    f"docker exec {PROD_CONTAINER} pg_dump -U gush_ball -Fc gush_ball",
+                    f"docker exec $(docker ps -qf name={PROD_DB_MATCH}) pg_dump -U gush_ball -Fc gush_ball",
                 ],
                 stdout=f,
             )

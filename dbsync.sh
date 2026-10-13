@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # Manual DB sync between dev and prod. Target: the `db` service of COMPOSE_FILE (default
-# docker-compose.yml), or the container named by DB_CONTAINER (prod under Coolify: gush-ball-db).
+# docker-compose.yml), or the one running container whose name matches DB_CONTAINER (prod under Coolify:
+# db-uk44s8kc08ggkoksoo80skcw; Coolify appends a deploy timestamp to the name).
 set -euo pipefail
 cd "$(dirname "$0")"
 
-db() { if [ -n "${DB_CONTAINER:-}" ]; then docker exec -i "$DB_CONTAINER" "$@"; else docker compose exec -T db "$@"; fi; }
+db() {
+    [ -n "${DB_CONTAINER:-}" ] || { docker compose exec -T db "$@"; return; }
+    local id
+    id="$(docker ps -qf "name=$DB_CONTAINER")"
+    [ "$(wc -w <<<"$id")" = 1 ] || { echo "expected 1 running container matching '$DB_CONTAINER', got: ${id:-none}" >&2; exit 1; }
+    docker exec -i "$id" "$@"
+}
 
 case "${1:-}" in
 dump)
@@ -25,7 +32,7 @@ import)
     db pg_restore -U gush_ball -d gush_ball --clean --if-exists --no-owner < "$file"
     ;;
 *)
-    echo "usage: [DB_CONTAINER=gush-ball-db] $0 dump [file] | import <file>" >&2
+    echo "usage: [DB_CONTAINER=db-uk44s8kc08ggkoksoo80skcw] $0 dump [file] | import <file>" >&2
     exit 1
     ;;
 esac

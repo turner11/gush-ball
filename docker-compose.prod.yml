@@ -5,7 +5,8 @@ x-logging: &logging
 services:
   db:
     image: postgres:17-alpine
-    container_name: gush-ball-db  # stable name for backup.sh / dbsync.sh (docker exec)
+    # No container_name: Coolify ignores it and names this db-<resource-id>-<deploy-timestamp>. Scripts match the
+    # stable db-<resource-id> prefix (backup.sh, dbsync.sh, pull_prod_db.py).
     restart: unless-stopped
     logging: *logging
     environment:
