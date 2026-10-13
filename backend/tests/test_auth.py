@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import AdminUser, Team
+from app.models import AdminUser, Membership, Team
 from app.routers import auth
 from app.security import hash_password, verify_password
 
@@ -33,7 +33,7 @@ def _clear_attempts():
 @pytest.fixture()
 def seeded(client: TestClient, db_session: Session) -> TestClient:
     db_session.add(
-        AdminUser(username="admin", email="admin@example.com", password_hash=hash_password("password123"))
+        AdminUser(username="admin", email="admin@example.com", password_hash=hash_password("password123"), is_full_admin=True)
     )
     db_session.commit()
     return client
@@ -357,9 +357,10 @@ def test_google_callback_keeps_team_scope(client: TestClient, db_session: Sessio
     team = Team(name="T", slug="t")
     db_session.add(team)
     db_session.flush()
-    db_session.add(
-        AdminUser(username="tadmin", email="admin@example.com", password_hash=hash_password("x"), team_id=team.id)
-    )
+    user = AdminUser(username="tadmin", email="admin@example.com", password_hash=hash_password("x"))
+    db_session.add(user)
+    db_session.flush()
+    db_session.add(Membership(user_id=user.id, team_id=team.id, role="admin"))
     db_session.commit()
     q = _start_google(client)
     assert _callback(client, q["state"][0]).headers["location"] == "/admin"
