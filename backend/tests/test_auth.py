@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -328,7 +329,7 @@ def test_google_login_redirects_with_state_and_pkce(seeded: TestClient, google) 
     assert urlparse(r.headers["location"]).netloc == "accounts.google.com"
     q = parse_qs(urlparse(r.headers["location"]).query)
     assert q["state"] and q["code_challenge_method"] == ["S256"]
-    assert q["scope"] == ["openid email"]
+    assert q["scope"] == ["openid email profile"]
     assert q["redirect_uri"] == [settings.public_url + "/api/auth/google/callback"]
 
 
@@ -347,7 +348,7 @@ def test_google_popup_callback_lands_on_popup_page(seeded: TestClient, google) -
     assert _callback(seeded, q["state"][0]).headers["location"] == "/admin/login?google_popup=ok"
     assert seeded.get("/auth/me").status_code == 200
     seeded.post("/auth/logout")
-    google["claims"] = _claims(email="stranger@example.com")
+    google["claims"] = _claims(email="stranger@example.com", email_verified=False)
     q = _start_google(seeded, popup=True)
     assert _callback(seeded, q["state"][0]).headers["location"] == "/admin/login?google_popup=error"
     assert seeded.get("/auth/me").status_code == 401
@@ -384,19 +385,19 @@ def test_google_callback_rejects_bad_state(seeded: TestClient, google) -> None:
 @pytest.mark.parametrize(
     "over",
     [
-        {"email": "stranger@example.com"},
         {"email_verified": False},
         {"aud": "other"},
         {"iss": "https://evil.example"},
         {"exp": 1},
     ],
 )
-def test_google_callback_rejects_bad_claims(seeded: TestClient, google, over: dict) -> None:
+def test_google_callback_rejects_bad_claims(seeded: TestClient, google, db_session: Session, over: dict) -> None:
     google["claims"] = _claims(**over)
     q = _start_google(seeded)
     r = _callback(seeded, q["state"][0])
     assert r.status_code == 302 and r.headers["location"] == FAIL
     assert seeded.get("/auth/me").status_code == 401
+    assert db_session.scalar(select(func.count(AdminUser.id))) == 1  # no account created
 
 
 def test_google_callback_handles_token_endpoint_error(seeded: TestClient, google) -> None:
@@ -420,3 +421,46 @@ def test_login_and_me_return_stats_urls(seeded: TestClient, monkeypatch: pytest.
 
     for body in (login, me):
         assert {k: body[k] for k in expected} == expected
+
+
+def _signup(c: TestClient, google, **claims):
+    google["claims"] = _claims(**claims)
+    return _callback(c, _start_google(c)["state"][0])
+
+
+def test_google_signup_creates_rightsless_account(client: TestClient, db_session: Session, google) -> None:
+    r = _signup(client, google, email="New@Example.com", name="Dana Cohen")
+    assert r.status_code == 302 and r.headers["location"] == "/join"
+    user = db_session.scalar(select(AdminUser))
+    assert user.email == "new@example.com" and user.is_full_admin is False
+    assert db_session.scalar(select(func.count(Membership.id))) == 0
+    me = client.get("/auth/me").json()
+    assert me["is_admin"] is False and me["team_ids"] == [] and me["memberships"] == []
+    assert "stats_app_url" not in me
+    assert client.post("/uploads", files={"file": ("a.png", b"x", "image/png")}).status_code == 403
+    client.post("/auth/logout")
+    assert _signup(client, google, email="new@example.com", name="Dana Cohen").headers["location"] == "/join"
+    assert db_session.scalar(select(func.count(AdminUser.id))) == 1
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [("Dana Cohen", "Dana Cohen"), (None, "שחקן"), ("  ", "שחקן"), ("dana@example.com", "שחקן")],
+)
+def test_google_signup_username_is_never_the_email(
+    client: TestClient, db_session: Session, google, name: str | None, expected: str
+) -> None:
+    _signup(client, google, email="dana@example.com", **({} if name is None else {"name": name}))
+    assert db_session.scalar(select(AdminUser.username)) == expected
+
+
+def test_google_signup_long_name_is_capped_and_duplicates_get_a_suffix(
+    client: TestClient, db_session: Session, google
+) -> None:
+    _signup(client, google, email="a@example.com", name="x" * 100)
+    _signup(client, google, email="b@example.com", name="Dana Cohen")
+    _signup(client, google, email="c@example.com", name="Dana  Cohen")
+    names = list(db_session.scalars(select(AdminUser.username).order_by(AdminUser.id)))
+    assert len(names[0]) <= 80
+    assert names[1:] == ["Dana Cohen", "Dana Cohen 2"]
+    assert all("@" not in n for n in names)

@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.main import app
@@ -169,6 +170,10 @@ def test_user_without_admin_grant_is_403_on_admin_routes(
     assert client.get("/sync/status").status_code == 403
     assert client.get(f"/teams/{tid}/admins").status_code == 403
     assert client.get("/teams/assignable-users").status_code == 403
+    assert client.get("/memberships").status_code == 403
+    pending_id = db_session.scalar(select(Membership.id).where(Membership.team_id == tid)) or 1
+    assert client.post(f"/memberships/{pending_id}/approve").status_code == 403
+    assert client.delete(f"/memberships/{pending_id}").status_code == 403
     me = client.get("/auth/me")
     assert me.status_code == 200
     body = me.json()
