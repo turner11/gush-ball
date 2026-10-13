@@ -139,7 +139,7 @@ onMounted(async () => {
           <ThemeToggle class="shrink-0 ms-auto md:ms-0" />
           <template v-if="checked">
             <template v-if="user">
-              <RouterLink :to="teamBase + '/admin'" class="nav-link">ניהול</RouterLink>
+              <RouterLink v-if="user.is_admin" :to="teamBase + '/admin'" class="nav-link">ניהול</RouterLink>
               <button
                 type="button"
                 aria-label="התנתקות"

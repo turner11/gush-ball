@@ -28,7 +28,7 @@ async function mountLogin(path, optionsFetch) {
 const GOOGLE_HREF = 'a[href="/api/auth/google/login"]'
 const byUrl = (url) =>
   url === '/api/auth/me'
-    ? Promise.resolve({ ok: true, status: 200, json: async () => ({ username: 'a', team_id: null }) })
+    ? Promise.resolve({ ok: true, status: 200, json: async () => ({ username: 'a', team_id: null, is_admin: true }) })
     : Promise.resolve({ ok: true, status: 200, json: async () => ({ google: true }) })
 
 async function clickGoogle(wrapper) {

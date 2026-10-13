@@ -54,6 +54,8 @@ router.beforeEach(async (to) => {
   if (!checked.value) await checkSession()
 
   if (!user.value) return { name: 'admin-login' }
+  // A logged-in account without an admin grant never sees admin pages.
+  if (!user.value.is_admin) return { name: 'home' }
   // A team admin's home is their team's admin; the admin layout resolves the id to the slug.
   if (to.name === 'admin-home' && user.value.team_id) {
     return { name: 'team-admin-home', params: { slug: String(user.value.team_id) } }

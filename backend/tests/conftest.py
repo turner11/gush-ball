@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import Base, get_db
 from app.main import app
-from app.models import AdminUser, Team
+from app.models import AdminUser, Membership, Team
 from app.security import hash_password
 
 
@@ -43,7 +43,7 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
 @pytest.fixture()
 def admin_client(client: TestClient, db_session: Session) -> TestClient:
-    admin = AdminUser(username="admin", password_hash=hash_password("password123"))
+    admin = AdminUser(username="admin", password_hash=hash_password("password123"), is_full_admin=True)
     db_session.add(admin)
     db_session.commit()
     response = client.post("/auth/login", json={"username": "admin", "password": "password123"})
@@ -62,9 +62,10 @@ def own_team(db_session: Session) -> Team:
 @pytest.fixture()
 def team_admin_client(client: TestClient, db_session: Session, own_team: Team) -> TestClient:
     """Logs in as a team admin. Shares the cookie jar with admin_client: never use both in one test."""
-    db_session.add(
-        AdminUser(username="teamadmin", password_hash=hash_password("password123"), team_id=own_team.id)
-    )
+    user = AdminUser(username="teamadmin", password_hash=hash_password("password123"))
+    db_session.add(user)
+    db_session.flush()
+    db_session.add(Membership(user_id=user.id, team_id=own_team.id, role="admin"))
     db_session.commit()
     response = client.post("/auth/login", json={"username": "teamadmin", "password": "password123"})
     assert response.status_code == 200
@@ -84,7 +85,10 @@ def sibling_team(db_session: Session, own_team: Team) -> Team:
 @pytest.fixture()
 def club_admin_client(client: TestClient, db_session: Session, sibling_team: Team) -> TestClient:
     """Logs in as a club admin. Shares the cookie jar with admin_client: never use both in one test."""
-    db_session.add(AdminUser(username="clubadmin", password_hash=hash_password("password123"), club="Gush"))
+    user = AdminUser(username="clubadmin", password_hash=hash_password("password123"))
+    db_session.add(user)
+    db_session.flush()
+    db_session.add(Membership(user_id=user.id, club="Gush", role="admin"))
     db_session.commit()
     response = client.post("/auth/login", json={"username": "clubadmin", "password": "password123"})
     assert response.status_code == 200

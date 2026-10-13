@@ -6,7 +6,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.models import AdminUser, Player, PlayerImage, Team
+from app.models import AdminUser, Membership, Player, PlayerImage, Team
+from app.security import hash_password
 
 
 @pytest.fixture()
@@ -137,7 +138,68 @@ def test_me_full_admin_has_no_team_scope(admin_client: TestClient) -> None:
     assert me["team_ids"] is None
 
 
-def test_admin_team_fk_cascades() -> None:
-    # SQLite tests run with FKs off; SET NULL would promote a deleted team's admins to full admin.
-    (fk,) = AdminUser.__table__.c.team_id.foreign_keys
-    assert fk.ondelete == "CASCADE"
+def test_membership_fks_cascade() -> None:
+    # SQLite tests run with FKs off; a missing CASCADE would leave a deleted team's/user's grants behind.
+    for column in (Membership.__table__.c.user_id, Membership.__table__.c.team_id):
+        (fk,) = column.foreign_keys
+        assert fk.ondelete == "CASCADE"
+
+
+def _login_user(client: TestClient, db_session: Session, username: str, *memberships: Membership) -> None:
+    user = AdminUser(username=username, password_hash=hash_password("password123"))
+    db_session.add(user)
+    db_session.flush()
+    for m in memberships:
+        m.user_id = user.id
+        db_session.add(m)
+    db_session.commit()
+    assert client.post("/auth/login", json={"username": username, "password": "password123"}).status_code == 200
+
+
+@pytest.mark.parametrize("role", [None, "pending", "member"])
+def test_user_without_admin_grant_is_403_on_admin_routes(
+    role: str | None, client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    grants = [Membership(team_id=own_team.id, role=role)] if role else []
+    _login_user(client, db_session, "player", *grants)
+    tid = own_team.id
+    assert client.post("/uploads", files={"file": ("a.png", b"x", "image/png")}).status_code == 403
+    assert client.patch(f"/teams/{tid}", json={"facebook_url": "https://facebook.com/x"}).status_code == 403
+    assert client.post("/sync/now").status_code == 403
+    assert client.get("/sync/status").status_code == 403
+    assert client.get(f"/teams/{tid}/admins").status_code == 403
+    assert client.get("/teams/assignable-users").status_code == 403
+    me = client.get("/auth/me")
+    assert me.status_code == 200
+    body = me.json()
+    assert body["is_admin"] is False
+    assert body["team_ids"] == []
+    assert "stats_app_url" not in body
+    assert "stats_template_url" not in body
+
+
+def test_admin_of_many_teams_across_clubs(
+    client: TestClient, db_session: Session, own_team: Team, sibling_team: Team, other_team: Team
+) -> None:
+    _login_user(
+        client,
+        db_session,
+        "multi",
+        Membership(team_id=own_team.id, role="admin"),
+        Membership(team_id=other_team.id, role="admin"),
+        Membership(club="Gush", role="admin"),
+    )
+    for team in (own_team, sibling_team, other_team):
+        assert client.patch(f"/teams/{team.id}", json={"facebook_url": "https://facebook.com/x"}).status_code == 200
+    me = client.get("/auth/me").json()
+    assert sorted(me["team_ids"]) == sorted([own_team.id, sibling_team.id, other_team.id])
+    assert me["clubs"] == ["Gush"]
+    assert me["is_admin"] is True
+
+
+def test_member_row_grants_no_write_scope(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    _login_user(client, db_session, "mixed", Membership(team_id=own_team.id, role="admin"), Membership(team_id=other_team.id, role="member"))
+    assert client.get("/auth/me").json()["team_ids"] == [own_team.id]
+    assert client.patch(f"/teams/{other_team.id}", json={"facebook_url": "https://facebook.com/x"}).status_code == 403

@@ -34,7 +34,7 @@ const row = (n) => ({
   error: null,
 })
 
-const ADMINS = [{ id: 5, username: 'coach', team_id: 9, team_name: 'אליצור' }]
+const ADMINS = [{ id: 5, username: 'coach', team_ids: [9] }]
 
 async function mountTable(rows, save) {
   const router = createRouter({
@@ -62,7 +62,7 @@ describe('TeamBatchTable', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('links to the team page on ibasketball in a new tab', async () => {
-    mockFetch({ 'GET /api/teams/admins': () => res([]) })
+    mockFetch({ 'GET /api/teams/assignable-users': () => res([]) })
     const { wrapper } = await mountTable([row(1)], vi.fn())
     const link = wrapper.find('a[href="https://ibasketball.co.il/team/1-a/"]')
     expect(link.attributes('target')).toBe('_blank')
@@ -71,13 +71,13 @@ describe('TeamBatchTable', () => {
 
   it('assigns the picked admin after saving and removes the row', async () => {
     mockFetch({
-      'GET /api/teams/admins': () => res(ADMINS),
+      'GET /api/teams/assignable-users': () => res(ADMINS),
       'PUT /api/teams/7/admins/5': () => res(null, 204),
     })
     const save = vi.fn(async () => 7)
     const { wrapper, push } = await mountTable([row(1)], save)
     const select = wrapper.find('select[aria-label="מנהל — קבוצה 1"]')
-    expect(select.text()).toContain('coach — אליצור')
+    expect(select.text()).toContain('coach')
     await select.setValue(5)
     await wrapper.find('form').trigger('submit')
     await flushPromises()
@@ -88,23 +88,27 @@ describe('TeamBatchTable', () => {
     expect(push).toHaveBeenCalledWith({ name: 'admin-teams' })
   })
 
-  it('refuses the same admin on two rows and sends nothing', async () => {
-    mockFetch({ 'GET /api/teams/admins': () => res(ADMINS) })
-    const save = vi.fn(async () => 7)
+  it('assigns the same admin to two teams', async () => {
+    mockFetch({
+      'GET /api/teams/assignable-users': () => res(ADMINS),
+      'PUT /api/teams/7/admins/5': () => res(null, 204),
+      'PUT /api/teams/8/admins/5': () => res(null, 204),
+    })
+    let next = 7
+    const save = vi.fn(async () => next++)
     const { wrapper } = await mountTable([row(1), row(2)], save)
     await wrapper.find('select[aria-label="מנהל — קבוצה 1"]').setValue(5)
     await wrapper.find('select[aria-label="מנהל — קבוצה 2"]').setValue(5)
-    const calls = global.fetch.mock.calls.length
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.find('[role="alert"]').text()).toContain('אותו מנהל נבחר ליותר מקבוצה אחת')
-    expect(save).not.toHaveBeenCalled()
-    expect(global.fetch.mock.calls).toHaveLength(calls)
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(global.fetch).toHaveBeenCalledWith('/api/teams/7/admins/5', expect.objectContaining({ method: 'PUT' }))
+    expect(global.fetch).toHaveBeenCalledWith('/api/teams/8/admins/5', expect.objectContaining({ method: 'PUT' }))
   })
 
   it('still saves when the admin list fails to load', async () => {
-    mockFetch({ 'GET /api/teams/admins': () => res({ detail: 'boom' }, 500) })
+    mockFetch({ 'GET /api/teams/assignable-users': () => res({ detail: 'boom' }, 500) })
     const save = vi.fn(async () => 7)
     const { wrapper, push } = await mountTable([row(1)], save)
     expect(wrapper.text()).toContain('לא ניתן לטעון מנהלים')

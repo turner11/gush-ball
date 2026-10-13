@@ -35,7 +35,7 @@ function res(body, status = 200) {
 
 const STARTED = () => res({ status: 'started' }, 202)
 const scanOk = (rows) => ({
-  'GET /api/teams/admins': () => res([{ id: 5, username: 'coach', team_id: 9, team_name: 'X' }]),
+  'GET /api/teams/assignable-users': () => res([{ id: 5, username: 'coach', team_ids: [9] }]),
   'POST /api/teams/club-preview': STARTED,
   'GET /api/teams/club-preview/status': () => res({ running: false, rows, error: null }),
 })

@@ -5,7 +5,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import ImageUpload from '../components/ImageUpload.vue'
 import TeamAdminsSection from '../components/TeamAdminsSection.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
-import { fullAdmin } from '../composables/useAuth'
+import { clubAdmin, fullAdmin } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
@@ -221,7 +221,7 @@ const contentSections = [
           :fields="section.fields"
         />
       </div>
-      <TeamAdminsSection v-if="fullAdmin" :team-id="teamId" :club="team.club" />
+      <TeamAdminsSection v-if="fullAdmin || clubAdmin(team.club)" :team-id="teamId" :club="team.club" />
     </template>
     <div v-else-if="loading" class="space-y-3" aria-busy="true">
       <div class="skeleton h-32" />

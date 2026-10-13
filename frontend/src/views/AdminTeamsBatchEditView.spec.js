@@ -36,7 +36,7 @@ function mockFetch(handlers) {
 async function mountView(teams) {
   mockFetch({
     'GET /api/teams': () => res(teams),
-    'GET /api/teams/admins': () => res([]),
+    'GET /api/teams/assignable-users': () => res([]),
     'PATCH /api/teams/1': () => res({}),
     'PATCH /api/teams/2': () => res({}),
   })
