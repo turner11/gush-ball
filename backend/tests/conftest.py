@@ -60,6 +60,14 @@ def own_team(db_session: Session) -> Team:
 
 
 @pytest.fixture()
+def other_team(db_session: Session) -> Team:
+    team = Team(name="Other", slug="other")
+    db_session.add(team)
+    db_session.commit()
+    return team
+
+
+@pytest.fixture()
 def team_admin_client(client: TestClient, db_session: Session, own_team: Team) -> TestClient:
     """Logs in as a team admin. Shares the cookie jar with admin_client: never use both in one test."""
     user = AdminUser(username="teamadmin", password_hash=hash_password("password123"))

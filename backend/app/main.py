@@ -11,6 +11,7 @@ from app.routers import (
     games,
     health,
     lineups,
+    memberships,
     players,
     seo,
     standings,
@@ -38,6 +39,7 @@ app.include_router(auth.router)
 app.include_router(content.router)
 app.include_router(games.router)
 app.include_router(lineups.router)
+app.include_router(memberships.router)
 app.include_router(players.router)
 app.include_router(seo.router)
 app.include_router(standings.router)

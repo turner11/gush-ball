@@ -5,19 +5,16 @@ from sqlalchemy.orm import Session
 
 from app.models import AdminUser, Membership, Team
 from app.security import hash_password
-from tests.test_team_admin import _login_user, other_team  # noqa: F401  (fixture re-export)
+from tests.test_team_admin import _login_user
 
 
 def _pending(db: Session, *rows: Membership) -> list[int]:
-    """Adds rows for a throwaway requester (who has an email) and returns their ids."""
-    user = AdminUser(
-        username=f"req{db.scalar(select(func.count(AdminUser.id)))}",
-        email="secret@example.com",
-        password_hash="x",
-    )
-    db.add(user)
-    db.flush()
+    """Adds each row for its own throwaway requester (who has an email) and returns the ids."""
     for row in rows:
+        n = db.scalar(select(func.count(AdminUser.id)))
+        user = AdminUser(username=f"req{n}", email=f"secret{n}@example.com", password_hash="x")
+        db.add(user)
+        db.flush()
         row.user_id = user.id
         db.add(row)
     db.commit()

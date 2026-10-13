@@ -11,14 +11,6 @@ from app.models import AdminUser, Membership, Player, PlayerImage, Team
 from app.security import hash_password
 
 
-@pytest.fixture()
-def other_team(db_session: Session) -> Team:
-    team = Team(name="Other", slug="other")
-    db_session.add(team)
-    db_session.commit()
-    return team
-
-
 @pytest.mark.parametrize("scoped_client", ["team_admin_client", "club_admin_client"])
 def test_team_admin_forbidden_on_every_other_team_write(
     scoped_client: str, request: pytest.FixtureRequest, other_team: Team
