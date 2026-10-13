@@ -30,8 +30,9 @@ const router = createRouter({
     { path: '/:slug/media', name: 'media', component: () => import('../views/MediaView.vue'), meta: { title: 'מדיה', description: (team) => `תמונות, סרטונים וקישורים של ${team}.` } },
     { path: '/:slug/stats', name: 'stats', component: () => import('../views/StatsView.vue'), meta: { title: 'סטטיסטיקה', description: (team) => `סטטיסטיקת חמישיות של ${team}.` } },
     { path: '/teams', name: 'teams', component: () => import('../views/TeamsView.vue'), meta: { title: 'קבוצות', description: () => 'כל הקבוצות של המועדון: בחרו קבוצה למשחקים, לטבלה ולשחקנים.' } },
+    { path: '/join', name: 'join', component: () => import('../views/JoinView.vue'), meta: { title: 'הצטרפות', requiresUser: true, noindex: true } },
     { path: '/:slug', name: 'team-home', component: () => import('../views/HomeView.vue'), meta: { description: homeDescription } },
-    { path: '/admin/login', name: 'admin-login', component: () => import('../views/LoginView.vue'), meta: { title: 'כניסת מנהל' } },
+    { path: '/admin/login', name: 'admin-login', component: () => import('../views/LoginView.vue'), meta: { title: 'כניסה' } },
     { path: '/admin/reset-password', name: 'admin-reset-password', component: () => import('../views/PasswordResetView.vue'), meta: { title: 'איפוס סיסמה' } },
     { path: '/admin', name: 'admin-home', component: () => import('../views/AdminHomeView.vue'), meta: admin('ניהול') },
     { path: '/:slug/admin', name: 'team-admin-home', component: () => import('../views/AdminHomeView.vue'), meta: admin('ניהול') },
@@ -48,14 +49,15 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  if (!to.meta.requiresAuth) return true
+  if (!to.meta.requiresAuth && !to.meta.requiresUser) return true
 
   const { user, checked, checkSession } = useAuth()
   if (!checked.value) await checkSession()
 
   if (!user.value) return { name: 'admin-login' }
-  // A logged-in account without an admin grant never sees admin pages.
-  if (!user.value.is_admin) return { name: 'home' }
+  if (to.meta.requiresUser) return true
+  // A logged-in account without an admin grant never sees admin pages: its next step is /join.
+  if (!user.value.is_admin) return { name: 'join' }
   // A team admin's home is their team's admin; the admin layout resolves the id to the slug.
   if (to.name === 'admin-home' && user.value.team_id) {
     return { name: 'team-admin-home', params: { slug: String(user.value.team_id) } }

@@ -140,6 +140,15 @@ onMounted(async () => {
           <template v-if="checked">
             <template v-if="user">
               <RouterLink v-if="user.is_admin" :to="teamBase + '/admin'" class="nav-link">ניהול</RouterLink>
+              <RouterLink
+                v-else
+                :to="{ name: 'join' }"
+                aria-label="החשבון שלי"
+                title="החשבון שלי"
+                class="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
+              >
+                <AppIcon name="users" />
+              </RouterLink>
               <button
                 type="button"
                 aria-label="התנתקות"
@@ -153,8 +162,8 @@ onMounted(async () => {
             <RouterLink
               v-else
               :to="{ name: 'admin-login' }"
-              aria-label="כניסת מנהל"
-              title="כניסת מנהל"
+              aria-label="כניסה"
+              title="כניסה"
               class="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
             >
               <AppIcon name="login" />

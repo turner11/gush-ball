@@ -218,7 +218,12 @@ def list_assignable_users(admin: RequireAnyAdmin, db: DbSession) -> list[Assigna
     """Candidates for "assign admin". No emails: club admins must not see other clubs' contact details."""
     if not (admin.is_full_admin or admin_clubs(db, admin)):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to manage admins")
-    users = db.execute(select(AdminUser.id, AdminUser.username).where(AdminUser.is_full_admin.is_(False)).order_by(AdminUser.username)).all()
+    approved = select(Membership.id).where(Membership.user_id == AdminUser.id, Membership.role.in_(("member", "admin")))
+    users = db.execute(  # approved only: an impostor self-signup must not be promotable to admin
+        select(AdminUser.id, AdminUser.username)
+        .where(AdminUser.is_full_admin.is_(False), approved.exists())
+        .order_by(AdminUser.username)
+    ).all()
     direct: dict[int, list[int]] = {}
     for user_id, team_id in db.execute(
         select(Membership.user_id, Membership.team_id).where(Membership.role == "admin", Membership.team_id.is_not(None))

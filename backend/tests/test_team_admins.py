@@ -299,6 +299,19 @@ def test_list_assignable_users(admin_client: TestClient, db_session: Session, ow
     assert response.json() == [{"id": clubby.id, "username": "member", "team_ids": [other_team.id]}]
 
 
+def test_assignable_users_only_approved_accounts(
+    admin_client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    for name, role in (("pendinguser", "pending"), ("rowless", None), ("approved", "member")):
+        user = AdminUser(username=name, email=f"{name}@example.com", password_hash="x")
+        db_session.add(user)
+        db_session.flush()
+        if role:
+            db_session.add(Membership(user_id=user.id, team_id=own_team.id, role=role))
+    db_session.commit()
+    assert [u["username"] for u in admin_client.get("/teams/assignable-users").json()] == ["approved"]
+
+
 def test_assignable_users_open_to_club_admin_only_below_full(
     club_admin_client: TestClient, db_session: Session
 ) -> None:

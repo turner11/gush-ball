@@ -12,6 +12,7 @@ import {
 import { RouterLink, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import MembershipRequests from '../components/MembershipRequests.vue'
 import { ownTeams, useAuth } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
@@ -162,6 +163,8 @@ onUnmounted(() => {
         <span class="block text-sm text-muted">קבוצות, מיתוג ותוכן</span>
       </RouterLink>
     </nav>
+
+    <MembershipRequests />
 
     <div class="card space-y-2">
       <h2 class="section-title">סנכרון מ-ibasketball</h2>

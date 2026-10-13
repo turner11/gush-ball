@@ -44,7 +44,7 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.name).toBe('admin-login')
   })
 
-  it('a logged-in non-admin visiting /admin is sent home', async () => {
+  it('a logged-in non-admin visiting /admin is sent to join', async () => {
     global.fetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -56,7 +56,25 @@ describe('router auth guard', () => {
     router.push('/admin')
     await router.isReady()
 
-    expect(router.currentRoute.value.name).toBe('home')
+    expect(router.currentRoute.value.name).toBe('join')
+  })
+
+  it('/join logged out goes to admin-login', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: false })
+    const { default: router } = await import('./index.js')
+
+    await router.push('/join')
+
+    expect(router.currentRoute.value.name).toBe('admin-login')
+  })
+
+  it('/join for a logged-in non-admin stays on join', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ username: 'p', is_admin: false }) })
+    const { default: router } = await import('./index.js')
+
+    await router.push('/join')
+
+    expect(router.currentRoute.value.name).toBe('join')
   })
 
   it('/admin/reset-password is public: resolves by name and is not redirected to login', async () => {
@@ -130,7 +148,7 @@ describe('router auth guard', () => {
   it('every public route except not-found/login/reset has a description; not-found is noindex', async () => {
     const { default: router } = await import('./index.js')
 
-    const skip = ['not-found', 'admin-login', 'admin-reset-password']
+    const skip = ['not-found', 'admin-login', 'admin-reset-password', 'join']
     const publicRoutes = router.getRoutes().filter((r) => !r.meta.requiresAuth && !r.redirect && !skip.includes(r.name))
     expect(publicRoutes.length).toBeGreaterThan(0)
     for (const r of publicRoutes) {

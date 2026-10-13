@@ -8,6 +8,7 @@ import ssl
 import threading
 import time
 from email.message import EmailMessage
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.deps import DbSession, RequireUser, admin_clubs, admin_team_ids, client_ip, is_admin
-from app.models import AdminUser
+from app.models import AdminUser, Membership
 from app.security import hash_password, password_fingerprint, verify_password
 
 log = logging.getLogger(__name__)
@@ -74,16 +75,18 @@ def _start_session(request: Request, admin: AdminUser) -> None:
     request.session["pw"] = password_fingerprint(admin.password_hash)
 
 
-def _session_user(db: Session, user: AdminUser) -> dict[str, str | int | bool | list[int] | list[str] | None]:
+def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
     admin = is_admin(db, user)
     team_ids = admin_team_ids(db, user) if admin else []
-    out: dict[str, str | int | bool | list[int] | list[str] | None] = {
+    memberships = db.scalars(select(Membership).where(Membership.user_id == user.id).order_by(Membership.id))
+    out: dict[str, Any] = {
         "username": user.username,
         "is_admin": admin,
         # ponytail: the lone team only drives the UI's single-team shortcuts; team_ids is the real scope
         "team_id": team_ids[0] if team_ids is not None and len(team_ids) == 1 else None,
         "team_ids": team_ids,
         "clubs": admin_clubs(db, user),
+        "memberships": [{"id": m.id, "team_id": m.team_id, "club": m.club, "role": m.role} for m in memberships],
     }
     if admin:  # the live-stats links are admin-only, so fans and players never receive them
         out |= {"stats_app_url": settings.stats_url, "stats_template_url": settings.stats_template_url}
@@ -91,9 +94,7 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, str | int | bool | 
 
 
 @router.post("/login")
-def login(
-    payload: LoginRequest, request: Request, db: DbSession
-) -> dict[str, str | int | bool | list[int] | list[str] | None]:
+def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, Any]:
     ip = client_ip(request)
     ident = payload.username.strip()
     # An "@" means email (stored lowercase), otherwise username: keeps the lookup unambiguous.
@@ -120,7 +121,7 @@ def logout(request: Request) -> dict[str, bool]:
 
 
 @router.get("/me")
-def me(user: RequireUser, db: DbSession) -> dict[str, str | int | bool | list[int] | list[str] | None]:
+def me(user: RequireUser, db: DbSession) -> dict[str, Any]:
     return _session_user(db, user)
 
 
@@ -184,7 +185,7 @@ def reset_password(payload: ResetPasswordRequest, request: Request, db: DbSessio
     return {"ok": True}
 
 
-# ---- Google sign-in (OIDC code flow + PKCE; logs in an existing admin by verified email, no signup) ----
+# ---- Google sign-in (OIDC code flow + PKCE; a verified email logs in its account, an unknown one signs up a rights-less player) ----
 
 _GOOGLE_FAIL = "/admin/login?error=google"
 _GOOGLE_POPUP_OK = "/admin/login?google_popup=ok"
@@ -200,7 +201,8 @@ def _google_redirect_uri() -> str:
     return f"{settings.public_url}/api/auth/google/callback"
 
 
-def _google_verified_email(code: str, verifier: str) -> str | None:
+def _google_identity(code: str, verifier: str) -> tuple[str, str | None] | None:
+    """(verified lowercase email, display name or None) from the id_token, or None if anything is off."""
     try:
         resp = httpx.post(
             "https://oauth2.googleapis.com/token",
@@ -226,7 +228,8 @@ def _google_verified_email(code: str, verifier: str) -> str | None:
             and claims["exp"] > time.time()
             and claims["email_verified"] is True
         ):
-            return claims["email"].lower()
+            name = claims.get("name")
+            return claims["email"].lower(), name if isinstance(name, str) else None
     except (httpx.HTTPError, KeyError, IndexError, ValueError, AttributeError, TypeError):
         pass
     return None
@@ -250,7 +253,7 @@ def google_login(request: Request, popup: bool = False) -> RedirectResponse:
             "client_id": settings.google_client_id,
             "redirect_uri": _google_redirect_uri(),
             "response_type": "code",
-            "scope": "openid email",
+            "scope": "openid email profile",
             "state": state,
             "code_challenge": challenge,
             "code_challenge_method": "S256",
@@ -258,6 +261,22 @@ def google_login(request: Request, popup: bool = False) -> RedirectResponse:
         }
     )
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{query}", status.HTTP_302_FOUND)
+
+
+_FALLBACK_USERNAME = "שחקן"
+_USERNAME_MAX = 70
+
+
+def _signup_username(db: Session, name: str | None) -> str:
+    """The Google display name, never the email: admins see usernames. Numeric suffix when taken."""
+    base = " ".join((name or "").split())[:_USERNAME_MAX].rstrip()
+    if not base or "@" in base:  # "@" in a username would make password login look it up as an email
+        base = _FALLBACK_USERNAME
+    candidate, n = base, 1
+    while db.scalar(select(AdminUser.id).where(AdminUser.username == candidate)) is not None:
+        n += 1
+        candidate = f"{base} {n}"
+    return candidate
 
 
 @router.get("/google/callback")
@@ -268,15 +287,24 @@ def google_callback(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     saved = request.session.pop("google_oauth", None)  # pop: the state is single-use
     popup = bool(saved and saved.get("popup"))
-    email = None
-    admin = None
+    identity = None
     if saved and code and state and secrets.compare_digest(state.encode(), saved["state"].encode()):
-        email = _google_verified_email(code, saved["verifier"])
-        admin = db.scalar(select(AdminUser).where(AdminUser.email == email)) if email else None
+        identity = _google_identity(code, saved["verifier"])
     # Fixed redirect targets, no next= parameter: nothing for an open redirect to hang on.
-    if admin is None:
-        log.warning("google login rejected email=%r ip=%s", email, client_ip(request))
+    if identity is None:
+        log.warning("google login rejected (bad state or claims) ip=%s", client_ip(request))
         return RedirectResponse(_GOOGLE_POPUP_FAIL if popup else _GOOGLE_FAIL, status.HTTP_302_FOUND)
-    _start_session(request, admin)
-    log.info("login ok (google) username=%r ip=%s", admin.username, client_ip(request))
-    return RedirectResponse(_GOOGLE_POPUP_OK if popup else "/admin", status.HTTP_302_FOUND)
+    email, name = identity
+    user = db.scalar(select(AdminUser).where(AdminUser.email == email))
+    if user is None:  # signup: no memberships, not a full admin, unusable password (a reset link can set one)
+        user = AdminUser(
+            username=_signup_username(db, name), email=email, password_hash=hash_password(secrets.token_urlsafe(32))
+        )
+        db.add(user)
+        db.commit()
+        log.info("signup (google) user_id=%s ip=%s", user.id, client_ip(request))
+    _start_session(request, user)
+    log.info("login ok (google) user_id=%s ip=%s", user.id, client_ip(request))
+    if popup:
+        return RedirectResponse(_GOOGLE_POPUP_OK, status.HTTP_302_FOUND)
+    return RedirectResponse("/admin" if is_admin(db, user) else "/join", status.HTTP_302_FOUND)
