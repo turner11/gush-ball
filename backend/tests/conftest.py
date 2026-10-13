@@ -69,3 +69,23 @@ def team_admin_client(client: TestClient, db_session: Session, own_team: Team) -
     response = client.post("/auth/login", json={"username": "teamadmin", "password": "password123"})
     assert response.status_code == 200
     return client
+
+
+@pytest.fixture()
+def sibling_team(db_session: Session, own_team: Team) -> Team:
+    """A second team in `own_team`'s club (club 'Gush')."""
+    own_team.club = "Gush"
+    team = Team(name="Sibling", slug="sibling", club="Gush")
+    db_session.add(team)
+    db_session.commit()
+    return team
+
+
+@pytest.fixture()
+def club_admin_client(client: TestClient, db_session: Session, sibling_team: Team) -> TestClient:
+    """Logs in as a club admin. Shares the cookie jar with admin_client: never use both in one test."""
+    db_session.add(AdminUser(username="clubadmin", password_hash=hash_password("password123"), club="Gush"))
+    db_session.commit()
+    response = client.post("/auth/login", json={"username": "clubadmin", "password": "password123"})
+    assert response.status_code == 200
+    return client

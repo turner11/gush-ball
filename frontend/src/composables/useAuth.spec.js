@@ -64,4 +64,24 @@ describe('useAuth', () => {
 
     expect(auth.error.value).toBeTruthy()
   })
+
+  it('ownTeams filters by team_ids and fullAdmin is true only when team_ids is null', async () => {
+    const { useAuth, ownTeams, fullAdmin } = await import('./useAuth.js')
+    const { user } = useAuth()
+    const teams = [{ id: 1 }, { id: 2 }, { id: 3 }]
+
+    user.value = { username: 'a', team_ids: null }
+    expect(ownTeams(teams)).toHaveLength(3)
+    expect(fullAdmin.value).toBe(true)
+
+    user.value = { username: 'c', team_ids: [1, 3] }
+    expect(ownTeams(teams).map((t) => t.id)).toEqual([1, 3])
+    expect(fullAdmin.value).toBe(false)
+
+    user.value = { username: 'empty', team_ids: [] }
+    expect(ownTeams(teams)).toEqual([])
+
+    user.value = null
+    expect(fullAdmin.value).toBe(false)
+  })
 })

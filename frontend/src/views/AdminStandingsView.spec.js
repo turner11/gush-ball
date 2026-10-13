@@ -199,7 +199,7 @@ describe('AdminStandingsView', () => {
 
   async function asTeamAdmin(teamUrl) {
     const { useAuth } = await import('../composables/useAuth.js')
-    useAuth().user.value = { username: 't', team_id: 1 }
+    useAuth().user.value = { username: 't', team_id: 1, team_ids: [1] }
     mockFetch({
       'GET /api/standings': () => jsonRes(MULTI),
       'GET /api/teams/1': () => jsonRes({ id: 1, name: 'x', ibasketball_team_url: teamUrl }),
