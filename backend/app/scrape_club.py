@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 from urllib.parse import unquote
 
+from bbstats import http_url_or_none
 from bs4 import BeautifulSoup
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,9 +29,13 @@ def parse_club_page(html: str) -> list[dict]:
         raise ValueError("No team gallery on club page")
     league_urls: dict[str, set[str]] = defaultdict(set)
     for a in soup.select("a.league.data-item:not(.tournament)[href]"):  # cups reuse league names
-        league_urls[a.get_text(strip=True)].add(a["href"])
+        if league_url := http_url_or_none(a["href"]):
+            league_urls[a.get_text(strip=True)].add(league_url)
     rows = []
     for card in gallery.select("a.team[href]"):
+        team_url = http_url_or_none(card["href"])
+        if team_url is None:
+            continue  # TeamCreate would reject it anyway
         lines = list(card.stripped_strings)
         league_name = lines[1] if len(lines) > 1 else None
         hrefs = league_urls.get(league_name, set())
@@ -38,7 +43,7 @@ def parse_club_page(html: str) -> list[dict]:
             {
                 "name": lines[0],
                 "league_name": league_name,
-                "ibasketball_team_url": card["href"],
+                "ibasketball_team_url": team_url,
                 "ibasketball_league_url": next(iter(hrefs)) if len(hrefs) == 1 else None,
             }
         )
@@ -67,7 +72,7 @@ def _fetch_logos_and_addresses(rows: list[dict]) -> None:
     for row in rows:
         team = by_code.get(_team_code(row["ibasketball_team_url"]))
         media = team.get("_embedded", {}).get("wp:featuredmedia") if team else None
-        logo = media[0]["source_url"] if media else None
+        logo = http_url_or_none(media[0]["source_url"]) if media else None
         row["logo_url"] = logo if logo and len(logo) <= LOGO_MAX else None
         venue = next((venues[v] for v in team.get("venues", []) if v in venues), None) if team else None
         row["home_court_address"] = venue[:ADDRESS_MAX] if venue else None

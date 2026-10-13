@@ -7,6 +7,7 @@ import logging
 import time
 
 import httpx
+from bbstats import http_url_or_none
 from bs4 import BeautifulSoup
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -56,7 +57,7 @@ def parse_league_table(html_text: str) -> tuple[str, list[dict[str, str | int]]]
         link = name_cell.find("a")
         row: dict[str, str | int | None] = {
             "team_name": name_cell.get_text(strip=True),
-            "source_url": link["href"] if link else None,
+            "source_url": http_url_or_none(link["href"]) if link else None,
         }
         for field, css_class in _COLUMN_MAP.items():
             row[field] = int(tr.find("td", class_=css_class).get_text(strip=True))
