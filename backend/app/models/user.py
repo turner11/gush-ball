@@ -5,7 +5,8 @@ from app.db import Base
 
 
 class AdminUser(Base):
-    """The only authenticated role. NULL team_id = full admin; set = admin of that one team only."""
+    """The only authenticated role, in three scopes: team_id set = that one team; club set = every team with that
+    Team.club; both NULL = full admin."""
 
     __tablename__ = "admin_users"
 
@@ -14,3 +15,8 @@ class AdminUser(Base):
     email: Mapped[str | None] = mapped_column(String(254), unique=True, index=True, default=None)  # lowercase
     password_hash: Mapped[str] = mapped_column(String(255))
     team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), default=None)
+    club: Mapped[str | None] = mapped_column(String(120), default=None)
+
+    @property
+    def is_full_admin(self) -> bool:
+        return self.team_id is None and self.club is None

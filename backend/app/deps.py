@@ -2,6 +2,7 @@ import logging
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -36,15 +37,25 @@ def current_admin(request: Request, db: DbSession) -> AdminUser:
 RequireAnyAdmin = Annotated[AdminUser, Depends(current_admin)]
 
 
-def check_team_scope(admin: AdminUser, team_id: int) -> None:
-    """The single place the team-scope rule lives: a team admin may only touch their own team."""
-    if admin.team_id is not None and admin.team_id != team_id:
+def admin_team_ids(db: Session, admin: AdminUser) -> list[int] | None:
+    """Team ids the admin may write: None = every team (full admin), [] = none (a club with no teams)."""
+    if admin.team_id is not None:
+        return [admin.team_id]
+    if admin.club is not None:
+        return list(db.scalars(select(Team.id).where(Team.club == admin.club)))
+    return None
+
+
+def check_team_scope(db: Session, admin: AdminUser, team_id: int) -> None:
+    """The single place the scope rule lives: team admins touch their team, club admins their club's teams."""
+    scope = admin_team_ids(db, admin)
+    if scope is not None and team_id not in scope:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
 
 
 def require_admin(admin: RequireAnyAdmin) -> int:
-    """Full admin only. Fail-closed default for every route not explicitly opened to team admins."""
-    if admin.team_id is not None:
+    """Full admin only. Fail-closed default for every route not explicitly opened to scoped admins."""
+    if not admin.is_full_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Full admin required")
     return admin.id
 
@@ -52,9 +63,9 @@ def require_admin(admin: RequireAnyAdmin) -> int:
 RequireAdmin = Annotated[int, Depends(require_admin)]
 
 
-def require_team_admin(team_id: int, admin: RequireAnyAdmin) -> int:
-    """Full admin, or the admin of `team_id` (taken from the route's path param)."""
-    check_team_scope(admin, team_id)
+def require_team_admin(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> int:
+    """Full admin, or an admin whose scope covers `team_id` (taken from the route's path param)."""
+    check_team_scope(db, admin, team_id)
     return admin.id
 
 

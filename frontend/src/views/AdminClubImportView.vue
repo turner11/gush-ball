@@ -1,8 +1,8 @@
 <script setup>
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
-import { useAuth } from '../composables/useAuth'
+import { fullAdmin } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
 
@@ -15,7 +15,6 @@ const SOCIALS = [
 ]
 
 const router = useRouter()
-const { user } = useAuth()
 const { startClubPreview, clubPreviewStatus } = useTeams()
 
 const POLL_MS = 3000
@@ -26,6 +25,8 @@ const SCAN_ERRORS = {
 
 const step = ref('input') // 'input' | 'scanning' | 'review'
 const clubUrl = ref('')
+const club = ref('')
+const clubOptions = ref([])
 const primaryColor = ref('#000000')
 const secondaryColor = ref('#000000')
 const scanError = ref(null)
@@ -43,6 +44,13 @@ const stopPolling = () => {
   clearInterval(timer)
   timer = null
 }
+onMounted(async () => {
+  try {
+    clubOptions.value = [...new Set((await apiFetch('/teams')).map((t) => t.club).filter(Boolean))].sort()
+  } catch {
+    // only a suggestion list
+  }
+})
 onUnmounted(() => {
   unmounted = true
   stopPolling()
@@ -60,6 +68,7 @@ function showPreview(preview) {
     ...team,
     initialName: team.name,
     name_en: '',
+    club: club.value.trim(),
     primary_color: primaryColor.value,
     secondary_color: secondaryColor.value,
     background: 'hoop-1',
@@ -140,7 +149,7 @@ const total = computed(() => rows.value.length)
       <RouterLink :to="{ name: 'admin-teams' }" class="section-link">→ כל הקבוצות</RouterLink>
     </div>
 
-    <p v-if="user?.team_id" class="empty-state">פעולה זו זמינה למנהל ראשי בלבד</p>
+    <p v-if="!fullAdmin" class="empty-state">פעולה זו זמינה למנהל ראשי בלבד</p>
 
     <template v-else>
       <form v-if="step !== 'review'" class="card max-w-xl space-y-4" @submit.prevent="onScan">
@@ -148,6 +157,11 @@ const total = computed(() => rows.value.length)
         <div>
           <label for="club-url" class="field-label">קישור לדף האגודה ב-ibasketball</label>
           <input id="club-url" v-model="clubUrl" type="url" required dir="ltr" class="field-input" placeholder="https://ibasketball.co.il/club/…" :disabled="step === 'scanning'" />
+        </div>
+        <div>
+          <label for="club-name" class="field-label">מועדון (אופציונלי)</label>
+          <input id="club-name" v-model="club" type="text" maxlength="120" list="club-options" autocomplete="off" class="field-input" :disabled="step === 'scanning'" />
+          <datalist id="club-options"><option v-for="name in clubOptions" :key="name" :value="name" /></datalist>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>

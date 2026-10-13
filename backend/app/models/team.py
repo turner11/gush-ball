@@ -27,6 +27,7 @@ class Team(Base):
 
     background: Mapped[str] = mapped_column(String(20), default="hoop-1", server_default="hoop-1")
 
+    club: Mapped[str | None] = mapped_column(String(120), default=None)  # groups teams; keys club-admin scope
     home_court_address: Mapped[str | None] = mapped_column(String(300), default=None)
 
     facebook_url: Mapped[str | None] = mapped_column(String(500), default=None)

@@ -20,7 +20,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.db import SessionLocal
-from app.deps import RequireAnyAdmin, check_team_scope
+from app.deps import DbSession, RequireAnyAdmin, admin_team_ids, check_team_scope
 from app.scrape import KINDS, sync_all
 
 log = logging.getLogger(__name__)
@@ -77,15 +77,16 @@ def _run_sync(team_ids: list[int] | None, kinds: set[str], auto_accept: bool) ->
 @router.post("/now", response_model=SyncOut, status_code=status.HTTP_202_ACCEPTED)
 # ponytail: the overlap guard and last-run status stay global across teams; make them per-team if that hurts.
 async def sync_now(
-    admin: RequireAnyAdmin, background_tasks: BackgroundTasks, payload: SyncIn | None = None
+    admin: RequireAnyAdmin, db: DbSession, background_tasks: BackgroundTasks, payload: SyncIn | None = None
 ) -> SyncOut:
     global _running
     payload = payload or SyncIn()
     team_ids = payload.team_ids
-    if admin.team_id is not None:
-        team_ids = team_ids or [admin.team_id]
+    scope = admin_team_ids(db, admin)
+    if scope is not None:
+        team_ids = team_ids or scope
         for team_id in team_ids:
-            check_team_scope(admin, team_id)
+            check_team_scope(db, admin, team_id)
     if _running:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Sync already running")
 

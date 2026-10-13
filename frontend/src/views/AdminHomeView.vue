@@ -12,7 +12,7 @@ import {
 import { RouterLink, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
-import { useAuth } from '../composables/useAuth'
+import { ownTeams, useAuth } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
 import { formatDuration } from '../lib/format'
@@ -36,7 +36,7 @@ function stopPolling() {
 }
 
 const { user } = useAuth()
-const fullAdmin = computed(() => !user.value?.team_id)
+const pickTeams = computed(() => !user.value?.team_id) // full and club admins both choose teams
 
 const KIND_OPTIONS = [
   { value: 'players', label: 'שחקנים' },
@@ -81,7 +81,7 @@ const teamsSummary = computed(() => {
 const ITEM_CLASS =
   'flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-3 text-sm data-[highlighted]:bg-sunken'
 const cannotSync = computed(
-  () => submitting.value || running.value || !kinds.value.length || (fullAdmin.value && !teamIds.value.length),
+  () => submitting.value || running.value || !kinds.value.length || (pickTeams.value && !teamIds.value.length),
 )
 
 async function refreshStatus() {
@@ -112,7 +112,7 @@ async function onSyncNow() {
       body: {
         kinds: kinds.value,
         auto_accept: autoAccept.value,
-        ...(fullAdmin.value && { team_ids: teamIds.value }),
+        ...(pickTeams.value && { team_ids: teamIds.value }),
       },
     })
     running.value = true
@@ -126,9 +126,9 @@ async function onSyncNow() {
 
 onMounted(async () => {
   refreshStatus()
-  if (!fullAdmin.value) return
+  if (!pickTeams.value) return
   const all = (await teamsApi.list()) ?? []
-  teams.value = all.filter((t) => t.ibasketball_team_url || t.ibasketball_league_url)
+  teams.value = ownTeams(all).filter((t) => t.ibasketball_team_url || t.ibasketball_league_url)
   teamIds.value = teams.value.map((t) => t.id)
 })
 onUnmounted(() => {
@@ -181,7 +181,7 @@ onUnmounted(() => {
         </label>
         <p class="text-sm text-muted">משחקים שנערכו ידנית תמיד ימתינו לאישור</p>
       </div>
-      <div v-if="fullAdmin" class="space-y-1.5">
+      <div v-if="pickTeams" class="space-y-1.5">
         <span id="sync-teams-label" class="field-label">קבוצות</span>
         <DropdownMenuRoot>
           <DropdownMenuTrigger as-child>

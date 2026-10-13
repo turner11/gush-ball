@@ -19,7 +19,7 @@ issue, before starting.
 
 ## Domain model (the shape and the why — read the code for exact columns)
 
-- `Team`: one of the club's *own* teams. Rich: colors, logo, socials, home court, content.
+- `Team`: one of the club's *own* teams. Rich: colors, logo, socials, home court, content, and an optional `club` (plain string; groups teams, keys club-admin scope).
 - `Opponent`: **not** a `Team`. Thin: name + logo + source URL, scraped or entered ad hoc. This
   split is deliberate — never fold opponents into the `Team` model to "save a table."
 - `Player`: belongs to a `Team`; jersey number; images.
@@ -33,7 +33,7 @@ issue, before starting.
 - `LineupSnapshot`: raw per-snapshot lineup rows (5 jersey numbers, elapsed minutes, points for/against)
   belonging to a `Game`. `Game.stats_url` is the admin-set sheet they were loaded from; it is not a
   scrape field, so setting it never flags an override.
-- `AdminUser`: the only authenticated role. Nullable unique `email` (lowercase). Nullable `team_id`: NULL = full admin, set = team admin who can write only that team's data (#129).
+- `AdminUser`: the only authenticated role. Nullable unique `email` (lowercase). Nullable `team_id`: NULL = full admin, set = team admin who can write only that team's data (#129). Nullable `club`: set (with `team_id` NULL) = club admin over every team with that `Team.club`.
 
 ## Key decisions
 
@@ -46,7 +46,7 @@ issue, before starting.
 - **Override protection**: a scraped update to a game the admin has manually edited never
   auto-applies. It lands as a diff suggestion in the review queue for the admin to accept or
   reject. Re-scraping must never silently clobber an admin edit.
-- **Auth**: one admin table plus a nullable `AdminUser.team_id` scope (NULL = full admin; set = team admin limited to that team's content/players/games plus sync), session cookie. Login is username or email + password, or "Sign in with Google" allowlisted to an existing `AdminUser.email` (verified email required, no auto-signup, disabled when `GOOGLE_CLIENT_ID` is unset), plus an emailed 1h single-use password-reset link. No roles. The server enforces the scope on every write (`RequireTeamAdmin` / `check_team_scope` in `app/deps.py`); `RequireAdmin` means full admin. Don't grow this into a role hierarchy speculatively.
+- **Auth**: one admin table plus nullable `AdminUser.team_id` / `AdminUser.club` scopes (both NULL = full admin; `team_id` = team admin limited to that team's content/players/games plus sync; `club` = club admin with the same rights on every team of that club), session cookie. Login is username or email + password, or "Sign in with Google" allowlisted to an existing `AdminUser.email` (verified email required, no auto-signup, disabled when `GOOGLE_CLIENT_ID` is unset), plus an emailed 1h single-use password-reset link. No roles. The server enforces the scope on every write (`RequireTeamAdmin` / `check_team_scope` in `app/deps.py`); `RequireAdmin` means full admin. Don't grow this into a role hierarchy speculatively.
 - **No fan/player accounts**: every public story (schedule, standings, scores, stats, "remembered
   team") is anonymous. "Remembered team" is a `localStorage` value, not a user profile.
 - **i18n**: Hebrew + RTL only for v1 UI. Translatable fields (team/player names, post/link/video
@@ -118,7 +118,7 @@ Don't build these ahead of their phase, even if a related task makes them tempti
 - Social media embeds (Phase 3)
 - Live/real-time score updates
 - English UI (schema is ready; UI is not)
-- Admin roles/permissions beyond full admin + single-team admin
+- Admin roles/permissions beyond full admin + club admin + single-team admin
 
 ## Where things live
 

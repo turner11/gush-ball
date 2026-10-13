@@ -90,7 +90,7 @@ describe('AdminClubImportView', () => {
     const { wrapper } = await mountView()
     await scan(wrapper)
 
-    expect(bodyOf(global.fetch.mock.calls[0])).toEqual({ club_url: 'https://ibasketball.co.il/club/3901-2/' })
+    expect(bodyOf(global.fetch.mock.calls.find((c) => c[1]?.method === 'POST'))).toEqual({ club_url: 'https://ibasketball.co.il/club/3901-2/' })
     expect(wrapper.findAll('tbody tr')).toHaveLength(3)
     expect(wrapper.find('input[aria-label="צבע ראשי — אליצור"]').element.value).toBe('#112233')
     expect(wrapper.find('input[aria-label="צבע משני — אליצור"]').element.value).toBe('#445566')
@@ -131,7 +131,8 @@ describe('AdminClubImportView', () => {
     vi.advanceTimersByTime(10000)
     await flushPromises()
 
-    expect(global.fetch).toHaveBeenCalledTimes(1)
+    // the mount-time club suggestions fetch plus the one start POST, and no status polls
+    expect(global.fetch).toHaveBeenCalledTimes(2)
   })
 
   it('shows a loading state until the status poll reports the scan finished', async () => {

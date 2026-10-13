@@ -137,7 +137,7 @@ def get_player(player_id: int, db: DbSession) -> Player:
 def add_player_image(
     player_id: int, payload: PlayerImageCreate, db: DbSession, admin: RequireAnyAdmin
 ) -> PlayerImage:
-    check_team_scope(admin, _get_player_or_404(db, player_id).team_id)
+    check_team_scope(db, admin, _get_player_or_404(db, player_id).team_id)
     image = PlayerImage(player_id=player_id, url=str(payload.url))
     db.add(image)
     db.commit()
@@ -151,7 +151,7 @@ def add_player_image(
 def delete_player_image(
     player_id: int, image_id: int, db: DbSession, admin: RequireAnyAdmin
 ) -> None:
-    check_team_scope(admin, _get_player_or_404(db, player_id).team_id)
+    check_team_scope(db, admin, _get_player_or_404(db, player_id).team_id)
     image = db.get(PlayerImage, image_id)
     if image is None or image.player_id != player_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")

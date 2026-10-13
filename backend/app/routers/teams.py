@@ -5,12 +5,12 @@ from typing import Annotated, Literal
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import AfterValidator, AnyUrl, BaseModel, HttpUrl, StringConstraints, UrlConstraints
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app import scrape_club
 from app.db import SessionLocal
-from app.deps import DbSession, RequireAdmin, RequireTeamAdmin, get_team_or_404
+from app.deps import DbSession, RequireAdmin, RequireAnyAdmin, check_team_scope, get_team_or_404
 from app.models import AdminUser, Team
 from app.security import hash_password
 
@@ -21,6 +21,7 @@ HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 # Match the backing DB column widths (see app/models/team.py) so an oversized
 # value is a clean 422 instead of a raw DB error.
 Name = Annotated[str, StringConstraints(max_length=120)]
+ClubName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Address = Annotated[str, StringConstraints(max_length=300)]
 Background = Literal["hoop-1", "hoop-2"]  # bundled presets in frontend/public/backgrounds
 Url500 = Annotated[HttpUrl, UrlConstraints(max_length=500)]
@@ -39,6 +40,7 @@ IbasketballUrl = Annotated[Url500, AfterValidator(_require_ibasketball)]
 class TeamUpdate(BaseModel):
     name: Name | None = None
     name_en: Name | None = None
+    club: ClubName | None = None
     primary_color: HexColor | None = None
     secondary_color: HexColor | None = None
     logo_url: Url500 | None = None
@@ -63,6 +65,7 @@ class TeamOut(BaseModel):
     id: int
     name: str
     name_en: str | None
+    club: str | None
     slug: str
     primary_color: str | None
     secondary_color: str | None
@@ -105,6 +108,7 @@ class AdminCreate(BaseModel):
     email: Annotated[
         str, StringConstraints(strip_whitespace=True, to_lower=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$")
     ] | None = None
+    scope: Literal["team", "club"] = "team"
 
 
 class AdminOut(BaseModel):
@@ -113,6 +117,7 @@ class AdminOut(BaseModel):
     id: int
     username: str
     email: str | None
+    club: str | None
 
 
 def _slugify(name: str) -> str:
@@ -198,9 +203,12 @@ def get_team(team_id: int, db: DbSession) -> Team:
 
 
 @router.patch("/{team_id}", response_model=TeamOut)
-def update_team(team_id: int, payload: TeamUpdate, _admin_id: RequireTeamAdmin, db: DbSession) -> Team:
+def update_team(team_id: int, payload: TeamUpdate, admin: RequireAnyAdmin, db: DbSession) -> Team:
+    check_team_scope(db, admin, team_id)
     team = get_team_or_404(db, team_id)
     updates = _stringify_urls(payload.model_dump(exclude_unset=True))
+    if "club" in updates and updates["club"] != team.club and not admin.is_full_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only a full admin can change a team's club")
     if updates.get("background") is None:
         updates.pop("background", None)  # column is NOT NULL
     for field, value in updates.items():
@@ -217,15 +225,24 @@ def delete_team(team_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
     db.commit()
 
 
+def _team_admins_filter(team: Team):
+    """Admins of this team, plus its club's admins. Guarded: `club == None` would match every full admin."""
+    if team.club is None:
+        return AdminUser.team_id == team.id
+    return or_(AdminUser.team_id == team.id, AdminUser.club == team.club)
+
+
 @router.get("/{team_id}/admins", response_model=list[AdminOut])
 def list_team_admins(team_id: int, _admin_id: RequireAdmin, db: DbSession) -> list[AdminUser]:
-    get_team_or_404(db, team_id)
-    return list(db.scalars(select(AdminUser).where(AdminUser.team_id == team_id).order_by(AdminUser.id)))
+    team = get_team_or_404(db, team_id)
+    return list(db.scalars(select(AdminUser).where(_team_admins_filter(team)).order_by(AdminUser.id)))
 
 
 @router.post("/{team_id}/admins", status_code=status.HTTP_201_CREATED, response_model=AdminOut)
 def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmin, db: DbSession) -> AdminUser:
-    get_team_or_404(db, team_id)
+    team = get_team_or_404(db, team_id)
+    if payload.scope == "club" and team.club is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "לקבוצה אין מועדון")
     if db.scalar(select(AdminUser).where(AdminUser.username == payload.username)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "שם המשתמש כבר קיים")
     if payload.email and db.scalar(select(AdminUser).where(AdminUser.email == payload.email)) is not None:
@@ -235,7 +252,8 @@ def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmi
         username=payload.username,
         email=payload.email,
         password_hash=hash_password(payload.password),
-        team_id=team_id,
+        team_id=team_id if payload.scope == "team" else None,
+        club=team.club if payload.scope == "club" else None,
     )
     db.add(admin)
     db.commit()
@@ -245,8 +263,9 @@ def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmi
 
 @router.delete("/{team_id}/admins/{admin_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_team_admin(team_id: int, admin_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
-    # Filtering on team_id keeps full admins (team_id NULL) and other teams' admins unreachable.
-    admin = db.scalar(select(AdminUser).where(AdminUser.id == admin_id, AdminUser.team_id == team_id))
+    # The filter keeps full admins and other teams' (or clubs') admins unreachable.
+    team = get_team_or_404(db, team_id)
+    admin = db.scalar(select(AdminUser).where(AdminUser.id == admin_id, _team_admins_filter(team)))
     if admin is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
     db.delete(admin)

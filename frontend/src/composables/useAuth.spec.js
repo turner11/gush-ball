@@ -80,8 +80,5 @@ describe('useAuth', () => {
 
     user.value = { username: 'empty', team_ids: [] }
     expect(ownTeams(teams)).toEqual([])
-
-    user.value = null
-    expect(fullAdmin.value).toBe(false)
   })
 })

@@ -2,13 +2,12 @@
 import { onMounted, ref } from 'vue'
 
 import ConfirmDialog from '../components/ConfirmDialog.vue'
-import { ownTeams, useAuth } from '../composables/useAuth'
+import { fullAdmin, ownTeams } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
 
 const { error, list, create, delete: destroy } = useTeams()
 
-const { user } = useAuth()
 const teams = ref([])
 const name = ref('')
 const nameEn = ref('')
@@ -53,7 +52,7 @@ onMounted(load)
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">ניהול קבוצות</h1>
-      <RouterLink v-if="!user?.team_id" :to="{ name: 'admin-teams-import' }" class="btn-secondary">ייבוא קבוצות מאגודה</RouterLink>
+      <RouterLink v-if="fullAdmin" :to="{ name: 'admin-teams-import' }" class="btn-secondary">ייבוא קבוצות מאגודה</RouterLink>
     </div>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
@@ -65,13 +64,13 @@ onMounted(load)
             </RouterLink>
             <RouterLink :to="'/' + teamSlug(team)" class="text-sm text-muted" dir="ltr">/{{ teamSlug(team) }}</RouterLink>
             <RouterLink :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-ghost ms-auto">עריכה</RouterLink>
-            <button v-if="!user?.team_id" type="button" class="btn-danger-ghost" @click="confirmDelete(team.id)">מחיקה</button>
+            <button v-if="fullAdmin" type="button" class="btn-danger-ghost" @click="confirmDelete(team.id)">מחיקה</button>
           </li>
         </ul>
         <p v-else class="empty-state">אין קבוצות עדיין.</p>
       </div>
 
-      <form v-if="!user?.team_id" class="card space-y-3 lg:sticky lg:top-20" @submit.prevent="onCreate">
+      <form v-if="fullAdmin" class="card space-y-3 lg:sticky lg:top-20" @submit.prevent="onCreate">
         <h2 class="section-title">קבוצה חדשה</h2>
 
         <div>
