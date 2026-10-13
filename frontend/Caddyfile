@@ -1,3 +1,10 @@
+{
+    servers {
+        trusted_proxies static private_ranges
+        trusted_proxies_strict
+    }
+}
+
 :80 {
     header {
         Content-Security-Policy "default-src 'self'; script-src 'self' https://platform.twitter.com; style-src 'self' 'unsafe-inline'; img-src * data:; frame-src https://www.youtube-nocookie.com https://www.facebook.com https://www.instagram.com https://platform.twitter.com https://syndication.twitter.com; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
@@ -9,7 +16,9 @@
         request_body {
             max_size 11MB
         }
-        reverse_proxy backend:8000
+        reverse_proxy backend:8000 {
+            header_up X-Forwarded-For {client_ip}
+        }
     }
     @admin path_regexp ^/([^/]+/)?admin(/|$)
     header @admin X-Robots-Tag "noindex, nofollow"

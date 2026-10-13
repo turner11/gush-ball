@@ -16,7 +16,8 @@ log = logging.getLogger(__name__)
 
 def client_ip(request: Request) -> str:
     # ponytail: XFF trusted only because the backend isn't publicly exposed (prod compose
-    # publishes only `web`); Caddy overwrites the header, so the rightmost entry is the real peer.
+    # publishes only `web`); Caddy sets it to `{client_ip}`, the real client resolved through
+    # `trusted_proxies` (the Coolify proxy), so the single rightmost entry is the client.
     xff = request.headers.get("x-forwarded-for")
     if xff:
         return xff.split(",")[-1].strip()
