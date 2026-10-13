@@ -64,7 +64,7 @@ async function scan(wrapper) {
   await flushPromises()
 }
 
-const createButton = (wrapper) => wrapper.findAll('button').find((b) => b.text().startsWith('יצירת'))
+const submitCreate = (wrapper) => wrapper.find('form').trigger('submit')
 const bodyOf = (call) => JSON.parse(call[1].body)
 
 describe('AdminClubImportView', () => {
@@ -110,7 +110,7 @@ describe('AdminClubImportView', () => {
     await wrapper.find('input[aria-label="שם באנגלית — אליצור"]').setValue('Elitzur')
     await wrapper.find('select[aria-label="רקע — אליצור"]').setValue('hoop-2')
     await wrapper.find('button[aria-label="הסרה — אליצור 3"]').trigger('click')
-    await createButton(wrapper).trigger('click')
+    await submitCreate(wrapper)
     await flushPromises()
 
     const posts = global.fetch.mock.calls.filter((c) => c[1]?.method === 'POST' && c[0] === '/api/teams')
@@ -138,7 +138,7 @@ describe('AdminClubImportView', () => {
     })
     const { wrapper, push } = await mountView()
     await scan(wrapper)
-    await createButton(wrapper).trigger('click')
+    await submitCreate(wrapper)
     await flushPromises()
 
     expect(wrapper.findAll('tbody tr')).toHaveLength(1)

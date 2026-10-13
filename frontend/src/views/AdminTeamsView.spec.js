@@ -103,6 +103,7 @@ describe('AdminTeamsView', () => {
       routes: [
         { path: '/:p(.*)*', component: { template: '<div/>' } },
         { path: '/admin/teams/:id', name: 'admin-team-edit', component: { template: '<div/>' } },
+        { path: '/admin/teams/import', name: 'admin-teams-import', component: { template: '<div/>' } },
       ],
     })
 

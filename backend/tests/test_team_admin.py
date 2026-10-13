@@ -44,7 +44,9 @@ def test_team_admin_forbidden_reading_other_team_admin_lists(
 
 def test_team_admin_can_write_own_team(team_admin_client: TestClient, own_team: Team) -> None:
     c, t = team_admin_client, own_team.id
-    assert c.patch(f"/teams/{t}", json={"facebook_url": "https://facebook.com/own"}).status_code == 200
+    assert (
+        c.patch(f"/teams/{t}", json={"facebook_url": "https://facebook.com/own"}).status_code == 200
+    )
     assert c.post(f"/teams/{t}/posts", json={"title": "Hi", "body": "Body"}).status_code == 201
     assert c.post(f"/teams/{t}/players", json={"name": "Dana"}).status_code == 201
     game = c.post(
@@ -86,7 +88,9 @@ def test_team_admin_player_images_scoped(
     db_session.commit()
     body = {"url": "https://x.test/b.png"}
 
-    assert team_admin_client.post(f"/players/{other_player.id}/images", json=body).status_code == 403
+    assert (
+        team_admin_client.post(f"/players/{other_player.id}/images", json=body).status_code == 403
+    )
     r = team_admin_client.delete(f"/players/{other_player.id}/images/{img.id}")
     assert r.status_code == 403
     assert db_session.get(PlayerImage, img.id) is not None

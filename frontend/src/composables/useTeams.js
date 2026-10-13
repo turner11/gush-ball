@@ -18,6 +18,10 @@ export function useTeams() {
   const create = (payload) =>
     tryApiFetch(error, 'שגיאה ביצירת הקבוצה, נסה שוב', '/teams', { method: 'POST', body: payload })
 
+  // Throws (unlike the rest) so the club-import view can tell a 422 from other failures.
+  const previewClub = (clubUrl) =>
+    apiFetch('/teams/club-preview', { method: 'POST', body: { club_url: clubUrl } })
+
   const update = (id, payload) =>
     tryApiFetch(error, 'שגיאה בעדכון הקבוצה, נסה שוב', `/teams/${id}`, {
       method: 'PATCH',
@@ -27,5 +31,5 @@ export function useTeams() {
   const destroy = (id) =>
     tryApiFetch(error, 'שגיאה במחיקת הקבוצה, נסה שוב', `/teams/${id}`, { method: 'DELETE' })
 
-  return { error, get, list, create, update, delete: destroy }
+  return { error, get, list, create, previewClub, update, delete: destroy }
 }

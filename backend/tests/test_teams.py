@@ -32,7 +32,9 @@ def test_twitter_url_round_trips(admin_client: TestClient) -> None:
     created = _create_team(admin_client, "Team T", twitter_url="https://x.com/club")
     assert admin_client.get(f"/teams/{created['id']}").json()["twitter_url"] == "https://x.com/club"
     admin_client.patch(f"/teams/{created['id']}", json={"twitter_url": "https://x.com/club2"})
-    assert admin_client.get(f"/teams/{created['id']}").json()["twitter_url"] == "https://x.com/club2"
+    assert (
+        admin_client.get(f"/teams/{created['id']}").json()["twitter_url"] == "https://x.com/club2"
+    )
 
 
 def test_create_team_rejects_invalid_twitter_url(admin_client: TestClient) -> None:
@@ -97,8 +99,12 @@ def test_delete_team_removes_it(admin_client: TestClient, client: TestClient) ->
 
 
 @pytest.mark.parametrize("field", ["facebook_url", "logo_url"])
-@pytest.mark.parametrize("value", ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"])
-def test_update_team_rejects_non_http_scheme(admin_client: TestClient, field: str, value: str) -> None:
+@pytest.mark.parametrize(
+    "value", ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"]
+)
+def test_update_team_rejects_non_http_scheme(
+    admin_client: TestClient, field: str, value: str
+) -> None:
     created = _create_team(admin_client, "Team S")
     assert admin_client.patch(f"/teams/{created['id']}", json={field: value}).status_code == 422
 
@@ -113,7 +119,9 @@ def test_update_team_rejects_non_http_scheme(admin_client: TestClient, field: st
         "http://ibasketball.co.il/league/1/",
     ],
 )
-def test_update_team_rejects_non_ibasketball_host(admin_client: TestClient, field: str, value: str) -> None:
+def test_update_team_rejects_non_ibasketball_host(
+    admin_client: TestClient, field: str, value: str
+) -> None:
     created = _create_team(admin_client, "Team H")
     assert admin_client.patch(f"/teams/{created['id']}", json={field: value}).status_code == 422
 
@@ -140,26 +148,40 @@ def test_background_defaults_and_round_trips(admin_client: TestClient) -> None:
 
 
 def test_rejects_unknown_background(admin_client: TestClient) -> None:
-    assert admin_client.post("/teams", json={"name": "Team X", "background": "nope"}).status_code == 422
+    assert (
+        admin_client.post("/teams", json={"name": "Team X", "background": "nope"}).status_code
+        == 422
+    )
     created = _create_team(admin_client, "Team Y")
-    assert admin_client.patch(f"/teams/{created['id']}", json={"background": "nope"}).status_code == 422
+    assert (
+        admin_client.patch(f"/teams/{created['id']}", json={"background": "nope"}).status_code
+        == 422
+    )
 
 
 def test_club_preview_rejects_non_ibasketball_url(admin_client: TestClient) -> None:
-    response = admin_client.post("/teams/club-preview", json={"club_url": "https://example.com/club/1/"})
+    response = admin_client.post(
+        "/teams/club-preview", json={"club_url": "https://example.com/club/1/"}
+    )
     assert response.status_code == 422
 
 
-def test_club_preview_returns_502_on_fetch_error(admin_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_club_preview_returns_502_on_fetch_error(
+    admin_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     def boom(url: str) -> str:
         raise httpx.ConnectError("down")
 
     monkeypatch.setattr(scrape_club, "_get_page", boom)
-    response = admin_client.post("/teams/club-preview", json={"club_url": "https://ibasketball.co.il/club/1/"})
+    response = admin_client.post(
+        "/teams/club-preview", json={"club_url": "https://ibasketball.co.il/club/1/"}
+    )
     assert response.status_code == 502
 
 
-def test_club_preview_returns_preview_rows(admin_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_club_preview_returns_preview_rows(
+    admin_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     row = {
         "name": "A",
         "ibasketball_team_url": "https://ibasketball.co.il/team/1-a/",
@@ -169,6 +191,8 @@ def test_club_preview_returns_preview_rows(admin_client: TestClient, monkeypatch
         "logo_url": None,
     }
     monkeypatch.setattr(scrape_club, "preview_club_teams", lambda db, url: [row])
-    response = admin_client.post("/teams/club-preview", json={"club_url": "https://ibasketball.co.il/club/1/"})
+    response = admin_client.post(
+        "/teams/club-preview", json={"club_url": "https://ibasketball.co.il/club/1/"}
+    )
     assert response.status_code == 200
     assert response.json() == [row]

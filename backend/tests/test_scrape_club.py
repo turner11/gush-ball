@@ -34,7 +34,12 @@ def _rest_team(code: str, logo: str | None, venues: list[int]) -> dict:
 
 class Fetcher:
     def __init__(self, page: str, json_responses: list) -> None:
-        self.page, self.json_responses, self.json_calls, self.page_calls = page, list(json_responses), 0, 0
+        self.page, self.json_responses, self.json_calls, self.page_calls = (
+            page,
+            list(json_responses),
+            0,
+            0,
+        )
 
     def get_page(self, url: str) -> str:
         self.page_calls += 1
@@ -51,7 +56,9 @@ def _patch(monkeypatch: pytest.MonkeyPatch, fetcher: Fetcher) -> None:
 
 
 def test_parse_club_page_reads_cards_and_resolves_league_url() -> None:
-    rows = scrape_club.parse_club_page(_page(_card("Alpha", "ליגה א", "1"), _card("Beta", "ליגה ב", "2")))
+    rows = scrape_club.parse_club_page(
+        _page(_card("Alpha", "ליגה א", "1"), _card("Beta", "ליגה ב", "2"))
+    )
     assert rows[0] == {
         "name": "Alpha",
         "league_name": "ליגה א",
@@ -66,10 +73,19 @@ def test_parse_club_page_without_gallery_raises() -> None:
         scrape_club.parse_club_page("<div>nothing</div>")
 
 
-def test_preview_omits_existing_teams_by_ibba_code(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
-    db_session.add(Team(name="Old", slug="old", ibasketball_team_url="https://ibasketball.co.il/team/1-%D7%90/"))
+def test_preview_omits_existing_teams_by_ibba_code(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_session.add(
+        Team(
+            name="Old", slug="old", ibasketball_team_url="https://ibasketball.co.il/team/1-%D7%90/"
+        )
+    )
     db_session.commit()
-    _patch(monkeypatch, Fetcher(_page(_card("Alpha", "ליגה א", "1"), _card("Beta", "ליגה א", "2")), [[], []]))
+    _patch(
+        monkeypatch,
+        Fetcher(_page(_card("Alpha", "ליגה א", "1"), _card("Beta", "ליגה א", "2")), [[], []]),
+    )
     assert [r["name"] for r in scrape_club.preview_club_teams(db_session, CLUB_URL)] == ["Beta"]
 
 
@@ -80,14 +96,24 @@ def test_preview_suggests_unique_names_with_numeric_suffix(
     db_session.commit()
     page = _page(_card("X", "ליגה א", "1"), _card("X", "ליגה א", "2"), _card("Y", "ליגה א", "3"))
     _patch(monkeypatch, Fetcher(page, [[], []]))
-    assert [r["name"] for r in scrape_club.preview_club_teams(db_session, CLUB_URL)] == ["X 2", "X 3", "Y"]
+    assert [r["name"] for r in scrape_club.preview_club_teams(db_session, CLUB_URL)] == [
+        "X 2",
+        "X 3",
+        "Y",
+    ]
 
 
 def test_preview_fills_logo_and_address_in_three_requests(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    teams = [_rest_team("1", "https://img/a.png", [7]), _rest_team("2", "https://img/" + "a" * 500, [])]
-    fetcher = Fetcher(_page(_card("A", "ליגה א", "1"), _card("B", "ליגה א", "2")), [teams, [{"id": 7, "name": "אולם"}]])
+    teams = [
+        _rest_team("1", "https://img/a.png", [7]),
+        _rest_team("2", "https://img/" + "a" * 500, []),
+    ]
+    fetcher = Fetcher(
+        _page(_card("A", "ליגה א", "1"), _card("B", "ליגה א", "2")),
+        [teams, [{"id": 7, "name": "אולם"}]],
+    )
     _patch(monkeypatch, fetcher)
     rows = scrape_club.preview_club_teams(db_session, CLUB_URL)
     assert (fetcher.page_calls, fetcher.json_calls) == (1, 2)
@@ -95,8 +121,12 @@ def test_preview_fills_logo_and_address_in_three_requests(
     assert (rows[1]["logo_url"], rows[1]["home_court_address"]) == (None, None)
 
 
-def test_preview_skips_rest_calls_when_all_teams_exist(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
-    db_session.add(Team(name="Old", slug="old", ibasketball_team_url="https://ibasketball.co.il/team/1-a/"))
+def test_preview_skips_rest_calls_when_all_teams_exist(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_session.add(
+        Team(name="Old", slug="old", ibasketball_team_url="https://ibasketball.co.il/team/1-a/")
+    )
     db_session.commit()
     fetcher = Fetcher(_page(_card("Alpha", "ליגה א", "1")), [])
     _patch(monkeypatch, fetcher)
