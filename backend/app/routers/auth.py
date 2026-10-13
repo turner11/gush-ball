@@ -269,7 +269,7 @@ _USERNAME_MAX = 70
 
 def _signup_username(db: Session, name: str | None) -> str:
     """The Google display name, never the email: admins see usernames. Numeric suffix when taken."""
-    base = " ".join((name or "").split())[:_USERNAME_MAX]
+    base = " ".join((name or "").split())[:_USERNAME_MAX].rstrip()
     if not base or "@" in base:  # "@" in a username would make password login look it up as an email
         base = _FALLBACK_USERNAME
     candidate, n = base, 1

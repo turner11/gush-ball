@@ -454,6 +454,11 @@ def test_google_signup_username_is_never_the_email(
     assert db_session.scalar(select(AdminUser.username)) == expected
 
 
+def test_google_signup_cut_name_has_no_trailing_space(client: TestClient, db_session: Session, google) -> None:
+    _signup(client, google, email="a@example.com", name="x" * 69 + " y")  # the cut lands right after the space
+    assert db_session.scalar(select(AdminUser.username)) == "x" * 69
+
+
 def test_google_signup_long_name_is_capped_and_duplicates_get_a_suffix(
     client: TestClient, db_session: Session, google
 ) -> None:
