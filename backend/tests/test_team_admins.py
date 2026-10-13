@@ -165,9 +165,9 @@ def test_full_admin_creates_club_admin(
 
     sibling_url = f"/teams/{sibling_team.id}/admins"
     assert [a["username"] for a in admin_client.get(sibling_url).json()] == ["coach"]
-    assert admin_client.delete(f"{sibling_url}/{created.json()['id']}").status_code == 204
+    assert admin_client.delete(f"{sibling_url}/{created.json()['id']}?scope=club").status_code == 204
 
-    admin_client.post(f"/teams/{own_team.id}/admins", json={**NEW, "scope": "club"})
+    admin_client.put(f"/teams/{own_team.id}/admins/{created.json()['id']}", json={"scope": "club"})  # account survived
     assert client.post("/auth/login", json=NEW).status_code == 200
     ids = client.get("/auth/me").json()["team_ids"]
     assert sorted(ids) == sorted([own_team.id, sibling_team.id])
@@ -223,7 +223,7 @@ def test_club_admin_assigns_team_admin_in_own_club(
     member = _member(db_session)
     assert club_admin_client.put(f"/teams/{sibling_team.id}/admins/{member.id}").status_code == 204
     assert _grants(db_session, member) == [(sibling_team.id, None, "admin")]
-    assert [a["id"] for a in club_admin_client.get(f"/teams/{sibling_team.id}/admins").json()] == [member.id]
+    assert member.id in [a["id"] for a in club_admin_client.get(f"/teams/{sibling_team.id}/admins").json()]
 
 
 def test_club_admin_cannot_assign_outside_club(

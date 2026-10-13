@@ -1,4 +1,5 @@
-"""One-off CLI to bootstrap an admin login. Usage:
+"""One-off CLI to bootstrap an admin login. No team slug = full admin (the only way to make one besides the
+migration); with a slug = admin of that team only. Usage:
 
     uv run python scripts/create_admin.py <username> <password> [team-slug] [--email EMAIL]
 """
@@ -12,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import AdminUser, Team
+from app.models import AdminUser, Membership, Team
 from app.security import hash_password
 
 
@@ -34,16 +35,18 @@ def main() -> None:
         raise SystemExit(1)
 
     with SessionLocal() as db:
-        team_id = None
+        team = None
         if args.team_slug:
             team = db.scalar(select(Team).where(Team.slug == args.team_slug))
             if team is None:
                 print(f"No team with slug '{args.team_slug}'.")
                 raise SystemExit(1)
-            team_id = team.id
-        db.add(
-            AdminUser(username=args.username, email=email, password_hash=hash_password(args.password), team_id=team_id)
+        user = AdminUser(
+            username=args.username, email=email, password_hash=hash_password(args.password), is_full_admin=team is None
         )
+        if team is not None:
+            user.memberships.append(Membership(team_id=team.id, role="admin"))
+        db.add(user)
         db.commit()
 
     print(f"Created admin user '{args.username}'.")

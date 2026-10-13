@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.deps import DbSession, RequireAnyAdmin, admin_team_ids, client_ip
+from app.deps import DbSession, RequireUser, admin_clubs, admin_team_ids, client_ip, is_admin
 from app.models import AdminUser
 from app.security import hash_password, password_fingerprint, verify_password
 
@@ -74,19 +74,26 @@ def _start_session(request: Request, admin: AdminUser) -> None:
     request.session["pw"] = password_fingerprint(admin.password_hash)
 
 
-def _session_user(db: Session, admin: AdminUser) -> dict[str, str | int | list[int] | None]:
-    # Admin-only routes return the live-stats links, so fans never receive them.
-    return {
-        "username": admin.username,
-        "team_id": admin.team_id,
-        "team_ids": admin_team_ids(db, admin),
-        "stats_app_url": settings.stats_url,
-        "stats_template_url": settings.stats_template_url,
+def _session_user(db: Session, user: AdminUser) -> dict[str, str | int | bool | list[int] | list[str] | None]:
+    admin = is_admin(db, user)
+    team_ids = admin_team_ids(db, user) if admin else []
+    out: dict[str, str | int | bool | list[int] | list[str] | None] = {
+        "username": user.username,
+        "is_admin": admin,
+        # ponytail: the lone team only drives the UI's single-team shortcuts; team_ids is the real scope
+        "team_id": team_ids[0] if team_ids is not None and len(team_ids) == 1 else None,
+        "team_ids": team_ids,
+        "clubs": admin_clubs(db, user),
     }
+    if admin:  # the live-stats links are admin-only, so fans and players never receive them
+        out |= {"stats_app_url": settings.stats_url, "stats_template_url": settings.stats_template_url}
+    return out
 
 
 @router.post("/login")
-def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, str | int | list[int] | None]:
+def login(
+    payload: LoginRequest, request: Request, db: DbSession
+) -> dict[str, str | int | bool | list[int] | list[str] | None]:
     ip = client_ip(request)
     ident = payload.username.strip()
     # An "@" means email (stored lowercase), otherwise username: keeps the lookup unambiguous.
@@ -113,8 +120,8 @@ def logout(request: Request) -> dict[str, bool]:
 
 
 @router.get("/me")
-def me(admin: RequireAnyAdmin, db: DbSession) -> dict[str, str | int | list[int] | None]:
-    return _session_user(db, admin)
+def me(user: RequireUser, db: DbSession) -> dict[str, str | int | bool | list[int] | list[str] | None]:
+    return _session_user(db, user)
 
 
 # ---- password reset ----

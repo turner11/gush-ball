@@ -10,8 +10,16 @@ from sqlalchemy.orm import Session
 
 from app import scrape_club
 from app.db import SessionLocal
-from app.deps import DbSession, RequireAdmin, RequireAnyAdmin, check_team_scope, get_team_or_404
-from app.models import AdminUser, Team
+from app.deps import (
+    DbSession,
+    RequireAdmin,
+    RequireAnyAdmin,
+    admin_clubs,
+    check_admin_grant,
+    check_team_scope,
+    get_team_or_404,
+)
+from app.models import AdminUser, Membership, Team
 from app.security import hash_password
 
 router = APIRouter(prefix="/teams", tags=["teams"])
@@ -112,19 +120,20 @@ class AdminCreate(BaseModel):
 
 
 class AdminOut(BaseModel):
-    model_config = {"from_attributes": True}
-
     id: int
     username: str
     email: str | None
-    club: str | None
+    club: str | None  # set for a club-scope grant
 
 
-class AssignableAdminOut(BaseModel):
+class AssignIn(BaseModel):
+    scope: Literal["team", "club"] = "team"
+
+
+class AssignableUserOut(BaseModel):
     id: int
     username: str
-    team_id: int
-    team_name: str
+    team_ids: list[int]  # teams they admin directly
 
 
 def _slugify(name: str) -> str:
@@ -204,15 +213,18 @@ def list_teams(db: DbSession) -> list[Team]:
     return list(db.scalars(select(Team)).all())
 
 
-@router.get("/admins", response_model=list[AssignableAdminOut])  # before /{team_id}, which would swallow "admins"
-def list_assignable_admins(_admin_id: RequireAdmin, db: DbSession) -> list[AssignableAdminOut]:
-    # The join keeps only team admins: full and club admins have team_id NULL.
-    rows = db.execute(
-        select(AdminUser.id, AdminUser.username, AdminUser.team_id, Team.name)
-        .join(Team, AdminUser.team_id == Team.id)
-        .order_by(AdminUser.username)
-    )
-    return [AssignableAdminOut(id=i, username=u, team_id=t, team_name=n) for i, u, t, n in rows]
+@router.get("/assignable-users", response_model=list[AssignableUserOut])  # before /{team_id}
+def list_assignable_users(admin: RequireAnyAdmin, db: DbSession) -> list[AssignableUserOut]:
+    """Candidates for "assign admin". No emails: club admins must not see other clubs' contact details."""
+    if not (admin.is_full_admin or admin_clubs(db, admin)):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to manage admins")
+    users = db.execute(select(AdminUser.id, AdminUser.username).where(AdminUser.is_full_admin.is_(False)).order_by(AdminUser.username)).all()
+    direct: dict[int, list[int]] = {}
+    for user_id, team_id in db.execute(
+        select(Membership.user_id, Membership.team_id).where(Membership.role == "admin", Membership.team_id.is_not(None))
+    ):
+        direct.setdefault(user_id, []).append(team_id)
+    return [AssignableUserOut(id=i, username=u, team_ids=direct.get(i, [])) for i, u in users]
 
 
 @router.get("/{team_id}", response_model=TeamOut)
@@ -243,21 +255,23 @@ def delete_team(team_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
     db.commit()
 
 
-def _team_admins_filter(team: Team):
-    """Admins of this team, plus its club's admins. Guarded: `club == None` would match every full admin."""
-    if team.club is None:
-        return AdminUser.team_id == team.id
-    return or_(AdminUser.team_id == team.id, AdminUser.club == team.club)
-
-
 @router.get("/{team_id}/admins", response_model=list[AdminOut])
-def list_team_admins(team_id: int, _admin_id: RequireAdmin, db: DbSession) -> list[AdminUser]:
+def list_team_admins(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> list[AdminOut]:
     team = get_team_or_404(db, team_id)
-    return list(db.scalars(select(AdminUser).where(_team_admins_filter(team)).order_by(AdminUser.id)))
+    check_admin_grant(db, admin, team, "team")
+    # Guarded: `club == None` would match every team-scope row (club IS NULL).
+    scope = Membership.team_id == team.id if team.club is None else or_(Membership.team_id == team.id, Membership.club == team.club)
+    rows = db.execute(
+        select(AdminUser.id, AdminUser.username, AdminUser.email, Membership.club)
+        .join(Membership, Membership.user_id == AdminUser.id)
+        .where(Membership.role == "admin", scope)
+        .order_by(AdminUser.id)
+    )
+    return [AdminOut(id=i, username=u, email=e, club=c) for i, u, e, c in rows]
 
 
 @router.post("/{team_id}/admins", status_code=status.HTTP_201_CREATED, response_model=AdminOut)
-def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmin, db: DbSession) -> AdminUser:
+def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmin, db: DbSession) -> AdminOut:
     team = get_team_or_404(db, team_id)
     if payload.scope == "club" and team.club is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "לקבוצה אין מועדון")
@@ -266,37 +280,53 @@ def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmi
     if payload.email and db.scalar(select(AdminUser).where(AdminUser.email == payload.email)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "האימייל כבר קיים")
     # ponytail: a same-instant duplicate hits the unique index as a 500; catch IntegrityError if it ever matters
-    admin = AdminUser(
-        username=payload.username,
-        email=payload.email,
-        password_hash=hash_password(payload.password),
-        team_id=team_id if payload.scope == "team" else None,
-        club=team.club if payload.scope == "club" else None,
-    )
-    db.add(admin)
+    user = AdminUser(username=payload.username, email=payload.email, password_hash=hash_password(payload.password))
+    club = team.club if payload.scope == "club" else None
+    user.memberships.append(Membership(team_id=team_id if club is None else None, club=club, role="admin"))
+    db.add(user)
     db.commit()
-    db.refresh(admin)
-    return admin
+    return AdminOut(id=user.id, username=user.username, email=user.email, club=club)
 
 
-@router.delete("/{team_id}/admins/{admin_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_team_admin(team_id: int, admin_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
-    # The filter keeps full admins and other teams' (or clubs') admins unreachable.
+def _grant_filter(user_id: int, team: Team, scope: str):
+    if scope == "club":
+        return Membership.user_id == user_id, Membership.club == team.club
+    return Membership.user_id == user_id, Membership.team_id == team.id
+
+
+@router.delete("/{team_id}/admins/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_team_admin(
+    team_id: int, user_id: int, admin: RequireAnyAdmin, db: DbSession, scope: Literal["team", "club"] = "team"
+) -> None:
+    """Revokes one admin grant. The account and its other grants stay. Full admins have no rows: unreachable."""
     team = get_team_or_404(db, team_id)
-    admin = db.scalar(select(AdminUser).where(AdminUser.id == admin_id, _team_admins_filter(team)))
-    if admin is None:
+    check_admin_grant(db, admin, team, scope)
+    if scope == "club" and team.club is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
-    db.delete(admin)
+    grant = db.scalar(select(Membership).where(*_grant_filter(user_id, team, scope), Membership.role == "admin"))
+    if grant is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
+    db.delete(grant)
     db.commit()
 
 
-@router.put("/{team_id}/admins/{admin_id}", status_code=status.HTTP_204_NO_CONTENT)
-def assign_team_admin(team_id: int, admin_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
-    """Move an existing team admin to this team (an admin has one team)."""
+@router.put("/{team_id}/admins/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def assign_team_admin(
+    team_id: int, user_id: int, admin: RequireAnyAdmin, db: DbSession, payload: AssignIn | None = None
+) -> None:
+    """Make an existing account an admin of this team (or its club). Adds a grant; other grants stay."""
+    scope = payload.scope if payload else "team"
     team = get_team_or_404(db, team_id)
-    # team_id IS NOT NULL keeps full and club admins unreachable: this can never create or demote a full admin.
-    admin = db.scalar(select(AdminUser).where(AdminUser.id == admin_id, AdminUser.team_id.is_not(None)))
-    if admin is None:
+    check_admin_grant(db, admin, team, scope)
+    if scope == "club" and team.club is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "לקבוצה אין מועדון")
+    # is_full_admin false keeps full admins unreachable: this can never create or demote a full admin.
+    user = db.scalar(select(AdminUser).where(AdminUser.id == user_id, AdminUser.is_full_admin.is_(False)))
+    if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
-    admin.team_id = team.id
+    grant = db.scalar(select(Membership).where(*_grant_filter(user_id, team, scope)))
+    if grant is None:
+        grant = Membership(user_id=user_id, team_id=team.id if scope == "team" else None, club=team.club if scope == "club" else None)
+        db.add(grant)
+    grant.role = "admin"
     db.commit()
