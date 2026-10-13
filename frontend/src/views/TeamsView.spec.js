@@ -58,15 +58,49 @@ describe('TeamsView', () => {
     ])
   })
 
-  it('shows no club headings when there is only one group', async () => {
+  it('shows the club heading even with a single club, but no heading when no team has a club', async () => {
     mockTeams(ok([team(1, 'A', 'גוש'), team(2, 'B', 'גוש')]))
-    expect((await mountView()).findAll('h2')).toHaveLength(0)
+    expect((await mountView()).findAll('h2').map((h) => h.text())).toEqual(['גוש'])
 
     vi.resetModules()
     mockTeams(ok([team(1, 'A'), team(2, 'B')]))
     const wrapper = await mountView()
     expect(wrapper.findAll('h2')).toHaveLength(0)
     expect(wrapper.findAll('a')).toHaveLength(2)
+  })
+
+  it('filters teams by name, English name and club as you type', async () => {
+    mockTeams(ok([team(1, 'Alpha', 'גוש'), team(2, 'Beta', 'אליצור'), team(3, 'Gamma')]))
+    const wrapper = await mountView()
+    const search = wrapper.find('input[type="search"]')
+    const hrefs = () => wrapper.findAll('a').map((a) => a.attributes('href'))
+
+    await search.setValue('  ALPHA ')
+    expect(hrefs()).toEqual(['/alpha'])
+    await search.setValue('2')
+    expect(hrefs()).toEqual(['/beta'])
+    await search.setValue('אליצור')
+    expect(hrefs()).toEqual(['/beta'])
+    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['אליצור'])
+  })
+
+  it('shows a no-matches state and clears the search', async () => {
+    mockTeams(ok([team(1, 'Alpha'), team(2, 'Beta')]))
+    const wrapper = await mountView()
+    const search = wrapper.find('input[type="search"]')
+
+    await search.setValue('zzz')
+    expect(wrapper.findAll('a')).toHaveLength(0)
+    expect(wrapper.text()).toContain('אין קבוצות התואמות')
+
+    await wrapper.findAll('button').find((b) => b.text() === 'נקה חיפוש').trigger('click')
+    expect(search.element.value).toBe('')
+    expect(wrapper.findAll('a')).toHaveLength(2)
+  })
+
+  it('hides the search until teams load', async () => {
+    mockTeams(ok([]))
+    expect((await mountView()).find('input[type="search"]').exists()).toBe(false)
   })
 
   it('marks the remembered team', async () => {
