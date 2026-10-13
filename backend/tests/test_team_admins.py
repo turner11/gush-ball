@@ -94,10 +94,14 @@ def test_team_admin_cannot_manage_admins(
     assert client.get(url).status_code == 403
     assert client.post(url, json=NEW).status_code == 403
     assert client.delete(f"{url}/1").status_code == 403
+    assert client.get("/teams/admins").status_code == 403
+    assert client.put(f"{url}/1").status_code == 403
 
 
 def test_anonymous_401(client: TestClient) -> None:
     assert client.get("/teams/1/admins").status_code == 401
+    assert client.get("/teams/admins").status_code == 401
+    assert client.put("/teams/1/admins/1").status_code == 401
 
 
 def test_deleted_admin_session_ends_immediately(
@@ -159,3 +163,53 @@ def test_clubless_team_cannot_reach_full_admin(
     url = f"/teams/{own_team.id}/admins"
     assert admin_client.get(url).json() == []
     assert admin_client.delete(f"{url}/{full.id}").status_code == 404
+
+
+def _member(db_session: Session, team: Team) -> AdminUser:
+    member = AdminUser(username="member", password_hash=hash_password("password123"), team_id=team.id)
+    db_session.add(member)
+    db_session.commit()
+    return member
+
+
+def test_assign_moves_team_admin_to_team(
+    admin_client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    member = _member(db_session, other_team)
+    assert admin_client.put(f"/teams/{own_team.id}/admins/{member.id}").status_code == 204
+    db_session.refresh(member)
+    assert member.team_id == own_team.id
+    assert member.club is None
+    assert [a["id"] for a in admin_client.get(f"/teams/{own_team.id}/admins").json()] == [member.id]
+
+
+def test_assign_cannot_reach_full_or_club_admin(
+    admin_client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    full = db_session.scalar(select(AdminUser).where(AdminUser.username == "admin"))
+    club = AdminUser(username="clubby", password_hash=hash_password("password123"), club="Gush")
+    db_session.add(club)
+    db_session.commit()
+    for target in (full, club):
+        assert admin_client.put(f"/teams/{own_team.id}/admins/{target.id}").status_code == 404
+        db_session.refresh(target)
+        assert target.team_id is None
+    assert full.club is None
+    assert club.club == "Gush"
+
+
+def test_assign_unknown_team_404(admin_client: TestClient, db_session: Session, other_team: Team) -> None:
+    member = _member(db_session, other_team)
+    assert admin_client.put(f"/teams/9999/admins/{member.id}").status_code == 404
+
+
+def test_list_assignable_admins_only_team_admins(
+    admin_client: TestClient, db_session: Session, other_team: Team
+) -> None:
+    db_session.add(AdminUser(username="clubby", password_hash=hash_password("password123"), club="Gush"))
+    member = _member(db_session, other_team)
+    response = admin_client.get("/teams/admins")  # static route must not be shadowed by /{team_id}
+    assert response.status_code == 200
+    assert response.json() == [
+        {"id": member.id, "username": "member", "team_id": other_team.id, "team_name": "Other"}
+    ]

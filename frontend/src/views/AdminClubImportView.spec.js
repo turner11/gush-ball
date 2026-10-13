@@ -35,6 +35,7 @@ function res(body, status = 200) {
 
 const STARTED = () => res({ status: 'started' }, 202)
 const scanOk = (rows) => ({
+  'GET /api/teams/admins': () => res([{ id: 5, username: 'coach', team_id: 9, team_name: 'X' }]),
   'POST /api/teams/club-preview': STARTED,
   'GET /api/teams/club-preview/status': () => res({ running: false, rows, error: null }),
 })
@@ -170,7 +171,7 @@ describe('AdminClubImportView', () => {
 
     await wrapper.find('input[aria-label="שם באנגלית — אליצור"]').setValue('Elitzur')
     await wrapper.find('select[aria-label="רקע — אליצור"]').setValue('hoop-2')
-    await wrapper.find('button[aria-label="הסרה — אליצור 3"]').trigger('click')
+    await wrapper.find('button[aria-label="הסרה מהרשימה — אליצור 3"]').trigger('click')
     await submitCreate(wrapper)
     await flushPromises()
 
@@ -203,8 +204,8 @@ describe('AdminClubImportView', () => {
     await flushPromises()
 
     expect(wrapper.findAll('tbody tr')).toHaveLength(1)
-    expect(wrapper.find('tbody').text()).toContain('שגיאה ביצירת הקבוצה')
-    expect(wrapper.text()).toContain('נוצרו 2, נכשלו 1')
+    expect(wrapper.find('tbody').text()).toContain('שגיאה בשמירת הקבוצה')
+    expect(wrapper.text()).toContain('נשמרו 2, נכשלו 1')
     expect(push).not.toHaveBeenCalled()
   })
 
@@ -224,6 +225,40 @@ describe('AdminClubImportView', () => {
     const posts = global.fetch.mock.calls.filter((c) => c[1]?.method === 'POST' && c[0] === '/api/teams')
     expect(posts).toHaveLength(3)
     for (const call of posts) expect(bodyOf(call).club).toBe('Gush')
+  })
+
+  it('sends an edited address', async () => {
+    mockFetch({ ...scanOk(PREVIEW), 'POST /api/teams': () => res({ id: 1 }, 201) })
+    const { wrapper } = await mountView()
+    await scan(wrapper)
+    await wrapper.find('input[aria-label="כתובת — אליצור"]').setValue('אולם חדש')
+    await submitCreate(wrapper)
+    await flushPromises()
+
+    const posts = global.fetch.mock.calls.filter((c) => c[1]?.method === 'POST' && c[0] === '/api/teams')
+    expect(bodyOf(posts[0]).home_court_address).toBe('אולם חדש')
+    expect(bodyOf(posts[0])).not.toHaveProperty('admin_id')
+  })
+
+  it('a failed admin assignment keeps the row and a retry does not create the team twice', async () => {
+    let put = 0
+    mockFetch({
+      ...scanOk([PREVIEW[0]]),
+      'POST /api/teams': () => res({ id: 7 }, 201),
+      'PUT /api/teams/7/admins/5': () => (++put === 1 ? res({ detail: 'x' }, 404) : res(null, 204)),
+    })
+    const { wrapper, push } = await mountView()
+    await scan(wrapper)
+    await wrapper.find('select[aria-label="מנהל — אליצור"]').setValue(5)
+    await submitCreate(wrapper)
+    await flushPromises()
+    expect(wrapper.find('tbody').text()).toContain('שיוך המנהל נכשל')
+
+    await submitCreate(wrapper)
+    await flushPromises()
+    const posts = global.fetch.mock.calls.filter((c) => c[1]?.method === 'POST' && c[0] === '/api/teams')
+    expect(posts).toHaveLength(1)
+    expect(push).toHaveBeenCalledWith({ name: 'admin-teams' })
   })
 
   it('club admin sees the full-admin-only notice', async () => {
