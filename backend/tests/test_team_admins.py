@@ -85,11 +85,15 @@ def test_delete_cannot_reach_full_admin_or_other_team(
     assert db_session.get(AdminUser, member.id) is not None
 
 
-def test_team_admin_cannot_manage_admins(team_admin_client: TestClient, own_team: Team) -> None:
+@pytest.mark.parametrize("scoped_client", ["team_admin_client", "club_admin_client"])
+def test_team_admin_cannot_manage_admins(
+    scoped_client: str, request: pytest.FixtureRequest, own_team: Team
+) -> None:
+    client = request.getfixturevalue(scoped_client)
     url = f"/teams/{own_team.id}/admins"
-    assert team_admin_client.get(url).status_code == 403
-    assert team_admin_client.post(url, json=NEW).status_code == 403
-    assert team_admin_client.delete(f"{url}/1").status_code == 403
+    assert client.get(url).status_code == 403
+    assert client.post(url, json=NEW).status_code == 403
+    assert client.delete(f"{url}/1").status_code == 403
 
 
 def test_anonymous_401(client: TestClient) -> None:
