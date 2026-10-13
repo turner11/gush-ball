@@ -12,6 +12,7 @@ function makeRouter() {
       { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
       { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
       { path: '/admin/reset-password', name: 'admin-reset-password', component: { template: '<div/>' } },
+      { path: '/admin/signup', name: 'admin-signup', component: { template: '<div/>' } },
     ],
   })
 }
@@ -109,6 +110,11 @@ describe('LoginView', () => {
   it('links to the forgot-password page', async () => {
     const wrapper = await mountLogin('/admin/login', options({ google: false }))
     expect(wrapper.find('a[href="/admin/reset-password"]').exists()).toBe(true)
+  })
+
+  it('links to sign-up', async () => {
+    const wrapper = await mountLogin('/admin/login', options({ google: false }))
+    expect(wrapper.find('a[href="/admin/signup"]').exists()).toBe(true)
   })
 
   describe('Google popup', () => {
