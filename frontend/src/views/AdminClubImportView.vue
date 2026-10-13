@@ -85,6 +85,7 @@ async function onScan() {
   scanError.value = null
   try {
     await startClubPreview(clubUrl.value)
+    if (unmounted) return
     timer ??= setInterval(pollScan, POLL_MS)
   } catch (err) {
     failScan(err.status === 409 ? 'סריקה אחרת כבר רצה, נסו שוב בעוד רגע' : 'הסריקה נכשלה, נסו שוב')
@@ -163,7 +164,7 @@ const total = computed(() => rows.value.length)
         <button type="submit" :disabled="step === 'scanning'" class="btn-primary w-full sm:w-auto">סריקת קבוצות</button>
 
         <div v-if="step === 'scanning'" class="space-y-3" aria-busy="true">
-          <p role="status" class="text-sm text-muted">סורקים את דף האגודה… זה עשוי לקחת עד חצי דקה</p>
+          <p role="status" class="text-sm text-muted">סורקים את דף האגודה… זה עשוי לקחת כחצי דקה עד דקה</p>
           <div class="skeleton h-16" />
           <div class="skeleton h-16" />
           <div class="skeleton h-16" />

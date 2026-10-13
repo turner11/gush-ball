@@ -116,6 +116,24 @@ describe('AdminClubImportView', () => {
     expect(wrapper.find('#club-url').element.value).toBe('https://ibasketball.co.il/club/3901-2/')
   })
 
+  it('does not poll status when unmounted while the start request is pending', async () => {
+    let resolveStart
+    mockFetch({
+      'POST /api/teams/club-preview': () => new Promise((r) => (resolveStart = r)),
+      'GET /api/teams/club-preview/status': () => res({ running: true, rows: null, error: null }),
+    })
+    const { wrapper } = await mountView()
+    await wrapper.find('#club-url').setValue('https://ibasketball.co.il/club/3901-2/')
+    await wrapper.find('form').trigger('submit')
+    wrapper.unmount()
+    resolveStart(STARTED())
+    await flushPromises()
+    vi.advanceTimersByTime(10000)
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+  })
+
   it('shows a loading state until the status poll reports the scan finished', async () => {
     let running = true
     mockFetch({
