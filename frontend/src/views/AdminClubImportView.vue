@@ -1,20 +1,12 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 
+import TeamBatchTable, { SOCIALS } from '../components/TeamBatchTable.vue'
 import { fullAdmin } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
 
-const SOCIALS = [
-  { key: 'facebook_url', label: 'פייסבוק' },
-  { key: 'instagram_url', label: 'אינסטגרם' },
-  { key: 'youtube_url', label: 'יוטיוב' },
-  { key: 'tiktok_url', label: 'טיקטוק' },
-  { key: 'twitter_url', label: 'טוויטר (X)' },
-]
-
-const router = useRouter()
 const { startClubPreview, clubPreviewStatus } = useTeams()
 
 const POLL_MS = 3000
@@ -31,12 +23,6 @@ const primaryColor = ref('#000000')
 const secondaryColor = ref('#000000')
 const scanError = ref(null)
 const rows = ref([])
-const creating = ref(false)
-const progress = ref(0)
-const batchSize = ref(0)
-const summary = ref(null)
-
-const code = (row) => row.ibasketball_team_url.match(/\/team\/(\d+)/)?.[1] ?? row.ibasketball_team_url
 
 let timer = null
 let unmounted = false
@@ -72,6 +58,8 @@ function showPreview(preview) {
     primary_color: primaryColor.value,
     secondary_color: secondaryColor.value,
     background: 'hoop-1',
+    admin_id: '',
+    home_court_address: team.home_court_address ?? '',
     ...Object.fromEntries(SOCIALS.map((s) => [s.key, ''])),
     error: null,
   }))
@@ -102,37 +90,18 @@ async function onScan() {
 }
 
 function backToInput() {
-  summary.value = null
   step.value = 'input'
 }
 
-const socialCount = (row) => SOCIALS.filter((s) => row[s.key]).length
-
 function toPayload(row) {
-  const { initialName, league_name, error, ...fields } = row // eslint-disable-line no-unused-vars
+  const { id, initialName, league_name, admin_id, error, ...fields } = row // eslint-disable-line no-unused-vars
   return Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== '' && v !== null))
 }
 
-async function onCreate() {
-  creating.value = true
-  progress.value = 0
-  batchSize.value = rows.value.length
-  let created = 0
-  const failed = []
-  for (const row of [...rows.value]) {
-    progress.value += 1
-    try {
-      await apiFetch('/teams', { method: 'POST', body: toPayload(row) })
-      rows.value = rows.value.filter((r) => r !== row)
-      created += 1
-    } catch {
-      row.error = 'שגיאה ביצירת הקבוצה — בדקו את הקישורים'
-      failed.push(row)
-    }
-  }
-  creating.value = false
-  if (!failed.length) return router.push({ name: 'admin-teams' })
-  summary.value = `נוצרו ${created}, נכשלו ${failed.length}`
+// A retry after a failed admin assignment must not create the team again.
+async function createRow(row) {
+  if (row.id) return row.id
+  return (await apiFetch('/teams', { method: 'POST', body: toPayload(row) })).id
 }
 
 const total = computed(() => rows.value.length)
@@ -192,86 +161,13 @@ const total = computed(() => rows.value.length)
           <RouterLink :to="{ name: 'admin-teams' }" class="section-link">→ כל הקבוצות</RouterLink>
         </div>
 
-        <form v-else class="space-y-4" @submit.prevent="onCreate">
+        <div v-else class="space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 class="section-title">{{ total }} קבוצות חדשות נמצאו</h2>
             <button type="button" class="btn-ghost" @click="backToInput">חזרה</button>
           </div>
-
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead>
-                <tr class="table-header-row">
-                  <th>לוגו</th>
-                  <th>שם</th>
-                  <th>שם באנגלית</th>
-                  <th>ליגה</th>
-                  <th>כתובת</th>
-                  <th>צבעים</th>
-                  <th>רקע</th>
-                  <th>רשתות חברתיות</th>
-                  <th><span class="sr-only">הסרה</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in rows" :key="row.ibasketball_team_url" class="table-body-row">
-                  <td data-label="לוגו" :class="{ 'max-sm:hidden': !row.logo_url }">
-                    <img v-if="row.logo_url" :src="row.logo_url" alt="" class="size-10 object-contain" />
-                  </td>
-                  <td data-label="שם">
-                    <input v-model="row.name" type="text" required class="field-input mt-0 w-full min-w-0 sm:min-w-48 font-bold" :aria-label="`שם — ${row.initialName}`" />
-                  </td>
-                  <td data-label="שם באנגלית">
-                    <input v-model="row.name_en" type="text" dir="ltr" class="field-input mt-0 w-full min-w-0 sm:min-w-48" :aria-label="`שם באנגלית — ${row.initialName}`" />
-                  </td>
-                  <td data-label="ליגה">
-                    <a v-if="row.ibasketball_league_url" :href="row.ibasketball_league_url" target="_blank" rel="noopener" class="underline">{{ row.league_name }}</a>
-                    <span v-else-if="row.league_name" class="badge-muted">{{ row.league_name }} · לא זוהתה</span>
-                    <span v-else class="badge-muted">לא זוהתה</span>
-                  </td>
-                  <td data-label="כתובת">
-                    <span v-if="row.home_court_address">{{ row.home_court_address }}</span>
-                    <span v-else class="text-muted">—</span>
-                  </td>
-                  <td data-label="צבעים">
-                    <span class="flex items-center gap-2">
-                      <input v-model="row.primary_color" type="color" class="h-11 w-16 rounded" :aria-label="`צבע ראשי — ${row.initialName}`" />
-                      <input v-model="row.secondary_color" type="color" class="h-11 w-16 rounded" :aria-label="`צבע משני — ${row.initialName}`" />
-                    </span>
-                  </td>
-                  <td data-label="רקע">
-                    <select v-model="row.background" class="field-input mt-0 w-full min-w-0 sm:min-w-28" :aria-label="`רקע — ${row.initialName}`">
-                      <option value="hoop-1">רקע 1</option>
-                      <option value="hoop-2">רקע 2</option>
-                    </select>
-                  </td>
-                  <td data-label="רשתות חברתיות">
-                    <details class="w-full min-w-0">
-                      <summary class="flex min-h-11 cursor-pointer items-center">רשתות ({{ socialCount(row) }})</summary>
-                      <div class="space-y-2 pb-2">
-                        <div v-for="social in SOCIALS" :key="social.key">
-                          <label :for="`club-${code(row)}-${social.key}`" class="field-label">{{ social.label }}</label>
-                          <input :id="`club-${code(row)}-${social.key}`" v-model="row[social.key]" type="url" dir="ltr" class="field-input mt-0 w-full min-w-0" />
-                        </div>
-                      </div>
-                    </details>
-                  </td>
-                  <td>
-                    <button type="button" class="btn-danger-ghost" :aria-label="`הסרה — ${row.initialName}`" @click="rows = rows.filter((r) => r !== row)">הסרה</button>
-                    <p v-if="row.error" class="error-text" role="alert">{{ row.error }}</p>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <p v-if="summary" class="error-text" role="alert">{{ summary }}</p>
-          <p v-if="creating" role="status" aria-live="polite" class="text-sm text-muted">יוצרים {{ progress }}/{{ batchSize }}…</p>
-
-          <div class="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
-            <button type="submit" :disabled="creating" class="btn-primary w-full sm:w-auto">יצירת {{ total }} קבוצות</button>
-          </div>
-        </form>
+          <TeamBatchTable v-model:rows="rows" :submit-label="`יצירת ${total} קבוצות`" :save="createRow" />
+        </div>
       </template>
     </template>
   </section>

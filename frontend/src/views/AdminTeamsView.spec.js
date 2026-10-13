@@ -104,6 +104,7 @@ describe('AdminTeamsView', () => {
         { path: '/:p(.*)*', component: { template: '<div/>' } },
         { path: '/admin/teams/:id', name: 'admin-team-edit', component: { template: '<div/>' } },
         { path: '/admin/teams/import', name: 'admin-teams-import', component: { template: '<div/>' } },
+        { path: '/admin/teams/batch', name: 'admin-teams-batch-edit', component: { template: '<div/>' } },
       ],
     })
 
@@ -123,6 +124,7 @@ describe('AdminTeamsView', () => {
         { path: '/:p(.*)*', component: { template: '<div/>' } },
         { path: '/admin/teams/:id', name: 'admin-team-edit', component: { template: '<div/>' } },
         { path: '/admin/teams/import', name: 'admin-teams-import', component: { template: '<div/>' } },
+        { path: '/admin/teams/batch', name: 'admin-teams-batch-edit', component: { template: '<div/>' } },
       ],
     })
     const hasLink = async (me) => {
@@ -130,7 +132,9 @@ describe('AdminTeamsView', () => {
       await useAuth().checkSession()
       const wrapper = mount(AdminTeamsView, { global: { plugins: [router] } })
       await flushPromises()
-      return wrapper.find('a[href="/admin/teams/import"]').exists()
+      const hasImport = wrapper.find('a[href="/admin/teams/import"]').exists()
+      expect(wrapper.find('a[href="/admin/teams/batch"]').exists()).toBe(hasImport)
+      return hasImport
     }
 
     expect(await hasLink({ id: 1, team_id: null, team_ids: null })).toBe(true)

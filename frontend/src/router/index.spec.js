@@ -67,6 +67,7 @@ describe('router auth guard', () => {
     expect(router.resolve('/admin/standings').name).toBe('admin-standings')
     expect(router.resolve('/admin/teams').name).toBe('admin-teams')
     expect(router.resolve('/teams').name).toBe('teams')
+    expect(router.resolve('/admin/teams/batch').name).toBe('admin-teams-batch-edit')
   })
 
   it('legacy bare /stats?game=5 redirects to the remembered team, keeping the page and query', async () => {
