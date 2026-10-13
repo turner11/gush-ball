@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app import scrape_games
-from app.models import Game, GameStatus, Opponent, Player, PlayerImage, Team
+from app.models import Club, Game, GameStatus, Opponent, Player, PlayerImage, Team
 
 OUR_SP_ID = 1542241
 OPP_SP_ID = 2001
@@ -81,6 +81,9 @@ ADDRESS_HTML = (
     '<a href="https://ibasketball.co.il/venue/2087/">בי"ס זבוטינסקי, הרקפת 44, בית שמש</a></div>'
     '<div class="data-address"><span>כתובת:</span>הצבר 19/14 ראשון לציון, ראשון לציון, 0</div>'
 )
+CLUB_URL = "https://ibasketball.co.il/club/3901-2/"
+CLUB_NAME = "אליצור גוש עציון"
+CLUB_HTML = f'<div class="data-club"><span>אגודה:</span><a href="{CLUB_URL}">{CLUB_NAME}</a></div>'
 ADDRESS = 'בי"ס זבוטינסקי, הרקפת 44, בית שמש'
 
 
@@ -91,7 +94,7 @@ def page_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
     def fake(url: str) -> str:
         calls.append(url)
-        return ADDRESS_HTML
+        return ADDRESS_HTML + CLUB_HTML
 
     monkeypatch.setattr(scrape_games, "_get_page", fake)
     return calls
@@ -247,6 +250,8 @@ def test_sync_never_overwrites_admin_home_court_address(
 ) -> None:
     team = _make_team(db_session)
     team.home_court_address = "Admin Hall"
+    team.club = "Gush"
+    db_session.add(Club(name="Gush", ibasketball_url=CLUB_URL))
     db_session.commit()
     monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
 
@@ -287,6 +292,57 @@ def test_sync_address_missing_or_fetch_error_still_syncs_games(
     assert scrape_games.sync_team_games(db_session, team) == 1
     assert db_session.query(Opponent).one().address == stored
     assert team.home_court_address == stored
+    assert team.club is None
+
+
+def test_sync_assigns_scraped_club_to_clubless_team(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    club = db_session.query(Club).one()
+    assert (club.name, club.ibasketball_url, team.club) == (CLUB_NAME, CLUB_URL, CLUB_NAME)
+
+
+def test_sync_fills_url_of_existing_club_keeps_admin_name(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _make_team(db_session)
+    team.club = "Gush"
+    db_session.add(Club(name="Gush"))
+    db_session.commit()
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    club = db_session.query(Club).one()
+    assert (club.name, club.ibasketball_url, team.club) == ("Gush", CLUB_URL, "Gush")
+
+
+def test_sync_reuses_club_by_url(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    first = _make_team(db_session)
+    second = Team(name="B", slug="b", ibasketball_team_url="https://ibasketball.co.il/team/2-b/")
+    db_session.add(second)
+    db_session.commit()
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
+
+    scrape_games.sync_team_games(db_session, first)
+    scrape_games.sync_team_games(db_session, second)
+
+    assert db_session.query(Club).count() == 1
+    assert second.club == first.club == CLUB_NAME
+
+
+def test_sync_never_repoints_team_or_steals_url(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _make_team(db_session)
+    team.club = "Gush"
+    db_session.add_all([Club(name="Gush"), Club(name="Other", ibasketball_url=CLUB_URL)])
+    db_session.commit()
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    gush = db_session.query(Club).filter_by(name="Gush").one()
+    assert (gush.ibasketball_url, team.club) == (None, "Gush")
 
 
 @pytest.mark.parametrize("known", [ADDRESS, ""])
@@ -295,6 +351,8 @@ def test_sync_does_not_refetch_opponent_with_known_address(
 ) -> None:
     team = _make_team(db_session)
     team.home_court_address = known
+    team.club = "Gush"
+    db_session.add(Club(name="Gush", ibasketball_url=CLUB_URL))
     db_session.add(
         Opponent(name=OPPONENT_NAME_UNESCAPED, source_url=OPPONENT_DETAIL["link"], address=known)
     )

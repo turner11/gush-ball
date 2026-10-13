@@ -14,7 +14,7 @@ function mockFetch(handlers) {
   global.fetch = vi.fn((url, options = {}) => {
     const method = options.method || 'GET'
     const key = `${method} ${url}`
-    const handler = handlers[key]
+    const handler = { 'GET /api/clubs': () => jsonRes([]), ...handlers }[key]
     if (!handler) return Promise.reject(new Error(`Unhandled fetch: ${key}`))
     return Promise.resolve(handler())
   })
@@ -160,5 +160,20 @@ describe('AdminTeamsView', () => {
 
     expect(await hasLink({ id: 1, team_id: null, team_ids: null })).toBe(true)
     expect(await hasLink({ id: 2, team_id: 1, team_ids: [1] })).toBe(false)
+  })
+
+  it('shows the clubs section to a full admin only', async () => {
+    const { useAuth } = await import('../composables/useAuth')
+    const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
+    const hasClubs = async (me) => {
+      mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes(me) })
+      await useAuth().checkSession()
+      const wrapper = mount(AdminTeamsView, { global: { stubs: { RouterLink: true } } })
+      await flushPromises()
+      return wrapper.text().includes('מועדונים')
+    }
+
+    expect(await hasClubs({ id: 1, team_id: null, team_ids: null })).toBe(true)
+    expect(await hasClubs({ id: 2, team_id: 1, team_ids: [1] })).toBe(false)
   })
 })

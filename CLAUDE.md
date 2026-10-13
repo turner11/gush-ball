@@ -19,7 +19,7 @@ issue, before starting.
 
 ## Domain model (the shape and the why — read the code for exact columns)
 
-- `Team`: one of the club's *own* teams. Rich: colors, logo, socials, home court, content, and an optional `club` (plain string; groups teams, keys club-admin scope).
+- `Team`: one of the club's *own* teams. Rich: colors, logo, socials, home court, content, and an optional `club`, the name of a `Club` (id, name, ibasketball url; scraped fill-only, full-admin editable). `Team.club` and `Membership.club` are FKs to the unique `clubs.name` with ON UPDATE CASCADE, so a rename keeps club-admin scope.
 - `Opponent`: **not** a `Team`. Thin: name + logo + source URL, scraped or entered ad hoc. This
   split is deliberate — never fold opponents into the `Team` model to "save a table."
 - `Player`: belongs to a `Team`; jersey number; images.

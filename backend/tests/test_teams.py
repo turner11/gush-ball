@@ -1,8 +1,10 @@
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app import scrape_club
+from app.models import Club
 from app.routers import teams as teams_router
 
 
@@ -214,3 +216,19 @@ def test_team_club_round_trips(admin_client: TestClient) -> None:
     url = f"/teams/{created.json()['id']}"
     assert admin_client.patch(url, json={"club": None}).json()["club"] is None
     assert admin_client.patch(url, json={"club": ""}).status_code == 422
+
+
+@pytest.mark.parametrize("via", ["create", "update"])
+def test_setting_team_club_creates_club_row(admin_client: TestClient, db_session: Session, via: str) -> None:
+    # Postgres enforces teams.club -> clubs.name; SQLite doesn't, so assert the row directly.
+    def set_club(name: str) -> None:
+        if via == "create":
+            assert admin_client.post("/teams", json={"name": name, "club": "New"}).status_code == 201
+        else:
+            team_id = _create_team(admin_client, name)["id"]
+            assert admin_client.patch(f"/teams/{team_id}", json={"club": "New"}).status_code == 200
+
+    set_club("First")
+    set_club("Second")
+
+    assert [c.name for c in db_session.query(Club).all()] == ["New"]
