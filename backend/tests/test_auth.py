@@ -469,3 +469,113 @@ def test_google_signup_long_name_is_capped_and_duplicates_get_a_suffix(
     assert len(names[0]) <= 80
     assert names[1:] == ["Dana Cohen", "Dana Cohen 2"]
     assert all("@" not in n for n in names)
+
+
+# ---- password signup ----
+
+
+@pytest.fixture()
+def verify_sent(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str]]:
+    calls: list[tuple[str, str]] = []
+    monkeypatch.setattr(auth, "_send_verify_email", lambda to, link: calls.append((to, link)))
+    return calls
+
+
+NEW = {"username": "dana", "email": "New@Example.com", "password": "password123"}
+
+
+def _pw_signup(c: TestClient, ip: str = "6.6.6.6", **over):
+    return c.post("/auth/signup", json=NEW | over, headers={"X-Forwarded-For": ip})
+
+
+def test_password_signup_creates_rightsless_account_without_email(
+    client: TestClient, db_session: Session, verify_sent
+) -> None:
+    r = _pw_signup(client)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["is_admin"] is False and body["memberships"] == [] and "stats_app_url" not in body
+    user = db_session.scalar(select(AdminUser))
+    assert user.email is None and user.is_full_admin is False
+    assert db_session.scalar(select(func.count(Membership.id))) == 0
+    assert client.get("/auth/me").status_code == 200
+    client.post("/auth/logout")
+    assert client.post("/auth/login", json={"username": "dana", "password": "password123"}).status_code == 200
+
+
+def test_password_signup_emails_verify_link_to_lowercased_address(client: TestClient, verify_sent) -> None:
+    _pw_signup(client)
+    assert len(verify_sent) == 1
+    to, link = verify_sent[0]
+    assert to == "new@example.com"
+    assert link.startswith(f"{settings.public_url}/admin/verify-email?token=")
+
+
+def test_unverified_signup_email_is_not_a_google_or_reset_key(
+    client: TestClient, db_session: Session, verify_sent, sent, google
+) -> None:
+    _pw_signup(client, email="victim@example.com")
+    client.post("/auth/logout")
+    assert _forgot(client, "victim@example.com").status_code == 200
+    assert sent == []
+    r = _signup(client, google, email="victim@example.com", name="Other")
+    assert r.headers["location"] == "/join"
+    assert db_session.scalar(select(func.count(AdminUser.id))) == 2
+    assert client.get("/auth/me").json()["username"] != "dana"
+
+
+def test_verify_email_stores_email_once(client: TestClient, db_session: Session, verify_sent) -> None:
+    _pw_signup(client)
+    token = _token(verify_sent)
+    assert client.post("/auth/verify-email", json={"token": token}).status_code == 200
+    assert db_session.scalar(select(AdminUser.email)) == "new@example.com"
+    client.post("/auth/logout")
+    assert client.post("/auth/login", json={"username": "new@example.com", "password": "password123"}).status_code == 200
+    assert client.post("/auth/verify-email", json={"token": token}).status_code == 400
+    # salt separation: a verify token is no reset token
+    assert client.post("/auth/reset-password", json={"token": token, "password": "newpassword1"}).status_code == 400
+
+
+def test_verify_email_rejects_expired_or_tampered_token(
+    client: TestClient, verify_sent, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from itsdangerous.timed import TimestampSigner
+
+    _pw_signup(client)
+    token = _token(verify_sent)
+    assert client.post("/auth/verify-email", json={"token": token + "x"}).status_code == 400
+    monkeypatch.setattr(TimestampSigner, "get_timestamp", lambda self: int(time.time()) + 3601)
+    assert client.post("/auth/verify-email", json={"token": token}).status_code == 400
+
+
+def test_verify_email_rejects_address_taken_meanwhile(seeded: TestClient, db_session: Session, verify_sent) -> None:
+    assert _pw_signup(seeded, email="admin@example.com").status_code == 200
+    token = _token(verify_sent)
+    assert seeded.post("/auth/verify-email", json={"token": token}).status_code == 409
+    assert db_session.scalar(select(AdminUser.email).where(AdminUser.username == "dana")) is None
+
+
+@pytest.mark.parametrize(
+    ("over", "status_code"),
+    [
+        ({"username": "a@b"}, 422),
+        ({"username": "admin"}, 409),
+        ({"password": "short"}, 422),
+        ({"email": "nope"}, 422),
+        ({"username": "  "}, 422),
+    ],
+)
+def test_password_signup_validation(seeded: TestClient, db_session: Session, verify_sent, over, status_code) -> None:
+    r = _pw_signup(seeded, **over)
+    assert r.status_code == status_code
+    if status_code == 409:
+        assert r.json()["detail"] == "שם המשתמש כבר קיים"
+    assert db_session.scalar(select(func.count(AdminUser.id))) == 1
+    assert verify_sent == []
+
+
+def test_password_signup_rate_limited_per_ip_without_touching_login(seeded: TestClient, verify_sent) -> None:
+    for i in range(auth._MAX_ATTEMPTS):
+        assert _pw_signup(seeded, username=f"u{i}").status_code == 200
+    assert _pw_signup(seeded, username="late").status_code == 429
+    assert seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "6.6.6.6"}).status_code == 200

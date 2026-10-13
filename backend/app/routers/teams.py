@@ -20,7 +20,7 @@ from app.deps import (
     get_team_or_404,
 )
 from app.models import AdminUser, Membership, Team
-from app.security import hash_password
+from app.security import Email, Username, hash_password
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 log = logging.getLogger(__name__)
@@ -109,13 +109,9 @@ class ClubPreviewStatusOut(BaseModel):
 
 
 class AdminCreate(BaseModel):
-    # no "@": login routes any identifier containing "@" to the email lookup
-    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64, pattern=r"^[^@]+$")]
+    username: Username
     password: Annotated[str, StringConstraints(min_length=8)]
-    # lowercase: login, forgot-password and the Google callback all look emails up lowercase
-    email: Annotated[
-        str, StringConstraints(strip_whitespace=True, to_lower=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$")
-    ] | None = None
+    email: Email | None = None
     scope: Literal["team", "club"] = "team"
 
 

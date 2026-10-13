@@ -31,7 +31,7 @@ uv run uvicorn app.main:app --reload
 ```
 
 Google sign-in and reset email are optional (see `.env.example`). The local Google redirect URI is
-`http://localhost:5173/api/auth/google/callback`. Without `SMTP_HOST`, the reset link is logged to the backend console.
+`http://localhost:5173/api/auth/google/callback`. Without `SMTP_HOST`, reset and signup-verification links are logged to the backend console.
 
 Runs on http://localhost:8000. Tests: `uv run pytest`.
 

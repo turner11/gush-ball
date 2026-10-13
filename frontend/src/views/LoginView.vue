@@ -114,7 +114,10 @@ async function onSubmit() {
       </button>
     </form>
 
-    <RouterLink :to="{ name: 'admin-reset-password' }" class="section-link">שכחתי סיסמה</RouterLink>
+    <div class="flex flex-wrap justify-between gap-x-4">
+      <RouterLink :to="{ name: 'admin-reset-password' }" class="section-link">שכחתי סיסמה</RouterLink>
+      <RouterLink :to="{ name: 'admin-signup' }" class="section-link">אין לך חשבון? הרשמה</RouterLink>
+    </div>
 
     <!-- Opens a popup; the href is the full-page fallback when popups are blocked. -->
     <a v-if="googleEnabled" href="/api/auth/google/login" class="btn-secondary w-full" @click="openGooglePopup">
