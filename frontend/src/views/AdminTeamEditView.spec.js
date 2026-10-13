@@ -19,6 +19,7 @@ const TEAM = {
   twitter_url: null,
   ibasketball_team_url: null,
   ibasketball_league_url: 'https://ibasketball.co.il/league/1',
+  club: null,
 }
 
 function mockFetch(handlers) {
@@ -112,11 +113,47 @@ describe('AdminTeamEditView', () => {
 
   it('hides the team admins card from a team admin and never requests it', async () => {
     mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
-    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 't', team_id: 1 }
+    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 't', team_id: 1, team_ids: [1] }
 
     const wrapper = await mountView()
 
     expect(wrapper.text()).not.toContain('מנהלי הקבוצה')
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1/admins', expect.anything())
+  })
+
+  it('saves club, sending null when cleared', async () => {
+    let patchBody
+    mockFetch({
+      'GET /api/teams': () => jsonRes([{ ...TEAM, club: 'Gush' }]),
+      'GET /api/teams/1': () => jsonRes({ ...TEAM, club: 'Gush' }),
+      'PATCH /api/teams/1': (options) => {
+        patchBody = JSON.parse(options.body)
+        return jsonRes({ ...TEAM, ...patchBody })
+      },
+      ...CONTENT_HANDLERS,
+    })
+    const wrapper = await mountView()
+    expect(wrapper.find('#team-club').element.value).toBe('Gush')
+    expect(wrapper.find('#club-options option').element.value).toBe('Gush')
+
+    await wrapper.find('#team-club').setValue('')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patchBody.club).toBeNull()
+  })
+
+  it('club input is disabled for a scoped admin', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes([]),
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      ...CONTENT_HANDLERS,
+    })
+    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 'c', team_id: null, team_ids: [1, 2] }
+
+    const wrapper = await mountView()
+
+    expect(wrapper.find('#team-club').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('רק מנהל ראשי יכול לשנות מועדון')
+    expect(wrapper.text()).not.toContain('מנהלי הקבוצה')
   })
 })

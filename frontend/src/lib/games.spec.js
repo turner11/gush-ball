@@ -29,7 +29,7 @@ describe('result', () => {
 
 describe('liveStatsUrl', () => {
   const game = { team_id: 3, stats_url: 'https://docs.google.com/spreadsheets/d/X/edit' }
-  const admin = { team_id: null, stats_app_url: 'https://app.streamlit.app' }
+  const admin = { team_ids: null, stats_app_url: 'https://app.streamlit.app' }
   const origin = 'https://gush.example'
 
   it('gives a full admin the app link with the sheet and team players api', () => {
@@ -52,8 +52,8 @@ describe('liveStatsUrl', () => {
   })
 
   it('scopes team admins to their own team', () => {
-    expect(liveStatsUrl(game, { ...admin, team_id: 3 }, origin)).not.toBeNull()
-    expect(liveStatsUrl(game, { ...admin, team_id: 4 }, origin)).toBeNull()
+    expect(liveStatsUrl(game, { ...admin, team_ids: [3] }, origin)).not.toBeNull()
+    expect(liveStatsUrl(game, { ...admin, team_ids: [4] }, origin)).toBeNull()
   })
 
   it('is null without a user, a sheet, or an app url', () => {

@@ -90,7 +90,7 @@ describe('AdminClubImportView', () => {
     const { wrapper } = await mountView()
     await scan(wrapper)
 
-    expect(bodyOf(global.fetch.mock.calls[0])).toEqual({ club_url: 'https://ibasketball.co.il/club/3901-2/' })
+    expect(bodyOf(global.fetch.mock.calls.find((c) => c[1]?.method === 'POST'))).toEqual({ club_url: 'https://ibasketball.co.il/club/3901-2/' })
     expect(wrapper.findAll('tbody tr')).toHaveLength(3)
     expect(wrapper.find('input[aria-label="צבע ראשי — אליצור"]').element.value).toBe('#112233')
     expect(wrapper.find('input[aria-label="צבע משני — אליצור"]').element.value).toBe('#445566')
@@ -131,7 +131,8 @@ describe('AdminClubImportView', () => {
     vi.advanceTimersByTime(10000)
     await flushPromises()
 
-    expect(global.fetch).toHaveBeenCalledTimes(1)
+    // the mount-time club suggestions fetch plus the one start POST, and no status polls
+    expect(global.fetch).toHaveBeenCalledTimes(2)
   })
 
   it('shows a loading state until the status poll reports the scan finished', async () => {
@@ -205,5 +206,32 @@ describe('AdminClubImportView', () => {
     expect(wrapper.find('tbody').text()).toContain('שגיאה ביצירת הקבוצה')
     expect(wrapper.text()).toContain('נוצרו 2, נכשלו 1')
     expect(push).not.toHaveBeenCalled()
+  })
+
+  it('sends the shared club with every created team', async () => {
+    mockFetch({
+      'GET /api/teams': () => res([{ id: 1, club: 'Gush' }, { id: 2, club: 'Gush' }, { id: 3, club: null }]),
+      ...scanOk(PREVIEW),
+      'POST /api/teams': () => res({ id: 1 }, 201),
+    })
+    const { wrapper } = await mountView()
+    expect(wrapper.findAll('#club-options option')).toHaveLength(1)
+    await wrapper.find('#club-name').setValue('Gush')
+    await scan(wrapper)
+    await submitCreate(wrapper)
+    await flushPromises()
+
+    const posts = global.fetch.mock.calls.filter((c) => c[1]?.method === 'POST' && c[0] === '/api/teams')
+    expect(posts).toHaveLength(3)
+    for (const call of posts) expect(bodyOf(call).club).toBe('Gush')
+  })
+
+  it('club admin sees the full-admin-only notice', async () => {
+    mockFetch({ 'GET /api/teams': () => res([]) })
+    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 'c', team_id: null, team_ids: [1] }
+    const { wrapper } = await mountView()
+
+    expect(wrapper.find('.empty-state').text()).toContain('מנהל ראשי בלבד')
+    expect(wrapper.find('#club-url').exists()).toBe(false)
   })
 })

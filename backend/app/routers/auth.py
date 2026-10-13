@@ -16,9 +16,10 @@ from fastapi.responses import RedirectResponse
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.deps import DbSession, RequireAnyAdmin, client_ip
+from app.deps import DbSession, RequireAnyAdmin, admin_team_ids, client_ip
 from app.models import AdminUser
 from app.security import hash_password, password_fingerprint, verify_password
 
@@ -73,18 +74,19 @@ def _start_session(request: Request, admin: AdminUser) -> None:
     request.session["pw"] = password_fingerprint(admin.password_hash)
 
 
-def _session_user(admin: AdminUser) -> dict[str, str | int | None]:
+def _session_user(db: Session, admin: AdminUser) -> dict[str, str | int | list[int] | None]:
     # Admin-only routes return the live-stats links, so fans never receive them.
     return {
         "username": admin.username,
         "team_id": admin.team_id,
+        "team_ids": admin_team_ids(db, admin),
         "stats_app_url": settings.stats_url,
         "stats_template_url": settings.stats_template_url,
     }
 
 
 @router.post("/login")
-def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, str | int | None]:
+def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, str | int | list[int] | None]:
     ip = client_ip(request)
     ident = payload.username.strip()
     # An "@" means email (stored lowercase), otherwise username: keeps the lookup unambiguous.
@@ -101,7 +103,7 @@ def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, s
             _attempts.pop(key, None)
     log.info("login ok username=%r ip=%s", ident, ip)
     _start_session(request, admin)
-    return _session_user(admin)
+    return _session_user(db, admin)
 
 
 @router.post("/logout")
@@ -111,8 +113,8 @@ def logout(request: Request) -> dict[str, bool]:
 
 
 @router.get("/me")
-def me(admin: RequireAnyAdmin) -> dict[str, str | int | None]:
-    return _session_user(admin)
+def me(admin: RequireAnyAdmin, db: DbSession) -> dict[str, str | int | list[int] | None]:
+    return _session_user(db, admin)
 
 
 # ---- password reset ----

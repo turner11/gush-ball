@@ -150,3 +150,20 @@ def test_team_admin_cannot_sync_other_team(
 
 def test_sync_now_rejects_empty_kinds(admin_client: TestClient, stub_scrapers: dict[str, Any]) -> None:
     assert admin_client.post("/sync/now", json={"kinds": []}).status_code == 422
+
+
+def test_club_admin_sync_defaults_to_club_teams(
+    club_admin_client: TestClient,
+    stub_scrapers: dict[str, Any],
+    own_team: Team,
+    sibling_team: Team,
+    db_session: Session,
+) -> None:
+    assert club_admin_client.post("/sync/now", json={}).status_code == 202
+    assert sorted(stub_scrapers["games_kw"]["team_ids"]) == sorted([own_team.id, sibling_team.id])
+
+    other = Team(name="Other", slug="other")
+    db_session.add(other)
+    db_session.commit()
+    assert club_admin_client.post("/sync/now", json={"team_ids": [other.id]}).status_code == 403
+    assert sync_router._running is False

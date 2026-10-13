@@ -34,7 +34,7 @@ export function result(game) {
 // BBStats Streamlit link for an admin who can edit this game's team; null when any piece is missing.
 export function liveStatsUrl(game, user, origin = window.location.origin) {
   if (!user?.stats_app_url || !game.stats_url) return null
-  if (user.team_id != null && user.team_id !== game.team_id) return null
+  if (user.team_ids && !user.team_ids.includes(game.team_id)) return null
   const query = new URLSearchParams({
     data: game.stats_url,
     team_api: `${origin}/api/teams/${game.team_id}/players`,

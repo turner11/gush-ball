@@ -74,7 +74,7 @@ describe('AdminLayout nav', () => {
   })
 
   it('team admin also gets the standings link', async () => {
-    const w = await mountAt('/admin', { team_id: 1 })
+    const w = await mountAt('/admin', { team_id: 1, team_ids: [1] })
     expect(link(w, '/admin/standings').exists()).toBe(true)
     expect(w.find('[data-testid="tab-bar"]').find('a[href="/admin/standings"]').exists()).toBe(true)
   })
@@ -87,7 +87,7 @@ describe('AdminLayout nav', () => {
   })
 
   it("a team admin on another team's slug is moved to their own team", async () => {
-    const w = await mountAt('/team_a/admin/games', { team_id: 2 })
+    const w = await mountAt('/team_a/admin/games', { team_id: 2, team_ids: [2] })
     expect(w.vm.$router.currentRoute.value.path).toBe('/team_b/admin/games')
   })
 })

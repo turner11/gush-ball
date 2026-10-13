@@ -1,17 +1,19 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 
 const user = ref(null)
 const checked = ref(false)
 const error = ref(null)
+// team_ids: null = full admin, else the team ids this team/club admin may touch (server-enforced).
+export const fullAdmin = computed(() => !user.value?.team_ids)
 
 const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
 
-// A team admin only sees their own team in admin pickers; the server enforces the real scope.
+// A team or club admin only sees their own teams in admin pickers; the server enforces the real scope.
 export function ownTeams(teams) {
-  const teamId = user.value?.team_id
-  return teamId ? teams.filter((t) => t.id === teamId) : teams
+  const ids = user.value?.team_ids
+  return ids ? teams.filter((t) => ids.includes(t.id)) : teams
 }
 
 export function useAuth() {

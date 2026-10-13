@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
-import { useAuth } from '../composables/useAuth'
+import { fullAdmin, useAuth } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
 import { teamRows } from '../lib/standings'
 
@@ -27,9 +27,9 @@ function emptyForm(league = '') {
   return { ...Object.fromEntries(FIELDS.map((f) => [f.key, ''])), league_name: league }
 }
 
-// Team admins get a read-only view of their own team's league(s); the server keeps writes full-admin.
+// Team admins get a read-only view of their own team's league(s), club admins of every league; the server keeps writes full-admin.
 const { user } = useAuth()
-const readOnly = computed(() => !!user.value?.team_id)
+const readOnly = computed(() => !fullAdmin.value)
 
 const rows = ref([])
 const team = ref(null)
@@ -44,7 +44,7 @@ watch(selectedLeague, (league) => {
 const error = ref(null)
 
 const leagues = computed(() => {
-  const visible = readOnly.value ? teamRows(rows.value, team.value) : rows.value
+  const visible = readOnly.value && team.value ? teamRows(rows.value, team.value) : rows.value
   return [...new Set(visible.map((r) => r.league_name))]
 })
 const leagueRows = computed(() => rows.value.filter((r) => r.league_name === selectedLeague.value))
@@ -62,7 +62,7 @@ async function loadRows() {
   try {
     ;[rows.value, team.value] = await Promise.all([
       apiFetch('/standings'),
-      readOnly.value ? apiFetch(`/teams/${user.value.team_id}`) : null,
+      user.value?.team_id ? apiFetch(`/teams/${user.value.team_id}`) : null,
     ])
   } catch {
     loadError.value = 'שגיאה בטעינת הטבלה, נסה שוב'

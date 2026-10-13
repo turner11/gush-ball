@@ -17,10 +17,12 @@ def other_team(db_session: Session) -> Team:
     return team
 
 
+@pytest.mark.parametrize("scoped_client", ["team_admin_client", "club_admin_client"])
 def test_team_admin_forbidden_on_every_other_team_write(
-    team_admin_client: TestClient, other_team: Team
+    scoped_client: str, request: pytest.FixtureRequest, other_team: Team
 ) -> None:
     """Sweeps every team-scoped write route, so a route that forgets the scope check fails here."""
+    client = request.getfixturevalue(scoped_client)
     exercised = 0
     # openapi() flattens included routers (app.routes doesn't expose them directly)
     for route_path, operations in app.openapi()["paths"].items():
@@ -29,17 +31,19 @@ def test_team_admin_forbidden_on_every_other_team_write(
         for method in operations.keys() & {"post", "patch", "put", "delete"}:
             path = route_path.replace("{team_id}", str(other_team.id))
             path = re.sub(r"\{[^}]+\}", "1", path)
-            response = team_admin_client.request(method.upper(), path, json={})
+            response = client.request(method.upper(), path, json={})
             assert response.status_code == 403, f"{method} {route_path} -> {response.status_code}"
             exercised += 1
     assert exercised >= 20
 
 
+@pytest.mark.parametrize("scoped_client", ["team_admin_client", "club_admin_client"])
 def test_team_admin_forbidden_reading_other_team_admin_lists(
-    team_admin_client: TestClient, other_team: Team
+    scoped_client: str, request: pytest.FixtureRequest, other_team: Team
 ) -> None:
-    assert team_admin_client.get(f"/teams/{other_team.id}/games/pending-review").status_code == 403
-    assert team_admin_client.get(f"/teams/{other_team.id}/players/deleted").status_code == 403
+    client = request.getfixturevalue(scoped_client)
+    assert client.get(f"/teams/{other_team.id}/games/pending-review").status_code == 403
+    assert client.get(f"/teams/{other_team.id}/players/deleted").status_code == 403
 
 
 def test_team_admin_can_write_own_team(team_admin_client: TestClient, own_team: Team) -> None:
@@ -60,19 +64,21 @@ def test_team_admin_can_write_own_team(team_admin_client: TestClient, own_team: 
     assert c.delete(f"/teams/{t}/games/{game.json()['id']}/stats").status_code == 204
 
 
+@pytest.mark.parametrize("scoped_client", ["team_admin_client", "club_admin_client"])
 def test_team_admin_cannot_do_club_wide_actions(
-    team_admin_client: TestClient, own_team: Team
+    scoped_client: str, request: pytest.FixtureRequest, own_team: Team
 ) -> None:
-    assert team_admin_client.post("/teams", json={"name": "New"}).status_code == 403
-    assert team_admin_client.delete(f"/teams/{own_team.id}").status_code == 403
+    client = request.getfixturevalue(scoped_client)
+    assert client.post("/teams", json={"name": "New"}).status_code == 403
+    assert client.delete(f"/teams/{own_team.id}").status_code == 403
     preview = {"club_url": "https://ibasketball.co.il/club/1/"}
-    assert team_admin_client.post("/teams/club-preview", json=preview).status_code == 403
-    assert team_admin_client.get("/teams/club-preview/status").status_code == 403
+    assert client.post("/teams/club-preview", json=preview).status_code == 403
+    assert client.get("/teams/club-preview/status").status_code == 403
     row = {
         "league_name": "L", "team_name": "T", "rank": 1, "played": 1, "won": 1,
         "lost": 0, "points_for": 1, "points_against": 0, "points": 2,
     }  # fmt: skip
-    assert team_admin_client.post("/standings", json=row).status_code == 403
+    assert client.post("/standings", json=row).status_code == 403
 
 
 def test_team_admin_player_images_scoped(
@@ -97,11 +103,38 @@ def test_team_admin_player_images_scoped(
 def test_me_reports_team_scope(team_admin_client: TestClient, own_team: Team) -> None:
     me = team_admin_client.get("/auth/me").json()
     assert (me["username"], me["team_id"]) == ("teamadmin", own_team.id)
+    assert me["team_ids"] == [own_team.id]
+
+
+def test_me_reports_club_scope(club_admin_client: TestClient, own_team: Team, sibling_team: Team) -> None:
+    me = club_admin_client.get("/auth/me").json()
+    assert me["team_id"] is None
+    assert sorted(me["team_ids"]) == sorted([own_team.id, sibling_team.id])
+
+
+def test_club_admin_can_write_every_team_in_club(
+    club_admin_client: TestClient, own_team: Team, sibling_team: Team
+) -> None:
+    for team in (own_team, sibling_team):
+        r = club_admin_client.patch(f"/teams/{team.id}", json={"facebook_url": "https://facebook.com/x"})
+        assert r.status_code == 200
+        assert club_admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).status_code == 201
+
+
+def test_only_full_admin_changes_team_club(
+    club_admin_client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    url = f"/teams/{own_team.id}"
+    assert club_admin_client.patch(url, json={"club": "Other"}).status_code == 403
+    db_session.refresh(own_team)
+    assert own_team.club == "Gush"
+    assert club_admin_client.patch(url, json={"club": "Gush"}).status_code == 200
 
 
 def test_me_full_admin_has_no_team_scope(admin_client: TestClient) -> None:
     me = admin_client.get("/auth/me").json()
     assert (me["username"], me["team_id"]) == ("admin", None)
+    assert me["team_ids"] is None
 
 
 def test_admin_team_fk_cascades() -> None:

@@ -24,7 +24,7 @@ def test_full_admin_creates_lists_and_deletes_team_admin(
     created = admin_client.post(url, json=NEW)
     assert created.status_code == 201
     body = created.json()
-    assert set(body) == {"id", "username", "email"}
+    assert set(body) == {"id", "username", "email", "club"}
     assert body["username"] == "coach"
 
     row = db_session.scalar(select(AdminUser).where(AdminUser.username == "coach"))
@@ -85,11 +85,15 @@ def test_delete_cannot_reach_full_admin_or_other_team(
     assert db_session.get(AdminUser, member.id) is not None
 
 
-def test_team_admin_cannot_manage_admins(team_admin_client: TestClient, own_team: Team) -> None:
+@pytest.mark.parametrize("scoped_client", ["team_admin_client", "club_admin_client"])
+def test_team_admin_cannot_manage_admins(
+    scoped_client: str, request: pytest.FixtureRequest, own_team: Team
+) -> None:
+    client = request.getfixturevalue(scoped_client)
     url = f"/teams/{own_team.id}/admins"
-    assert team_admin_client.get(url).status_code == 403
-    assert team_admin_client.post(url, json=NEW).status_code == 403
-    assert team_admin_client.delete(f"{url}/1").status_code == 403
+    assert client.get(url).status_code == 403
+    assert client.post(url, json=NEW).status_code == 403
+    assert client.delete(f"{url}/1").status_code == 403
 
 
 def test_anonymous_401(client: TestClient) -> None:
@@ -122,3 +126,36 @@ def test_team_admin_email_is_saved_lowercase_and_unique(
     plain = admin_client.post(url, json={**dup, "email": None})
     assert plain.status_code == 201
     assert plain.json()["email"] is None
+
+
+def test_full_admin_creates_club_admin(
+    admin_client: TestClient, client: TestClient, db_session: Session, own_team: Team, sibling_team: Team
+) -> None:
+    created = admin_client.post(f"/teams/{own_team.id}/admins", json={**NEW, "scope": "club"})
+    assert created.status_code == 201
+    assert created.json()["club"] == "Gush"
+    row = db_session.scalar(select(AdminUser).where(AdminUser.username == "coach"))
+    assert row.team_id is None
+
+    sibling_url = f"/teams/{sibling_team.id}/admins"
+    assert [a["username"] for a in admin_client.get(sibling_url).json()] == ["coach"]
+    assert admin_client.delete(f"{sibling_url}/{created.json()['id']}").status_code == 204
+
+    admin_client.post(f"/teams/{own_team.id}/admins", json={**NEW, "scope": "club"})
+    assert client.post("/auth/login", json=NEW).status_code == 200
+    ids = client.get("/auth/me").json()["team_ids"]
+    assert sorted(ids) == sorted([own_team.id, sibling_team.id])
+
+
+def test_club_scope_requires_team_club(admin_client: TestClient, own_team: Team) -> None:
+    r = admin_client.post(f"/teams/{own_team.id}/admins", json={**NEW, "scope": "club"})
+    assert r.status_code == 409
+
+
+def test_clubless_team_cannot_reach_full_admin(
+    admin_client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    full = db_session.scalar(select(AdminUser).where(AdminUser.username == "admin"))
+    url = f"/teams/{own_team.id}/admins"
+    assert admin_client.get(url).json() == []
+    assert admin_client.delete(f"{url}/{full.id}").status_code == 404

@@ -133,7 +133,7 @@ describe('AdminTeamsView', () => {
       return wrapper.find('a[href="/admin/teams/import"]').exists()
     }
 
-    expect(await hasLink({ id: 1, team_id: null })).toBe(true)
-    expect(await hasLink({ id: 2, team_id: 1 })).toBe(false)
+    expect(await hasLink({ id: 1, team_id: null, team_ids: null })).toBe(true)
+    expect(await hasLink({ id: 2, team_id: 1, team_ids: [1] })).toBe(false)
   })
 })

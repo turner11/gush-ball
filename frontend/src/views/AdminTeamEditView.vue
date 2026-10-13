@@ -5,15 +5,15 @@ import { RouterLink, useRoute } from 'vue-router'
 import ImageUpload from '../components/ImageUpload.vue'
 import TeamAdminsSection from '../components/TeamAdminsSection.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
-import { useAuth } from '../composables/useAuth'
+import { fullAdmin } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
+import { apiFetch } from '../lib/api'
 
 const route = useRoute()
 const teamId = route.params.id
 
 const { error, get, update } = useTeams()
-const { user } = useAuth()
 
 // Each group is one fieldset; every field keeps its `team-${key}` input id.
 const GROUPS = [
@@ -22,6 +22,7 @@ const GROUPS = [
     fields: [
       { key: 'name', label: 'שם', type: 'text', required: true },
       { key: 'name_en', label: 'שם (אנגלית)', type: 'text' },
+      { key: 'club', label: 'מועדון', type: 'text' },
       { key: 'home_court_address', label: 'כתובת אולם הבית', type: 'text' },
     ],
   },
@@ -48,6 +49,7 @@ const GROUPS = [
 const team = ref(null)
 const loading = ref(true)
 const submitting = ref(false)
+const clubOptions = ref([])
 const form = reactive({
   ...Object.fromEntries(GROUPS.flatMap((g) => g.fields).map((f) => [f.key, ''])),
   primary_color: '#000000',
@@ -68,9 +70,10 @@ async function load() {
 async function onSubmit() {
   submitting.value = true
   try {
-    const payload = Object.fromEntries(
-      Object.entries(form).filter(([, value]) => value !== ''),
-    )
+    const payload = {
+      ...Object.fromEntries(Object.entries(form).filter(([, value]) => value !== '')),
+      club: form.club || null, // null lets a full admin take a team out of its club
+    }
     const updated = await update(teamId, payload)
     if (updated && !error.value) team.value = updated
   } finally {
@@ -78,7 +81,15 @@ async function onSubmit() {
   }
 }
 
-onMounted(load)
+async function loadClubOptions() {
+  try {
+    clubOptions.value = [...new Set((await apiFetch('/teams')).map((t) => t.club).filter(Boolean))].sort()
+  } catch {
+    // only a suggestion list
+  }
+}
+
+onMounted(() => Promise.all([load(), loadClubOptions()]))
 
 const contentSections = [
   {
@@ -167,7 +178,20 @@ const contentSections = [
             </template>
             <div v-for="field in group.fields" :key="field.key">
               <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
-              <input :id="`team-${field.key}`" v-model="form[field.key]" :type="field.type" :required="field.required" class="field-input" />
+              <input
+                :id="`team-${field.key}`"
+                v-model="form[field.key]"
+                :type="field.type"
+                :required="field.required"
+                :list="field.key === 'club' ? 'club-options' : undefined"
+                :disabled="field.key === 'club' && !fullAdmin"
+                :aria-describedby="field.key === 'club' && !fullAdmin ? 'club-hint' : undefined"
+                class="field-input"
+              />
+              <template v-if="field.key === 'club'">
+                <datalist id="club-options"><option v-for="name in clubOptions" :key="name" :value="name" /></datalist>
+                <p v-if="!fullAdmin" id="club-hint" class="mt-1 text-sm text-muted">רק מנהל ראשי יכול לשנות מועדון</p>
+              </template>
               <template v-if="field.key === 'logo_url'">
                 <ImageUpload @uploaded="(url) => (form.logo_url = url)" />
                 <img v-if="form.logo_url" :src="form.logo_url" alt="" class="mt-2 size-16 object-contain" />
@@ -197,7 +221,7 @@ const contentSections = [
           :fields="section.fields"
         />
       </div>
-      <TeamAdminsSection v-if="!user?.team_id" :team-id="teamId" />
+      <TeamAdminsSection v-if="fullAdmin" :team-id="teamId" :club="team.club" />
     </template>
     <div v-else-if="loading" class="space-y-3" aria-busy="true">
       <div class="skeleton h-32" />

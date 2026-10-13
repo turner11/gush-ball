@@ -205,3 +205,12 @@ def test_club_preview_returns_409_when_already_running(
 ) -> None:
     monkeypatch.setattr(teams_router, "_preview_running", True)
     assert admin_client.post("/teams/club-preview", json=URL).status_code == 409
+
+
+def test_team_club_round_trips(admin_client: TestClient) -> None:
+    created = admin_client.post("/teams", json={"name": "A", "club": "  Gush "})
+    assert created.status_code == 201
+    assert created.json()["club"] == "Gush"
+    url = f"/teams/{created.json()['id']}"
+    assert admin_client.patch(url, json={"club": None}).json()["club"] is None
+    assert admin_client.patch(url, json={"club": ""}).status_code == 422

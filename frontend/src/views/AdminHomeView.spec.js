@@ -235,7 +235,7 @@ describe('AdminHomeView', () => {
 
   it('team admin sees no team picker and the POST has no team_ids', async () => {
     mockSyncApis()
-    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 't', team_id: 1 }
+    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 't', team_id: 1, team_ids: [1] }
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
     const wrapper = mount(AdminHomeView, { global: { plugins: [router] } })
     await flushPromises()
@@ -263,5 +263,17 @@ describe('AdminHomeView', () => {
     await teamItem('בחר הכל').trigger('click')
     await flushPromises()
     expect(syncButton(wrapper).element.disabled).toBe(true)
+  })
+
+  it('club admin picks among only their club teams and sends team_ids', async () => {
+    mockSyncApis()
+    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 'c', team_id: null, team_ids: [1, 3] }
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mountFull(AdminHomeView)
+    await flushPromises()
+
+    await syncButton(wrapper).trigger('click')
+
+    expect(postBody().team_ids).toEqual([1])
   })
 })
