@@ -34,13 +34,13 @@ class GameUpdate(BaseModel):
 
 
 def _sheet_url(value: str) -> str:
-    """A full http(s) URL as-is, or a bare Google Sheet ID expanded to its canonical URL."""
+    """A Google Sheets URL as-is, or a bare sheet ID expanded to its canonical URL. Pins the host (SSRF, #264)."""
     v = value.strip()
     if re.fullmatch(r"[\w-]+", v, re.ASCII):
         return f"https://docs.google.com/spreadsheets/d/{v}"
-    if re.match(r"https?://", v):
+    if re.fullmatch(r"https://docs\.google\.com/spreadsheets/d/[\w-]+(?:[/?#].*)?", v, re.ASCII):
         return v
-    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not a sheet link or sheet ID: {v}")
+    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not a Google Sheet link or sheet ID: {v}")
 
 
 class OpponentRead(BaseModel):

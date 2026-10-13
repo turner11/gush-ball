@@ -1,3 +1,4 @@
+import logging
 from io import StringIO
 from typing import Literal
 from urllib.error import HTTPError
@@ -12,6 +13,7 @@ from app.deps import DbSession, RequireStatsViewer, RequireTeamAdmin, get_team_o
 from app.models import Game, LineupSnapshot
 from app.routers.games import _get_game_or_404, _sheet_url
 
+log = logging.getLogger(__name__)
 router = APIRouter(tags=["lineups"])
 
 EXPECTED_HEADERS = "#1,#2,#3,#4,#5,Points,Points Against,Quarter,Time Left"
@@ -44,15 +46,16 @@ def load_game_stats(
     # Deliberately not PATCH /games/{id}: that would set is_manually_overridden and divert
     # the next scrape into the review queue.
     game = _get_game_or_404(db, team_id, game_id)
-    url = _sheet_url(payload.url) if payload.url else game.stats_url
-    if not url:
+    raw = payload.url or game.stats_url
+    if not raw:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No stats URL")
+    url = _sheet_url(raw)  # also re-validates a stored URL (#264)
     try:
         df = get_snapshots_df(pd.read_csv(StringIO(fetch_csv(url))))
     except HTTPError as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Can't open the stats sheet ({exc}). Share it as 'anyone with the link' (viewer).",
+            detail="Can't open the stats sheet. Share it as 'anyone with the link' (viewer).",
         ) from exc
     except KeyError as exc:
         raise HTTPException(
@@ -60,9 +63,8 @@ def load_game_stats(
             detail=f"Stats sheet is missing column {exc}. Expected headers: {EXPECTED_HEADERS}",
         ) from exc
     except Exception as exc:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Failed to load stats sheet: {exc}"
-        ) from exc
+        log.exception("stats load failed for game %s (%s)", game_id, url)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Failed to load stats sheet.") from exc
     # Explicit casts: numpy scalars don't serialize to JSON.
     game.lineup_snapshots = [
         LineupSnapshot(
