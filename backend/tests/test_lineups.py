@@ -141,7 +141,7 @@ def test_load_stats_failure_keeps_old_snapshots(admin_client, db_session, fake_s
     r = admin_client.post(_stats_path(game), json={"url": URL})
 
     assert r.status_code == 422
-    assert "nope" in r.json()["detail"]
+    assert "nope" not in r.json()["detail"]
     assert _count(db_session) == before
 
 
@@ -179,6 +179,8 @@ def test_load_stats_private_sheet_says_share(admin_client, db_session, monkeypat
 
     assert r.status_code == 422
     assert "anyone with the link" in r.json()["detail"]
+    assert "401" not in r.json()["detail"]
+    assert "Unauthorized" not in r.json()["detail"]
 
 
 def test_load_stats_does_not_mark_override(admin_client, db_session, fake_sheet) -> None:
@@ -414,3 +416,23 @@ def test_public_games_hide_stats_url(who, shown, client, db_session, own_team, o
         item = body[0] if isinstance(body, list) else body
         assert item["has_stats"] is True
         assert (item["stats_url"] == URL) if shown else (item["stats_url"] is None and URL not in r.text)
+
+
+def test_load_stats_rejects_non_google_url(admin_client, db_session, fake_sheet) -> None:
+    game = _make_game(db_session)
+
+    r = admin_client.post(_stats_path(game), json={"url": "http://db:5432"})
+
+    assert r.status_code == 422
+    assert fake_sheet == []
+
+
+def test_reload_rejects_stored_non_google_url(admin_client, db_session, fake_sheet) -> None:
+    game = _make_game(db_session)
+    game.stats_url = "http://169.254.169.254/latest/meta-data"
+    db_session.commit()
+
+    r = admin_client.post(_stats_path(game), json={})
+
+    assert r.status_code == 422
+    assert fake_sheet == []
