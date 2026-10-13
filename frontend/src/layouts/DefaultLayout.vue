@@ -108,7 +108,7 @@ onMounted(async () => {
               alt=""
               class="size-9 shrink-0 rounded-lg bg-white object-contain p-0.5 md:size-10"
             />
-            <img v-else :src="LOGO_URL" alt="גוש כדורסל" class="size-9 rounded md:size-10" />
+            <img v-else :src="LOGO_URL" alt="גוש כדורסל" class="size-9 shrink-0 rounded md:size-10" />
             <span v-if="selectedTeam" class="truncate font-extrabold">{{ selectedTeam.name }}</span>
           </RouterLink>
           <a
@@ -118,9 +118,17 @@ onMounted(async () => {
             rel="noopener noreferrer"
             :aria-label="selectedTeam.home_court_address"
             :title="selectedTeam.home_court_address"
-            class="inline-flex size-11 items-center justify-center"
+            class="inline-flex size-11 shrink-0 items-center justify-center"
             ><AppIcon name="pin"
           /></a>
+          <RouterLink
+            :to="{ name: 'teams' }"
+            aria-label="כל הקבוצות"
+            title="כל הקבוצות"
+            class="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
+          >
+            <AppIcon name="grid" />
+          </RouterLink>
           <nav data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden md:block">
             <ul class="flex gap-4 lg:gap-6">
               <li v-for="item in navItems" :key="item.label">
@@ -128,7 +136,7 @@ onMounted(async () => {
               </li>
             </ul>
           </nav>
-          <ThemeToggle class="ms-auto md:ms-0" />
+          <ThemeToggle class="shrink-0 ms-auto md:ms-0" />
           <template v-if="checked">
             <template v-if="user">
               <RouterLink :to="teamBase + '/admin'" class="nav-link">ניהול</RouterLink>
@@ -136,7 +144,7 @@ onMounted(async () => {
                 type="button"
                 aria-label="התנתקות"
                 title="התנתקות"
-                class="inline-flex size-11 items-center justify-center rounded-full hover:bg-black/10"
+                class="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
                 @click="logout"
               >
                 <AppIcon name="logout" />
@@ -147,7 +155,7 @@ onMounted(async () => {
               :to="{ name: 'admin-login' }"
               aria-label="כניסת מנהל"
               title="כניסת מנהל"
-              class="inline-flex size-11 items-center justify-center rounded-full hover:bg-black/10"
+              class="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
             >
               <AppIcon name="login" />
             </RouterLink>

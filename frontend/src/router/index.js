@@ -29,6 +29,7 @@ const router = createRouter({
     { path: '/players/:id', name: 'player', component: () => import('../views/PlayerView.vue'), meta: { title: 'שחקן', description: () => 'פרופיל שחקן.' } },
     { path: '/:slug/media', name: 'media', component: () => import('../views/MediaView.vue'), meta: { title: 'מדיה', description: (team) => `תמונות, סרטונים וקישורים של ${team}.` } },
     { path: '/:slug/stats', name: 'stats', component: () => import('../views/StatsView.vue'), meta: { title: 'סטטיסטיקה', description: (team) => `סטטיסטיקת חמישיות של ${team}.` } },
+    { path: '/teams', name: 'teams', component: () => import('../views/TeamsView.vue'), meta: { title: 'קבוצות', description: () => 'כל הקבוצות של המועדון: בחרו קבוצה למשחקים, לטבלה ולשחקנים.' } },
     { path: '/:slug', name: 'team-home', component: () => import('../views/HomeView.vue'), meta: { description: homeDescription } },
     { path: '/admin/login', name: 'admin-login', component: () => import('../views/LoginView.vue'), meta: { title: 'כניסת מנהל' } },
     { path: '/admin/reset-password', name: 'admin-reset-password', component: () => import('../views/PasswordResetView.vue'), meta: { title: 'איפוס סיסמה' } },

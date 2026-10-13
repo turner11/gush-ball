@@ -66,6 +66,7 @@ describe('router auth guard', () => {
     expect(router.resolve('/admin').name).toBe('admin-home')
     expect(router.resolve('/admin/standings').name).toBe('admin-standings')
     expect(router.resolve('/admin/teams').name).toBe('admin-teams')
+    expect(router.resolve('/teams').name).toBe('teams')
   })
 
   it('legacy bare /stats?game=5 redirects to the remembered team, keeping the page and query', async () => {
@@ -118,8 +119,8 @@ describe('router auth guard', () => {
     expect(publicRoutes.length).toBeGreaterThan(0)
     for (const r of publicRoutes) {
       expect(typeof r.meta.description, r.name).toBe('function')
-      // player pages belong to the player's team, not the remembered one, so no team name there
-      if (r.name !== 'player') expect(r.meta.description('קבוצה'), r.name).toContain('קבוצה')
+      // player pages and the teams index are not about the remembered team, so no team name there
+      if (!['player', 'teams'].includes(r.name)) expect(r.meta.description('קבוצה'), r.name).toContain('קבוצה')
     }
     expect(router.getRoutes().find((r) => r.name === 'not-found').meta.noindex).toBe(true)
   })
