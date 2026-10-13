@@ -213,4 +213,20 @@ describe('TeamAdminsSection', () => {
     const empty = await mountSection()
     expect(empty.text()).toContain('אין משתמשים לשיוך')
   })
+
+  it('keeps the scope radios when no users are left to assign', async () => {
+    mockFetch({
+      'GET /api/teams/1/admins': () => jsonRes([{ id: 5, username: 'newbie', email: null, club: null }]),
+      'GET /api/teams/assignable-users': () => jsonRes(USERS),
+    })
+    const wrapper = await mountSection({ club: 'Gush' })
+    expect(wrapper.text()).toContain('אין משתמשים לשיוך')
+    expect(wrapper.findAll('input[name="assign-scope"]')).toHaveLength(2)
+
+    await wrapper.find('input[name="assign-scope"][value="club"]').setValue()
+    expect(wrapper.find('#assign-user').exists()).toBe(true)
+    await wrapper.find('#assign-user').setValue(5)
+    await wrapper.find('input[name="assign-scope"][value="team"]').setValue()
+    expect(wrapper.text()).toContain('אין משתמשים לשיוך')
+  })
 })

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { fullAdmin } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
@@ -34,6 +34,11 @@ const canRemove = (admin) => !admin.club || fullAdmin.value
 const candidates = computed(() =>
   users.value.filter((u) => !admins.value.some((a) => a.id === u.id && scopeOf(a) === assignScope.value)),
 )
+
+// A scope switch (or reload) can drop the picked user from the list.
+watch(candidates, (list) => {
+  if (!list.some((u) => u.id === assignUserId.value)) assignUserId.value = ''
+})
 
 async function loadAdmins() {
   admins.value = await apiFetch(base)
@@ -136,20 +141,20 @@ async function onDeleteConfirmed() {
 
     <form class="space-y-2" @submit.prevent="onAssign">
       <h3 class="field-label">שיוך משתמש קיים</h3>
+      <fieldset v-if="fullAdmin && club">
+        <legend class="field-label">סוג מנהל</legend>
+        <label class="flex min-h-11 items-center gap-2">
+          <input v-model="assignScope" type="radio" name="assign-scope" value="team" class="size-5" />
+          מנהל קבוצה
+        </label>
+        <label class="flex min-h-11 items-center gap-2">
+          <input v-model="assignScope" type="radio" name="assign-scope" value="club" class="size-5" />
+          מנהל מועדון — כל הקבוצות של {{ club }}
+        </label>
+      </fieldset>
       <p v-if="usersState === 'failed'" class="error-text" role="alert">שגיאה בטעינת המשתמשים</p>
       <p v-else-if="usersState === 'ready' && !candidates.length" class="empty-state">אין משתמשים לשיוך</p>
       <template v-else>
-        <fieldset v-if="fullAdmin && club">
-          <legend class="field-label">סוג מנהל</legend>
-          <label class="flex min-h-11 items-center gap-2">
-            <input v-model="assignScope" type="radio" name="assign-scope" value="team" class="size-5" />
-            מנהל קבוצה
-          </label>
-          <label class="flex min-h-11 items-center gap-2">
-            <input v-model="assignScope" type="radio" name="assign-scope" value="club" class="size-5" />
-            מנהל מועדון — כל הקבוצות של {{ club }}
-          </label>
-        </fieldset>
         <div>
           <label for="assign-user" class="field-label">משתמש</label>
           <select id="assign-user" v-model="assignUserId" required :disabled="usersState === 'loading'" class="field-input w-full">
