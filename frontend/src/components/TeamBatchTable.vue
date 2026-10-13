@@ -46,14 +46,15 @@ const socialCount = (row) => SOCIALS.filter((s) => row[s.key]).length
 const currentAdmins = (row) => admins.value.filter((a) => a.team_id === row.id).map((a) => a.username).join('، ')
 const total = computed(() => rows.value.length)
 
-onMounted(async () => {
+async function loadAdmins() {
   try {
     admins.value = await apiFetch('/teams/admins')
     adminsState.value = 'ready'
   } catch {
     adminsState.value = 'failed'
   }
-})
+}
+onMounted(loadAdmins)
 
 async function saveRow(row) {
   row.error = null
@@ -91,6 +92,7 @@ async function onSubmit() {
   saving.value = false
   if (!failed) return router.push({ name: 'admin-teams' })
   summary.value = `נשמרו ${saved}, נכשלו ${failed}`
+  loadAdmins() // admins may have moved teams
 }
 </script>
 
@@ -120,6 +122,7 @@ async function onSubmit() {
               <img v-if="row.logo_url" :src="row.logo_url" alt="" class="size-10 object-contain" />
             </td>
             <td data-label="שם">
+              <div class="w-full min-w-0 break-words">
               <input v-model="row.name" type="text" required class="field-input mt-0 w-full min-w-0 sm:min-w-48 font-bold" :aria-label="`שם — ${row.initialName}`" />
               <a
                 v-if="row.ibasketball_team_url"
@@ -129,6 +132,7 @@ async function onSubmit() {
                 class="inline-flex min-h-11 items-center text-sm underline"
                 :aria-label="`דף הקבוצה ב-ibasketball — ${row.initialName}`"
               >דף הקבוצה ב-ibasketball</a>
+              </div>
             </td>
             <td data-label="שם באנגלית">
               <input v-model="row.name_en" type="text" dir="ltr" class="field-input mt-0 w-full min-w-0 sm:min-w-48" :aria-label="`שם באנגלית — ${row.initialName}`" />
@@ -165,6 +169,7 @@ async function onSubmit() {
               </details>
             </td>
             <td data-label="מנהל">
+              <div class="w-full min-w-0 break-words">
               <span v-if="adminsState === 'failed'" class="text-sm text-muted">לא ניתן לטעון מנהלים</span>
               <template v-else>
                 <select v-model="row.admin_id" :disabled="adminsState === 'loading'" class="field-input mt-0 w-full min-w-0 sm:min-w-40" :aria-label="`מנהל — ${row.initialName}`">
@@ -173,6 +178,7 @@ async function onSubmit() {
                 </select>
                 <p v-if="currentAdmins(row)" class="text-sm text-muted">מנהלים נוכחיים: {{ currentAdmins(row) }}</p>
               </template>
+              </div>
             </td>
             <td>
               <button type="button" class="btn-danger-ghost" :aria-label="`הסרה מהרשימה — ${row.initialName}`" @click="rows = rows.filter((r) => r !== row)">הסרה מהרשימה</button>
