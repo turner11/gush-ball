@@ -14,17 +14,19 @@ const route = useRoute()
 const router = useRouter()
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
-// Fire and forget: the live stats link appears for admins once the session resolves.
+// Fire and forget: the session gates the page (#249) and, for admins, shows the live stats link.
 const { user, checked, checkSession } = useAuth()
 if (!checked.value) checkSession()
 
 const players = ref([])
 const games = ref([])
+const canView = computed(() => !!user.value?.can_view_stats)
+const pending = computed(() => user.value?.memberships?.some((m) => m.role === 'pending'))
 const loading = ref(false)
 const error = ref(false)
 
 async function load() {
-  if (!selectedTeamId.value) return
+  if (!selectedTeamId.value || !canView.value) return
   const id = selectedTeamId.value
   loading.value = true
   error.value = false
@@ -39,7 +41,7 @@ async function load() {
   }
 }
 
-watch(selectedTeamId, load, { immediate: true })
+watch([selectedTeamId, canView], load, { immediate: true })
 
 // The URL (?game=) is the single source of truth for the picker.
 const statsGames = computed(() =>
@@ -64,7 +66,30 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
       <h1 class="page-title">סטטיסטיקה</h1>
     </div>
 
-    <div v-if="loading" class="space-y-4" aria-busy="true">
+    <div v-if="!checked" class="space-y-4" aria-busy="true">
+      <div class="skeleton h-11" />
+      <div class="skeleton h-44" />
+      <div class="skeleton h-44" />
+    </div>
+    <div v-else-if="!canView" class="card mx-auto max-w-xl space-y-3 text-center">
+      <AppIcon name="chart" class="mx-auto size-8 text-muted" aria-hidden="true" />
+      <template v-if="!user">
+        <h2 class="section-title">הסטטיסטיקה זמינה לשחקני המועדון</h2>
+        <p class="text-muted">התחברו עם Google ובקשו להצטרף לקבוצה. אחרי אישור המנהל תוכלו לראות את ה־+/- של כל חמישייה.</p>
+        <RouterLink :to="{ name: 'admin-login', query: { next: route.fullPath } }" class="btn-primary w-full sm:w-auto">כניסה / הרשמה</RouterLink>
+      </template>
+      <template v-else-if="pending">
+        <h2 class="section-title">הבקשה שלך ממתינה לאישור</h2>
+        <p class="text-muted">הסטטיסטיקה תיפתח אחרי שמנהל הקבוצה יאשר את הבקשה.</p>
+        <RouterLink :to="{ name: 'join' }" class="btn-secondary w-full sm:w-auto">הבקשות שלי</RouterLink>
+      </template>
+      <template v-else>
+        <h2 class="section-title">הצטרפו לקבוצה כדי לראות סטטיסטיקה</h2>
+        <p class="text-muted">בחרו את הקבוצה שלכם ושלחו בקשה למנהל.</p>
+        <RouterLink :to="{ name: 'join' }" class="btn-primary w-full sm:w-auto">בקשת הצטרפות</RouterLink>
+      </template>
+    </div>
+    <div v-else-if="loading" class="space-y-4" aria-busy="true">
       <div class="skeleton h-11" />
       <div class="skeleton h-44" />
       <div class="skeleton h-44" />

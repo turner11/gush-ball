@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { RouterLinkStub, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const jsonRes = (data, status = 200) => ({ ok: true, status, json: async () => data })
@@ -29,11 +29,11 @@ function mockFetch(handlers = {}) {
 }
 const posted = () => calls.filter((c) => c.key === 'POST /api/memberships').map((c) => c.body)
 
-async function mountJoin(user) {
+async function mountJoin(user, options = {}) {
   me = user
   ;(await import('../composables/useAuth')).useAuth().user.value = user
   const { default: JoinView } = await import('./JoinView.vue')
-  const wrapper = mount(JoinView)
+  const wrapper = mount(JoinView, options)
   await flushPromises()
   return wrapper
 }
@@ -59,6 +59,19 @@ describe('JoinView', () => {
     expect(wrapper.text()).toContain('מועדון Gush')
     expect(wrapper.text()).toContain('חבר')
     expect(wrapper.text()).toContain('מנהל הקבוצה יאשר את הבקשה')
+  })
+
+  it('an approved member gets a link to the stats', async () => {
+    mockFetch()
+    const member = { ...PLAYER, can_view_stats: true, memberships: [{ id: 1, team_id: 1, club: null, role: 'member' }] }
+    const global = { stubs: { RouterLink: RouterLinkStub } }
+    let wrapper = await mountJoin(member, { global })
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toBe('/stats')
+    expect(wrapper.text()).toContain('צפייה בסטטיסטיקה')
+
+    vi.resetModules()
+    wrapper = await mountJoin({ ...member, can_view_stats: false }, { global })
+    expect(wrapper.findComponent(RouterLinkStub).exists()).toBe(false)
   })
 
   it('submits a team request, refreshes the session and shows the status', async () => {

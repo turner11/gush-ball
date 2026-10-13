@@ -10,7 +10,8 @@ from app.models import Player, Team
 
 router = APIRouter(tags=["seo"])
 
-TEAM_PAGES = ("schedule", "standings", "roster", "media", "stats")
+# stats is members-only (#249) and noindexed, so it is not listed
+TEAM_PAGES = ("schedule", "standings", "roster", "media")
 
 
 def _url_slug(team: Team) -> str:

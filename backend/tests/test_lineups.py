@@ -1,3 +1,4 @@
+import re
 import urllib.error
 from datetime import UTC, datetime
 
@@ -7,7 +8,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Game, GameStatus, LineupSnapshot, Opponent, Team
+from app.main import app
+from app.models import AdminUser, Game, GameStatus, LineupSnapshot, Membership, Opponent, Team
+from app.security import hash_password
+from tests.test_team_admin import _login_user
 
 CSV = """#1,#2,#3,#4,#5,Points,Points Against,Quarter,Time Left
 1,2,3,4,5,0,0,1,10:00
@@ -184,7 +188,7 @@ def test_load_stats_does_not_mark_override(admin_client, db_session, fake_sheet)
     assert game.is_manually_overridden is False
 
 
-def test_lineups_public_size_and_sort(admin_client, client, db_session, fake_sheet) -> None:
+def test_lineups_size_and_sort(admin_client, client, db_session, fake_sheet) -> None:
     game = _make_game(db_session)
     admin_client.post(_stats_path(game), json={"url": URL})
     base = f"/teams/{game.team_id}/lineups"
@@ -201,10 +205,10 @@ def test_lineups_public_size_and_sort(admin_client, client, db_session, fake_she
     assert client.get(f"{base}?sort=bogus").status_code == 422
 
 
-def test_lineups_empty_team_returns_empty_list(client, db_session) -> None:
+def test_lineups_empty_team_returns_empty_list(client, admin_client, db_session) -> None:
     game = _make_game(db_session)
-    assert client.get(f"/teams/{game.team_id}/lineups").json() == []
-    assert client.get("/teams/9999/lineups").status_code == 404
+    assert admin_client.get(f"/teams/{game.team_id}/lineups").json() == []
+    assert admin_client.get("/teams/9999/lineups").status_code == 404
 
 
 def test_delete_game_deletes_snapshots(admin_client, db_session, fake_sheet) -> None:
@@ -236,14 +240,14 @@ def test_lineups_game_id_filters_to_that_game(admin_client, client, db_session, 
     assert client.get(f"{base}?game_id={b.id}").json() == []
 
 
-def test_lineups_game_id_of_other_team_is_404(client, db_session) -> None:
+def test_lineups_game_id_of_other_team_is_404(admin_client, db_session) -> None:
     game = _make_game(db_session)
     other = Team(name="Other", slug="other")
     foreign = _second_game(db_session, other)
     base = f"/teams/{game.team_id}/lineups"
 
-    assert client.get(f"{base}?game_id={foreign.id}").status_code == 404
-    assert client.get(f"{base}?game_id=9999").status_code == 404
+    assert admin_client.get(f"{base}?game_id={foreign.id}").status_code == 404
+    assert admin_client.get(f"{base}?game_id=9999").status_code == 404
 
 
 def _has_stats_by_id(client, list_url: str) -> dict[int, bool]:
@@ -284,7 +288,7 @@ def test_empty_sheet_saves_url_with_zero_snapshots(admin_client, client, db_sess
     assert client.get(f"/teams/{game.team_id}/games/{game.id}").json()["has_stats"] is False
 
 
-def test_game_read_exposes_stats_url(admin_client, client, db_session, fake_sheet) -> None:
+def test_game_read_exposes_stats_url_to_admin(admin_client, client, db_session, fake_sheet) -> None:
     game = _make_game(db_session)
     single = f"/teams/{game.team_id}/games/{game.id}"
     assert client.get(single).json()["stats_url"] is None
@@ -306,3 +310,107 @@ def test_load_stats_uses_gid_tab(admin_client, db_session, fake_sheet) -> None:
     db_session.refresh(game)
     assert game.stats_url == url
     assert bbstats.to_csv_url(url).endswith("&gid=77")
+
+
+def _own_game_with_snapshots(db: Session, team: Team) -> Game:
+    game = Game(
+        team=team,
+        opponent=Opponent(name="Opp"),
+        scheduled_at=datetime(2026, 1, 1, 18, 0, tzinfo=UTC),
+        status=GameStatus.FINAL,
+        stats_url=URL,
+    )
+    game.lineup_snapshots = [
+        LineupSnapshot(players=[1, 2, 3, 4, 5], elapsed=5.0, offense_diff=2, defence_diff=0),
+        LineupSnapshot(players=[1, 2, 3, 4, 6], elapsed=10.0, offense_diff=4, defence_diff=3),
+    ]
+    db.add(game)
+    db.commit()
+    return game
+
+
+def _login_full_admin(client, db: Session, username: str) -> None:
+    db.add(AdminUser(username=username, password_hash=hash_password("password123"), is_full_admin=True))
+    db.commit()
+    assert client.post("/auth/login", json={"username": username, "password": "password123"}).status_code == 200
+
+
+def _login_as(client, db: Session, who: str, own: Team, other: Team) -> None:
+    """Logs `who` in. Grants are written 'role:target', target being own/other/club."""
+    if who == "anonymous":
+        return
+    if who == "full admin":
+        return _login_full_admin(client, db, "viewer")
+    targets = {"own": {"team_id": own.id}, "other": {"team_id": other.id}, "club": {"club": "Gush"}}
+    grants = []
+    if who != "none":
+        role, target = who.split(":")
+        grants.append(Membership(role=role, **targets[target]))
+    _login_user(client, db, "viewer", *grants)
+
+
+GRANTS = [
+    ("anonymous", 401),
+    ("none", 403),
+    ("pending:own", 403),
+    ("pending:club", 403),
+    ("member:own", 200),
+    ("member:club", 200),
+    ("member:other", 200),
+    ("admin:own", 200),
+    ("admin:club", 200),
+    ("full admin", 200),
+]
+
+
+@pytest.mark.parametrize(("who", "expected"), GRANTS)
+def test_lineups_access_by_grant(who, expected, client, db_session, own_team, other_team, sibling_team) -> None:
+    game = _own_game_with_snapshots(db_session, own_team)
+    _login_as(client, db_session, who, own_team, other_team)
+    base = f"/teams/{own_team.id}/lineups"
+
+    assert client.get(base).status_code == expected
+    assert client.get(f"{base}?game_id={game.id}").status_code == expected
+    if who != "anonymous":
+        assert client.get("/auth/me").json()["can_view_stats"] is (expected == 200)
+
+
+def test_every_stats_read_route_needs_login(client) -> None:
+    exercised = 0
+    for route_path, operations in app.openapi()["paths"].items():
+        if "get" not in operations or not ("lineups" in route_path or route_path.endswith("/stats")):
+            continue
+        r = client.get(re.sub(r"\{[^}]+\}", "1", route_path))
+        assert r.status_code == 401, f"GET {route_path} -> {r.status_code}"
+        exercised += 1
+    assert exercised >= 1
+
+
+def test_lineups_unknown_team_is_401_for_anonymous(client) -> None:
+    assert client.get("/teams/9999/lineups").status_code == 401
+
+
+SHEET_VIEWERS = [
+    ("anonymous", False),
+    ("none", False),
+    ("pending:own", False),
+    ("member:own", False),
+    ("admin:other", False),
+    ("admin:own", True),
+    ("admin:club", True),
+    ("full admin", True),
+]
+
+
+@pytest.mark.parametrize(("who", "shown"), SHEET_VIEWERS)
+def test_public_games_hide_stats_url(who, shown, client, db_session, own_team, other_team, sibling_team) -> None:
+    game = _own_game_with_snapshots(db_session, own_team)
+    _login_as(client, db_session, who, own_team, other_team)
+    list_url = f"/teams/{own_team.id}/games"
+
+    for r in (client.get(list_url), client.get(f"{list_url}/{game.id}")):
+        assert r.status_code == 200
+        body = r.json()
+        item = body[0] if isinstance(body, list) else body
+        assert item["has_stats"] is True
+        assert (item["stats_url"] == URL) if shown else (item["stats_url"] is None and URL not in r.text)

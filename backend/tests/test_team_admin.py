@@ -159,6 +159,7 @@ def test_user_without_admin_grant_is_403_on_admin_routes(
     assert client.post("/uploads", files={"file": ("a.png", b"x", "image/png")}).status_code == 403
     assert client.patch(f"/teams/{tid}", json={"facebook_url": "https://facebook.com/x"}).status_code == 403
     assert client.post("/sync/now").status_code == 403
+    assert client.post(f"/teams/{tid}/games/1/stats", json={}).status_code == 403
     assert client.get("/sync/status").status_code == 403
     assert client.get(f"/teams/{tid}/admins").status_code == 403
     assert client.get("/teams/assignable-users").status_code == 403
@@ -171,6 +172,7 @@ def test_user_without_admin_grant_is_403_on_admin_routes(
     body = me.json()
     assert body["is_admin"] is False
     assert body["team_ids"] == []
+    assert body["can_view_stats"] is (role == "member")
     assert "stats_app_url" not in body
     assert "stats_template_url" not in body
 

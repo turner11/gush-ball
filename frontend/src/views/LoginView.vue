@@ -13,10 +13,12 @@ const password = ref('')
 const submitting = ref(false)
 
 const { user, error, login, checkSession } = useAuth()
-// Admins land on the admin home, everyone else (a signed-up player) on the join page.
-const landing = () => (user.value?.is_admin ? { name: 'admin-home' } : { name: 'join' })
 const router = useRouter()
 const route = useRoute()
+// Internal paths only (a single leading slash, not // or /\): blocks open redirects.
+const next = typeof route.query.next === 'string' && /^\/(?![\\/])/.test(route.query.next) ? route.query.next : null
+// Back to `next` if given, else admins land on the admin home and everyone else (a signed-up player) on the join page.
+const landing = () => next ?? (user.value?.is_admin ? { name: 'admin-home' } : { name: 'join' })
 
 const googleEnabled = ref(false)
 const googleWaiting = ref(false)
@@ -26,7 +28,7 @@ const googleWaiting = ref(false)
 const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('google-signin')
 if (channel) channel.onmessage = async ({ data }) => {
   googleWaiting.value = false
-  if (data !== true) return router.replace({ query: { error: 'google' } })
+  if (data !== true) return router.replace({ query: { ...route.query, error: 'google' } })
   await checkSession() // the router guard skips /auth/me once `checked`, so refresh the user here
   router.push(landing())
 }
@@ -38,7 +40,7 @@ function openGooglePopup(event) {
   if (!popup || popup.closed) return // blocked: the link's own full-page navigation is the fallback
   event.preventDefault()
   googleWaiting.value = true
-  if (route.query.error) router.replace({ query: {} })
+  if (route.query.error) router.replace({ query: { ...route.query, error: undefined } })
 }
 
 onMounted(async () => {
@@ -51,7 +53,7 @@ onMounted(async () => {
       await checkSession()
       return router.replace(landing())
     }
-    return router.replace({ query: { error: 'google' } })
+    return router.replace({ query: { ...route.query, error: 'google' } })
   }
   try {
     googleEnabled.value = (await apiFetch('/auth/options')).google === true

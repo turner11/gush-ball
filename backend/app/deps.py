@@ -23,11 +23,21 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def current_user(request: Request, db: DbSession) -> AdminUser:
-    """Any logged-in account, with or without admin rights. Raises 401 if no valid session exists."""
+def optional_user(request: Request, db: DbSession) -> AdminUser | None:
+    """The logged-in account (admin or not), or None for an anonymous visitor."""
     user_id = request.session.get("admin_id")
     user = db.get(AdminUser, user_id) if user_id is not None else None
     if user is None or request.session.get("pw") != password_fingerprint(user.password_hash):
+        return None
+    return user
+
+
+OptionalUser = Annotated[AdminUser | None, Depends(optional_user)]
+
+
+def current_user(user: OptionalUser) -> AdminUser:
+    """Any logged-in account, with or without admin rights. Raises 401 if no valid session exists."""
+    if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return user
 
@@ -80,10 +90,16 @@ def admin_team_ids(db: Session, user: AdminUser) -> list[int] | None:
     return list(db.scalars(select(Team.id).where(or_(Team.id.in_(direct), club_teams))))
 
 
-def check_team_scope(db: Session, admin: AdminUser, team_id: int) -> None:
+def can_write_team(db: Session, user: AdminUser | None, team_id: int) -> bool:
     """The single place the scope rule lives: team admins touch their team, club admins their club's teams."""
-    scope = admin_team_ids(db, admin)
-    if scope is not None and team_id not in scope:
+    if user is None:
+        return False
+    scope = admin_team_ids(db, user)
+    return scope is None or team_id in scope
+
+
+def check_team_scope(db: Session, admin: AdminUser, team_id: int) -> None:
+    if not can_write_team(db, admin, team_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
 
 
@@ -122,6 +138,23 @@ def require_team_admin(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> i
 
 
 RequireTeamAdmin = Annotated[int, Depends(require_team_admin)]
+
+
+def can_view_stats(db: Session, user: AdminUser) -> bool:
+    """Stats are for full admins and anyone holding an approved (member/admin) grant on any team or club (#249)."""
+    if user.is_full_admin:
+        return True
+    approved = Membership.user_id == user.id, Membership.role.in_(("member", "admin"))
+    return db.scalar(select(exists().where(*approved))) is True
+
+
+def require_stats_viewer(user: RequireUser, db: DbSession) -> AdminUser:
+    if not can_view_stats(db, user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Stats are for approved members")
+    return user
+
+
+RequireStatsViewer = Annotated[AdminUser, Depends(require_stats_viewer)]
 
 
 def get_team_or_404(db: Session, team_id: int) -> Team:

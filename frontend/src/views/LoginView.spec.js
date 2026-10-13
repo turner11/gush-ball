@@ -8,6 +8,7 @@ function makeRouter() {
     routes: [
       { path: '/', component: { template: '<div/>' } },
       { path: '/join', name: 'join', component: { template: '<div/>' } },
+      { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' } },
       { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
       { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
       { path: '/admin/reset-password', name: 'admin-reset-password', component: { template: '<div/>' } },
@@ -77,6 +78,29 @@ describe('LoginView', () => {
     await vi.waitFor(() => expect(wrapper.vm.$router.currentRoute.value.name).toBe('join'))
   })
 
+  const login = (isAdmin) => (url) =>
+    url === '/api/auth/login'
+      ? Promise.resolve({ ok: true, status: 200, json: async () => ({ username: 'p', is_admin: isAdmin }) })
+      : byUrl(url, isAdmin)
+
+  async function submitLogin(path, isAdmin) {
+    const wrapper = await mountLogin(path, login(isAdmin))
+    await wrapper.find('#username').setValue('p')
+    await wrapper.find('#password').setValue('password123')
+    await wrapper.find('form').trigger('submit')
+    return wrapper
+  }
+
+  it.each([false, true])('password login (admin=%s) with ?next= goes back there', async (isAdmin) => {
+    const wrapper = await submitLogin('/admin/login?next=/elizur/stats?game=3', isAdmin)
+    await vi.waitFor(() => expect(wrapper.vm.$router.currentRoute.value.fullPath).toBe('/elizur/stats?game=3'))
+  })
+
+  it.each(['//evil.com', 'https://evil.com', String.raw`/\evil.com`])('ignores the external next %s', async (bad) => {
+    const wrapper = await submitLogin(`/admin/login?next=${encodeURIComponent(bad)}`, false)
+    await vi.waitFor(() => expect(wrapper.vm.$router.currentRoute.value.name).toBe('join'))
+  })
+
   it('tells players to sign up with Google when it is enabled', async () => {
     const wrapper = await mountLogin('/admin/login', options({ google: true }))
     expect(wrapper.text()).toContain('שחקנים: היכנסו עם Google')
@@ -140,6 +164,22 @@ describe('LoginView', () => {
       const router = wrapper.vm.$router
       channel.postMessage(true)
       await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('join'))
+      wrapper.unmount()
+    })
+
+    it('goes to next when the popup reports success', async () => {
+      const wrapper = await mountLogin('/admin/login?next=/elizur/stats', asPlayer)
+      const router = wrapper.vm.$router
+      channel.postMessage(true)
+      await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/elizur/stats'))
+      wrapper.unmount()
+    })
+
+    it('keeps next in the query when the popup reports failure', async () => {
+      const wrapper = await mountLogin('/admin/login?next=/elizur/stats', byUrl)
+      channel.postMessage(false)
+      await vi.waitFor(() => expect(wrapper.find('[role="alert"]').exists()).toBe(true))
+      expect(wrapper.vm.$router.currentRoute.value.query).toEqual({ next: '/elizur/stats', error: 'google' })
       wrapper.unmount()
     })
 

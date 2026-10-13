@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.deps import DbSession, RequireTeamAdmin, get_team_or_404
+from app.deps import DbSession, OptionalUser, RequireTeamAdmin, can_write_team, get_team_or_404
 from app.models import Game, GameStatus, get_or_create_opponent
 
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
@@ -74,7 +74,7 @@ class AdminGameRead(GameRead):
     """GameRead plus scrape-review bookkeeping — admin-only routes only.
 
     Public routes (list_games, get_game) must not leak these to anonymous
-    callers; see GameRead above.
+    callers; see GameRead above. They also blank `stats_url` for non-writers (#249).
     """
 
     is_scraped: bool
@@ -88,6 +88,13 @@ def _get_game_or_404(db: Session, team_id: int, game_id: int) -> Game:
     if game is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
     return game
+
+
+def _public_game(game: Game, show_sheet: bool) -> GameRead:
+    out = GameRead.model_validate(game)
+    if not show_sheet:  # stats_url links the raw Google Sheet, so it is admin-only (#249)
+        out.stats_url = None
+    return out
 
 
 def _apply_game_updates(db: Session, game: Game, updates: dict) -> None:
@@ -120,13 +127,11 @@ def create_game(
 
 
 @router.get("", response_model=list[GameRead])
-def list_games(team_id: int, db: DbSession) -> list[Game]:
+def list_games(team_id: int, db: DbSession, user: OptionalUser) -> list[GameRead]:
     get_team_or_404(db, team_id)
-    return list(
-        db.scalars(
-            select(Game).where(Game.team_id == team_id, Game.needs_review.is_(False))
-        )
-    )
+    show = can_write_team(db, user, team_id)
+    games = db.scalars(select(Game).where(Game.team_id == team_id, Game.needs_review.is_(False)))
+    return [_public_game(g, show) for g in games]
 
 
 @router.get("/pending-review", response_model=list[AdminGameRead])
@@ -150,8 +155,8 @@ def list_pending_review_games(
 
 
 @router.get("/{game_id}", response_model=GameRead)
-def get_game(team_id: int, game_id: int, db: DbSession) -> Game:
-    return _get_game_or_404(db, team_id, game_id)
+def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> GameRead:
+    return _public_game(_get_game_or_404(db, team_id, game_id), can_write_team(db, user, team_id))
 
 
 @router.patch("/{game_id}", response_model=AdminGameRead)
