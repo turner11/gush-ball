@@ -179,7 +179,7 @@ async function deleteImage(player, image) {
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div class="min-w-0 space-y-4">
         <SearchInput v-if="players.length" id="player-search" ref="searchInput" v-model="query" label="חיפוש שחקן" />
-        <div class="table-wrap">
+        <div v-if="shownPlayers.length || !players.length" class="table-wrap">
           <table class="data-table">
             <thead>
               <tr class="table-header-row">

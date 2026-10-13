@@ -345,26 +345,26 @@ async function onDelete(game) {
         <template v-else>
           <SearchInput id="game-search" ref="searchInput" v-model="query" label="חיפוש משחק לפי יריבה" />
           <div v-if="!sortedGames.length" class="empty-state" aria-live="polite">
-          <p>אין תוצאות עבור "{{ query.trim() }}".</p>
-          <button type="button" class="btn-secondary mt-3" @click="clearSearch">נקה חיפוש</button>
-        </div>
+            <p>אין תוצאות עבור "{{ query.trim() }}".</p>
+            <button type="button" class="btn-secondary mt-3" @click="clearSearch">נקה חיפוש</button>
+          </div>
           <ol v-else class="card divide-y divide-line overflow-hidden p-0">
-          <GameRow v-for="game in sortedGames" :key="game.id" :game="game" :team="selectedTeam">
-            <template #actions>
-              <GameStatsLink :game="game" class="btn-ghost" />
-              <a
-                v-if="game.stats_url"
-                :href="game.stats_url"
-                target="_blank"
-                rel="noopener"
-                class="btn-ghost"
-                :aria-label="'גיליון הסטטיסטיקה של המשחק נגד ' + game.opponent.name + ' (נפתח בלשונית חדשה)'"
-              >גיליון<AppIcon name="external" /></a>
-              <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
-              <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
-            </template>
-          </GameRow>
-        </ol>
+            <GameRow v-for="game in sortedGames" :key="game.id" :game="game" :team="selectedTeam">
+              <template #actions>
+                <GameStatsLink :game="game" class="btn-ghost" />
+                <a
+                  v-if="game.stats_url"
+                  :href="game.stats_url"
+                  target="_blank"
+                  rel="noopener"
+                  class="btn-ghost"
+                  :aria-label="'גיליון הסטטיסטיקה של המשחק נגד ' + game.opponent.name + ' (נפתח בלשונית חדשה)'"
+                >גיליון<AppIcon name="external" /></a>
+                <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
+                <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
+              </template>
+            </GameRow>
+          </ol>
         </template>
       </div>
 
