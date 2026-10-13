@@ -1,3 +1,4 @@
+import contextlib
 from datetime import UTC, datetime
 
 import cv2
@@ -7,6 +8,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app import scrape_games
+from app.config import settings
 from app.models import Club, Game, GameStatus, Opponent, Player, PlayerImage, Team
 
 OUR_SP_ID = 1542241
@@ -931,6 +933,7 @@ def _image_focus(db: Session) -> list[tuple]:
 def test_sync_team_players_stores_face_focus_once(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(settings, "object_storage_public_url", "https://cdn")
     team = _make_team(db_session)
     player = Player(team_id=team.id, name="איתי ורולקר")
     player.images.append(PlayerImage(url="https://cdn/admin.png"))
@@ -956,6 +959,7 @@ def test_sync_team_players_stores_face_focus_once(
 def test_sync_team_players_fills_focus_for_off_roster_player_images(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(settings, "object_storage_public_url", "https://cdn")
     team = _make_team(db_session)
     live = Player(team_id=team.id, name="משה קולקר")
     live.images.append(PlayerImage(url="https://cdn/off.webp"))
@@ -974,6 +978,53 @@ def test_sync_team_players_fills_focus_for_off_roster_player_images(
     assert focus["https://cdn/off.webp"] == (40.0, 30.0, 1.5)
     assert focus["https://cdn/gone.webp"] == (None, None, None)
     assert "https://cdn/gone.webp" not in fetched
+
+
+def test_sync_team_players_fetches_only_trusted_image_hosts(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "object_storage_public_url", "https://cdn")
+    team = _make_team(db_session)
+    player = Player(team_id=team.id, name="איתי ורולקר")
+    bad = [
+        "http://169.254.169.254/latest/meta-data/",
+        "https://cdn.evil.com/x.png",
+        "https://ibasketball.co.il.evil.com/x.jpg",
+    ]
+    for url in [*bad, "https://cdn/ok.png"]:
+        player.images.append(PlayerImage(url=url))
+    db_session.add(player)
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+    fetched: list[str] = []
+    monkeypatch.setattr(scrape_games, "_get_image", lambda url: fetched.append(url) or b"x")
+    monkeypatch.setattr(scrape_games, "face_focus", lambda data: (40.0, 30.0, 1.5))
+
+    scrape_games.sync_team_players(db_session, team)
+
+    assert sorted(fetched) == [
+        "https://cdn/ok.png",
+        "https://ibasketball.co.il/b.jpg",
+    ]
+    focus = {url: (x, y, z) for url, x, y, z in _image_focus(db_session)}
+    assert all(focus[url] == (None, None, None) for url in bad)
+
+
+def test_get_image_stops_at_size_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(scrape_games, "CRAWL_DELAY", 0)
+    monkeypatch.setattr(scrape_games, "MAX_IMAGE_BYTES", 4)
+    body = {"data": b""}
+
+    @contextlib.contextmanager
+    def fake_stream(method: str, url: str, **kwargs: object):
+        yield httpx.Response(200, content=body["data"], request=httpx.Request(method, url))
+
+    monkeypatch.setattr(scrape_games.httpx, "stream", fake_stream)
+
+    body["data"] = b"1234"
+    assert scrape_games._get_image("https://ibasketball.co.il/a.jpg") == b"1234"
+    body["data"] = b"12345"
+    assert scrape_games._get_image("https://ibasketball.co.il/a.jpg") == b""
 
 
 def test_sync_team_players_image_fetch_error_keeps_players_and_retries(
