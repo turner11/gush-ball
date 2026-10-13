@@ -68,6 +68,16 @@ def test_parse_club_page_reads_cards_and_resolves_league_url() -> None:
     assert rows[1]["ibasketball_league_url"] is None  # ambiguous: two hrefs share the text
 
 
+def test_parse_club_page_ignores_same_named_tournament() -> None:
+    html = (
+        '<a class="league data-item" href="https://ibasketball.co.il/league/2026-822/">קט סל</a>'
+        '<a class="league data-item tournament" href="https://ibasketball.co.il/league/2026-922/">קט סל</a>'
+        f'<div class="team-gallery">{_card("Alpha", "קט סל", "1")}</div>'
+    )
+    rows = scrape_club.parse_club_page(html)
+    assert rows[0]["ibasketball_league_url"] == "https://ibasketball.co.il/league/2026-822/"
+
+
 def test_parse_club_page_without_gallery_raises() -> None:
     with pytest.raises(ValueError):
         scrape_club.parse_club_page("<div>nothing</div>")

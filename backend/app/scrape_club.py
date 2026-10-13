@@ -27,7 +27,7 @@ def parse_club_page(html: str) -> list[dict]:
     if gallery is None:
         raise ValueError("No team gallery on club page")
     league_urls: dict[str, set[str]] = defaultdict(set)
-    for a in soup.select("a.league.data-item[href]"):
+    for a in soup.select("a.league.data-item:not(.tournament)[href]"):  # cups reuse league names
         league_urls[a.get_text(strip=True)].add(a["href"])
     rows = []
     for card in gallery.select("a.team[href]"):

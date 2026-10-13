@@ -3,6 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import scrape_club
+from app.routers import teams as teams_router
 
 
 def _create_team(admin_client: TestClient, name: str, **extra: str) -> dict:
@@ -50,6 +51,7 @@ def test_create_team_rejects_oversized_field(admin_client: TestClient) -> None:
     [
         ("POST", "/teams"),
         ("POST", "/teams/club-preview"),
+        ("GET", "/teams/club-preview/status"),
         ("PATCH", "/teams/1"),
         ("DELETE", "/teams/1"),
     ],
@@ -152,20 +154,33 @@ def test_club_preview_rejects_non_ibasketball_url(admin_client: TestClient) -> N
     assert response.status_code == 422
 
 
-def test_club_preview_returns_502_on_fetch_error(
+URL = {"club_url": "https://ibasketball.co.il/club/1/"}
+
+
+def test_club_preview_runs_in_background_and_reports_error_on_fetch_failure(
     admin_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def boom(url: str) -> str:
         raise httpx.ConnectError("down")
 
     monkeypatch.setattr(scrape_club, "_get_page", boom)
-    response = admin_client.post(
-        "/teams/club-preview", json={"club_url": "https://ibasketball.co.il/club/1/"}
-    )
-    assert response.status_code == 502
+    assert admin_client.post("/teams/club-preview", json=URL).status_code == 202
+    assert admin_client.get("/teams/club-preview/status").json() == {
+        "running": False,
+        "rows": None,
+        "error": "unreachable",
+    }
 
 
-def test_club_preview_returns_preview_rows(
+def test_club_preview_status_reports_not_a_club_on_value_error(
+    admin_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(scrape_club, "_get_page", lambda url: "<div>nothing</div>")
+    admin_client.post("/teams/club-preview", json=URL)
+    assert admin_client.get("/teams/club-preview/status").json()["error"] == "not_a_club"
+
+
+def test_club_preview_status_returns_rows(
     admin_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     row = {
@@ -177,8 +192,16 @@ def test_club_preview_returns_preview_rows(
         "logo_url": None,
     }
     monkeypatch.setattr(scrape_club, "preview_club_teams", lambda db, url: [row])
-    response = admin_client.post(
-        "/teams/club-preview", json={"club_url": "https://ibasketball.co.il/club/1/"}
-    )
-    assert response.status_code == 200
-    assert response.json() == [row]
+    admin_client.post("/teams/club-preview", json=URL)
+    assert admin_client.get("/teams/club-preview/status").json() == {
+        "running": False,
+        "rows": [row],
+        "error": None,
+    }
+
+
+def test_club_preview_returns_409_when_already_running(
+    admin_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(teams_router, "_preview_running", True)
+    assert admin_client.post("/teams/club-preview", json=URL).status_code == 409

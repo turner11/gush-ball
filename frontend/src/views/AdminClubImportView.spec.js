@@ -33,6 +33,12 @@ function res(body, status = 200) {
   return { ok: status < 400, status, json: async () => body }
 }
 
+const STARTED = () => res({ status: 'started' }, 202)
+const scanOk = (rows) => ({
+  'POST /api/teams/club-preview': STARTED,
+  'GET /api/teams/club-preview/status': () => res({ running: false, rows, error: null }),
+})
+
 function mockFetch(handlers) {
   global.fetch = vi.fn((url, options = {}) => {
     const handler = handlers[`${options.method || 'GET'} ${url}`]
@@ -62,17 +68,25 @@ async function scan(wrapper) {
   await wrapper.find('#club-secondary-color').setValue('#445566')
   await wrapper.find('form').trigger('submit')
   await flushPromises()
+  vi.advanceTimersByTime(3000) // one status poll
+  await flushPromises()
 }
 
 const submitCreate = (wrapper) => wrapper.find('form').trigger('submit')
 const bodyOf = (call) => JSON.parse(call[1].body)
 
 describe('AdminClubImportView', () => {
-  beforeEach(() => vi.resetModules())
-  afterEach(() => vi.restoreAllMocks())
+  beforeEach(() => {
+    vi.resetModules()
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
 
   it('scanning posts the club url and renders a row per team prefilled with the chosen colors', async () => {
-    mockFetch({ 'POST /api/teams/club-preview': () => res(PREVIEW) })
+    mockFetch({ ...scanOk(PREVIEW) })
     const { wrapper } = await mountView()
     await scan(wrapper)
 
@@ -83,7 +97,7 @@ describe('AdminClubImportView', () => {
   })
 
   it('shows the empty state when every club team already exists', async () => {
-    mockFetch({ 'POST /api/teams/club-preview': () => res([]) })
+    mockFetch({ ...scanOk([]) })
     const { wrapper } = await mountView()
     await scan(wrapper)
 
@@ -91,17 +105,45 @@ describe('AdminClubImportView', () => {
   })
 
   it('shows an error and keeps the form when the scan fails', async () => {
-    mockFetch({ 'POST /api/teams/club-preview': () => res({ detail: 'x' }, 502) })
+    mockFetch({
+      'POST /api/teams/club-preview': STARTED,
+      'GET /api/teams/club-preview/status': () => res({ running: false, rows: null, error: 'unreachable' }),
+    })
     const { wrapper } = await mountView()
     await scan(wrapper)
 
-    expect(wrapper.find('[role="alert"]').text()).toContain('הסריקה נכשלה')
+    expect(wrapper.find('[role="alert"]').text()).toContain('לא ניתן לטעון')
     expect(wrapper.find('#club-url').element.value).toBe('https://ibasketball.co.il/club/3901-2/')
+  })
+
+  it('shows a loading state until the status poll reports the scan finished', async () => {
+    let running = true
+    mockFetch({
+      'POST /api/teams/club-preview': STARTED,
+      'GET /api/teams/club-preview/status': () =>
+        res({ running, rows: running ? null : PREVIEW, error: null }),
+    })
+    const { wrapper } = await mountView()
+    await scan(wrapper)
+    expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true)
+    expect(wrapper.findAll('tbody tr')).toHaveLength(0)
+
+    running = false
+    vi.advanceTimersByTime(3000)
+    await flushPromises()
+    expect(wrapper.findAll('tbody tr')).toHaveLength(3)
+  })
+
+  it('shows an error when the scan cannot be started', async () => {
+    mockFetch({ 'POST /api/teams/club-preview': () => res({ detail: 'busy' }, 409) })
+    const { wrapper } = await mountView()
+    await scan(wrapper)
+    expect(wrapper.find('[role="alert"]').text()).toContain('כבר רצה')
   })
 
   it('creating posts one POST /api/teams per remaining row with edited fields, skipping removed rows and empty fields', async () => {
     mockFetch({
-      'POST /api/teams/club-preview': () => res(PREVIEW),
+      ...scanOk(PREVIEW),
       'POST /api/teams': () => res({ id: 1 }, 201),
     })
     const { wrapper, push } = await mountView()
@@ -133,7 +175,7 @@ describe('AdminClubImportView', () => {
   it('a failed row stays with its error while created rows are removed', async () => {
     let n = 0
     mockFetch({
-      'POST /api/teams/club-preview': () => res(PREVIEW),
+      ...scanOk(PREVIEW),
       'POST /api/teams': () => (++n === 2 ? res({ detail: 'bad' }, 422) : res({ id: n }, 201)),
     })
     const { wrapper, push } = await mountView()

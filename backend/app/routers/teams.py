@@ -1,18 +1,21 @@
+import logging
 import re
 from typing import Annotated, Literal
 
 import httpx
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import AfterValidator, AnyUrl, BaseModel, HttpUrl, StringConstraints, UrlConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import scrape_club
+from app.db import SessionLocal
 from app.deps import DbSession, RequireAdmin, RequireTeamAdmin, get_team_or_404
 from app.models import AdminUser, Team
 from app.security import hash_password
 
 router = APIRouter(prefix="/teams", tags=["teams"])
+log = logging.getLogger(__name__)
 
 HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 # Match the backing DB column widths (see app/models/team.py) so an oversized
@@ -88,6 +91,12 @@ class ClubTeamOut(BaseModel):
     logo_url: str | None
 
 
+class ClubPreviewStatusOut(BaseModel):
+    running: bool
+    rows: list[ClubTeamOut] | None = None
+    error: Literal["unreachable", "not_a_club", "failed"] | None = None
+
+
 class AdminCreate(BaseModel):
     # no "@": login routes any identifier containing "@" to the email lookup
     username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64, pattern=r"^[^@]+$")]
@@ -125,19 +134,47 @@ def _stringify_urls(data: dict) -> dict:
     return {k: (str(v) if isinstance(v, AnyUrl) else v) for k, v in data.items()}
 
 
-@router.post("/club-preview", response_model=list[ClubTeamOut])
-def club_preview(payload: ClubPreviewIn, _admin_id: RequireAdmin, db: DbSession) -> list[dict]:
-    # sync def: the scrape sleeps (crawl delay), so let it run in the threadpool
+# Same pattern as routers/sync.py: the scrape sleeps (crawl delay), so it runs in a BackgroundTask,
+# guarded by a module-level flag (safe because club_preview is `async def` on one uvicorn worker).
+# ponytail: in-memory single result, lost on restart; one scan at a time across admins.
+_preview_running = False
+_preview_last: dict | None = None
+
+
+def _run_club_preview(club_url: str) -> None:
+    global _preview_running, _preview_last
     try:
-        return scrape_club.preview_club_teams(db, str(payload.club_url))
-    except httpx.HTTPError as exc:
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, "לא ניתן לטעון את דף האגודה מ-ibasketball"
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, "לא נמצאו קבוצות בדף האגודה"
-        ) from exc
+        with SessionLocal() as db:
+            _preview_last = {"rows": scrape_club.preview_club_teams(db, club_url)}
+    except httpx.HTTPError:
+        log.exception("Club preview fetch failed: %s", club_url)
+        _preview_last = {"error": "unreachable"}
+    except ValueError:
+        log.exception("No teams on club page: %s", club_url)
+        _preview_last = {"error": "not_a_club"}
+    except Exception:
+        log.exception("Club preview crashed: %s", club_url)
+        _preview_last = {"error": "failed"}
+    finally:
+        _preview_running = False
+
+
+@router.post("/club-preview", status_code=status.HTTP_202_ACCEPTED)
+async def club_preview(
+    payload: ClubPreviewIn, _admin_id: RequireAdmin, background_tasks: BackgroundTasks
+) -> dict[str, str]:
+    global _preview_running, _preview_last
+    if _preview_running:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Club preview already running")
+    _preview_running = True
+    _preview_last = None
+    background_tasks.add_task(_run_club_preview, str(payload.club_url))
+    return {"status": "started"}
+
+
+@router.get("/club-preview/status", response_model=ClubPreviewStatusOut)
+async def club_preview_status(_admin_id: RequireAdmin) -> ClubPreviewStatusOut:
+    return ClubPreviewStatusOut(running=_preview_running, **(_preview_last or {}))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=TeamOut)

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import { useAuth } from '../composables/useAuth'
@@ -16,7 +16,13 @@ const SOCIALS = [
 
 const router = useRouter()
 const { user } = useAuth()
-const { previewClub } = useTeams()
+const { startClubPreview, clubPreviewStatus } = useTeams()
+
+const POLL_MS = 3000
+const SCAN_ERRORS = {
+  not_a_club: 'הקישור אינו דף אגודה תקין ב-ibasketball',
+  unreachable: 'לא ניתן לטעון את דף האגודה מ-ibasketball, נסו שוב',
+}
 
 const step = ref('input') // 'input' | 'scanning' | 'review'
 const clubUrl = ref('')
@@ -31,25 +37,57 @@ const summary = ref(null)
 
 const code = (row) => row.ibasketball_team_url.match(/\/team\/(\d+)/)?.[1] ?? row.ibasketball_team_url
 
+let timer = null
+let unmounted = false
+const stopPolling = () => {
+  clearInterval(timer)
+  timer = null
+}
+onUnmounted(() => {
+  unmounted = true
+  stopPolling()
+})
+
+function failScan(message) {
+  stopPolling()
+  scanError.value = message
+  step.value = 'input'
+}
+
+function showPreview(preview) {
+  stopPolling()
+  rows.value = preview.map((team) => ({
+    ...team,
+    initialName: team.name,
+    name_en: '',
+    primary_color: primaryColor.value,
+    secondary_color: secondaryColor.value,
+    background: 'hoop-1',
+    ...Object.fromEntries(SOCIALS.map((s) => [s.key, ''])),
+    error: null,
+  }))
+  step.value = 'review'
+}
+
+async function pollScan() {
+  try {
+    const s = await clubPreviewStatus()
+    if (unmounted || s.running) return
+    if (s.rows) showPreview(s.rows)
+    else failScan(SCAN_ERRORS[s.error] ?? 'הסריקה נכשלה, נסו שוב')
+  } catch {
+    if (!unmounted) failScan('הסריקה נכשלה, נסו שוב')
+  }
+}
+
 async function onScan() {
   step.value = 'scanning'
   scanError.value = null
   try {
-    const preview = await previewClub(clubUrl.value)
-    rows.value = preview.map((team) => ({
-      ...team,
-      initialName: team.name,
-      name_en: '',
-      primary_color: primaryColor.value,
-      secondary_color: secondaryColor.value,
-      background: 'hoop-1',
-      ...Object.fromEntries(SOCIALS.map((s) => [s.key, ''])),
-      error: null,
-    }))
-    step.value = 'review'
+    await startClubPreview(clubUrl.value)
+    timer ??= setInterval(pollScan, POLL_MS)
   } catch (err) {
-    scanError.value = err.status === 422 ? 'הקישור אינו דף אגודה תקין ב-ibasketball' : 'הסריקה נכשלה, נסו שוב'
-    step.value = 'input'
+    failScan(err.status === 409 ? 'סריקה אחרת כבר רצה, נסו שוב בעוד רגע' : 'הסריקה נכשלה, נסו שוב')
   }
 }
 
@@ -162,9 +200,8 @@ const total = computed(() => rows.value.length)
               </thead>
               <tbody>
                 <tr v-for="row in rows" :key="row.ibasketball_team_url" class="table-body-row">
-                  <td data-label="לוגו">
+                  <td data-label="לוגו" :class="{ 'max-sm:hidden': !row.logo_url }">
                     <img v-if="row.logo_url" :src="row.logo_url" alt="" class="size-10 object-contain" />
-                    <span v-else class="size-10" />
                   </td>
                   <td data-label="שם">
                     <input v-model="row.name" type="text" required class="field-input mt-0 w-full min-w-0 sm:min-w-48 font-bold" :aria-label="`שם — ${row.initialName}`" />
