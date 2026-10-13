@@ -98,7 +98,7 @@ async function onSubmit() {
     <div class="card space-y-3">
       <h2 class="section-title">בקשת הצטרפות</h2>
       <p v-if="!memberships.length" class="text-sm text-muted">
-        בחרו קבוצה או מועדון ושלחו בקשה. לאחר אישור המנהל תוכלו לצפות בסטטיסטיקת החמישיות.
+        בחרו קבוצה או מועדון ושלחו בקשה. לאחר אישור המנהל תוכלו לצפות בתוכן פרטי של הקבוצה.
       </p>
 
       <div v-if="teams === null && !teamsApi.error.value" class="space-y-2" aria-busy="true">
