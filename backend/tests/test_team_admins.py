@@ -167,10 +167,8 @@ def test_full_admin_creates_club_admin(
     assert [a["username"] for a in admin_client.get(sibling_url).json()] == ["coach"]
     assert admin_client.delete(f"{sibling_url}/{created.json()['id']}?scope=club").status_code == 204
 
-    admin_client.put(f"/teams/{own_team.id}/admins/{created.json()['id']}", json={"scope": "club"})  # account survived
-    assert client.post("/auth/login", json=NEW).status_code == 200
-    ids = client.get("/auth/me").json()["team_ids"]
-    assert sorted(ids) == sorted([own_team.id, sibling_team.id])
+    assert client.post("/auth/login", json=NEW).status_code == 200  # account survived, rights gone
+    assert client.get("/auth/me").json()["team_ids"] == []
 
 
 def test_club_scope_requires_team_club(admin_client: TestClient, own_team: Team) -> None:
@@ -211,19 +209,49 @@ def test_assign_promotes_existing_member_row(admin_client: TestClient, db_sessio
 def test_assign_club_scope_by_full_admin(
     admin_client: TestClient, db_session: Session, own_team: Team, sibling_team: Team
 ) -> None:
-    member = _member(db_session)
+    member = _member(db_session, sibling_team, role="member")
     r = admin_client.put(f"/teams/{own_team.id}/admins/{member.id}", json={"scope": "club"})
     assert r.status_code == 204
-    assert _grants(db_session, member) == [(None, "Gush", "admin")]
+    assert _grants(db_session, member) == [(sibling_team.id, None, "member"), (None, "Gush", "admin")]
 
 
 def test_club_admin_assigns_team_admin_in_own_club(
     club_admin_client: TestClient, db_session: Session, sibling_team: Team
 ) -> None:
-    member = _member(db_session)
+    member = _member(db_session, sibling_team, role="member")
     assert club_admin_client.put(f"/teams/{sibling_team.id}/admins/{member.id}").status_code == 204
     assert _grants(db_session, member) == [(sibling_team.id, None, "admin")]
     assert member.id in [a["id"] for a in club_admin_client.get(f"/teams/{sibling_team.id}/admins").json()]
+
+
+def test_assign_rejects_unapproved_accounts(
+    club_admin_client: TestClient, db_session: Session, own_team: Team, sibling_team: Team
+) -> None:
+    for name, row in (
+        ("rowless", None),
+        ("pendingteam", Membership(team_id=own_team.id, role="pending")),
+        ("pendingclub", Membership(club="Gush", role="pending")),
+    ):
+        user = AdminUser(username=name, password_hash="x")
+        db_session.add(user)
+        db_session.flush()
+        before = []
+        if row:
+            row.user_id = user.id
+            db_session.add(row)
+            before = [(row.team_id, row.club, "pending")]
+        db_session.commit()
+        assert club_admin_client.put(f"/teams/{sibling_team.id}/admins/{user.id}").status_code == 404
+        assert _grants(db_session, user) == before
+
+
+def test_full_admin_cannot_assign_unapproved_club_scope(
+    admin_client: TestClient, db_session: Session, own_team: Team, sibling_team: Team
+) -> None:
+    member = _member(db_session)
+    r = admin_client.put(f"/teams/{own_team.id}/admins/{member.id}", json={"scope": "club"})
+    assert r.status_code == 404
+    assert _grants(db_session, member) == []
 
 
 def test_club_admin_cannot_assign_outside_club(
