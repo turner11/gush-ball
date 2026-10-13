@@ -488,10 +488,6 @@ def _pw_signup(c: TestClient, ip: str = "6.6.6.6", **over):
     return c.post("/auth/signup", json=NEW | over, headers={"X-Forwarded-For": ip})
 
 
-def _verify(c: TestClient, sent: list[tuple[str, str]]):
-    return c.post("/auth/verify-email", json={"token": _token(sent)})
-
-
 def test_password_signup_creates_rightsless_account_without_email(
     client: TestClient, db_session: Session, verify_sent
 ) -> None:
@@ -530,7 +526,7 @@ def test_unverified_signup_email_is_not_a_google_or_reset_key(
 
 def test_verify_email_stores_email_once(client: TestClient, db_session: Session, verify_sent) -> None:
     _pw_signup(client)
-    token = parse_qs(urlparse(verify_sent[-1][1]).query)["token"][0]
+    token = _token(verify_sent)
     assert client.post("/auth/verify-email", json={"token": token}).status_code == 200
     assert db_session.scalar(select(AdminUser.email)) == "new@example.com"
     client.post("/auth/logout")
@@ -546,7 +542,7 @@ def test_verify_email_rejects_expired_or_tampered_token(
     from itsdangerous.timed import TimestampSigner
 
     _pw_signup(client)
-    token = parse_qs(urlparse(verify_sent[-1][1]).query)["token"][0]
+    token = _token(verify_sent)
     assert client.post("/auth/verify-email", json={"token": token + "x"}).status_code == 400
     monkeypatch.setattr(TimestampSigner, "get_timestamp", lambda self: int(time.time()) + 3601)
     assert client.post("/auth/verify-email", json={"token": token}).status_code == 400
@@ -554,7 +550,7 @@ def test_verify_email_rejects_expired_or_tampered_token(
 
 def test_verify_email_rejects_address_taken_meanwhile(seeded: TestClient, db_session: Session, verify_sent) -> None:
     assert _pw_signup(seeded, email="admin@example.com").status_code == 200
-    token = parse_qs(urlparse(verify_sent[-1][1]).query)["token"][0]
+    token = _token(verify_sent)
     assert seeded.post("/auth/verify-email", json={"token": token}).status_code == 409
     assert db_session.scalar(select(AdminUser.email).where(AdminUser.username == "dana")) is None
 
