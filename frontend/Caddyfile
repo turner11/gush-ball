@@ -1,3 +1,13 @@
+# Real client IP behind Coolify's proxy, for the backend's per-IP rate limits (#266). Both halves are load-bearing:
+# strict resolves XFF right-to-left (the left-most entry is client-spoofable), and the header_up below
+# sends only that one IP (without it XFF is "<client>, <proxy>" and the backend's client_ip reads the proxy).
+{
+    servers {
+        trusted_proxies static private_ranges
+        trusted_proxies_strict
+    }
+}
+
 :80 {
     header {
         Content-Security-Policy "default-src 'self'; script-src 'self' https://platform.twitter.com; style-src 'self' 'unsafe-inline'; img-src * data:; frame-src https://www.youtube-nocookie.com https://www.facebook.com https://www.instagram.com https://platform.twitter.com https://syndication.twitter.com; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
@@ -9,7 +19,9 @@
         request_body {
             max_size 11MB
         }
-        reverse_proxy backend:8000
+        reverse_proxy backend:8000 {
+            header_up X-Forwarded-For {client_ip}
+        }
     }
     @admin path_regexp ^/([^/]+/)?admin(/|$)
     header @admin X-Robots-Tag "noindex, nofollow"

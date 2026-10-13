@@ -278,5 +278,6 @@ URLs in them come from `PUBLIC_URL`.
 | Build fails at the `stats` context | Submodules not enabled on the Coolify resource |
 | Upload returns 502 "Object storage is not configured correctly" | Wrong `OBJECT_STORAGE_*` value or token not scoped to that bucket |
 | Upload works but image is broken | `OBJECT_STORAGE_PUBLIC_URL` wrong, or bucket public access off |
+| Every `login ...` log line shows the same `ip=10.x`/`172.x` address, and logins return 429 for everyone | Caddy isn't trusting the Coolify proxy (`trusted_proxies` in `frontend/Caddyfile`), or the proxy topology changed |
 | `backup.sh`: `expected 1 running container matching ...` | Stack not deployed, mid-redeploy, or the Coolify resource was recreated with a new id; check `docker ps` and set `DB_CONTAINER` in `~/gush-ball-backup.env` |
 | `backup.sh` fails with `AccessDenied` | `~/gush-ball-backup.env` wrong, or token not scoped to `BACKUP_BUCKET` |
