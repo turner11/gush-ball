@@ -579,3 +579,35 @@ def test_password_signup_rate_limited_per_ip_without_touching_login(seeded: Test
         assert _pw_signup(seeded, username=f"u{i}").status_code == 200
     assert _pw_signup(seeded, username="late").status_code == 429
     assert seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "6.6.6.6"}).status_code == 200
+
+
+def _prod_without_smtp(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(auth.settings, "public_url", "https://example.org")
+    monkeypatch.setattr(auth.settings, "smtp_host", "")
+
+
+def test_forgot_password_503_in_prod_without_smtp(
+    seeded: TestClient, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _prod_without_smtp(monkeypatch)
+    caplog.set_level("WARNING", logger="app.routers.auth")
+    assert _forgot(seeded).status_code == 503
+    assert _forgot(seeded, "nobody@example.com").status_code == 503
+    assert "token=" not in caplog.text
+
+
+def test_signup_503_in_prod_without_smtp(
+    client: TestClient, db_session: Session, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _prod_without_smtp(monkeypatch)
+    caplog.set_level("WARNING", logger="app.routers.auth")
+    assert _pw_signup(client).status_code == 503
+    assert db_session.scalars(select(AdminUser)).all() == []
+    assert "token=" not in caplog.text
+
+
+def test_forgot_password_sends_in_prod_with_smtp(seeded: TestClient, sent, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(auth.settings, "public_url", "https://example.org")
+    monkeypatch.setattr(auth.settings, "smtp_host", "smtp.test")
+    assert _forgot(seeded).status_code == 200
+    assert len(sent) == 1
