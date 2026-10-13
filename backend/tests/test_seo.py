@@ -28,7 +28,7 @@ def test_sitemap_lists_team_pages_under_team_slug(client, db_session: Session) -
     db_session.commit()
 
     locs = _locs(client)
-    for page in ("schedule", "standings", "roster", "media", "stats"):
+    for page in ("schedule", "standings", "roster", "media"):
         assert f"https://example.org/elizur/{page}" in locs
     assert "https://example.org/schedule" not in locs
 

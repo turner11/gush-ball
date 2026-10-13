@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.deps import DbSession, RequireTeamAdmin, get_team_or_404
+from app.deps import DbSession, RequireStatsViewer, RequireTeamAdmin, get_team_or_404
 from app.models import Game, LineupSnapshot
 from app.routers.games import _get_game_or_404, _sheet_url
 
@@ -90,6 +90,7 @@ def delete_game_stats(team_id: int, game_id: int, db: DbSession, _admin: Require
 def list_lineups(
     team_id: int,
     db: DbSession,
+    _viewer: RequireStatsViewer,
     size: int = Query(5, ge=1, le=5),
     sort: Literal["top", "offense", "defense"] = "top",
     game_id: int | None = None,

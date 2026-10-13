@@ -92,12 +92,13 @@ async function onSubmit() {
           </p>
         </li>
       </ul>
+      <RouterLink v-if="user?.can_view_stats" to="/stats" class="btn-primary w-full sm:w-auto">צפייה בסטטיסטיקה</RouterLink>
     </div>
 
     <div class="card space-y-3">
       <h2 class="section-title">בקשת הצטרפות</h2>
       <p v-if="!memberships.length" class="text-sm text-muted">
-        בחרו קבוצה או מועדון ושלחו בקשה. לאחר אישור המנהל תצורפו כשחקנים.
+        בחרו קבוצה או מועדון ושלחו בקשה. לאחר אישור המנהל תוכלו לצפות בסטטיסטיקת החמישיות.
       </p>
 
       <div v-if="teams === null && !teamsApi.error.value" class="space-y-2" aria-busy="true">

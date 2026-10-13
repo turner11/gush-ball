@@ -17,8 +17,12 @@ function jsonRes(body) {
   return { ok: true, status: 200, json: async () => body }
 }
 
+const MEMBER = { username: 'p', is_admin: false, can_view_stats: true, memberships: [{ id: 1, team_id: 1, club: null, role: 'member' }] }
+const UNAUTHORIZED = () => ({ ok: false, status: 401, statusText: 'x', json: async () => ({}) })
+
 function mockFetch(overrides = {}) {
   const handlers = {
+    'GET /api/auth/me': () => jsonRes(MEMBER),
     'GET /api/teams/1/players': () => jsonRes(PLAYERS),
     'GET /api/teams/1/games': () => jsonRes(GAMES),
     [LINEUPS]: () => jsonRes([]),
@@ -47,6 +51,8 @@ describe('StatsView', () => {
       routes: [
         { path: '/', component: { template: '<div/>' } },
         { path: '/stats', name: 'stats', component: { template: '<div/>' } },
+        { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
+        { path: '/join', name: 'join', component: { template: '<div/>' } },
       ],
     })
   })
@@ -112,7 +118,7 @@ describe('StatsView', () => {
 
   describe('live stats link', () => {
     const SHEET = 'https://docs.google.com/spreadsheets/d/X/edit'
-    const ADMIN = { username: 'a', team_id: null, stats_app_url: 'https://app.streamlit.app', stats_template_url: '' }
+    const ADMIN = { username: 'a', team_id: null, can_view_stats: true, stats_app_url: 'https://app.streamlit.app', stats_template_url: '' }
     const LIVE = 'a[target="_blank"][href^="https://app.streamlit.app"]'
 
     async function mountAs(me, path) {
@@ -136,15 +142,49 @@ describe('StatsView', () => {
       expect(wrapper.find(LIVE).exists()).toBe(false)
     })
 
-    it('is hidden from fans', async () => {
-      const wrapper = await mountAs(() => ({ ok: false, status: 401, statusText: 'x', json: async () => ({}) }), '/stats?game=2')
+    it('is hidden from members', async () => {
+      const wrapper = await mountAs(() => jsonRes(MEMBER), '/stats?game=2')
       expect(wrapper.find(LIVE).exists()).toBe(false)
+    })
+  })
+
+  describe('access prompt', () => {
+    const noData = () => expect(urls().some((u) => /players|games|lineups/.test(u))).toBe(false)
+
+    async function mountAsUser(me, path = '/stats') {
+      mockFetch({ 'GET /api/auth/me': me })
+      await router.push(path)
+      return mountView()
+    }
+
+    it('anonymous sees the sign-in prompt and loads nothing', async () => {
+      const wrapper = await mountAsUser(UNAUTHORIZED, '/stats?game=2')
+      expect(wrapper.text()).toContain('הסטטיסטיקה זמינה לשחקני המועדון')
+      expect(wrapper.find('a.btn-primary').attributes('href')).toBe('/admin/login?next=/stats?game=2')
+      noData()
+    })
+
+    it('pending user sees waiting for approval with a link to join', async () => {
+      const me = { username: 'p', can_view_stats: false, memberships: [{ id: 1, team_id: 1, club: null, role: 'pending' }] }
+      const wrapper = await mountAsUser(() => jsonRes(me))
+      expect(wrapper.text()).toContain('ממתינה לאישור')
+      expect(wrapper.find('a').attributes('href')).toBe('/join')
+      noData()
+    })
+
+    it('logged-in user without rows sees the join CTA', async () => {
+      const wrapper = await mountAsUser(() => jsonRes({ username: 'p', can_view_stats: false, memberships: [] }))
+      expect(wrapper.text()).toContain('בקשת הצטרפות')
+      expect(wrapper.find('a').attributes('href')).toBe('/join')
+      noData()
     })
   })
 
   it('games load error shows retry that reloads', async () => {
     global.fetch = vi.fn((url) =>
-      url.endsWith('/games') ? Promise.reject(new Error('boom')) : Promise.resolve(jsonRes(url.includes('players') ? PLAYERS : [])),
+      url.endsWith('/games')
+        ? Promise.reject(new Error('boom'))
+        : Promise.resolve(jsonRes(url.includes('auth/me') ? MEMBER : url.includes('players') ? PLAYERS : [])),
     )
     await router.push('/stats')
     const wrapper = await mountView()

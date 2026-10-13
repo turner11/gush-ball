@@ -20,7 +20,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.deps import DbSession, RequireUser, admin_clubs, admin_team_ids, client_ip, is_admin
+from app.deps import (
+    DbSession,
+    RequireUser,
+    admin_clubs,
+    admin_team_ids,
+    can_view_stats,
+    client_ip,
+    is_admin,
+)
 from app.models import AdminUser, Membership
 from app.security import hash_password, password_fingerprint, verify_password
 
@@ -82,6 +90,7 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
     out: dict[str, Any] = {
         "username": user.username,
         "is_admin": admin,
+        "can_view_stats": can_view_stats(db, user),
         # ponytail: the lone team only drives the UI's single-team shortcuts; team_ids is the real scope
         "team_id": team_ids[0] if team_ids is not None and len(team_ids) == 1 else None,
         "team_ids": team_ids,

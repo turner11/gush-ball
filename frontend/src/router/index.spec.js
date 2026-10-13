@@ -157,5 +157,6 @@ describe('router auth guard', () => {
       if (!['player', 'teams'].includes(r.name)) expect(r.meta.description('קבוצה'), r.name).toContain('קבוצה')
     }
     expect(router.getRoutes().find((r) => r.name === 'not-found').meta.noindex).toBe(true)
+    expect(router.getRoutes().find((r) => r.name === 'stats').meta.noindex).toBe(true)
   })
 })
