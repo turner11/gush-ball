@@ -30,7 +30,7 @@ from app.deps import (
     is_admin,
 )
 from app.models import AdminUser, Membership
-from app.security import hash_password, password_fingerprint, verify_password
+from app.security import Email, Username, hash_password, password_fingerprint, verify_password
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -47,6 +47,16 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str = Field(max_length=512)
     password: str = Field(min_length=8, max_length=128)
+
+
+class SignupRequest(BaseModel):
+    username: Username
+    email: Email
+    password: str = Field(min_length=8, max_length=128)
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(max_length=512)
 
 
 # ponytail: in-memory, single-worker only, resets on restart; keys for never-revisited usernames
@@ -140,24 +150,38 @@ _reset_tokens = URLSafeTimedSerializer(settings.session_secret, salt="password-r
 _RESET_MAX_AGE = 3600
 
 
-def _send_reset_email(to: str, link: str) -> None:
+def _send_email(to: str, subject: str, body: str) -> None:
     if not settings.smtp_host:
-        # Dev-only: no SMTP configured, so the link goes to the log (admin-only in prod).
-        log.warning("password reset link for %s (SMTP not configured): %s", to, link)
+        # Dev-only: no SMTP configured, so the message goes to the log (admin-only in prod).
+        log.warning("email to %s (SMTP not configured): %s", to, body)
         return
     msg = EmailMessage()
-    msg["Subject"] = "איפוס סיסמה"
+    msg["Subject"] = subject
     msg["From"] = settings.smtp_from
     msg["To"] = to
-    msg.set_content(
-        f"לאיפוס הסיסמה היכנסו לקישור (תקף לשעה אחת):\n{link}\n\nאם לא ביקשתם לאפס את הסיסמה, התעלמו מהודעה זו."
-    )
+    msg.set_content(body)
     # ponytail: STARTTLS (587) only; add SMTP_SSL if a provider needs 465
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
         smtp.starttls(context=ssl.create_default_context())
         if settings.smtp_user:
             smtp.login(settings.smtp_user, settings.smtp_password)
         smtp.send_message(msg)
+
+
+def _send_reset_email(to: str, link: str) -> None:
+    _send_email(
+        to,
+        "איפוס סיסמה",
+        f"לאיפוס הסיסמה היכנסו לקישור (תקף לשעה אחת):\n{link}\n\nאם לא ביקשתם לאפס את הסיסמה, התעלמו מהודעה זו.",
+    )
+
+
+def _send_verify_email(to: str, link: str) -> None:
+    _send_email(
+        to,
+        "אימות כתובת אימייל",
+        f"לאימות כתובת האימייל היכנסו לקישור (תקף לשעה אחת):\n{link}\n\nאם לא נרשמתם, התעלמו מהודעה זו.",
+    )
 
 
 @router.post("/forgot-password")
@@ -191,6 +215,51 @@ def reset_password(payload: ResetPasswordRequest, request: Request, db: DbSessio
     admin.password_hash = hash_password(payload.password)
     db.commit()
     log.info("password reset ok username=%r ip=%s", admin.username, client_ip(request))
+    return {"ok": True}
+
+
+# ---- password signup (the email is stored only once its emailed link is used) ----
+
+# Own salt: a verify token can never be replayed at /reset-password, nor a reset token here.
+_verify_tokens = URLSafeTimedSerializer(settings.session_secret, salt="verify-email")
+
+
+@router.post("/signup")
+def signup(
+    payload: SignupRequest, request: Request, db: DbSession, background: BackgroundTasks
+) -> dict[str, Any]:
+    ip = client_ip(request)
+    _reserve_attempt([f"signup-ip:{ip}"])  # own prefix: signup spam never locks out login
+    if db.scalar(select(AdminUser.id).where(AdminUser.username == payload.username)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "שם המשתמש כבר קיים")
+    # ponytail: a same-instant duplicate username hits the unique index as a 500; catch IntegrityError if it matters
+    user = AdminUser(username=payload.username, email=None, password_hash=hash_password(payload.password))
+    db.add(user)
+    db.commit()
+    token = _verify_tokens.dumps([user.id, payload.email])
+    background.add_task(_send_verify_email, payload.email, f"{settings.public_url}/admin/verify-email?token={token}")
+    log.info("signup (password) user_id=%s ip=%s", user.id, ip)
+    _start_session(request, user)
+    return _session_user(db, user)
+
+
+@router.post("/verify-email")
+def verify_email(payload: VerifyEmailRequest, request: Request, db: DbSession) -> dict[str, bool]:
+    invalid = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired link")
+    try:
+        user_id, email = _verify_tokens.loads(payload.token, max_age=_RESET_MAX_AGE)
+    except (BadSignature, TypeError, ValueError):
+        raise invalid from None
+    user = db.get(AdminUser, user_id)
+    if user is None or user.email is not None:  # already verified: the link is single-use
+        raise invalid
+    # Revealing a taken address is fine here: the caller has proven they own the inbox.
+    if db.scalar(select(AdminUser.id).where(AdminUser.email == email)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "האימייל כבר קיים")
+    # ponytail: a same-instant duplicate hits the unique index as a 500, as in teams.create_team_admin
+    user.email = email
+    db.commit()
+    log.info("email verified user_id=%s ip=%s", user.id, client_ip(request))
     return {"ok": True}
 
 

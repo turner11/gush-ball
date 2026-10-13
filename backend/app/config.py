@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
 
-    # Password-reset email. Empty smtp_host = dev mode: the link is logged instead of sent.
+    # Password-reset and signup-verification email. Empty smtp_host = dev mode: the link is logged instead of sent.
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
