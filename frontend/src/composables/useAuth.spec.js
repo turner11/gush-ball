@@ -81,4 +81,17 @@ describe('useAuth', () => {
     user.value = { username: 'empty', team_ids: [] }
     expect(ownTeams(teams)).toEqual([])
   })
+
+  it('clubAdmin is true only for a club the user admins', async () => {
+    const { useAuth, clubAdmin } = await import('./useAuth.js')
+    const { user } = useAuth()
+
+    user.value = { username: 'c', team_ids: [1], clubs: ['Gush'] }
+    expect(clubAdmin('Gush')).toBe(true)
+    expect(clubAdmin('Other')).toBe(false)
+    expect(clubAdmin(null)).toBe(false)
+
+    user.value = { username: 't', team_ids: [1] }
+    expect(clubAdmin('Gush')).toBe(false)
+  })
 })

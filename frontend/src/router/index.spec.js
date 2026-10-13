@@ -44,6 +44,21 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.name).toBe('admin-login')
   })
 
+  it('a logged-in non-admin visiting /admin is sent home', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ username: 'p', is_admin: false, team_ids: [] }),
+    })
+
+    const { default: router } = await import('./index.js')
+
+    router.push('/admin')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('home')
+  })
+
   it('/admin/reset-password is public: resolves by name and is not redirected to login', async () => {
     const { default: router } = await import('./index.js')
 
@@ -81,7 +96,7 @@ describe('router auth guard', () => {
   })
 
   it("a team admin visiting bare /admin is sent to their team's admin home", async () => {
-    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 1, team_id: 2 }) })
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 1, team_id: 2, is_admin: true }) })
     const { default: router } = await import('./index.js')
 
     await router.push('/admin')
@@ -91,7 +106,7 @@ describe('router auth guard', () => {
   })
 
   it('a full admin visiting bare /admin stays on admin-home', async () => {
-    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 1, team_id: null }) })
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 1, team_id: null, is_admin: true }) })
     const { default: router } = await import('./index.js')
 
     await router.push('/admin')

@@ -7,6 +7,7 @@ const checked = ref(false)
 const error = ref(null)
 // team_ids: null = full admin, else the team ids this team/club admin may touch (server-enforced).
 export const fullAdmin = computed(() => !user.value?.team_ids)
+export const clubAdmin = (club) => !!club && !!user.value?.clubs?.includes(club)
 
 const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
 

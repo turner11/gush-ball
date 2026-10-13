@@ -39,16 +39,15 @@ const saving = ref(false)
 const progress = ref(0)
 const batchSize = ref(0)
 const summary = ref(null)
-const duplicateAdmin = ref(false)
 
 const key = (row) => row.id ?? row.ibasketball_team_url
 const socialCount = (row) => SOCIALS.filter((s) => row[s.key]).length
-const currentAdmins = (row) => admins.value.filter((a) => a.team_id === row.id).map((a) => a.username).join('، ')
+const currentAdmins = (row) => admins.value.filter((a) => a.team_ids.includes(row.id)).map((a) => a.username).join('، ')
 const total = computed(() => rows.value.length)
 
 async function loadAdmins() {
   try {
-    admins.value = await apiFetch('/teams/admins')
+    admins.value = await apiFetch('/teams/assignable-users')
     adminsState.value = 'ready'
   } catch {
     adminsState.value = 'failed'
@@ -74,9 +73,6 @@ async function saveRow(row) {
 }
 
 async function onSubmit() {
-  const picked = rows.value.map((r) => r.admin_id).filter(Boolean)
-  duplicateAdmin.value = new Set(picked).size < picked.length
-  if (duplicateAdmin.value) return
   saving.value = true
   progress.value = 0
   batchSize.value = total.value
@@ -92,14 +88,12 @@ async function onSubmit() {
   saving.value = false
   if (!failed) return router.push({ name: 'admin-teams' })
   summary.value = `נשמרו ${saved}, נכשלו ${failed}`
-  loadAdmins() // admins may have moved teams
+  loadAdmins() // refresh each user's teams after the assignments
 }
 </script>
 
 <template>
   <form class="space-y-4" @submit.prevent="onSubmit">
-    <p class="text-sm text-muted">שיוך מנהל מעביר אותו מהקבוצה הנוכחית שלו</p>
-
     <div class="table-wrap">
       <table class="data-table">
         <thead>
@@ -174,7 +168,7 @@ async function onSubmit() {
               <template v-else>
                 <select v-model="row.admin_id" :disabled="adminsState === 'loading'" class="field-input mt-0 w-full min-w-0 sm:min-w-40" :aria-label="`מנהל — ${row.initialName}`">
                   <option value="">ללא שינוי</option>
-                  <option v-for="a in admins" :key="a.id" :value="a.id">{{ a.username }} — {{ a.team_name }}</option>
+                  <option v-for="a in admins" :key="a.id" :value="a.id">{{ a.username }}</option>
                 </select>
                 <p v-if="currentAdmins(row)" class="text-sm text-muted">מנהלים נוכחיים: {{ currentAdmins(row) }}</p>
               </template>
@@ -189,7 +183,6 @@ async function onSubmit() {
       </table>
     </div>
 
-    <p v-if="duplicateAdmin" class="error-text" role="alert">אותו מנהל נבחר ליותר מקבוצה אחת</p>
     <p v-if="summary" class="error-text" role="alert">{{ summary }}</p>
     <p v-if="saving" role="status" aria-live="polite" class="text-sm text-muted">שומרים {{ progress }}/{{ batchSize }}…</p>
 

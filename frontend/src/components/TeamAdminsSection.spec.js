@@ -1,15 +1,17 @@
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const ADMINS = [{ id: 7, username: 'coach', email: 'c@x.com' }]
+const ADMINS = [{ id: 7, username: 'coach', email: 'c@x.com', club: null }]
+const USERS = [{ id: 5, username: 'newbie', team_ids: [] }]
 
 // ConfirmDialog renders through a portal teleported to document.body.
 const body = () => new DOMWrapper(document.body)
 
 function mockFetch(handlers) {
+  const withUsers = { 'GET /api/teams/assignable-users': () => jsonRes([]), ...handlers }
   global.fetch = vi.fn((url, options = {}) => {
     const key = `${options.method || 'GET'} ${url}`
-    const handler = handlers[key]
+    const handler = withUsers[key]
     if (!handler) return Promise.reject(new Error(`Unhandled fetch: ${key}`))
     return Promise.resolve(handler(options))
   })
@@ -17,7 +19,8 @@ function mockFetch(handlers) {
 
 const jsonRes = (data, status = 200) => ({ ok: true, status, json: async () => data })
 
-async function mountSection(props = {}) {
+async function mountSection(props = {}, user = { is_admin: true, team_ids: null, clubs: [] }) {
+  ;(await import('../composables/useAuth')).useAuth().user.value = user
   const { default: TeamAdminsSection } = await import('./TeamAdminsSection.vue')
   const wrapper = mount(TeamAdminsSection, { props: { teamId: 1, ...props }, attachTo: document.body })
   await flushPromises()
@@ -56,7 +59,7 @@ describe('TeamAdminsSection', () => {
     await wrapper.find('input[type="text"]').setValue('newbie')
     await wrapper.find('#admin-email').setValue(' n@x.com ')
     await wrapper.find('input[type="password"]').setValue('longenough')
-    await wrapper.find('form').trigger('submit')
+    await wrapper.find('details form').trigger('submit')
     await flushPromises()
 
     expect(postBody).toEqual({ username: 'newbie', password: 'longenough', email: 'n@x.com', scope: 'team' })
@@ -67,7 +70,7 @@ describe('TeamAdminsSection', () => {
 
     await wrapper.find('input[type="text"]').setValue('plain')
     await wrapper.find('input[type="password"]').setValue('longenough')
-    await wrapper.find('form').trigger('submit')
+    await wrapper.find('details form').trigger('submit')
     await flushPromises()
     expect(postBody.email).toBeNull()
   })
@@ -81,7 +84,7 @@ describe('TeamAdminsSection', () => {
 
     await wrapper.find('input[type="text"]').setValue('coach')
     await wrapper.find('input[type="password"]').setValue('longenough')
-    await wrapper.find('form').trigger('submit')
+    await wrapper.find('details form').trigger('submit')
     await flushPromises()
 
     expect(wrapper.find('[role=alert]').text()).toBe('שם המשתמש כבר קיים')
@@ -91,21 +94,21 @@ describe('TeamAdminsSection', () => {
   it('deletes only after confirming', async () => {
     mockFetch({
       'GET /api/teams/1/admins': () => jsonRes(ADMINS),
-      'DELETE /api/teams/1/admins/7': () => ({ ok: true, status: 204 }),
+      'DELETE /api/teams/1/admins/7?scope=team': () => ({ ok: true, status: 204 }),
     })
     const wrapper = await mountSection()
-    const del = () => wrapper.findAll('button').find((b) => b.text() === 'מחיקה')
+    const del = () => wrapper.findAll('button').find((b) => b.text() === 'הסרה')
 
     await del().trigger('click')
     await body().findAll('button').find((b) => b.text() === 'ביטול').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('coach')
-    expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1/admins/7', expect.anything())
+    expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1/admins/7?scope=team', expect.anything())
 
     await del().trigger('click')
     await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
     await flushPromises()
-    expect(global.fetch).toHaveBeenCalledWith('/api/teams/1/admins/7', expect.objectContaining({ method: 'DELETE' }))
+    expect(global.fetch).toHaveBeenCalledWith('/api/teams/1/admins/7?scope=team', expect.objectContaining({ method: 'DELETE' }))
     expect(wrapper.text()).not.toContain('coach')
   })
 
@@ -122,15 +125,15 @@ describe('TeamAdminsSection', () => {
     expect(plain.find('input[type="radio"]').exists()).toBe(false)
 
     const wrapper = await mountSection({ club: 'Gush' })
-    expect(wrapper.findAll('input[type="radio"]')).toHaveLength(2)
-    await wrapper.find('input[type="radio"][value="club"]').setValue()
+    expect(wrapper.findAll('input[name="create-scope"]')).toHaveLength(2)
+    await wrapper.find('input[name="create-scope"][value="club"]').setValue()
     await wrapper.find('input[type="text"]').setValue('boss')
     await wrapper.find('input[type="password"]').setValue('longenough')
-    await wrapper.find('form').trigger('submit')
+    await wrapper.find('details form').trigger('submit')
     await flushPromises()
 
     expect(postBody.scope).toBe('club')
-    expect(wrapper.find('input[type="radio"][value="team"]').element.checked).toBe(true)
+    expect(wrapper.find('input[name="create-scope"][value="team"]').element.checked).toBe(true)
   })
 
   it('badges club admins', async () => {
@@ -140,5 +143,74 @@ describe('TeamAdminsSection', () => {
     const wrapper = await mountSection({ club: 'Gush' })
     expect(wrapper.findAll('.badge-muted')).toHaveLength(1)
     expect(wrapper.find('.badge-muted').text()).toBe('מנהל מועדון')
+  })
+
+  it('assigns an existing user with the picked scope and reloads', async () => {
+    let putBody
+    let gets = 0
+    mockFetch({
+      'GET /api/teams/1/admins': () => {
+        gets += 1
+        return jsonRes(gets === 1 ? [] : [{ id: 5, username: 'newbie', email: null, club: null }])
+      },
+      'GET /api/teams/assignable-users': () => jsonRes(USERS),
+      'PUT /api/teams/1/admins/5': (options) => {
+        putBody = JSON.parse(options.body)
+        return { ok: true, status: 204 }
+      },
+    })
+    const wrapper = await mountSection()
+
+    await wrapper.find('#assign-user').setValue(5)
+    await wrapper.findAll('form')[0].trigger('submit')
+    await flushPromises()
+
+    expect(putBody).toEqual({ scope: 'team' })
+    expect(gets).toBe(2)
+    expect(wrapper.find('ul').text()).toContain('newbie')
+  })
+
+  it('club admin sees assign but not create, and no club scope', async () => {
+    mockFetch({
+      'GET /api/teams/1/admins': () => jsonRes([{ id: 8, username: 'boss', email: null, club: 'Gush' }]),
+      'GET /api/teams/assignable-users': () => jsonRes(USERS),
+    })
+    const wrapper = await mountSection({ club: 'Gush' }, { is_admin: true, team_ids: [1], clubs: ['Gush'] })
+
+    expect(wrapper.find('#assign-user').exists()).toBe(true)
+    expect(wrapper.find('details').exists()).toBe(false)
+    expect(wrapper.find('input[type="radio"]').exists()).toBe(false)
+    // the club grant cannot be removed by a club admin
+    expect(wrapper.findAll('button').some((b) => b.text() === 'הסרה')).toBe(false)
+  })
+
+  it('remove sends scope and keeps account wording', async () => {
+    mockFetch({
+      'GET /api/teams/1/admins': () => jsonRes([{ id: 8, username: 'boss', email: null, club: 'Gush' }]),
+      'DELETE /api/teams/1/admins/8?scope=club': () => ({ ok: true, status: 204 }),
+    })
+    const wrapper = await mountSection({ club: 'Gush' })
+
+    await wrapper.findAll('button').find((b) => b.text() === 'הסרה').trigger('click')
+    expect(body().text()).toContain('החשבון עצמו לא יימחק')
+    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledWith('/api/teams/1/admins/8?scope=club', expect.objectContaining({ method: 'DELETE' }))
+    expect(wrapper.text()).not.toContain('boss')
+  })
+
+  it('shows states for a users load failure and for no candidates', async () => {
+    mockFetch({
+      'GET /api/teams/1/admins': () => jsonRes([]),
+      'GET /api/teams/assignable-users': () => ({ ok: false, status: 500, json: async () => ({ detail: 'x' }) }),
+    })
+    const failed = await mountSection()
+    expect(failed.text()).toContain('שגיאה בטעינת המשתמשים')
+    expect(failed.find('details').exists()).toBe(true) // create stays usable
+
+    mockFetch({ 'GET /api/teams/1/admins': () => jsonRes([]) })
+    const empty = await mountSection()
+    expect(empty.text()).toContain('אין משתמשים לשיוך')
   })
 })

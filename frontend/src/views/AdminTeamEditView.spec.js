@@ -121,6 +121,22 @@ describe('AdminTeamEditView', () => {
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1/admins', expect.anything())
   })
 
+  it("shows the team admins card to a club admin of this team's club", async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ ...TEAM, club: 'Gush' }),
+      'GET /api/teams/1/admins': () => jsonRes([]),
+      'GET /api/teams/assignable-users': () => jsonRes([]),
+      ...CONTENT_HANDLERS,
+    })
+    ;(await import('../composables/useAuth')).useAuth().user.value = {
+      username: 'c', is_admin: true, team_id: null, team_ids: [1, 2], clubs: ['Gush'],
+    }
+
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).toContain('מנהלי הקבוצה')
+  })
+
   it('saves club, sending null when cleared', async () => {
     let patchBody
     mockFetch({

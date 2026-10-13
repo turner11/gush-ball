@@ -301,7 +301,7 @@ describe('DefaultLayout', () => {
   })
 
   it('nav, tab bar and ניהול links carry the team slug', async () => {
-    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin' }) })
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin', is_admin: true }) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
@@ -543,7 +543,7 @@ describe('DefaultLayout', () => {
   })
 
   it('shows a management link and logout when logged in', async () => {
-    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin' }) })
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin', is_admin: true }) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
@@ -555,10 +555,25 @@ describe('DefaultLayout', () => {
     expect(header.find('a[href="/admin/login"]').exists()).toBe(false)
   })
 
+  it('hides ניהול for a non-admin but shows logout', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/auth/me': () => jsonRes({ username: 'player', is_admin: false, team_ids: [] }),
+    })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const header = wrapper.find('header')
+    expect(header.find('a[href="/team_a/admin"]').exists()).toBe(false)
+    expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(true)
+  })
+
   it('logout posts /auth/logout, swaps to the login link and stays on the page', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
-      'GET /api/auth/me': () => jsonRes({ username: 'admin' }),
+      'GET /api/auth/me': () => jsonRes({ username: 'admin', is_admin: true }),
       'POST /api/auth/logout': () => jsonRes({}),
     })
 
