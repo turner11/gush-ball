@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
+import SearchInput from '../components/SearchInput.vue'
+import { matchesQuery } from '../lib/search'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
 
@@ -20,12 +22,7 @@ onMounted(async () => {
 
 // Match on name, English name or club, so typing a club name shows its whole group.
 const filteredTeams = computed(() => {
-  const needle = query.value.trim().toLowerCase()
-  const all = teams.value ?? []
-  if (!needle) return all
-  return all.filter((team) =>
-    [team.name, team.name_en, team.club].some((field) => field?.toLowerCase().includes(needle)),
-  )
+  return (teams.value ?? []).filter((t) => matchesQuery(query.value, [t.name, t.name_en, t.club]))
 })
 
 function clearSearch() {
@@ -53,19 +50,7 @@ const groups = computed(() => {
   <div>
     <div class="page-header">
       <h1 class="page-title">קבוצות</h1>
-      <div v-if="teams?.length" class="w-full sm:w-72">
-        <label for="team-search" class="sr-only">חיפוש קבוצה</label>
-        <input
-          id="team-search"
-          ref="searchInput"
-          v-model="query"
-          type="search"
-          placeholder="חיפוש קבוצה…"
-          autocomplete="off"
-          enterkeyhint="search"
-          class="field-input mt-0"
-        />
-      </div>
+      <SearchInput v-if="teams?.length" id="team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה" class="w-full sm:w-72" />
     </div>
 
     <p v-if="error" class="error-text" role="alert">{{ error }}</p>

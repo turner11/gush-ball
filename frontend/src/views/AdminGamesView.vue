@@ -5,11 +5,13 @@ import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import GameRow from '../components/GameRow.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
+import SearchInput from '../components/SearchInput.vue'
 import { ownTeams, useAuth } from '../composables/useAuth'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { byDate, sheetCopyUrl, STATUS_LABELS } from '../lib/games'
+import { matchesQuery } from '../lib/search'
 
 const STATUSES = Object.keys(STATUS_LABELS)
 
@@ -57,10 +59,20 @@ const { selectedTeamId } = useSelectedTeam()
 const route = useRoute()
 const router = useRouter()
 
-const sortedGames = computed(() => [...games.value].sort(byDate))
+const query = ref('')
+const searchInput = ref(null)
+const sortedGames = computed(() =>
+  games.value.filter((g) => matchesQuery(query.value, [g.opponent.name, g.opponent.name_en])).sort(byDate),
+)
+
+function clearSearch() {
+  query.value = ''
+  searchInput.value?.focus()
+}
 const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value) ?? null)
 
 async function loadGames() {
+  query.value = ''
   if (!selectedTeamId.value) {
     games.value = []
     return
@@ -330,7 +342,13 @@ async function onDelete(game) {
         </div>
         <p v-else-if="listError" class="error-text" role="alert">{{ listError }}</p>
         <p v-else-if="!games.length" class="empty-state">אין משחקים עדיין.</p>
-        <ol v-else class="card divide-y divide-line overflow-hidden p-0">
+        <template v-else>
+          <SearchInput id="game-search" ref="searchInput" v-model="query" label="חיפוש משחק לפי יריבה" />
+          <div v-if="!sortedGames.length" class="empty-state" aria-live="polite">
+          <p>אין תוצאות עבור "{{ query.trim() }}".</p>
+          <button type="button" class="btn-secondary mt-3" @click="clearSearch">נקה חיפוש</button>
+        </div>
+          <ol v-else class="card divide-y divide-line overflow-hidden p-0">
           <GameRow v-for="game in sortedGames" :key="game.id" :game="game" :team="selectedTeam">
             <template #actions>
               <GameStatsLink :game="game" class="btn-ghost" />
@@ -347,6 +365,7 @@ async function onDelete(game) {
             </template>
           </GameRow>
         </ol>
+        </template>
       </div>
 
       <form id="game-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
