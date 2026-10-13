@@ -240,52 +240,13 @@ logged and skipped. The admin's "סנכרון עכשיו" button does the same o
 
 ## 6. Nightly backup
 
-`backup.sh` runs `pg_dump` in the `gush-ball-db` container (a fixed `container_name` in the compose file) and pipes it to
-`BACKUP_BUCKET` through a throwaway `amazon/aws-cli` container. It runs on the host, outside Coolify, because the dump
-tool and the R2 upload don't share a container.
+Set up the nightly `pg_dump` to the private R2 backup bucket: [BACKUP.md, section 3](BACKUP.md#3-set-up-the-nightly-backup-to-r2).
+*Why:* the database lives on this one machine; without an off-machine copy, a dead disk loses everything.
 
-*Why backups:* the database lives on a single machine; if the disk dies, everything is lost unless a copy exists elsewhere
-(the R2 bucket).
+## 7. Verify a backup
 
-1. On the server (SSH in: `ssh root@<server-ip>`, using the SSH key you set up in Hetzner), create
-   `~/gush-ball-backup.env` (`chmod 600`, so only your user can read the secrets in it):
-
-   ```bash
-   BACKUP_BUCKET=gush-ball-backups
-   BACKUP_ACCESS_KEY_ID=       # step 1.6
-   BACKUP_SECRET_ACCESS_KEY=   # step 1.6
-   OBJECT_STORAGE_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
-   ```
-
-2. Copy the script to the host and make it executable (re-copy it if it changes in the repo):
-
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/turner11/gush-ball/master/backup.sh -o ~/backup.sh && chmod +x ~/backup.sh
-   ```
-
-3. Run it once by hand (`~/backup.sh`) and confirm a `gush_ball-<date>.dump` appears in the R2 bucket (*why:* find
-   errors now, not on the day you need a restore). Then schedule it: `crontab -e` opens the list of timed jobs;
-   add this line to run the script every night at 03:00 ([crontab.guru](https://crontab.guru/) explains the syntax):
-
-   ```
-   0 3 * * * ~/backup.sh
-   ```
-
-Encryption is R2's server-side at-rest encryption; there is no client-side encryption.
-
-## 7. Verify a backup (restore into a scratch DB)
-
-```bash
-docker exec gush-ball-db createdb -U gush_ball scratch
-docker run --rm \
-  -e AWS_ACCESS_KEY_ID=<BACKUP_ACCESS_KEY_ID> -e AWS_SECRET_ACCESS_KEY=<BACKUP_SECRET_ACCESS_KEY> -e AWS_DEFAULT_REGION=auto \
-  amazon/aws-cli s3 cp s3://gush-ball-backups/<file>.dump - --endpoint-url <OBJECT_STORAGE_ENDPOINT_URL> \
-  | docker exec -i gush-ball-db pg_restore -U gush_ball -d scratch --no-owner
-docker exec gush-ball-db dropdb -U gush_ball scratch
-```
-
-For a real restore into `gush_ball`, or copying data dev ↔ prod, use `dbsync.sh` with `DB_CONTAINER=gush-ball-db` (see
-README, "Manual dump / import").
+Restore a dump into a scratch DB to prove it works: [BACKUP.md, section 4](BACKUP.md#4-verify-an-r2-backup). Taking a
+manual backup before a risky deploy and restoring production are in the same file.
 
 ## 8. Media bucket custom domain (optional)
 

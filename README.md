@@ -76,6 +76,7 @@ Don't run vite with `--host` while pointed at prod.
 ## Deployment
 
 Step-by-step guide (R2 storage, domain, Coolify, env vars, scrape task, backups): [DEPLOYMENT.md](DEPLOYMENT.md).
+Backing up, checking and restoring the production DB: [BACKUP.md](BACKUP.md).
 
 ### Manual dump / import (dev <-> prod)
 
