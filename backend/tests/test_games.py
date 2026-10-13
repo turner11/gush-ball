@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 import bbstats
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -461,6 +462,28 @@ def test_patch_stats_url_expands_bare_sheet_id(admin_client: TestClient, db_sess
 
     assert r.status_code == 200
     assert r.json()["stats_url"] == "https://docs.google.com/spreadsheets/d/abc_123"
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "http://169.254.169.254/latest/meta-data",
+        "http://db:5432",
+        "https://evil.com/spreadsheets/d/X",
+        "https://docs.google.com.evil.com/spreadsheets/d/X",
+        "https://docs.google.com@evil.com/spreadsheets/d/X",
+        "http://docs.google.com/spreadsheets/d/X",
+        "https://docs.google.com/forms/d/X",
+    ],
+)
+def test_patch_stats_url_rejects_non_google_hosts(admin_client: TestClient, db_session: Session, bad: str) -> None:
+    game = _make_game(db_session, _make_team(db_session))
+
+    r = _patch_stats_url(admin_client, game, bad)
+
+    assert r.status_code == 422
+    db_session.refresh(game)
+    assert game.stats_url is None
 
 
 def test_patch_stats_url_rejects_non_url(admin_client: TestClient, db_session: Session) -> None:
