@@ -10,7 +10,7 @@ import logging
 import time
 from datetime import datetime
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import cv2
 import httpx
@@ -20,6 +20,7 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import SessionLocal
 from app.models import (
     Club,
@@ -35,6 +36,7 @@ from app.models import (
 
 BASE = "https://ibasketball.co.il/wp-json"
 CRAWL_DELAY = 10
+MAX_IMAGE_BYTES = 10 * 1024 * 1024  # same cap as routers/uploads.py
 AJAX_URL = "https://ibasketball.co.il/wp-admin/admin-ajax.php"
 NO_IMAGE_MARKER = "player-no-image"  # ibasketball's m-/f- silhouette; not a real photo
 
@@ -68,7 +70,23 @@ def _get_page(url: str) -> str:
 
 
 def _get_image(url: str) -> bytes:
-    return _get(url).content
+    time.sleep(CRAWL_DELAY)
+    data = b""
+    with httpx.stream("GET", url, timeout=30) as response:
+        response.raise_for_status()
+        for chunk in response.iter_bytes():
+            data += chunk
+            if len(data) > MAX_IMAGE_BYTES:
+                log.warning("Player image %s exceeds %d bytes; skipped", url, MAX_IMAGE_BYTES)
+                return b""  # face_focus(b"") stores the default focus, so it is not retried nightly
+    return data
+
+
+def _is_trusted_image_url(url: str) -> bool:
+    if urlsplit(url).hostname == urlsplit(BASE).hostname:
+        return True
+    public_url = settings.object_storage_public_url.rstrip("/")
+    return bool(public_url) and url.startswith(public_url + "/")
 
 
 def _focus(img_w: int, img_h: int, face: tuple[int, int, int, int]) -> tuple[float, float, float]:
@@ -438,6 +456,9 @@ def sync_team_players(db: Session, team: Team) -> int:
         )
     ).all()
     for image in unfocused:
+        # ponytail: hotlinked admin images on other hosts stay unfocused (default framing); never fetched (SSRF)
+        if not _is_trusted_image_url(image.url):
+            continue
         try:
             data = _get_image(image.url)
         except httpx.HTTPError:
