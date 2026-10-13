@@ -71,6 +71,21 @@ describe('ClubsSection', () => {
     expect(alerts[0].text()).toContain('כבר בשימוש')
   })
 
+  it('shows the url message only for 422, a generic error otherwise', async () => {
+    for (const [status, text] of [[422, 'דף אגודה'], [500, 'השמירה נכשלה']]) {
+      vi.resetModules()
+      mockFetch({
+        'GET /api/clubs': () => jsonRes(CLUBS),
+        'PATCH /api/clubs/1': () => jsonRes({ detail: 'x' }, status),
+      })
+      const wrapper = await mountSection()
+      await wrapper.find('#club-name-1').setValue('אחר')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(wrapper.find('[role="alert"]').text()).toContain(text)
+    }
+  })
+
   it('offers a retry when loading fails', async () => {
     mockFetch({ 'GET /api/clubs': () => jsonRes({ detail: 'x' }, 500) })
     const wrapper = await mountSection()

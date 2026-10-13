@@ -31,7 +31,7 @@ async function save(c) {
     c.ibasketball_url = updated.ibasketball_url ?? ''
     c.status = 'saved'
   } catch (e) {
-    c.status = e.status === 409 ? 'conflict' : 'invalid'
+    c.status = e.status === 409 ? 'conflict' : e.status === 422 ? 'invalid' : 'error'
   } finally {
     c.busy = false
   }
@@ -68,6 +68,7 @@ onMounted(load)
               :id="`club-url-${c.id}`"
               v-model="c.ibasketball_url"
               type="url"
+              :required="!!c.saved.ibasketball_url"
               dir="ltr"
               placeholder="https://ibasketball.co.il/club/…"
               class="field-input min-w-0 text-sm"
@@ -76,6 +77,7 @@ onMounted(load)
           <button type="submit" class="btn-secondary w-full sm:w-auto" :disabled="c.busy || !isDirty(c)">שמירה</button>
           <p v-if="c.status === 'conflict'" class="error-text sm:col-span-3" role="alert">שם או קישור כבר בשימוש</p>
           <p v-else-if="c.status === 'invalid'" class="error-text sm:col-span-3" role="alert">קישור חייב להיות דף אגודה ב-ibasketball</p>
+          <p v-else-if="c.status === 'error'" class="error-text sm:col-span-3" role="alert">השמירה נכשלה, נסו שוב</p>
           <span class="text-sm text-muted sm:col-span-3" aria-live="polite">{{ c.status === 'saved' ? 'נשמר' : '' }}</span>
         </form>
       </li>
