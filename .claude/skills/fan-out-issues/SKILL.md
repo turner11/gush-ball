@@ -48,7 +48,8 @@ count.
 ## Step 3 — Rank & Filter
 
 **Exclude:** blocked by an open issue; already has an open PR or a live `fix|feat/issue-<N>-*` branch
-(`git ls-remote --heads origin "*issue-<N>-*"` is non-empty); labeled `later`.
+(`git ls-remote --heads origin "*issue-<N>-*"` is non-empty); labeled `later`; labeled `manual` (server, dashboard or
+visual-check work that an agent can't do; list these under "Deferred" so the user sees them).
 
 **Sort:** `bug` first → severity `critical` > `high` > `medium` > `low` > none → blocks-count desc → reactions desc →
 oldest first.
