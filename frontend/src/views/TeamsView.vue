@@ -26,7 +26,7 @@ const groups = computed(() => {
   }
   const ungrouped = byClub.get(UNGROUPED)
   byClub.delete(UNGROUPED)
-  const result = [...byClub].map(([club, list]) => ({ club, teams: list }))
+  const result = [...byClub].map(([club, clubTeams]) => ({ club, teams: clubTeams }))
   if (ungrouped) result.push({ club: UNGROUPED, teams: ungrouped })
   return result
 })
