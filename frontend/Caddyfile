@@ -1,3 +1,6 @@
+# Real client IP behind Coolify's proxy, for the backend's per-IP rate limits (#266). Both halves are load-bearing:
+# strict resolves XFF right-to-left (the left-most entry is client-spoofable), and the header_up below
+# sends only that one IP (without it XFF is "<client>, <proxy>" and the backend's client_ip reads the proxy).
 {
     servers {
         trusted_proxies static private_ranges
