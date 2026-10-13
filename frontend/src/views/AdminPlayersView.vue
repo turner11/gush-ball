@@ -1,15 +1,22 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { ownTeams } from '../composables/useAuth'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import AppIcon from '../components/AppIcon.vue'
 import ImageUpload from '../components/ImageUpload.vue'
+import SearchInput from '../components/SearchInput.vue'
 import { apiFetch } from '../lib/api'
+import { matchesQuery } from '../lib/search'
 
 const teams = ref([])
 const players = ref([])
+const query = ref('')
+const searchInput = ref(null)
+const shownPlayers = computed(() =>
+  players.value.filter((p) => matchesQuery(query.value, [p.name, p.name_en, p.jersey_number])),
+)
 const deletedPlayers = ref(null) // null = hidden
 const editing = ref(null)
 const form = ref({ name: '', name_en: '', jersey_number: '' })
@@ -20,7 +27,13 @@ const { selectedTeamId } = useSelectedTeam()
 const route = useRoute()
 const router = useRouter()
 
+function clearSearch() {
+  query.value = ''
+  searchInput.value?.focus()
+}
+
 async function loadPlayers() {
+  query.value = ''
   deletedPlayers.value = null
   if (!selectedTeamId.value) {
     players.value = []
@@ -165,7 +178,8 @@ async function deleteImage(player, image) {
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div class="min-w-0 space-y-4">
-        <div class="table-wrap">
+        <SearchInput v-if="players.length" id="player-search" ref="searchInput" v-model="query" label="חיפוש שחקן" />
+        <div v-if="shownPlayers.length || !players.length" class="table-wrap">
           <table class="data-table">
             <thead>
               <tr class="table-header-row">
@@ -176,7 +190,7 @@ async function deleteImage(player, image) {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="player in players" :key="player.id" class="table-body-row">
+              <tr v-for="player in shownPlayers" :key="player.id" class="table-body-row">
                 <td data-label="מספר">{{ player.jersey_number }}</td>
                 <td data-label="שם">{{ player.name }}</td>
                 <td data-label="תמונות" class="max-sm:flex-wrap">
@@ -205,6 +219,10 @@ async function deleteImage(player, image) {
               </tr>
             </tbody>
           </table>
+        </div>
+        <div v-if="players.length && !shownPlayers.length" class="empty-state" aria-live="polite">
+          <p>אין תוצאות עבור "{{ query.trim() }}".</p>
+          <button type="button" class="btn-secondary mt-3" @click="clearSearch">נקה חיפוש</button>
         </div>
 
         <div>

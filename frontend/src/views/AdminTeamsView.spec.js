@@ -51,6 +51,27 @@ describe('AdminTeamsView', () => {
     )
   })
 
+  it('typing in the search filters the teams list and shows a clear button when nothing matches', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes([...TEAMS, { id: 2, name: 'הפועל', slug: 'hapoel' }]),
+    })
+
+    const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
+    const wrapper = mount(AdminTeamsView)
+    await flushPromises()
+
+    const input = wrapper.find('input[type="search"]')
+    await input.setValue('הפועל')
+    expect(wrapper.text()).toContain('הפועל')
+    expect(wrapper.text()).not.toContain('קבוצה א')
+
+    await input.setValue('zzz')
+    const clear = wrapper.findAll('button').find((b) => b.text() === 'נקה חיפוש')
+    await clear.trigger('click')
+    expect(wrapper.text()).toContain('הפועל')
+    expect(wrapper.text()).toContain('קבוצה א')
+  })
+
   it('confirming the dialog calls DELETE /api/teams/:id and removes the team from the list', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),

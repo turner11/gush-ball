@@ -1,21 +1,28 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import SearchInput from '../components/SearchInput.vue'
 import { fullAdmin, ownTeams } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
+import { matchesQuery } from '../lib/search'
 
 const { error, list, create, delete: destroy } = useTeams()
 
 const teams = ref([])
 const name = ref('')
 const nameEn = ref('')
+const query = ref('')
+const searchInput = ref(null)
+const shownTeams = computed(() =>
+  ownTeams(teams.value).filter((t) => matchesQuery(query.value, [t.name, t.name_en, t.club])),
+)
 const submitting = ref(false)
 const pendingDeleteId = ref(null)
 
 async function load() {
-  teams.value = ownTeams((await list()) ?? [])
+  teams.value = (await list()) ?? []
 }
 
 async function onCreate() {
@@ -32,6 +39,11 @@ async function onCreate() {
   } finally {
     submitting.value = false
   }
+}
+
+function clearSearch() {
+  query.value = ''
+  searchInput.value?.focus()
 }
 
 function confirmDelete(teamId) {
@@ -59,9 +71,10 @@ onMounted(load)
     </div>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-      <div>
-        <ul v-if="teams.length" class="card divide-y divide-line p-0">
-          <li v-for="team in teams" :key="team.id" class="flex flex-wrap items-center gap-3 px-4 py-3">
+      <div class="min-w-0 space-y-4">
+        <SearchInput v-if="teams.length" id="admin-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה" />
+        <ul v-if="shownTeams.length" class="card divide-y divide-line p-0">
+          <li v-for="team in shownTeams" :key="team.id" class="flex flex-wrap items-center gap-3 px-4 py-3">
             <RouterLink :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="font-semibold">
               {{ team.name }}
             </RouterLink>
@@ -70,6 +83,10 @@ onMounted(load)
             <button v-if="fullAdmin" type="button" class="btn-danger-ghost" @click="confirmDelete(team.id)">מחיקה</button>
           </li>
         </ul>
+        <div v-else-if="teams.length" class="empty-state" aria-live="polite">
+          <p>אין תוצאות עבור "{{ query.trim() }}".</p>
+          <button type="button" class="btn-secondary mt-3" @click="clearSearch">נקה חיפוש</button>
+        </div>
         <p v-else class="empty-state">אין קבוצות עדיין.</p>
       </div>
 

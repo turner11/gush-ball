@@ -11,10 +11,17 @@ export const clubAdmin = (club) => !!club && !!user.value?.clubs?.includes(club)
 
 const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
 
-// A team or club admin only sees their own teams in admin pickers; the server enforces the real scope.
+const byName = new Intl.Collator('he').compare
+
+// A team or club admin only sees their own teams in admin pickers (the server enforces the real scope).
+// Also orders: teams the user belongs to first, then alphabetical. Returns a new array.
 export function ownTeams(teams) {
   const ids = user.value?.team_ids
-  return ids ? teams.filter((t) => ids.includes(t.id)) : teams
+  const mine = (user.value?.memberships ?? []).filter((m) => m.role !== 'pending')
+  const isMine = (t) => mine.some((m) => m.team_id === t.id || (m.club && m.club === t.club))
+  return (ids ? teams.filter((t) => ids.includes(t.id)) : [...teams]).sort(
+    (a, b) => isMine(b) - isMine(a) || byName(a.name, b.name),
+  )
 }
 
 export function useAuth() {
