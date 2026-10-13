@@ -63,6 +63,27 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('7')
   })
 
+  it('search filters players by name or jersey number', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () =>
+        jsonRes([...PLAYERS, { id: 11, team_id: 1, name: 'דני', name_en: null, jersey_number: 23, images: [] }]),
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const input = wrapper.find('input[type="search"]')
+    await input.setValue('דני')
+    expect(wrapper.text()).toContain('דני')
+    expect(wrapper.text()).not.toContain('יוסי')
+
+    await input.setValue('7')
+    expect(wrapper.text()).toContain('יוסי')
+    expect(wrapper.text()).not.toContain('דני')
+  })
+
   it('ignores a late response for a team that is no longer selected', async () => {
     let resolveFirst
     const first = new Promise((r) => (resolveFirst = r))

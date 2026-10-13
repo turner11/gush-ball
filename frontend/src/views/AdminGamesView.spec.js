@@ -80,6 +80,25 @@ describe('AdminGamesView', () => {
     expect(wrapper.text()).toContain('מתוכנן')
   })
 
+  it('search filters games by opponent name and leaves pending games visible', async () => {
+    const other = { ...GAMES[0], id: 101, opponent: { ...GAMES[0].opponent, id: 6, name: 'הפועל' } }
+    const pending = { ...GAMES[0], id: 102, opponent: { ...GAMES[0].opponent, id: 7, name: 'ממתין' } }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes([...GAMES, other]),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([pending]),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    await wrapper.find('input[type="search"]').setValue('הפועל')
+    expect(wrapper.text()).toContain('הפועל')
+    expect(wrapper.text()).not.toContain('מכבי')
+    expect(wrapper.text()).toContain('ממתין')
+  })
+
   it('clears the list and shows the error in the list area when loading games fails', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
