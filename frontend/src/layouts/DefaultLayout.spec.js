@@ -50,6 +50,7 @@ describe('DefaultLayout', () => {
         { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { description: (t) => `לוח של ${t}` } },
         { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' } },
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
+        { path: '/teams', name: 'teams', component: { template: '<div/>' } },
         { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
         { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
         { path: '/:slug/roster', name: 'roster', component: { template: '<div/>' } },
@@ -76,6 +77,17 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     expect(document.head.querySelector('meta[name="description"]').content).toBe('לוח של קבוצה א')
+  })
+
+  it('header links to the teams index', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a/schedule')
+    await flushPromises()
+
+    expect(wrapper.find('header a[href="/teams"]').attributes('aria-label')).toBe('כל הקבוצות')
   })
 
   it('canonical is origin + path, query dropped', async () => {

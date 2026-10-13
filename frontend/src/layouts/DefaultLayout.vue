@@ -121,6 +121,14 @@ onMounted(async () => {
             class="inline-flex size-11 items-center justify-center"
             ><AppIcon name="pin"
           /></a>
+          <RouterLink
+            :to="{ name: 'teams' }"
+            aria-label="כל הקבוצות"
+            title="כל הקבוצות"
+            class="inline-flex size-11 items-center justify-center rounded-full hover:bg-black/10"
+          >
+            <AppIcon name="grid" />
+          </RouterLink>
           <nav data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden md:block">
             <ul class="flex gap-4 lg:gap-6">
               <li v-for="item in navItems" :key="item.label">
