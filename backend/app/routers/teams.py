@@ -90,21 +90,12 @@ class ClubTeamOut(BaseModel):
 
 class AdminCreate(BaseModel):
     # no "@": login routes any identifier containing "@" to the email lookup
-    username: Annotated[
-        str,
-        StringConstraints(strip_whitespace=True, min_length=1, max_length=64, pattern=r"^[^@]+$"),
-    ]
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64, pattern=r"^[^@]+$")]
     password: Annotated[str, StringConstraints(min_length=8)]
     # lowercase: login, forgot-password and the Google callback all look emails up lowercase
-    email: (
-        Annotated[
-            str,
-            StringConstraints(
-                strip_whitespace=True, to_lower=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$"
-            ),
-        ]
-        | None
-    ) = None
+    email: Annotated[
+        str, StringConstraints(strip_whitespace=True, to_lower=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$")
+    ] | None = None
 
 
 class AdminOut(BaseModel):
@@ -170,9 +161,7 @@ def get_team(team_id: int, db: DbSession) -> Team:
 
 
 @router.patch("/{team_id}", response_model=TeamOut)
-def update_team(
-    team_id: int, payload: TeamUpdate, _admin_id: RequireTeamAdmin, db: DbSession
-) -> Team:
+def update_team(team_id: int, payload: TeamUpdate, _admin_id: RequireTeamAdmin, db: DbSession) -> Team:
     team = get_team_or_404(db, team_id)
     updates = _stringify_urls(payload.model_dump(exclude_unset=True))
     if updates.get("background") is None:
@@ -194,22 +183,15 @@ def delete_team(team_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
 @router.get("/{team_id}/admins", response_model=list[AdminOut])
 def list_team_admins(team_id: int, _admin_id: RequireAdmin, db: DbSession) -> list[AdminUser]:
     get_team_or_404(db, team_id)
-    return list(
-        db.scalars(select(AdminUser).where(AdminUser.team_id == team_id).order_by(AdminUser.id))
-    )
+    return list(db.scalars(select(AdminUser).where(AdminUser.team_id == team_id).order_by(AdminUser.id)))
 
 
 @router.post("/{team_id}/admins", status_code=status.HTTP_201_CREATED, response_model=AdminOut)
-def create_team_admin(
-    team_id: int, payload: AdminCreate, _admin_id: RequireAdmin, db: DbSession
-) -> AdminUser:
+def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmin, db: DbSession) -> AdminUser:
     get_team_or_404(db, team_id)
     if db.scalar(select(AdminUser).where(AdminUser.username == payload.username)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "שם המשתמש כבר קיים")
-    if (
-        payload.email
-        and db.scalar(select(AdminUser).where(AdminUser.email == payload.email)) is not None
-    ):
+    if payload.email and db.scalar(select(AdminUser).where(AdminUser.email == payload.email)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "האימייל כבר קיים")
     # ponytail: a same-instant duplicate hits the unique index as a 500; catch IntegrityError if it ever matters
     admin = AdminUser(
@@ -227,9 +209,7 @@ def create_team_admin(
 @router.delete("/{team_id}/admins/{admin_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_team_admin(team_id: int, admin_id: int, _admin_id: RequireAdmin, db: DbSession) -> None:
     # Filtering on team_id keeps full admins (team_id NULL) and other teams' admins unreachable.
-    admin = db.scalar(
-        select(AdminUser).where(AdminUser.id == admin_id, AdminUser.team_id == team_id)
-    )
+    admin = db.scalar(select(AdminUser).where(AdminUser.id == admin_id, AdminUser.team_id == team_id))
     if admin is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
     db.delete(admin)

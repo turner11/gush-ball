@@ -167,10 +167,10 @@ const total = computed(() => rows.value.length)
                     <span v-else class="size-10" />
                   </td>
                   <td data-label="שם">
-                    <input v-model="row.name" type="text" required class="field-input mt-0 w-full min-w-0 font-bold" :aria-label="`שם — ${row.initialName}`" />
+                    <input v-model="row.name" type="text" required class="field-input mt-0 w-full min-w-0 sm:min-w-48 font-bold" :aria-label="`שם — ${row.initialName}`" />
                   </td>
                   <td data-label="שם באנגלית">
-                    <input v-model="row.name_en" type="text" dir="ltr" class="field-input mt-0 w-full min-w-0" :aria-label="`שם באנגלית — ${row.initialName}`" />
+                    <input v-model="row.name_en" type="text" dir="ltr" class="field-input mt-0 w-full min-w-0 sm:min-w-48" :aria-label="`שם באנגלית — ${row.initialName}`" />
                   </td>
                   <td data-label="ליגה">
                     <a v-if="row.ibasketball_league_url" :href="row.ibasketball_league_url" target="_blank" rel="noopener" class="underline">{{ row.league_name }}</a>
@@ -188,7 +188,7 @@ const total = computed(() => rows.value.length)
                     </span>
                   </td>
                   <td data-label="רקע">
-                    <select v-model="row.background" class="field-input mt-0 w-full min-w-0" :aria-label="`רקע — ${row.initialName}`">
+                    <select v-model="row.background" class="field-input mt-0 w-full min-w-0 sm:min-w-28" :aria-label="`רקע — ${row.initialName}`">
                       <option value="hoop-1">רקע 1</option>
                       <option value="hoop-2">רקע 2</option>
                     </select>

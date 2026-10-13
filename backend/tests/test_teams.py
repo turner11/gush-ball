@@ -32,9 +32,7 @@ def test_twitter_url_round_trips(admin_client: TestClient) -> None:
     created = _create_team(admin_client, "Team T", twitter_url="https://x.com/club")
     assert admin_client.get(f"/teams/{created['id']}").json()["twitter_url"] == "https://x.com/club"
     admin_client.patch(f"/teams/{created['id']}", json={"twitter_url": "https://x.com/club2"})
-    assert (
-        admin_client.get(f"/teams/{created['id']}").json()["twitter_url"] == "https://x.com/club2"
-    )
+    assert admin_client.get(f"/teams/{created['id']}").json()["twitter_url"] == "https://x.com/club2"
 
 
 def test_create_team_rejects_invalid_twitter_url(admin_client: TestClient) -> None:
@@ -99,12 +97,8 @@ def test_delete_team_removes_it(admin_client: TestClient, client: TestClient) ->
 
 
 @pytest.mark.parametrize("field", ["facebook_url", "logo_url"])
-@pytest.mark.parametrize(
-    "value", ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"]
-)
-def test_update_team_rejects_non_http_scheme(
-    admin_client: TestClient, field: str, value: str
-) -> None:
+@pytest.mark.parametrize("value", ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"])
+def test_update_team_rejects_non_http_scheme(admin_client: TestClient, field: str, value: str) -> None:
     created = _create_team(admin_client, "Team S")
     assert admin_client.patch(f"/teams/{created['id']}", json={field: value}).status_code == 422
 
@@ -119,9 +113,7 @@ def test_update_team_rejects_non_http_scheme(
         "http://ibasketball.co.il/league/1/",
     ],
 )
-def test_update_team_rejects_non_ibasketball_host(
-    admin_client: TestClient, field: str, value: str
-) -> None:
+def test_update_team_rejects_non_ibasketball_host(admin_client: TestClient, field: str, value: str) -> None:
     created = _create_team(admin_client, "Team H")
     assert admin_client.patch(f"/teams/{created['id']}", json={field: value}).status_code == 422
 
@@ -148,15 +140,9 @@ def test_background_defaults_and_round_trips(admin_client: TestClient) -> None:
 
 
 def test_rejects_unknown_background(admin_client: TestClient) -> None:
-    assert (
-        admin_client.post("/teams", json={"name": "Team X", "background": "nope"}).status_code
-        == 422
-    )
+    assert admin_client.post("/teams", json={"name": "Team X", "background": "nope"}).status_code == 422
     created = _create_team(admin_client, "Team Y")
-    assert (
-        admin_client.patch(f"/teams/{created['id']}", json={"background": "nope"}).status_code
-        == 422
-    )
+    assert admin_client.patch(f"/teams/{created['id']}", json={"background": "nope"}).status_code == 422
 
 
 def test_club_preview_rejects_non_ibasketball_url(admin_client: TestClient) -> None:

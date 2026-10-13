@@ -109,9 +109,10 @@ def test_preview_fills_logo_and_address_in_three_requests(
     teams = [
         _rest_team("1", "https://img/a.png", [7]),
         _rest_team("2", "https://img/" + "a" * 500, []),
+        {"link": "https://ibasketball.co.il/team/3-x/"},  # WP omits _embedded/venues without a logo
     ]
     fetcher = Fetcher(
-        _page(_card("A", "ליגה א", "1"), _card("B", "ליגה א", "2")),
+        _page(_card("A", "ליגה א", "1"), _card("B", "ליגה א", "2"), _card("C", "ליגה א", "3")),
         [teams, [{"id": 7, "name": "אולם"}]],
     )
     _patch(monkeypatch, fetcher)
@@ -119,6 +120,7 @@ def test_preview_fills_logo_and_address_in_three_requests(
     assert (fetcher.page_calls, fetcher.json_calls) == (1, 2)
     assert (rows[0]["logo_url"], rows[0]["home_court_address"]) == ("https://img/a.png", "אולם")
     assert (rows[1]["logo_url"], rows[1]["home_court_address"]) == (None, None)
+    assert (rows[2]["logo_url"], rows[2]["home_court_address"]) == (None, None)
 
 
 def test_preview_skips_rest_calls_when_all_teams_exist(
