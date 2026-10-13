@@ -1,5 +1,8 @@
+import httpx
 import pytest
 from fastapi.testclient import TestClient
+
+from app import scrape_club
 
 
 def _create_team(admin_client: TestClient, name: str, **extra: str) -> dict:
@@ -46,6 +49,7 @@ def test_create_team_rejects_oversized_field(admin_client: TestClient) -> None:
     ("method", "path"),
     [
         ("POST", "/teams"),
+        ("POST", "/teams/club-preview"),
         ("PATCH", "/teams/1"),
         ("DELETE", "/teams/1"),
     ],
@@ -139,3 +143,32 @@ def test_rejects_unknown_background(admin_client: TestClient) -> None:
     assert admin_client.post("/teams", json={"name": "Team X", "background": "nope"}).status_code == 422
     created = _create_team(admin_client, "Team Y")
     assert admin_client.patch(f"/teams/{created['id']}", json={"background": "nope"}).status_code == 422
+
+
+def test_club_preview_rejects_non_ibasketball_url(admin_client: TestClient) -> None:
+    response = admin_client.post("/teams/club-preview", json={"club_url": "https://example.com/club/1/"})
+    assert response.status_code == 422
+
+
+def test_club_preview_returns_502_on_fetch_error(admin_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(url: str) -> str:
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(scrape_club, "_get_page", boom)
+    response = admin_client.post("/teams/club-preview", json={"club_url": "https://ibasketball.co.il/club/1/"})
+    assert response.status_code == 502
+
+
+def test_club_preview_returns_preview_rows(admin_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    row = {
+        "name": "A",
+        "ibasketball_team_url": "https://ibasketball.co.il/team/1-a/",
+        "ibasketball_league_url": None,
+        "league_name": "L",
+        "home_court_address": None,
+        "logo_url": None,
+    }
+    monkeypatch.setattr(scrape_club, "preview_club_teams", lambda db, url: [row])
+    response = admin_client.post("/teams/club-preview", json={"club_url": "https://ibasketball.co.il/club/1/"})
+    assert response.status_code == 200
+    assert response.json() == [row]
