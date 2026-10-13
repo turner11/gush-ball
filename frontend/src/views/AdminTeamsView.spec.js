@@ -103,6 +103,7 @@ describe('AdminTeamsView', () => {
       routes: [
         { path: '/:p(.*)*', component: { template: '<div/>' } },
         { path: '/admin/teams/:id', name: 'admin-team-edit', component: { template: '<div/>' } },
+        { path: '/admin/teams/import', name: 'admin-teams-import', component: { template: '<div/>' } },
       ],
     })
 
@@ -111,5 +112,28 @@ describe('AdminTeamsView', () => {
     await flushPromises()
 
     expect(wrapper.find('a[href="/team_a"]').exists()).toBe(true)
+  })
+
+  it('shows the club import link to a full admin only', async () => {
+    const { useAuth } = await import('../composables/useAuth')
+    const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
+    const router = createRouter({
+      history: createWebHistory(),
+      routes: [
+        { path: '/:p(.*)*', component: { template: '<div/>' } },
+        { path: '/admin/teams/:id', name: 'admin-team-edit', component: { template: '<div/>' } },
+        { path: '/admin/teams/import', name: 'admin-teams-import', component: { template: '<div/>' } },
+      ],
+    })
+    const hasLink = async (me) => {
+      mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes(me) })
+      await useAuth().checkSession()
+      const wrapper = mount(AdminTeamsView, { global: { plugins: [router] } })
+      await flushPromises()
+      return wrapper.find('a[href="/admin/teams/import"]').exists()
+    }
+
+    expect(await hasLink({ id: 1, team_id: null })).toBe(true)
+    expect(await hasLink({ id: 2, team_id: 1 })).toBe(false)
   })
 })

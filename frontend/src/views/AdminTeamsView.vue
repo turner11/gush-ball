@@ -51,7 +51,10 @@ onMounted(load)
 
 <template>
   <section class="space-y-6">
-    <h1 class="page-title">ניהול קבוצות</h1>
+    <div class="page-header">
+      <h1 class="page-title">ניהול קבוצות</h1>
+      <RouterLink v-if="!user?.team_id" :to="{ name: 'admin-teams-import' }" class="btn-secondary">ייבוא קבוצות מאגודה</RouterLink>
+    </div>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div>

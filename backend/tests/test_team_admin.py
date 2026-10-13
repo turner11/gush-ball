@@ -65,6 +65,9 @@ def test_team_admin_cannot_do_club_wide_actions(
 ) -> None:
     assert team_admin_client.post("/teams", json={"name": "New"}).status_code == 403
     assert team_admin_client.delete(f"/teams/{own_team.id}").status_code == 403
+    preview = {"club_url": "https://ibasketball.co.il/club/1/"}
+    assert team_admin_client.post("/teams/club-preview", json=preview).status_code == 403
+    assert team_admin_client.get("/teams/club-preview/status").status_code == 403
     row = {
         "league_name": "L", "team_name": "T", "rank": 1, "played": 1, "won": 1,
         "lost": 0, "points_for": 1, "points_against": 0, "points": 2,
