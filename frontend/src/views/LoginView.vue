@@ -53,7 +53,7 @@ onMounted(async () => {
       await checkSession()
       return router.replace(landing())
     }
-    return router.replace({ query: { ...route.query, error: 'google' } })
+    return router.replace({ query: { error: 'google' } })
   }
   try {
     googleEnabled.value = (await apiFetch('/auth/options')).google === true

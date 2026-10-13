@@ -80,7 +80,7 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
       </template>
       <template v-else-if="pending">
         <h2 class="section-title">הבקשה שלך ממתינה לאישור</h2>
-        <p class="text-muted">הסטטיסטיקה תיפתח אחרי שמנהל הקבוצה יאשר את הבקשה.</p>
+        <p class="text-muted">הסטטיסטיקה תיפתח אחרי שהמנהל יאשר את הבקשה.</p>
         <RouterLink :to="{ name: 'join' }" class="btn-secondary w-full sm:w-auto">הבקשות שלי</RouterLink>
       </template>
       <template v-else>
