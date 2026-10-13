@@ -21,7 +21,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import Game, GameStatus, Opponent, Player, PlayerImage, Team, get_or_create_opponent
+from app.models import (
+    Club,
+    Game,
+    GameStatus,
+    Opponent,
+    Player,
+    PlayerImage,
+    Team,
+    get_or_create_club,
+    get_or_create_opponent,
+)
 
 BASE = "https://ibasketball.co.il/wp-json"
 CRAWL_DELAY = 10
@@ -97,20 +107,48 @@ def face_focus(data: bytes) -> tuple[float, float, float]:
     return _focus(img.shape[1], img.shape[0], face)
 
 
-def _scrape_address(url: str) -> str | None:
-    """Home court from the team page's venue link ("" if the page has none); None on fetch error.
+def _fetch_team_page(url: str) -> BeautifulSoup | None:
+    """The parsed team page; None on fetch error, so a failure never loses the games sync."""
+    try:
+        return BeautifulSoup(_get_page(url), "html.parser")
+    except httpx.HTTPError:
+        log.warning("Could not fetch team page %s", url, exc_info=True)
+        return None
+
+
+def _venue(page: BeautifulSoup) -> str:
+    """Home court from the venue link ("" if the page has none).
 
     Never reads div.data-address: that is the club's contact address, not the court.
-    Never lets a failure lose the games sync.
     """
-    try:
-        node = BeautifulSoup(_get_page(url), "html.parser").select_one("div.data-venue a")
-    except httpx.HTTPError:
-        log.warning("Could not fetch address from %s", url, exc_info=True)
-        return None
-    if node is None:
-        return ""
-    return node.get_text(strip=True)[:300]
+    node = page.select_one("div.data-venue a")
+    return "" if node is None else node.get_text(strip=True)[:300]
+
+
+def _scrape_address(url: str) -> str | None:
+    """Venue of a team page; None on fetch error."""
+    page = _fetch_team_page(url)
+    return None if page is None else _venue(page)
+
+
+def _club_needs_scrape(db: Session, team: Team) -> bool:
+    club = db.scalar(select(Club).where(Club.name == team.club)) if team.club else None
+    return club is None or club.ibasketball_url is None
+
+
+def _fill_team_club(db: Session, team: Team, name: str, url: str) -> None:
+    """Fill-only: assigns a club to a clubless team and fills a missing club url.
+    Never moves a team, renames a club or takes a url another club already owns."""
+    by_url = db.scalar(select(Club).where(Club.ibasketball_url == url))
+    club = get_or_create_club(db, team.club) if team.club else by_url or get_or_create_club(db, name[:120])
+    if club.ibasketball_url is None and by_url is None:
+        club.ibasketball_url = url
+    if club.ibasketball_url != url:
+        log.warning(
+            "Team %s: club %r has url %s, page says %s (%r); not changing", team.slug, club.name, club.ibasketball_url, url, name
+        )
+        return
+    team.club = club.name
 
 
 def _resolve_opponent(db: Session, data: dict[str, Any]) -> Opponent:
@@ -163,9 +201,15 @@ def _fetch_opponents(events: list[dict[str, Any]], sp_id: int) -> dict[int, dict
 
 def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
     sp_id = _sp_team_id(team.ibasketball_team_url)
-    # Fill-only: an admin-entered address is never clobbered.
-    if team.home_court_address is None:
-        team.home_court_address = _scrape_address(team.ibasketball_team_url)
+    # Fill-only: an admin-entered address, club name or club url is never clobbered. One page fetch serves all.
+    if team.home_court_address is None or _club_needs_scrape(db, team):
+        page = _fetch_team_page(team.ibasketball_team_url)
+        if page is not None:
+            if team.home_court_address is None:
+                team.home_court_address = _venue(page)
+            link = page.select_one("div.data-club a[href]")
+            if link is not None:
+                _fill_team_club(db, team, link.get_text(strip=True), link["href"])
 
     # ponytail: single page (100); follow X-WP-TotalPages if a team ever exceeds it
     events = _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)

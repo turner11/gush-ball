@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -27,7 +27,8 @@ class Team(Base):
 
     background: Mapped[str] = mapped_column(String(20), default="hoop-1", server_default="hoop-1")
 
-    club: Mapped[str | None] = mapped_column(String(120), default=None)  # groups teams; keys club-admin scope
+    # A Club by its unique name; groups teams and keys club-admin scope. A rename cascades.
+    club: Mapped[str | None] = mapped_column(String(120), ForeignKey("clubs.name", onupdate="CASCADE"), default=None)
     home_court_address: Mapped[str | None] = mapped_column(String(300), default=None)
 
     facebook_url: Mapped[str | None] = mapped_column(String(500), default=None)

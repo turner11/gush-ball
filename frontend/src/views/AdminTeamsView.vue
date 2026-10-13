@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 
+import ClubsSection from '../components/ClubsSection.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { fullAdmin, ownTeams } from '../composables/useAuth'
@@ -108,6 +109,8 @@ onMounted(load)
         <button type="submit" :disabled="submitting" class="btn-primary w-full">יצירה</button>
       </form>
     </div>
+
+    <ClubsSection v-if="fullAdmin" />
 
     <ConfirmDialog
       :open="pendingDeleteId !== null"

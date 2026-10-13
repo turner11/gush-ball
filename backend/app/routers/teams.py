@@ -19,7 +19,7 @@ from app.deps import (
     check_team_scope,
     get_team_or_404,
 )
-from app.models import AdminUser, Membership, Team
+from app.models import AdminUser, Membership, Team, get_or_create_club
 from app.security import Email, Username, hash_password
 
 router = APIRouter(prefix="/teams", tags=["teams"])
@@ -197,6 +197,8 @@ async def club_preview_status(_admin_id: RequireAdmin) -> ClubPreviewStatusOut:
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=TeamOut)
 def create_team(payload: TeamCreate, _admin_id: RequireAdmin, db: DbSession) -> Team:
     data = _stringify_urls(payload.model_dump(exclude_none=True))
+    if data.get("club"):
+        get_or_create_club(db, data["club"])  # teams.club is an FK to clubs.name
     team = Team(**data, slug=_unique_slug(db, _slugify(payload.name)))
     db.add(team)
     db.commit()
@@ -242,6 +244,8 @@ def update_team(team_id: int, payload: TeamUpdate, admin: RequireAnyAdmin, db: D
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only a full admin can change a team's club")
     if updates.get("background") is None:
         updates.pop("background", None)  # column is NOT NULL
+    if updates.get("club"):
+        get_or_create_club(db, updates["club"])  # teams.club is an FK to clubs.name
     for field, value in updates.items():
         setattr(team, field, value)
     db.commit()

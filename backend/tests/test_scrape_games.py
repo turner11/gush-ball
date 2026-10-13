@@ -351,6 +351,8 @@ def test_sync_does_not_refetch_opponent_with_known_address(
 ) -> None:
     team = _make_team(db_session)
     team.home_court_address = known
+    team.club = "Gush"
+    db_session.add(Club(name="Gush", ibasketball_url=CLUB_URL))
     db_session.add(
         Opponent(name=OPPONENT_NAME_UNESCAPED, source_url=OPPONENT_DETAIL["link"], address=known)
     )
