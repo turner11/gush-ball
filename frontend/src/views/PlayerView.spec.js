@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { useAuth } from '../composables/useAuth'
 import PlayerView from './PlayerView.vue'
 
 const PLAYER = {
@@ -80,5 +81,48 @@ describe('PlayerView', () => {
 
     const link = wrapper.findAll('a').find((a) => a.text().includes('כל השחקנים'))
     expect(link.attributes('href')).toBe('/1/roster')
+  })
+
+  describe('self-edit (#329)', () => {
+    const signIn = async (me) => {
+      const fetchMock = okFetch()
+      global.fetch = vi.fn((url, options) =>
+        url === '/api/auth/me'
+          ? me
+            ? Promise.resolve({ ok: true, status: 200, json: async () => me })
+            : Promise.resolve({ ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({}) })
+          : fetchMock(url, options),
+      )
+      await useAuth().checkSession()
+    }
+
+    it('shows the edit entry only for the linked user', async () => {
+      await signIn({ username: 'a', player_ids: [3] })
+      expect((await mountAt('/players/3')).text()).toContain('עריכת הפרופיל שלי')
+      await signIn({ username: 'a', player_ids: [4] })
+      expect((await mountAt('/players/3')).text()).not.toContain('עריכת הפרופיל שלי')
+      await signIn(null)
+      expect((await mountAt('/players/3')).text()).not.toContain('עריכת הפרופיל שלי')
+    })
+
+    it('saving sends only the name fields and updates the heading', async () => {
+      await signIn({ username: 'a', player_ids: [3] })
+      const wrapper = await mountAt('/players/3')
+      const base = global.fetch
+      global.fetch = vi.fn((url, options) =>
+        options?.method === 'PATCH'
+          ? Promise.resolve({ ok: true, status: 200, json: async () => ({ ...PLAYER, name: 'חדש' }) })
+          : base(url, options),
+      )
+      await wrapper.findAll('button').find((b) => b.text().includes('עריכת הפרופיל שלי')).trigger('click')
+      await wrapper.find('#profile-name').setValue('חדש')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      const [url, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
+      expect(url).toBe('/api/teams/1/players/3')
+      expect(JSON.parse(options.body)).toEqual({ name: 'חדש', name_en: null })
+      expect(wrapper.find('h1').text()).toContain('חדש')
+    })
   })
 })
