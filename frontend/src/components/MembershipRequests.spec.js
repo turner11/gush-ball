@@ -6,8 +6,8 @@ const failRes = { ok: false, status: 500, statusText: 'x', json: async () => ({}
 const body = () => new DOMWrapper(document.body) // ConfirmDialog teleports to body
 
 const ROWS = [
-  { id: 3, username: 'Dana Cohen', team_id: 1, team_name: 'קבוצה א', club: null },
-  { id: 4, username: 'Noa', team_id: null, team_name: null, club: 'Gush' },
+  { id: 3, username: 'Dana Cohen', email_hint: 'd***@gmail.com', team_id: 1, team_name: 'קבוצה א', club: null },
+  { id: 4, username: 'Noa', email_hint: null, team_id: null, team_name: null, club: 'Gush' },
 ]
 
 let calls
@@ -49,6 +49,14 @@ describe('MembershipRequests', () => {
     expect(wrapper.text()).toContain('קבוצה: קבוצה א')
     expect(wrapper.text()).toContain('מועדון: Gush')
     expect(wrapper.find('.badge-muted').text()).toBe('2')
+  })
+
+  it('shows the masked email and flags unverified requesters', async () => {
+    mockFetch({ 'GET /api/memberships': () => jsonRes(ROWS) })
+    const wrapper = await mountQueue()
+    const rows = wrapper.findAll('li')
+    expect(rows[0].text()).toContain('d***@gmail.com')
+    expect(rows[1].find('.badge-loss').text()).toBe('אימייל לא מאומת')
   })
 
   it('approve POSTs and removes the row with a status message', async () => {

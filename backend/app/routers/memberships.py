@@ -35,12 +35,20 @@ class MembershipOut(BaseModel):
     role: str
 
 
-class PendingOut(BaseModel):  # no email: approvers identify a player by name only
+class PendingOut(BaseModel):  # masked email only: the full address stays private (#272)
     id: int
     username: str
+    email_hint: str | None  # None = unverified account
     team_id: int | None
     team_name: str | None
     club: str | None
+
+
+def _mask_email(email: str | None) -> str | None:
+    if email is None:
+        return None
+    local, _, domain = email.partition("@")
+    return f"{local[:1]}***@{domain}"
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=MembershipOut)
@@ -62,7 +70,7 @@ def request_to_join(payload: JoinIn, user: RequireUser, db: DbSession) -> Member
 @router.get("", response_model=list[PendingOut])
 def list_pending(admin: RequireAnyAdmin, db: DbSession) -> list[PendingOut]:
     query = (
-        select(Membership.id, AdminUser.username, Membership.team_id, Team.name, Membership.club)
+        select(Membership.id, AdminUser.username, AdminUser.email, Membership.team_id, Team.name, Membership.club)
         .join(AdminUser, AdminUser.id == Membership.user_id)
         .outerjoin(Team, Team.id == Membership.team_id)
         .where(Membership.role == "pending")
@@ -71,7 +79,10 @@ def list_pending(admin: RequireAnyAdmin, db: DbSession) -> list[PendingOut]:
     scope = admin_team_ids(db, admin)
     if scope is not None:  # club requests are excluded by construction: their team_id is NULL
         query = query.where(Membership.team_id.in_(scope))
-    return [PendingOut(id=i, username=u, team_id=t, team_name=n, club=c) for i, u, t, n, c in db.execute(query)]
+    return [
+        PendingOut(id=i, username=u, email_hint=_mask_email(e), team_id=t, team_name=n, club=c)
+        for i, u, e, t, n, c in db.execute(query)
+    ]
 
 
 def _pending_in_scope(db: DbSession, admin: AdminUser, membership_id: int) -> Membership:
