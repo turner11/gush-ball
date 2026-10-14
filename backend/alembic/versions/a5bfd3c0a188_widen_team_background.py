@@ -30,7 +30,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("UPDATE teams SET background = 'hoop-1' WHERE length(background) > 20")
+    op.execute("UPDATE teams SET background = 'hoop-1' WHERE background NOT IN ('hoop-1', 'hoop-2')")
     op.alter_column(
         "teams",
         "background",

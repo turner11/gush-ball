@@ -197,7 +197,7 @@ const contentSections = [
                   <option v-for="preset in BACKGROUND_PRESETS" :key="preset.value" :value="preset.value">{{ preset.label }}</option>
                   <option v-for="(url, i) in customBackgrounds" :key="url" :value="url">תמונה מותאמת {{ i + 1 }}</option>
                 </select>
-                <label for="team-background-url" class="field-label">או כתובת תמונה</label>
+                <label for="team-background-url" class="field-label mt-3">או כתובת תמונה</label>
                 <input id="team-background-url" v-model.lazy="backgroundUrl" type="url" dir="ltr" class="field-input" />
                 <ImageUpload label="העלאת תמונת רקע" @uploaded="(url) => (form.background = url)" />
                 <img
