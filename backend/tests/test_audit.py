@@ -326,12 +326,31 @@ def test_unchanged_rescrape_adds_no_rows(db_session: Session, monkeypatch: pytes
     assert len(_rows(db_session)) == first
 
 
-def test_audited_models_hold_no_secrets() -> None:
+def test_audited_models_hold_no_secrets(db_session: Session) -> None:
     from app.models.audit_log import _AUDITED
 
     assert AdminUser not in _AUDITED
     for model in _AUDITED:
         assert not {"password_hash", "email", "session_version"} & set(model.__table__.columns.keys())
+    # Game.stats_url is an admin-only sheet URL: never copied into a diff.
+    game = _game(db_session, _team(db_session), stats_url="https://example.com/sheet")
+    assert "stats_url" not in str(_rows(db_session)[-1].changes)
+    game.stats_url = "https://example.com/other"
+    db_session.commit()
+    db_session.delete(game)
+    db_session.commit()
+    assert all("stats_url" not in r.changes and "has_stats" not in r.changes for r in _rows(db_session))
+
+
+def test_create_and_delete_rows_hold_the_values(db_session: Session) -> None:
+    team = _team(db_session)
+    player = _player(db_session, team, jersey_number=7)
+    db_session.delete(player)
+    db_session.commit()
+    created, deleted = [r for r in _rows(db_session) if r.entity_type == "player"]
+    assert created.changes["name"] == [None, "Dana"]
+    assert created.changes["jersey_number"] == [None, 7]
+    assert deleted.changes["name"] == ["Dana", None]
 
 
 def test_audit_log_full_admin_only(team_admin_client: TestClient) -> None:

@@ -45,6 +45,8 @@ _AUDITED: dict[type, str] = {
     Membership: "membership",
 }
 _MAX_VALUE_CHARS = 200
+# Never diffed: id is the entity_id; stats_url is an admin-only sheet URL; has_stats is a read-only EXISTS.
+_SKIPPED_KEYS = {"id", "stats_url", "has_stats"}
 
 
 def _team_id(session: Session, obj: Any) -> int | None:
@@ -65,7 +67,7 @@ def _value(raw: Any) -> Any:
 
 def _changes(obj: Any, action: str) -> dict[str, list]:
     state = inspect(obj)
-    keys = [p.key for p in state.mapper.column_attrs if p.key != "id"]
+    keys = [p.key for p in state.mapper.column_attrs if p.key not in _SKIPPED_KEYS]
     if action == "update":
         # Before value comes from attribute history. ponytail: an attribute expired by a mid-request commit
         # has no history, so its before value is logged as null; no current write path does this.
