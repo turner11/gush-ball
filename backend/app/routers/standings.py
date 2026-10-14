@@ -72,7 +72,9 @@ def _find_by_key(db: Session, league_name: str, team_name: str) -> StandingRow |
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=StandingRowOut)
-def create_standing_row(payload: StandingRowCreate, _admin_id: RequireAdmin, db: DbSession) -> StandingRow:
+def create_standing_row(
+    payload: StandingRowCreate, _admin_id: RequireAdmin, db: DbSession
+) -> StandingRow:
     if _find_by_key(db, payload.league_name, payload.team_name) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

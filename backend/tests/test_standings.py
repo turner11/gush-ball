@@ -73,7 +73,9 @@ def test_list_standing_rows_logo_null_without_matching_opponent(
     assert client.get("/standings").json()[0]["logo_url"] is None
 
 
-def test_list_standing_rows_filters_by_league_name(admin_client: TestClient, client: TestClient) -> None:
+def test_list_standing_rows_filters_by_league_name(
+    admin_client: TestClient, client: TestClient
+) -> None:
     _create_row(admin_client, league_name="Liga A", team_name="Team A")
     _create_row(admin_client, league_name="Liga B", team_name="Team B")
 

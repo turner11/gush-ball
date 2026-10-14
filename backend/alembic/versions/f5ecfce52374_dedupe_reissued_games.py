@@ -5,6 +5,7 @@ Revises: 4853fc3fed75
 Create Date: 2026-10-01 22:47:57.421046
 
 """
+
 import json
 from collections.abc import Sequence
 
@@ -13,8 +14,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'f5ecfce52374'
-down_revision: str | Sequence[str] | None = '4853fc3fed75'
+revision: str = "f5ecfce52374"
+down_revision: str | Sequence[str] | None = "4853fc3fed75"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -34,23 +35,33 @@ def _dedupe_games(bind) -> None:
             " (g.is_manually_overridden OR g.stats_url IS NOT NULL"
             "  OR EXISTS (SELECT 1 FROM lineup_snapshots l WHERE l.game_id = g.id)) AS has_admin_data"
             " FROM games g WHERE g.source_event_id IS NOT NULL"
-        ).columns(scheduled_at=sa.DateTime)  # typed so SQLite (tests) returns datetimes like Postgres
+        ).columns(
+            scheduled_at=sa.DateTime
+        )  # typed so SQLite (tests) returns datetimes like Postgres
     ).all()
     groups: dict[tuple, list] = {}
     for g in games:
-        groups.setdefault((g.team_id, g.opponent_id, g.is_home, g.scheduled_at.date()), []).append(g)
+        groups.setdefault((g.team_id, g.opponent_id, g.is_home, g.scheduled_at.date()), []).append(
+            g
+        )
 
     for rows in groups.values():
         if len(rows) < 2:
             continue
         with_data = [r for r in rows if r.has_admin_data]
         if len(with_data) > 1:
-            print(f"dedupe reissued games: skipped, delete one in the admin UI: game ids {[r.id for r in with_data]}")
+            print(
+                f"dedupe reissued games: skipped, delete one in the admin UI: game ids {[r.id for r in with_data]}"
+            )
             continue
         # WordPress ids only grow, so the highest event id is the live one.
         live_event_id = max(r.source_event_id for r in rows)
         # Without admin data keep a published row (not one awaiting review), then the newest.
-        keep = with_data[0] if with_data else max(rows, key=lambda r: (not r.needs_review, r.source_event_id))
+        keep = (
+            with_data[0]
+            if with_data
+            else max(rows, key=lambda r: (not r.needs_review, r.source_event_id))
+        )
         drop_ids = [r.id for r in rows if r.id != keep.id]
         # Delete first: re-keying before would break the unique source_event_id.
         bind.execute(_ids_stmt("DELETE FROM games WHERE id IN :ids"), {"ids": drop_ids})
@@ -92,11 +103,16 @@ def _dedupe_players(bind) -> None:
             continue
         with_data = [r for r in rows if r.has_admin_data or r.id in tagged]
         if len(with_data) > 1:
-            print(f"dedupe players: skipped, delete one in the admin UI: player ids {[r.id for r in with_data]}")
+            print(
+                f"dedupe players: skipped, delete one in the admin UI: player ids {[r.id for r in with_data]}"
+            )
             continue
         keep = with_data[0] if with_data else rows[0]
         drop_ids = [r.id for r in rows if r.id != keep.id]
-        bind.execute(_ids_stmt("UPDATE players SET deleted_at = CURRENT_TIMESTAMP WHERE id IN :ids"), {"ids": drop_ids})
+        bind.execute(
+            _ids_stmt("UPDATE players SET deleted_at = CURRENT_TIMESTAMP WHERE id IN :ids"),
+            {"ids": drop_ids},
+        )
 
 
 def downgrade() -> None:

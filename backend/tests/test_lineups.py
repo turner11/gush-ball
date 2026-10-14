@@ -84,7 +84,9 @@ def test_load_stats_accepts_bare_sheet_id(admin_client, db_session, fake_sheet) 
     game = _make_game(db_session)
     full = "https://docs.google.com/spreadsheets/d/1xvlTs0ry_f-jg3iRN2wdiwM7v1YMiRC7oJwI6MDGb"
 
-    r = admin_client.post(_stats_path(game), json={"url": " 1xvlTs0ry_f-jg3iRN2wdiwM7v1YMiRC7oJwI6MDGb "})
+    r = admin_client.post(
+        _stats_path(game), json={"url": " 1xvlTs0ry_f-jg3iRN2wdiwM7v1YMiRC7oJwI6MDGb "}
+    )
 
     assert r.status_code == 200
     assert r.json()["stats_url"] == full
@@ -107,7 +109,9 @@ def test_delete_stats_clears_snapshots_keeps_url(admin_client, db_session, fake_
     assert game.is_manually_overridden is False
 
 
-def test_reload_replaces_snapshots_and_uses_stored_url(admin_client, db_session, fake_sheet) -> None:
+def test_reload_replaces_snapshots_and_uses_stored_url(
+    admin_client, db_session, fake_sheet
+) -> None:
     game = _make_game(db_session)
     admin_client.post(_stats_path(game), json={"url": URL})
     first = _count(db_session)
@@ -129,7 +133,9 @@ def test_load_stats_without_any_url_is_422(admin_client, db_session, fake_sheet)
     assert admin_client.post(_stats_path(game), json={}).status_code == 422
 
 
-def test_load_stats_failure_keeps_old_snapshots(admin_client, db_session, fake_sheet, monkeypatch) -> None:
+def test_load_stats_failure_keeps_old_snapshots(
+    admin_client, db_session, fake_sheet, monkeypatch
+) -> None:
     game = _make_game(db_session)
     admin_client.post(_stats_path(game), json={"url": URL})
     before = _count(db_session)
@@ -145,9 +151,14 @@ def test_load_stats_failure_keeps_old_snapshots(admin_client, db_session, fake_s
     assert _count(db_session) == before
 
 
-def test_load_stats_accepts_alternate_header_spelling(admin_client, db_session, monkeypatch) -> None:
+def test_load_stats_accepts_alternate_header_spelling(
+    admin_client, db_session, monkeypatch
+) -> None:
     game = _make_game(db_session)
-    alt = CSV.replace("#1,#2,#3,#4,#5,Points,Points Against,Quarter,Time Left", "player 1,player 2,player 3,player 4,player 5,Team,Opponent,Quarter,Time left")
+    alt = CSV.replace(
+        "#1,#2,#3,#4,#5,Points,Points Against,Quarter,Time Left",
+        "player 1,player 2,player 3,player 4,player 5,Team,Opponent,Quarter,Time left",
+    )
     monkeypatch.setattr("app.routers.lineups.fetch_csv", lambda url: alt)
 
     r = admin_client.post(_stats_path(game), json={"url": URL})
@@ -158,7 +169,9 @@ def test_load_stats_accepts_alternate_header_spelling(admin_client, db_session, 
 
 def test_load_stats_missing_column_names_it(admin_client, db_session, monkeypatch) -> None:
     game = _make_game(db_session)
-    monkeypatch.setattr("app.routers.lineups.fetch_csv", lambda url: CSV.replace("Time Left", "Clock"))
+    monkeypatch.setattr(
+        "app.routers.lineups.fetch_csv", lambda url: CSV.replace("Time Left", "Clock")
+    )
 
     r = admin_client.post(_stats_path(game), json={"url": URL})
 
@@ -274,8 +287,12 @@ def test_game_read_has_stats(admin_client, client, db_session, fake_sheet) -> No
 HEADER = CSV.splitlines()[0]
 
 
-@pytest.mark.parametrize("body", [",,,,,,,,\n", "1,2,3,4,5,0,0,1,\n"], ids=["blank-rows", "rows-without-time"])
-def test_empty_sheet_saves_url_with_zero_snapshots(admin_client, client, db_session, monkeypatch, body) -> None:
+@pytest.mark.parametrize(
+    "body", [",,,,,,,,\n", "1,2,3,4,5,0,0,1,\n"], ids=["blank-rows", "rows-without-time"]
+)
+def test_empty_sheet_saves_url_with_zero_snapshots(
+    admin_client, client, db_session, monkeypatch, body
+) -> None:
     # A template with no timed rows (Google exports formatted blank rows as ",,,,") is valid before tip-off.
     monkeypatch.setattr("app.routers.lineups.fetch_csv", lambda url: HEADER + "\n" + body)
     game = _make_game(db_session)
@@ -332,9 +349,16 @@ def _own_game_with_snapshots(db: Session, team: Team) -> Game:
 
 
 def _login_full_admin(client, db: Session, username: str) -> None:
-    db.add(AdminUser(username=username, password_hash=hash_password("password123"), is_full_admin=True))
+    db.add(
+        AdminUser(username=username, password_hash=hash_password("password123"), is_full_admin=True)
+    )
     db.commit()
-    assert client.post("/auth/login", json={"username": username, "password": "password123"}).status_code == 200
+    assert (
+        client.post(
+            "/auth/login", json={"username": username, "password": "password123"}
+        ).status_code
+        == 200
+    )
 
 
 def _login_as(client, db: Session, who: str, own: Team, other: Team) -> None:
@@ -366,7 +390,9 @@ GRANTS = [
 
 
 @pytest.mark.parametrize(("who", "expected"), GRANTS)
-def test_lineups_access_by_grant(who, expected, client, db_session, own_team, other_team, sibling_team) -> None:
+def test_lineups_access_by_grant(
+    who, expected, client, db_session, own_team, other_team, sibling_team
+) -> None:
     game = _own_game_with_snapshots(db_session, own_team)
     _login_as(client, db_session, who, own_team, other_team)
     base = f"/teams/{own_team.id}/lineups"
@@ -380,7 +406,9 @@ def test_lineups_access_by_grant(who, expected, client, db_session, own_team, ot
 def test_every_stats_read_route_needs_login(client) -> None:
     exercised = 0
     for route_path, operations in app.openapi()["paths"].items():
-        if "get" not in operations or not ("lineups" in route_path or route_path.endswith("/stats")):
+        if "get" not in operations or not (
+            "lineups" in route_path or route_path.endswith("/stats")
+        ):
             continue
         r = client.get(re.sub(r"\{[^}]+\}", "1", route_path))
         assert r.status_code == 401, f"GET {route_path} -> {r.status_code}"
@@ -405,7 +433,9 @@ SHEET_VIEWERS = [
 
 
 @pytest.mark.parametrize(("who", "shown"), SHEET_VIEWERS)
-def test_public_games_hide_stats_url(who, shown, client, db_session, own_team, other_team, sibling_team) -> None:
+def test_public_games_hide_stats_url(
+    who, shown, client, db_session, own_team, other_team, sibling_team
+) -> None:
     game = _own_game_with_snapshots(db_session, own_team)
     _login_as(client, db_session, who, own_team, other_team)
     list_url = f"/teams/{own_team.id}/games"
@@ -415,7 +445,11 @@ def test_public_games_hide_stats_url(who, shown, client, db_session, own_team, o
         body = r.json()
         item = body[0] if isinstance(body, list) else body
         assert item["has_stats"] is True
-        assert (item["stats_url"] == URL) if shown else (item["stats_url"] is None and URL not in r.text)
+        assert (
+            (item["stats_url"] == URL)
+            if shown
+            else (item["stats_url"] is None and URL not in r.text)
+        )
 
 
 def test_load_stats_rejects_non_google_url(admin_client, db_session, fake_sheet) -> None:

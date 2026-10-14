@@ -5,13 +5,14 @@ Revises: e4a9115138c6
 Create Date: 2026-09-30 14:00:00.000000
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '97e0ec7c1837'
-down_revision: str | Sequence[str] | None = 'e4a9115138c6'
+revision: str = "97e0ec7c1837"
+down_revision: str | Sequence[str] | None = "e4a9115138c6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

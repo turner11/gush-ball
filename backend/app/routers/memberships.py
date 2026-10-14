@@ -49,11 +49,17 @@ def request_to_join(payload: JoinIn, user: RequireUser, db: DbSession) -> Member
         get_team_or_404(db, payload.team_id)
     elif not db.scalar(select(exists().where(Team.club == payload.club))):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Club not found")
-    scope = Membership.team_id == payload.team_id if payload.team_id is not None else Membership.club == payload.club
+    scope = (
+        Membership.team_id == payload.team_id
+        if payload.team_id is not None
+        else Membership.club == payload.club
+    )
     # ponytail: pre-check for a clean 409; a concurrent double-submit hits the unique constraint (500), harmless
     if db.scalar(select(Membership.id).where(Membership.user_id == user.id, scope)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "כבר קיימת בקשה או חברות")
-    row = Membership(user_id=user.id, team_id=payload.team_id, club=payload.club, role="pending")  # never from the body
+    row = Membership(
+        user_id=user.id, team_id=payload.team_id, club=payload.club, role="pending"
+    )  # never from the body
     db.add(row)
     db.commit()
     return row
@@ -71,7 +77,10 @@ def list_pending(admin: RequireAnyAdmin, db: DbSession) -> list[PendingOut]:
     scope = admin_team_ids(db, admin)
     if scope is not None:  # club requests are excluded by construction: their team_id is NULL
         query = query.where(Membership.team_id.in_(scope))
-    return [PendingOut(id=i, username=u, team_id=t, team_name=n, club=c) for i, u, t, n, c in db.execute(query)]
+    return [
+        PendingOut(id=i, username=u, team_id=t, team_name=n, club=c)
+        for i, u, t, n, c in db.execute(query)
+    ]
 
 
 def _pending_in_scope(db: DbSession, admin: AdminUser, membership_id: int) -> Membership:

@@ -49,7 +49,10 @@ RequireUser = Annotated[AdminUser, Depends(current_user)]
 def is_admin(db: Session, user: AdminUser) -> bool:
     if user.is_full_admin:
         return True
-    return db.scalar(select(exists().where(Membership.user_id == user.id, Membership.role == "admin"))) is True
+    return (
+        db.scalar(select(exists().where(Membership.user_id == user.id, Membership.role == "admin")))
+        is True
+    )
 
 
 def current_admin(request: Request, user: RequireUser, db: DbSession) -> AdminUser:
@@ -68,7 +71,9 @@ def admin_clubs(db: Session, user: AdminUser) -> list[str]:
     return list(
         db.scalars(
             select(Membership.club).where(
-                Membership.user_id == user.id, Membership.role == "admin", Membership.club.is_not(None)
+                Membership.user_id == user.id,
+                Membership.role == "admin",
+                Membership.club.is_not(None),
             )
         )
     )
@@ -101,17 +106,23 @@ def can_write_team(db: Session, user: AdminUser | None, team_id: int) -> bool:
 
 def check_team_scope(db: Session, admin: AdminUser, team_id: int) -> None:
     if not can_write_team(db, admin, team_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team"
+        )
 
 
-def check_admin_grant(db: Session, admin: AdminUser, team: Team, scope: Literal["team", "club"]) -> None:
+def check_admin_grant(
+    db: Session, admin: AdminUser, team: Team, scope: Literal["team", "club"]
+) -> None:
     """Who may grant or revoke admin on `team`: a full admin always; a club admin only team-scope grants on
     teams of their own club. Never club grants, never outside the club."""
     if admin.is_full_admin:
         return
     if scope == "team" and team.club is not None and team.club in admin_clubs(db, admin):
         return
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to manage admins for this team")
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to manage admins for this team"
+    )
 
 
 def check_membership_scope(db: Session, admin: AdminUser, row: Membership) -> None:
@@ -119,7 +130,10 @@ def check_membership_scope(db: Session, admin: AdminUser, row: Membership) -> No
     if row.team_id is not None:
         check_team_scope(db, admin, row.team_id)
     elif not admin.is_full_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only a full admin can approve club requests")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only a full admin can approve club requests",
+        )
 
 
 def require_admin(admin: RequireAnyAdmin) -> int:
@@ -151,7 +165,9 @@ def can_view_stats(db: Session, user: AdminUser) -> bool:
 
 def require_stats_viewer(user: RequireUser, db: DbSession) -> AdminUser:
     if not can_view_stats(db, user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Stats are for approved members")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Stats are for approved members"
+        )
     return user
 
 

@@ -20,7 +20,9 @@ def test_full_admin_lists_and_edits_club(admin_client: TestClient, db_session: S
     db_session.add(club)
     db_session.commit()
 
-    response = admin_client.patch(f"/clubs/{club.id}", json={"name": "Gush Etzion", "ibasketball_url": URL})
+    response = admin_client.patch(
+        f"/clubs/{club.id}", json={"name": "Gush Etzion", "ibasketball_url": URL}
+    )
 
     assert response.status_code == 200
     assert response.json() == {"id": club.id, "name": "Gush Etzion", "ibasketball_url": URL}
@@ -39,7 +41,9 @@ def test_club_patch_conflicts_and_bad_url(
     admin_client: TestClient, db_session: Session, body: dict, code: int
 ) -> None:
     mine = Club(name="Gush")
-    db_session.add_all([mine, Club(name="Other", ibasketball_url="https://ibasketball.co.il/club/1/")])
+    db_session.add_all(
+        [mine, Club(name="Other", ibasketball_url="https://ibasketball.co.il/club/1/")]
+    )
     db_session.commit()
 
     assert admin_client.patch(f"/clubs/{mine.id}", json=body).status_code == code

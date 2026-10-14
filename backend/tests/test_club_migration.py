@@ -14,7 +14,11 @@ def test_seed_clubs_one_row_per_distinct_name() -> None:
     with engine.begin() as conn:
         conn.execute(text("CREATE TABLE teams (id INTEGER PRIMARY KEY, club TEXT)"))
         conn.execute(text("CREATE TABLE memberships (id INTEGER PRIMARY KEY, club TEXT)"))
-        conn.execute(text("CREATE TABLE clubs (id INTEGER PRIMARY KEY, name TEXT NOT NULL, ibasketball_url TEXT)"))
+        conn.execute(
+            text(
+                "CREATE TABLE clubs (id INTEGER PRIMARY KEY, name TEXT NOT NULL, ibasketball_url TEXT)"
+            )
+        )
         conn.execute(text("INSERT INTO teams (club) VALUES ('Gush'), ('Gush'), (NULL)"))
         conn.execute(text("INSERT INTO memberships (club) VALUES ('Gush'), ('Solo'), (NULL)"))
         migration._seed_clubs(conn)

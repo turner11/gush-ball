@@ -32,7 +32,9 @@ def test_storage_upload_file_builds_public_url(monkeypatch: pytest.MonkeyPatch) 
     assert url == f"https://cdn.example.com/{key}"
 
 
-@pytest.mark.parametrize(("content_type", "extension"), list(storage.EXTENSION_BY_CONTENT_TYPE.items()))
+@pytest.mark.parametrize(
+    ("content_type", "extension"), list(storage.EXTENSION_BY_CONTENT_TYPE.items())
+)
 def test_storage_key_extension_comes_from_content_type(
     monkeypatch: pytest.MonkeyPatch, content_type: str, extension: str
 ) -> None:

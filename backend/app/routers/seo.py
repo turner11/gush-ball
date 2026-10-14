@@ -27,7 +27,12 @@ def sitemap(db: DbSession) -> Response:
     for team in db.scalars(select(Team).order_by(Team.id)):
         slug = _url_slug(team)
         paths += [slug, *(f"{slug}/{page}" for page in TEAM_PAGES)]
-    paths += [f"players/{pid}" for pid in db.scalars(select(Player.id).where(Player.deleted_at.is_(None)).order_by(Player.id))]
+    paths += [
+        f"players/{pid}"
+        for pid in db.scalars(
+            select(Player.id).where(Player.deleted_at.is_(None)).order_by(Player.id)
+        )
+    ]
     urls = "".join(f"<url><loc>{escape(f'{base}/{path}')}</loc></url>" for path in paths)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return Response(xml, media_type="application/xml")

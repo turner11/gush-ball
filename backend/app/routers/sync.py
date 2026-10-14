@@ -33,7 +33,9 @@ _last: dict[str, Any] | None = None
 
 class SyncIn(BaseModel):
     team_ids: list[int] | None = Field(None, min_length=1)  # None = all teams
-    kinds: set[Literal["standings", "games", "players"]] = Field(default_factory=lambda: set(KINDS), min_length=1)
+    kinds: set[Literal["standings", "games", "players"]] = Field(
+        default_factory=lambda: set(KINDS), min_length=1
+    )
     auto_accept: bool = True
 
 
@@ -61,7 +63,11 @@ def _run_sync(team_ids: list[int] | None, kinds: set[str], auto_accept: bool) ->
         # be closed, so open a fresh one here -- same pattern as the scrapers' own __main__ blocks.
         with SessionLocal() as db:
             result = {**sync_all(db, team_ids, kinds, auto_accept), "failed": False}
-        _last = {**result, "finished_at": datetime.now(UTC), "elapsed_seconds": round(time.monotonic() - started)}
+        _last = {
+            **result,
+            "finished_at": datetime.now(UTC),
+            "elapsed_seconds": round(time.monotonic() - started),
+        }
     except Exception as exc:
         log.exception("Sync crashed")
         _last = {
@@ -77,7 +83,10 @@ def _run_sync(team_ids: list[int] | None, kinds: set[str], auto_accept: bool) ->
 @router.post("/now", response_model=SyncOut, status_code=status.HTTP_202_ACCEPTED)
 # ponytail: the overlap guard and last-run status stay global across teams; make them per-team if that hurts.
 async def sync_now(
-    admin: RequireAnyAdmin, db: DbSession, background_tasks: BackgroundTasks, payload: SyncIn | None = None
+    admin: RequireAnyAdmin,
+    db: DbSession,
+    background_tasks: BackgroundTasks,
+    payload: SyncIn | None = None,
 ) -> SyncOut:
     global _running
     payload = payload or SyncIn()

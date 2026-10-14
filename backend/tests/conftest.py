@@ -43,7 +43,9 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
 @pytest.fixture()
 def admin_client(client: TestClient, db_session: Session) -> TestClient:
-    admin = AdminUser(username="admin", password_hash=hash_password("password123"), is_full_admin=True)
+    admin = AdminUser(
+        username="admin", password_hash=hash_password("password123"), is_full_admin=True
+    )
     db_session.add(admin)
     db_session.commit()
     response = client.post("/auth/login", json={"username": "admin", "password": "password123"})

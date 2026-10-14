@@ -9,6 +9,7 @@ from app.models import Player, PlayerImage
 
 router = APIRouter(tags=["players"])
 
+
 class PlayerCreate(BaseModel):
     name: str
     name_en: str | None = None
@@ -98,9 +99,7 @@ def update_player(
 
 
 @router.delete("/teams/{team_id}/players/{player_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_player(
-    team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin
-) -> None:
+def delete_player(team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> None:
     player = _get_team_player_or_404(db, team_id, player_id)
     player.deleted_at = datetime.now(UTC)
     db.commit()
@@ -113,7 +112,9 @@ def list_deleted_players(team_id: int, db: DbSession, _admin_id: RequireTeamAdmi
 
 
 @router.post("/teams/{team_id}/players/{player_id}/restore", response_model=PlayerOut)
-def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> Player:
+def restore_player(
+    team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin
+) -> Player:
     player = _get_team_player_or_404(db, team_id, player_id)
     player.deleted_at = None
     db.commit()
@@ -145,9 +146,7 @@ def add_player_image(
     return image
 
 
-@router.delete(
-    "/players/{player_id}/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT
-)
+@router.delete("/players/{player_id}/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_player_image(
     player_id: int, image_id: int, db: DbSession, admin: RequireAnyAdmin
 ) -> None:

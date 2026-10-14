@@ -40,7 +40,9 @@ def _sheet_url(value: str) -> str:
         return f"https://docs.google.com/spreadsheets/d/{v}"
     if re.fullmatch(r"https://docs\.google\.com/spreadsheets/d/[\w-]+(?:[/?#].*)?", v, re.ASCII):
         return v
-    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not a Google Sheet link or sheet ID: {v}")
+    raise HTTPException(
+        status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not a Google Sheet link or sheet ID: {v}"
+    )
 
 
 class OpponentRead(BaseModel):
@@ -147,7 +149,10 @@ def list_pending_review_games(
                 Game.team_id == team_id,
                 or_(
                     Game.needs_review.is_(True),
-                    (Game.scrape_suggestion.is_not(None) & Game.scrape_suggestion_dismissed.is_(False)),
+                    (
+                        Game.scrape_suggestion.is_not(None)
+                        & Game.scrape_suggestion_dismissed.is_(False)
+                    ),
                 ),
             )
         )

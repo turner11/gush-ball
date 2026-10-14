@@ -175,9 +175,7 @@ def test_player_out_includes_images(admin_client: TestClient, team: Team) -> Non
     player_id = created["id"]
     assert created["images"] == []
 
-    admin_client.post(
-        f"/players/{player_id}/images", json={"url": "https://example.com/dana.jpg"}
-    )
+    admin_client.post(f"/players/{player_id}/images", json={"url": "https://example.com/dana.jpg"})
 
     list_response = admin_client.get(f"/teams/{team.id}/players")
     player = list_response.json()[0]
@@ -228,9 +226,7 @@ def test_get_player_unknown_404(client: TestClient) -> None:
     assert client.get("/players/999999").status_code == 404
 
 
-def test_get_player_soft_deleted_404(
-    client: TestClient, db_session: Session, team: Team
-) -> None:
+def test_get_player_soft_deleted_404(client: TestClient, db_session: Session, team: Team) -> None:
     player = Player(team_id=team.id, name="Gone", deleted_at=datetime.now(UTC))
     db_session.add(player)
     db_session.commit()

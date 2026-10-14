@@ -42,7 +42,10 @@ def main() -> None:
                 print(f"No team with slug '{args.team_slug}'.")
                 raise SystemExit(1)
         user = AdminUser(
-            username=args.username, email=email, password_hash=hash_password(args.password), is_full_admin=team is None
+            username=args.username,
+            email=email,
+            password_hash=hash_password(args.password),
+            is_full_admin=team is None,
         )
         if team is not None:
             user.memberships.append(Membership(team_id=team.id, role="admin"))
