@@ -1,5 +1,7 @@
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+ENV_EXAMPLE_SECRET = "replace-with-a-random-value-of-at-least-32-chars"
 
 
 class Settings(BaseSettings):
@@ -39,6 +41,15 @@ class Settings(BaseSettings):
     stats_url: str = ""
     # Google Sheet (headers only, shared "anyone with the link") that admins copy to start a game.
     stats_template_url: str = ""
+
+    @field_validator("session_secret")
+    @classmethod
+    def reject_env_example_secret(cls, value: str) -> str:
+        if value == ENV_EXAMPLE_SECRET:
+            raise ValueError(
+                "SESSION_SECRET is the public .env.example placeholder; generate a real one with the command in .env.example"
+            )
+        return value
 
 
 settings = Settings()

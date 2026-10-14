@@ -161,10 +161,10 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
    Coolify → the `backend` service → *Terminal* (a shell inside the running backend container):
 
 ```bash
-uv run python scripts/create_admin.py <username> <password> [team-slug] [--email EMAIL]
+uv run python scripts/create_admin.py <username> [team-slug] [--email EMAIL]
 ```
 
-An email is needed for password reset and Google sign-in. Team admins get theirs in the "מנהלי הקבוצה" section of the
+The script prompts for the password. An email is needed for password reset and Google sign-in. Team admins get theirs in the "מנהלי הקבוצה" section of the
 team edit page. For a full admin use `create_admin.py --email`, or this SQL for an existing one:
 `UPDATE admin_users SET email = lower('me@example.com') WHERE username = 'admin';`
 

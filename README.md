@@ -25,8 +25,9 @@ docker compose up -d
 ```
 cd backend
 cp .env.example .env
+# set SESSION_SECRET in .env (generate with the command in .env.example); the placeholder is rejected at startup
 uv run alembic upgrade head
-uv run python scripts/create_admin.py <username> <password> [team-slug] [--email EMAIL]
+uv run python scripts/create_admin.py <username> [team-slug] [--email EMAIL]   # prompts for the password
 uv run uvicorn app.main:app --reload
 ```
 
@@ -49,7 +50,7 @@ Runs on http://localhost:5173, proxying `/api/*` to the backend. Tests: `npm run
 
 ```bash
 docker compose --profile full up -d --build   # db + backend + Caddy
-docker compose exec backend uv run python scripts/create_admin.py <user> <password> [team-slug] [--email EMAIL]
+docker compose exec backend uv run python scripts/create_admin.py <user> [team-slug] [--email EMAIL]   # prompts for the password
 ```
 
 Open http://localhost:8081. Uploads fail until object-storage vars are set.

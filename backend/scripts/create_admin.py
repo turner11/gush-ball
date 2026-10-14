@@ -1,10 +1,13 @@
 """One-off CLI to bootstrap an admin login. No team slug = full admin (the only way to make one besides the
 migration); with a slug = admin of that team only. Usage:
 
-    uv run python scripts/create_admin.py <username> <password> [team-slug] [--email EMAIL]
+    uv run python scripts/create_admin.py <username> [team-slug] [--email EMAIL]
+
+The password is prompted for, so it never lands in argv or shell history.
 """
 
 import argparse
+import getpass
 import sys
 from pathlib import Path
 
@@ -20,7 +23,6 @@ from app.security import hash_password
 def main() -> None:
     parser = argparse.ArgumentParser(usage=__doc__)
     parser.add_argument("username")
-    parser.add_argument("password")
     parser.add_argument("team_slug", nargs="?")
     parser.add_argument("--email")
     args = parser.parse_args()
@@ -34,6 +36,14 @@ def main() -> None:
         print(f"Invalid email '{args.email}'.")
         raise SystemExit(1)
 
+    password = getpass.getpass("Password: ")
+    if password != getpass.getpass("Repeat password: "):
+        print("Passwords do not match.")
+        raise SystemExit(1)
+    if len(password) < 8:
+        print("Password must be at least 8 characters.")
+        raise SystemExit(1)
+
     with SessionLocal() as db:
         team = None
         if args.team_slug:
@@ -42,7 +52,7 @@ def main() -> None:
                 print(f"No team with slug '{args.team_slug}'.")
                 raise SystemExit(1)
         user = AdminUser(
-            username=args.username, email=email, password_hash=hash_password(args.password), is_full_admin=team is None
+            username=args.username, email=email, password_hash=hash_password(password), is_full_admin=team is None
         )
         if team is not None:
             user.memberships.append(Membership(team_id=team.id, role="admin"))
