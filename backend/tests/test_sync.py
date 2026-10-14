@@ -119,11 +119,7 @@ def test_sync_now_defaults_all_kinds_all_teams_auto_accept(
 ) -> None:
     assert admin_client.post("/sync/now", **kwargs).status_code == 202
 
-    assert (stub_scrapers["standings"], stub_scrapers["games"], stub_scrapers["players"]) == (
-        1,
-        1,
-        1,
-    )
+    assert (stub_scrapers["standings"], stub_scrapers["games"], stub_scrapers["players"]) == (1, 1, 1)
     assert stub_scrapers["standings_kw"] == {"team_ids": None}
     assert stub_scrapers["games_kw"] == {"team_ids": None, "auto_accept": True}
     assert stub_scrapers["players_kw"] == {"team_ids": None}
@@ -149,17 +145,11 @@ def test_team_admin_cannot_sync_other_team(
     response = team_admin_client.post("/sync/now", json={"team_ids": [other.id]})
 
     assert response.status_code == 403
-    assert (stub_scrapers["standings"], stub_scrapers["games"], stub_scrapers["players"]) == (
-        0,
-        0,
-        0,
-    )
+    assert (stub_scrapers["standings"], stub_scrapers["games"], stub_scrapers["players"]) == (0, 0, 0)
     assert sync_router._running is False
 
 
-def test_sync_now_rejects_empty_kinds(
-    admin_client: TestClient, stub_scrapers: dict[str, Any]
-) -> None:
+def test_sync_now_rejects_empty_kinds(admin_client: TestClient, stub_scrapers: dict[str, Any]) -> None:
     assert admin_client.post("/sync/now", json={"kinds": []}).status_code == 422
 
 
@@ -221,3 +211,18 @@ def test_team_admin_sync_status_shows_own_run(
 
     assert body["finished_at"] is not None
     assert body["errors"] == []
+
+
+def test_team_admin_sync_status_shows_own_failed_run(
+    team_admin_client: TestClient, own_team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        sync_router,
+        "_last",
+        {"team_ids": [own_team.id], "errors": ["boom"], "failed": True, "finished_at": datetime.now(UTC)},
+    )
+
+    body = team_admin_client.get("/sync/status").json()
+
+    assert body["failed"] is True
+    assert body["errors"] == ["boom"]
