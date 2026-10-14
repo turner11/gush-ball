@@ -28,7 +28,11 @@ def optional_user(request: Request, db: DbSession) -> AdminUser | None:
     """The logged-in account (admin or not), or None for an anonymous visitor."""
     user_id = request.session.get("admin_id")
     user = db.get(AdminUser, user_id) if user_id is not None else None
-    if user is None or request.session.get("pw") != password_fingerprint(user.password_hash):
+    if (
+        user is None
+        or request.session.get("pw") != password_fingerprint(user.password_hash)
+        or request.session.get("sv") != user.session_version
+    ):
         return None
     return user
 

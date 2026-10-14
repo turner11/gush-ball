@@ -17,4 +17,6 @@ class AdminUser(Base):
     email: Mapped[str | None] = mapped_column(String(254), unique=True, index=True, default=None)  # lowercase
     password_hash: Mapped[str] = mapped_column(String(255))
     is_full_admin: Mapped[bool] = mapped_column(default=False, server_default=sa.false())
+    # Bumped on logout so every session cookie issued before it stops working.
+    session_version: Mapped[int] = mapped_column(default=0, server_default="0")
     memberships: Mapped[list[Membership]] = relationship(cascade="all, delete-orphan")
