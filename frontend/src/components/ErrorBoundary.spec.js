@@ -1,9 +1,12 @@
+import { captureException } from '@sentry/vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { h, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import ErrorBoundary from './ErrorBoundary.vue'
+
+vi.mock('@sentry/vue', () => ({ captureException: vi.fn() }))
 
 describe('ErrorBoundary', () => {
   it('resets after navigation', async () => {
@@ -48,5 +51,24 @@ describe('ErrorBoundary', () => {
 
     expect(wrapper.text()).toContain('אירעה שגיאה לא צפויה.')
     expect(wrapper.text()).not.toContain('Failed to fetch')
+  })
+
+  it('reports the captured error to Sentry', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:p*', component: { render: () => null } }],
+    })
+    await router.push('/a')
+    const err = new Error('boom')
+    const Child = {
+      setup() {
+        throw err
+      },
+    }
+    mount(ErrorBoundary, { slots: { default: () => h(Child) }, global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(captureException).toHaveBeenCalledWith(err)
   })
 })
