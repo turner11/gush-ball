@@ -8,7 +8,7 @@ const { theme, toggle } = useTheme()
 <template>
   <button
     type="button"
-    class="inline-flex size-11 items-center justify-center rounded-full hover:bg-black/10"
+    class="btn-icon"
     :aria-label="theme === 'dark' ? 'עבור למצב בהיר' : 'עבור למצב כהה'"
     @click="toggle"
   >

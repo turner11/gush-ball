@@ -107,6 +107,26 @@ describe('TeamContentSection', () => {
     expect(wrapper.text()).not.toContain('אתר הבית')
   })
 
+  it('a failed DELETE keeps the item in the list', async () => {
+    mockFetch({
+      'GET /api/teams/1/links': () => jsonRes(LINKS),
+      'DELETE /api/teams/1/links/10': () => ({ ok: false, status: 500, statusText: 'x', json: async () => ({}) }),
+    })
+
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const wrapper = mount(TeamContentSection, {
+      props: { teamId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    await wrapper.findAll('button').find((b) => b.text() === 'מחיקה').trigger('click')
+    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('אתר הבית')
+  })
+
   it('cancelling the dialog leaves the item in the list and issues no DELETE request', async () => {
     mockFetch({ 'GET /api/teams/1/links': () => jsonRes(LINKS) })
 

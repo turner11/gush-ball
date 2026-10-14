@@ -12,6 +12,7 @@ import { matchesQuery } from '../lib/search'
 
 const teams = ref([])
 const players = ref([])
+const loading = ref(true)
 const query = ref('')
 const searchInput = ref(null)
 const shownPlayers = computed(() =>
@@ -37,12 +38,18 @@ async function loadPlayers() {
   deletedPlayers.value = null
   if (!selectedTeamId.value) {
     players.value = []
+    loading.value = false
     return
   }
   const id = selectedTeamId.value
-  const loaded = await apiFetch(`/teams/${id}/players`)
-  if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
-  players.value = loaded
+  loading.value = true
+  try {
+    const loaded = await apiFetch(`/teams/${id}/players`)
+    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+    players.value = loaded
+  } finally {
+    if (id === selectedTeamId.value) loading.value = false
+  }
 }
 
 onMounted(async () => {
@@ -179,7 +186,11 @@ async function deleteImage(player, image) {
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div class="min-w-0 space-y-4">
         <SearchInput v-if="players.length" id="player-search" ref="searchInput" v-model="query" label="חיפוש שחקן" />
-        <div v-if="shownPlayers.length || !players.length" class="table-wrap">
+        <div v-if="loading" class="space-y-2" aria-hidden="true">
+          <div v-for="n in 3" :key="n" class="skeleton h-16" />
+        </div>
+        <p v-else-if="!players.length" class="empty-state">אין שחקנים עדיין.</p>
+        <div v-else-if="shownPlayers.length" class="table-wrap">
           <table class="data-table">
             <thead>
               <tr class="table-header-row">
@@ -204,7 +215,7 @@ async function deleteImage(player, image) {
                       </li>
                     </ul>
                     <div class="mt-1 flex gap-1">
-                      <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" class="field-input mt-0 w-40" />
+                      <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" :aria-label="`כתובת תמונה — ${player.name}`" class="field-input mt-0 w-40" />
                       <button type="button" class="btn-ghost" @click="addImage(player)">הוסף תמונה</button>
                     </div>
                     <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
@@ -220,7 +231,7 @@ async function deleteImage(player, image) {
             </tbody>
           </table>
         </div>
-        <div v-if="players.length && !shownPlayers.length" class="empty-state" aria-live="polite">
+        <div v-if="!loading && players.length && !shownPlayers.length" class="empty-state" aria-live="polite">
           <p>אין תוצאות עבור "{{ query.trim() }}".</p>
           <button type="button" class="btn-secondary mt-3" @click="clearSearch">נקה חיפוש</button>
         </div>

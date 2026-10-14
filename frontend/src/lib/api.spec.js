@@ -77,4 +77,19 @@ describe('apiFetch', () => {
 
     await expect(apiFetch('/teams/999')).rejects.toThrow('Team not found')
   })
+
+  it('tryApiFetch clears a previous error when the next call succeeds', async () => {
+    global.fetch
+      .mockResolvedValueOnce({ ok: false, status: 500, statusText: 'x', json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: 1 }) })
+    const { ref } = await import('vue')
+    const { tryApiFetch } = await import('./api.js')
+    const error = ref(null)
+
+    expect(await tryApiFetch(error, 'נכשל', '/x')).toBeUndefined()
+    expect(error.value).toBe('נכשל')
+
+    expect(await tryApiFetch(error, 'נכשל', '/x')).toEqual({ id: 1 })
+    expect(error.value).toBe(null)
+  })
 })

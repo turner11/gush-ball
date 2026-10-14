@@ -63,6 +63,33 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('7')
   })
 
+  it('shows an empty state, not an empty table, when the team has no players', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes([]),
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('אין שחקנים עדיין.')
+    expect(wrapper.find('table').exists()).toBe(false)
+  })
+
+  it('the image url input has an accessible label', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('input[aria-label="כתובת תמונה — יוסי"]').exists()).toBe(true)
+  })
+
   it('search filters players by name or jersey number', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),

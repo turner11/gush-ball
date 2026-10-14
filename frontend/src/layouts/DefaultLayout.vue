@@ -118,14 +118,14 @@ onMounted(async () => {
             rel="noopener noreferrer"
             :aria-label="selectedTeam.home_court_address"
             :title="selectedTeam.home_court_address"
-            class="inline-flex size-11 shrink-0 items-center justify-center"
+            class="btn-icon"
             ><AppIcon name="pin"
           /></a>
           <RouterLink
             :to="{ name: 'teams' }"
             aria-label="כל הקבוצות"
             title="כל הקבוצות"
-            class="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
+            class="btn-icon"
           >
             <AppIcon name="grid" />
           </RouterLink>
@@ -145,7 +145,7 @@ onMounted(async () => {
                 :to="{ name: 'join' }"
                 aria-label="החשבון שלי"
                 title="החשבון שלי"
-                class="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
+                class="btn-icon"
               >
                 <AppIcon name="users" />
               </RouterLink>
@@ -153,7 +153,7 @@ onMounted(async () => {
                 type="button"
                 aria-label="התנתקות"
                 title="התנתקות"
-                class="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
+                class="btn-icon"
                 @click="logout"
               >
                 <AppIcon name="logout" />
@@ -164,7 +164,7 @@ onMounted(async () => {
               :to="{ name: 'admin-login' }"
               aria-label="כניסה"
               title="כניסה"
-              class="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
+              class="btn-icon"
             >
               <AppIcon name="login" />
             </RouterLink>

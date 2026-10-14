@@ -103,6 +103,32 @@ describe('AdminTeamEditView', () => {
     expect(patchBody).not.toHaveProperty('youtube_url')
   })
 
+  it('a save after a failed save updates the team and shows נשמר', async () => {
+    let calls = 0
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'PATCH /api/teams/1': (options) => {
+        calls += 1
+        if (calls === 1) return { ok: false, status: 500, statusText: 'x', json: async () => ({}) }
+        return jsonRes({ ...TEAM, ...JSON.parse(options.body) })
+      },
+      ...CONTENT_HANDLERS,
+    })
+
+    const wrapper = await mountView()
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).toContain('שגיאה בעדכון הקבוצה')
+    expect(wrapper.text()).not.toContain('נשמר')
+
+    await wrapper.find('#team-name').setValue('קבוצה ב')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('שגיאה בעדכון הקבוצה')
+    expect(wrapper.text()).toContain('נשמר')
+  })
+
   it('shows the team admins card to a full admin', async () => {
     mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
 

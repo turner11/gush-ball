@@ -63,7 +63,7 @@ async function onSubmit() {
         </div>
         <div v-else>
           <label for="email" class="field-label">אימייל</label>
-          <input id="email" v-model="email" type="email" autocomplete="email" required class="field-input" />
+          <input id="email" v-model="email" type="email" dir="ltr" autocomplete="email" required class="field-input" />
         </div>
 
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
