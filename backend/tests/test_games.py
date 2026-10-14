@@ -541,3 +541,44 @@ def test_get_game_needing_review_is_hidden_from_public(
 
     assert admin_client.get(url).status_code == 200
     assert TestClient(app).get(url).status_code == 404
+
+
+def test_club_games_returns_window_across_teams(client: TestClient, db_session: Session) -> None:
+    team_a = _make_team(db_session, "Gush Ball A")
+    team_b = _make_team(db_session, "Gush Ball B")
+    times = {
+        "before": datetime(2026, 3, 9, 23, 59),
+        "from": datetime(2026, 3, 10, 0, 0),
+        "to": datetime(2026, 3, 17, 23, 0),
+        "after": datetime(2026, 3, 18, 0, 0),
+    }
+    games = {}
+    for key, team in (("before", team_a), ("from", team_a), ("to", team_b), ("after", team_b)):
+        games[key] = _make_game(db_session, team)
+        games[key].scheduled_at = times[key]
+        games[key].stats_url = "https://docs.google.com/spreadsheets/d/secret"
+    db_session.commit()
+
+    response = client.get("/games", params={"from": "2026-03-10", "to": "2026-03-17"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert {g["id"] for g in body} == {games["from"].id, games["to"].id}
+    assert {g["team_id"] for g in body} == {team_a.id, team_b.id}
+    for row in body:
+        assert row["stats_url"] is None
+        assert "needs_review" not in row
+        assert "is_scraped" not in row
+
+
+def test_club_games_skips_review_pending(client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    game.scheduled_at = datetime(2026, 3, 12, 18, 0)
+    game.needs_review = True
+    db_session.commit()
+
+    response = client.get("/games", params={"from": "2026-03-10", "to": "2026-03-17"})
+
+    assert response.status_code == 200
+    assert response.json() == []
