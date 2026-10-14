@@ -145,7 +145,7 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `STATS_TEMPLATE_URL` | Optional, URL or sheet ID of the headers-only template Google Sheet (see §4.3) |
 | `PUBLIC_URL` | `https://<domain>`. Required: password-reset links and the Google redirect URI are built from it. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional, enable "Sign in with Google" (see 4.1). |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Optional, password-reset email (STARTTLS, port defaults to 587). Without `SMTP_HOST` the reset link is only written to the backend logs. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for password reset and password sign-up (STARTTLS, port defaults to 587). Without `SMTP_HOST` both return 503; links are never logged in prod. |
 | `ENABLE_DOCS` | **Leave unset** in prod (keeps `/api/docs` and `/api/openapi.json` off). |
 
 `backend/.env.example` is the **local-dev** template; don't use it for prod.

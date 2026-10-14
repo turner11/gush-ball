@@ -155,10 +155,19 @@ _reset_tokens = URLSafeTimedSerializer(settings.session_secret, salt="password-r
 _RESET_MAX_AGE = 3600
 
 
+def _require_email_delivery() -> None:
+    """In prod (https) a reset/verify link must never fall back to the logs, so refuse before minting a token."""
+    if not settings.smtp_host and settings.public_url.startswith("https://"):
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "שליחת אימייל אינה מוגדרת")
+
+
 def _send_email(to: str, subject: str, body: str) -> None:
     if not settings.smtp_host:
-        # Dev-only: no SMTP configured, so the message goes to the log (admin-only in prod).
-        log.warning("email to %s (SMTP not configured): %s", to, body)
+        # Dev-only: the body (a live link) is logged only off https; prod drops it.
+        if settings.public_url.startswith("https://"):
+            log.warning("SMTP not configured, email dropped")
+        else:
+            log.warning("email to %s (SMTP not configured): %s", to, body)
         return
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -193,6 +202,7 @@ def _send_verify_email(to: str, link: str) -> None:
 def forgot_password(
     payload: ForgotPasswordRequest, request: Request, db: DbSession, background: BackgroundTasks
 ) -> dict[str, bool]:
+    _require_email_delivery()
     ip = client_ip(request)
     email = payload.email.strip().lower()
     # Separate key prefixes: reset spam must never lock out logins.
@@ -233,6 +243,7 @@ _verify_tokens = URLSafeTimedSerializer(settings.session_secret, salt="verify-em
 def signup(
     payload: SignupRequest, request: Request, db: DbSession, background: BackgroundTasks
 ) -> dict[str, Any]:
+    _require_email_delivery()
     ip = client_ip(request)
     _reserve_attempt([f"signup-ip:{ip}"])  # own prefix: signup spam never locks out login
     if db.scalar(select(AdminUser.id).where(AdminUser.username == payload.username)) is not None:
