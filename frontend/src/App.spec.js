@@ -22,7 +22,7 @@ describe('App', () => {
 
   it('renders the admin layout exactly once on an authenticated admin page', async () => {
     global.fetch = vi.fn((url) =>
-      Promise.resolve({ ok: true, json: async () => (url === '/api/teams' ? [] : { username: 'admin', is_admin: true }) }),
+      Promise.resolve({ ok: true, json: async () => (['/api/teams', '/api/memberships'].includes(url) ? [] : { username: 'admin', is_admin: true }) }),
     )
 
     useAuth().checked.value = false // the first test's header check already marked the session as checked

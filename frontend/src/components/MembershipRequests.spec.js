@@ -1,7 +1,7 @@
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const jsonRes = (data, status = 200) => ({ ok: true, status, json: async () => data })
+const jsonRes = (data, status = 200) => ({ ok: true, status, json: async () => structuredClone(data) })
 const failRes = { ok: false, status: 500, statusText: 'x', json: async () => ({}) }
 const body = () => new DOMWrapper(document.body) // ConfirmDialog teleports to body
 
