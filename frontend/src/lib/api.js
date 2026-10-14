@@ -38,3 +38,6 @@ export async function tryApiFetch(errorRef, message, path, options) {
     errorRef.value = message
   }
 }
+
+// Absolute URL of an API endpoint, for links handed to other apps (e.g. calendar subscriptions).
+export const apiUrl = (path) => `${window.location.origin}/api${path}`
