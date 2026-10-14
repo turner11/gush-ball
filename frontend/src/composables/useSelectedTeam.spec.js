@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { teamSlug, useSelectedTeam } from './useSelectedTeam'
+import { clubTeamsOf, teamSlug, useSelectedTeam } from './useSelectedTeam'
 
 describe('teamSlug', () => {
   it.each([
@@ -27,5 +27,22 @@ describe('ensureDefault', () => {
     selectedTeamId.value = '3'
     ensureDefault([{ id: 2 }, { id: 3 }])
     expect(selectedTeamId.value).toBe('3')
+  })
+})
+
+describe('clubTeamsOf', () => {
+  const a = { id: 1, club: 'מכבי' }
+  const b = { id: 2, club: 'מכבי' }
+  const c = { id: 3, club: 'הפועל' }
+  const d = { id: 4, club: null }
+
+  it('returns club-mates including the team itself', () => {
+    expect(clubTeamsOf([a, b, c, d], a)).toEqual([a, b])
+  })
+  it('returns a team alone in its club as one', () => {
+    expect(clubTeamsOf([a, b, c], c)).toEqual([c])
+  })
+  it.each([[d], [undefined]])('returns [] without a club (%j)', (team) => {
+    expect(clubTeamsOf([a, b, c, d], team)).toEqual([])
   })
 })
