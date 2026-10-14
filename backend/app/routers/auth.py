@@ -244,14 +244,16 @@ def signup(
 
 
 @router.post("/verify-email")
-def verify_email(payload: VerifyEmailRequest, request: Request, db: DbSession) -> dict[str, bool]:
+def verify_email(payload: VerifyEmailRequest, request: Request, db: DbSession, user: RequireUser) -> dict[str, bool]:
     invalid = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired link")
     try:
         user_id, email = _verify_tokens.loads(payload.token, max_age=_RESET_MAX_AGE)
     except (BadSignature, TypeError, ValueError):
         raise invalid from None
-    user = db.get(AdminUser, user_id)
-    if user is None or user.email is not None:  # already verified: the link is single-use
+    # Only the account that asked for the address may confirm it: a victim clicking an attacker's link must not bind their inbox.
+    if user_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Wrong account")
+    if user.email is not None:  # already verified: the link is single-use
         raise invalid
     # Revealing a taken address is fine here: the caller has proven they own the inbox.
     if db.scalar(select(AdminUser.id).where(AdminUser.email == email)) is not None:
