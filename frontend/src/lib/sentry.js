@@ -1,6 +1,7 @@
 import { captureException, init } from '@sentry/vue'
 
-export { captureException }
+let markReady
+const ready = new Promise((resolve) => (markReady = resolve))
 
 // Named imports so only init/captureException are bundled. No tracing/replay. Props can hold emails
 // (admin member lists), so they are not attached.
@@ -13,7 +14,12 @@ export function initSentry(app) {
     attachProps: false,
     beforeSend: stripQueryStrings,
   })
+  markReady()
 }
+
+// Waits for init: captureException before init has no client and is silently dropped, and a first-render
+// crash can get here before main.js's lazy init chain runs.
+export const report = (err) => ready.then(() => captureException(err))
 
 // verify-email tokens are signed, not encrypted, so query strings must never reach Sentry.
 const noQuery = (url) => url.replace(/\?[^#]*/, '')

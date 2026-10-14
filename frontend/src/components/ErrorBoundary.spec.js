@@ -12,7 +12,7 @@ const { captureException, releaseSentry, sentryLoaded } = vi.hoisted(() => {
 })
 vi.mock('../lib/sentry', async () => {
   await sentryLoaded
-  return { captureException }
+  return { report: captureException }
 })
 
 describe('ErrorBoundary', () => {

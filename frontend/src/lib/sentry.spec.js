@@ -1,6 +1,26 @@
-import { describe, expect, it } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
 
-import { stripQueryStrings } from './sentry'
+import { initSentry, report, stripQueryStrings } from './sentry'
+
+const calls = vi.hoisted(() => [])
+vi.mock('@sentry/vue', () => ({
+  init: () => calls.push('init'),
+  captureException: (err) => calls.push(err.message),
+}))
+
+describe('report', () => {
+  it('holds an error raised before init and sends it after init', async () => {
+    // a first-render crash reaches ErrorBoundary before main.js's lazy init chain has run
+    report(new Error('boom'))
+    await flushPromises()
+    expect(calls).toEqual([])
+
+    initSentry({})
+    await flushPromises()
+    expect(calls).toEqual(['init', 'boom'])
+  })
+})
 
 describe('stripQueryStrings', () => {
   it('drops ?token from request.url and navigation breadcrumbs', () => {
