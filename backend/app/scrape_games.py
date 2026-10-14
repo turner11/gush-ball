@@ -268,10 +268,8 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
             team_score = None
             opponent_score = None
 
-        game = db.scalar(select(Game).where(Game.source_event_id == event["id"]))
-        # source_event_id is globally unique: another club team's game must not be overwritten.
-        if game is not None and game.team_id != team.id:
-            continue
+        # Per-team lookup: a derby event is one row per club team, and another team's row is never touched.
+        game = db.scalar(select(Game).where(Game.team_id == team.id, Game.source_event_id == event["id"]))
 
         if opp_sp_id not in opponents:
             opponents[opp_sp_id] = _resolve_opponent(db, opponent_details[opp_sp_id])
