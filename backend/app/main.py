@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.monitoring import init_sentry
 from app.routers import (
     auth,
     calendar,
@@ -25,6 +26,7 @@ from app.routers import (
 
 # uvicorn does not configure the root logger; without this app.* INFO records are dropped.
 logging.basicConfig(level=logging.INFO)
+init_sentry()
 
 app = FastAPI(title="Gush Ball API", openapi_url="/openapi.json" if settings.enable_docs else None)
 

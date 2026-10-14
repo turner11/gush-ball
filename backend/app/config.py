@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     enable_docs: bool = False
 
+    # Sentry error reporting; empty = monitoring off (dev/CI).
+    sentry_dsn: str = ""
+
     # Object storage (S3-compatible / R2). Empty-string defaults, like the other settings above,
     # so the app still boots for local dev/tests without real credentials — only /uploads itself
     # would fail at request time if these are unset.
