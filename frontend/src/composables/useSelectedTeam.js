@@ -21,6 +21,12 @@ export function teamSlug(team) {
   return slug || String(team.id)
 }
 
+// The teams sharing `team`'s club (including itself); [] when the team has no club.
+export function clubTeamsOf(teams, team) {
+  if (!team?.club) return []
+  return teams.filter((t) => t.club === team.club)
+}
+
 export function useSelectedTeam() {
   // Call once the real team list has loaded, so first-time visitors land on
   // the first team in the DB instead of an empty selection.

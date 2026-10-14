@@ -7,7 +7,7 @@ import ErrorBoundary from '../components/ErrorBoundary.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { useAuth } from '../composables/useAuth'
-import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
+import { clubTeamsOf, teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { backgroundSrc } from '../lib/backgrounds'
 import { setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from '../lib/head'
@@ -19,6 +19,7 @@ const LOGO_URL = '/logo.jpg'
 const navItems = computed(() => [
   { to: homePath.value, label: 'בית' },
   { to: teamBase.value + '/schedule', label: 'לוח משחקים' },
+  ...(hasClubWeek.value ? [{ to: teamBase.value + '/club', label: 'מועדון' }] : []),
   { to: teamBase.value + '/standings', label: 'טבלה' },
   { to: teamBase.value + '/roster', label: 'שחקנים' },
   { to: teamBase.value + '/media', label: 'מדיה' },
@@ -28,6 +29,7 @@ const navItems = computed(() => [
 const tabItems = computed(() => [
   { to: homePath.value, label: 'בית', icon: 'home', exact: true },
   { to: teamBase.value + '/schedule', label: 'משחקים', icon: 'calendar' },
+  ...(hasClubWeek.value ? [{ to: teamBase.value + '/club', label: 'מועדון', icon: 'shield' }] : []),
   { to: teamBase.value + '/standings', label: 'טבלה', icon: 'table' },
   { to: teamBase.value + '/roster', label: 'שחקנים', icon: 'users' },
   { to: teamBase.value + '/media', label: 'מדיה', icon: 'media' },
@@ -44,6 +46,7 @@ const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === sel
 const heroImage = computed(() => `url("${backgroundSrc(selectedTeam.value?.background)}")`)
 const teamBase = computed(() => (selectedTeam.value ? '/' + teamSlug(selectedTeam.value) : ''))
 const homePath = computed(() => teamBase.value || '/')
+const hasClubWeek = computed(() => clubTeamsOf(teams.value, selectedTeam.value).length > 1)
 const teamStyle = computed(() => {
   const team = selectedTeam.value
   const style = {}
