@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
@@ -98,14 +98,17 @@ const facebookEmbedSrc = computed(
       `&tabs=timeline&width=${fbWidth.value}&height=400&small_header=true`,
 )
 
-const instagramUsername = computed(() => {
-  if (!team.value?.instagram_url) return null
+function firstPathSegment(url) {
+  if (!url) return null
   try {
-    return new URL(team.value.instagram_url).pathname.split('/').filter(Boolean)[0] ?? null
+    return new URL(url).pathname.split('/').filter(Boolean)[0] ?? null
   } catch {
     return null
   }
-})
+}
+
+const instagramUsername = computed(() => firstPathSegment(team.value?.instagram_url))
+const twitterHandle = computed(() => firstPathSegment(team.value?.twitter_url))
 
 const hasSocial = computed(() => {
   const t = team.value
@@ -113,24 +116,7 @@ const hasSocial = computed(() => {
 })
 
 const hasSocialEmbed = computed(
-  () => !!(team.value && (team.value.facebook_url || instagramUsername.value || team.value.twitter_url)),
-)
-
-// Load X's widgets.js once; it turns a.twitter-timeline anchors into timelines.
-watch(
-  () => team.value?.twitter_url,
-  async (url) => {
-    if (!url) return
-    if (!document.getElementById('twitter-wjs')) {
-      const script = document.createElement('script')
-      script.id = 'twitter-wjs'
-      script.src = 'https://platform.twitter.com/widgets.js'
-      script.async = true
-      document.head.appendChild(script)
-    }
-    await nextTick()
-    window.twttr?.widgets?.load()
-  },
+  () => !!(team.value && (team.value.facebook_url || instagramUsername.value || twitterHandle.value)),
 )
 </script>
 
@@ -276,9 +262,14 @@ watch(
               loading="lazy"
               class="h-[400px] w-full rounded-2xl border border-line"
             ></iframe>
-            <div v-if="team.twitter_url" :key="team.twitter_url" class="h-[400px] overflow-hidden rounded-2xl border border-line">
-              <a class="twitter-timeline" data-height="400" :href="team.twitter_url">הטוויטר של הקבוצה</a>
-            </div>
+            <!-- ponytail: the iframe page widgets.js would create, loaded directly so no X script runs in our origin (undocumented by X) -->
+            <iframe
+              v-if="twitterHandle"
+              :src="`https://syndication.twitter.com/srv/timeline-profile/screen-name/${twitterHandle}`"
+              title="הטוויטר של הקבוצה"
+              loading="lazy"
+              class="h-[400px] w-full rounded-2xl border border-line"
+            ></iframe>
           </div>
         </section>
       </aside>

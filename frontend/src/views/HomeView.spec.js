@@ -157,7 +157,6 @@ describe('HomeView', () => {
     const wrapper = await mountWithTeam(TEAM)
 
     expect(wrapper.find('iframe').exists()).toBe(false)
-    expect(wrapper.find('a.twitter-timeline').exists()).toBe(false)
   })
 
   it('embeds the Instagram profile for instagram_url', async () => {
@@ -166,44 +165,19 @@ describe('HomeView', () => {
     expect(wrapper.find('iframe').attributes('src')).toBe('https://www.instagram.com/gushclub/embed')
   })
 
-  it('renders a twitter timeline anchor and loads widgets.js once', async () => {
-    const team = { ...TEAM, twitter_url: 'https://x.com/gushclub' }
-    const wrapper = await mountWithTeam(team)
-    await mountWithTeam(team)
+  it('embeds the X timeline as an iframe and loads no X script', async () => {
+    const wrapper = await mountWithTeam({ ...TEAM, twitter_url: 'https://x.com/gushclub' })
 
-    expect(wrapper.find('a.twitter-timeline').attributes('href')).toBe('https://x.com/gushclub')
-    expect(document.querySelectorAll('script#twitter-wjs').length).toBe(1)
-  })
-
-  it('re-renders the twitter timeline anchor when switching teams', async () => {
-    const teamB = { ...TEAM, id: 2, twitter_url: 'https://x.com/teamb' }
-    mockFetch({
-      'GET /api/teams/1': () => jsonRes({ ...TEAM, twitter_url: 'https://x.com/teama' }),
-      'GET /api/teams/2': () => jsonRes(teamB),
-      ...Object.fromEntries(
-        [1, 2].flatMap((id) => ['links', 'videos', 'images', 'posts', 'players', 'games'].map((r) => [`GET /api/teams/${id}/${r}`, () => jsonRes([])])),
-      ),
-    })
-    const { default: HomeView } = await import('./HomeView.vue')
-    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
-    const wrapper = mount(HomeView, { global: { plugins: [router] }, attachTo: document.body })
-    await flushPromises()
-
-    // Simulate widgets.js swapping the anchor for its own iframe.
-    wrapper.find('a.twitter-timeline').element.replaceWith(document.createElement('iframe'))
-
-    useSelectedTeam().selectedTeamId.value = '2'
-    await flushPromises()
-
-    expect(wrapper.find('a.twitter-timeline').attributes('href')).toBe('https://x.com/teamb')
-    wrapper.unmount()
+    expect(wrapper.find('iframe').attributes('src')).toBe(
+      'https://syndication.twitter.com/srv/timeline-profile/screen-name/gushclub',
+    )
+    expect(document.querySelector('script[src*="twitter.com"]')).toBeNull()
   })
 
   it('shows only platforms that have a url', async () => {
     const wrapper = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
 
     expect(wrapper.findAll('iframe').length).toBe(1)
-    expect(wrapper.find('a.twitter-timeline').exists()).toBe(false)
   })
 
   it('shows the next and the last match', async () => {
