@@ -6,15 +6,15 @@ services:
     environment:
       - RUNNER_SCOPE=repo
       - REPO_URL=https://github.com/turner11/gush-ball
-      - ACCESS_TOKEN=${GITHUB_PAT}
+      # 1h registration token minted by run-claude-runner.sh; the PAT never enters the container.
+      - RUNNER_TOKEN=${RUNNER_TOKEN:?run ./run-claude-runner.sh, it mints this}
       - RUNNER_NAME=gush-ball-claude-agent
       - LABELS=self-hosted,Linux,X64,claude-agent
-    restart: unless-stopped
+      - EPHEMERAL=1                              # one job, then the runner exits
+      - RUN_AS_ROOT=false                        # jobs run as `runner`
+      - UNSET_CONFIG_VARS=true                   # entrypoint drops the token before the listener starts
+      - DISABLE_AUTOMATIC_DEREGISTRATION=true    # GitHub removes an ephemeral runner itself
+    # No `restart:`; a restart reuses the writable layer. run-claude-runner.sh starts a fresh container per job.
 
-
-# start:
-# docker compose -f docker-compose.runners.yml --env-file .env.runners up -d --build
-# Check it registered:
-# docker compose -f docker-compose.runners.yml logs -f runner-claude
-# Stop, update or reset:
-# docker compose -f docker-compose.runners.yml down
+# start (dev machine only, never the prod host): ./run-claude-runner.sh
+# stop: Ctrl-C
