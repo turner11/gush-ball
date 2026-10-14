@@ -67,6 +67,8 @@ function onRejectConfirmed() {
       <li v-for="request in requests" :key="request.id" class="space-y-2 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
         <div class="min-w-0">
           <p class="truncate font-bold" dir="auto">{{ request.username }}</p>
+          <p v-if="request.email_hint" class="truncate text-sm text-muted" dir="ltr">{{ request.email_hint }}</p>
+          <span v-else class="badge badge-loss">אימייל לא מאומת</span>
           <p class="text-sm text-muted">
             {{ request.club ? `מועדון: ${request.club}` : `קבוצה: ${request.team_name}` }}
           </p>
