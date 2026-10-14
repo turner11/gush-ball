@@ -27,7 +27,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          outsiders="$(gh api --paginate "repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"             --jq '.[] | select(([.author_association] | inside(["OWNER","MEMBER","COLLABORATOR"]) | not) and .user.login != "github-actions[bot]") | .user.login' | sort -u)"
+          set -o pipefail
+          outsiders="$(gh api --paginate "repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments" --jq '.[] | select((.author_association | IN("OWNER","MEMBER","COLLABORATOR") | not) and .user.login != "github-actions[bot]") | .user.login' | sort -u)"
           if [ -n "$outsiders" ]; then
             echo "::error::Issue #${{ github.event.issue.number }} has comments from non-maintainers: $(echo $outsiders)"
             exit 1
