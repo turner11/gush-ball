@@ -132,6 +132,15 @@ def require_admin(admin: RequireAnyAdmin) -> int:
 RequireAdmin = Annotated[int, Depends(require_admin)]
 
 
+def check_not_last_full_admin(db: Session, user: AdminUser) -> None:
+    """409 when `user` is the only full admin left. Locks the full-admin rows so two concurrent deletes can't both pass."""
+    if not user.is_full_admin:
+        return
+    full_admin_ids = db.scalars(select(AdminUser.id).where(AdminUser.is_full_admin.is_(True)).with_for_update()).all()
+    if len(full_admin_ids) <= 1:
+        raise HTTPException(status.HTTP_409_CONFLICT, "לא ניתן למחוק את המנהל הראשי האחרון")
+
+
 def require_team_admin(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> int:
     """Full admin, or an admin whose scope covers `team_id` (taken from the route's path param)."""
     check_team_scope(db, admin, team_id)

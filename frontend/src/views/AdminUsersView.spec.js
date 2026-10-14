@@ -42,7 +42,7 @@ describe('AdminUsersView', () => {
 
     expect(wrapper.text()).toContain('נוער · ממתין')
     await wrapper.find('#admin-user-search').setValue('dana@')
-    expect(wrapper.findAll('li')).toHaveLength(1)
+    expect(wrapper.findAll('ul.card > li')).toHaveLength(1)
     expect(wrapper.text()).toContain('dana')
 
     await wrapper.find('#admin-user-search').setValue('nobody')
