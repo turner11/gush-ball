@@ -54,9 +54,9 @@ describe('VerifyEmailView', () => {
       const wrapper = await mountVerify('/admin/verify-email?token=abc', fail(status))
       await wrapper.find('button').trigger('click')
       await flushPromises()
-      expect(wrapper.find('[role="alert"]').text()).toContain('התחברו לחשבון')
+      expect(wrapper.find('[role="alert"]').text()).toContain('התחברו עם שם המשתמש')
       const href = wrapper.find('a').attributes('href')
-      expect(href).toContain('next=' + encodeURIComponent('/admin/verify-email?token=abc'))
+      expect(href).toContain('next=/admin/verify-email?token=abc')
     }
   })
 
