@@ -39,6 +39,8 @@ async function mountView(teams) {
     'GET /api/teams/assignable-users': () => res([]),
     'PATCH /api/teams/1': () => res({}),
     'PATCH /api/teams/2': () => res({}),
+    'PATCH /api/teams/3': () => res({}),
+    'PATCH /api/teams/4': () => res({}),
   })
   const router = createRouter({
     history: createWebHistory(),
@@ -100,5 +102,83 @@ describe('AdminTeamsBatchEditView', () => {
 
     expect(wrapper.find('.empty-state').text()).toContain('מנהל ראשי בלבד')
     expect(wrapper.find('form').exists()).toBe(false)
+  })
+
+  describe('club filter', () => {
+    const mixed = () => [team(1, { club: 'גוש' }), team(2, { club: 'גוש' }), team(3, { club: 'אחר' }), team(4)]
+    const nameInputs = (w) => w.findAll('input[aria-label^="שם — "]').map((i) => i.attributes('aria-label'))
+
+    it('defaults to all teams', async () => {
+      const { wrapper } = await mountView(mixed())
+      expect(nameInputs(wrapper)).toHaveLength(4)
+      expect(wrapper.find('#batch-club-filter').element.value).toBe('__all__')
+      expect(wrapper.find('button[type="submit"]').text()).toContain('4')
+    })
+
+    it('filtering by a club shows and saves only that club', async () => {
+      const { wrapper } = await mountView(mixed())
+      await wrapper.find('#batch-club-filter').setValue('גוש')
+      expect(nameInputs(wrapper)).toEqual(['שם — קבוצה 1', 'שם — קבוצה 2'])
+      await wrapper.find('input[aria-label="כתובת — קבוצה 1"]').setValue('א')
+      await wrapper.find('input[aria-label="כתובת — קבוצה 2"]').setValue('ב')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(patches().map((c) => c[0]).sort()).toEqual(['/api/teams/1', '/api/teams/2'])
+    })
+
+    it('"no club" shows only teams without a club', async () => {
+      const { wrapper } = await mountView(mixed())
+      await wrapper.find('#batch-club-filter').setValue('__none__')
+      expect(nameInputs(wrapper)).toEqual(['שם — קבוצה 4'])
+    })
+
+    it('edits survive switching filters', async () => {
+      const { wrapper } = await mountView(mixed())
+      await wrapper.find('#batch-club-filter').setValue('אחר')
+      await wrapper.find('input[aria-label="כתובת — קבוצה 3"]').setValue('אולם')
+      await wrapper.find('#batch-club-filter').setValue('__all__')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(patches()).toHaveLength(1)
+      expect(patches()[0][0]).toBe('/api/teams/3')
+      expect(bodyOf(patches()[0])).toEqual({ home_court_address: 'אולם' })
+    })
+
+    it('rows removed or already saved do not come back on a filter change', async () => {
+      const { wrapper } = await mountView(mixed())
+      await wrapper.find('#batch-club-filter').setValue('גוש')
+      await wrapper.find('button[aria-label="הסרה מהרשימה — קבוצה 1"]').trigger('click')
+      await wrapper.find('#batch-club-filter').setValue('__all__')
+      expect(nameInputs(wrapper)).toEqual(['שם — קבוצה 2', 'שם — קבוצה 3', 'שם — קבוצה 4'])
+    })
+
+    it('notes edits hidden by the filter', async () => {
+      const { wrapper } = await mountView(mixed())
+      expect(wrapper.text()).not.toContain('שינויים מוסתרים')
+      await wrapper.find('#batch-club-filter').setValue('אחר')
+      await wrapper.find('input[aria-label="כתובת — קבוצה 3"]').setValue('אולם')
+      await wrapper.find('#batch-club-filter').setValue('גוש')
+      expect(wrapper.text()).toContain('1 שינויים מוסתרים')
+      await wrapper.find('#batch-club-filter').setValue('__all__')
+      expect(wrapper.text()).not.toContain('שינויים מוסתרים')
+    })
+
+    it('does not count an edited row that was removed as hidden', async () => {
+      const { wrapper } = await mountView(mixed())
+      await wrapper.find('#batch-club-filter').setValue('גוש')
+      await wrapper.find('input[aria-label="כתובת — קבוצה 1"]').setValue('אולם')
+      await wrapper.find('button[aria-label="הסרה מהרשימה — קבוצה 1"]').trigger('click')
+      expect(wrapper.text()).not.toContain('שינויים מוסתרים')
+    })
+
+    it('is hidden when no team has a club', async () => {
+      const { wrapper } = await mountView([team(1)])
+      expect(wrapper.find('#batch-club-filter').exists()).toBe(false)
+    })
+
+    it('has no "no club" option when every team has a club', async () => {
+      const { wrapper } = await mountView([team(1, { club: 'גוש' })])
+      expect(wrapper.find('#batch-club-filter option[value="__none__"]').exists()).toBe(false)
+    })
   })
 })
