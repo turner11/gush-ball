@@ -1,12 +1,19 @@
-FROM myoung34/github-runner:latest
+FROM ghcr.io/astral-sh/uv:0.12.23@sha256:61d393e44e249f2e4b526b6c7ddcecce245946826e608e11c93ad4f5bba55b21 AS uv
 
-# Node.js 24 (Claude Code CLI + frontend tests) and uv (backend tests/lint).
+# glibc variant (not alpine): the runner base is Ubuntu 20.04, glibc 2.31.
+FROM node:24-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS node
+
+FROM myoung34/github-runner:2.338.0@sha256:a97aa55628225bc94af2e78c40f6877a000430255af6bf0aed119a7b0b85ee8c
+
+# Node.js 24 (Claude Code CLI + frontend tests) comes from the pinned node image and uv (backend
+# tests/lint) from the pinned uv image, so nothing is piped from curl into a shell.
 # git, gh and jq ship with the base image.
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g @anthropic-ai/claude-code \
-    && curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=uv /uv /uvx /usr/local/bin/
+COPY --from=node /usr/local/bin/node /usr/local/bin/
+COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && npm install -g @anthropic-ai/claude-code
 
 # The base image gives `runner` passwordless sudo, which would defeat RUN_AS_ROOT=false.
 RUN gpasswd -d runner sudo
