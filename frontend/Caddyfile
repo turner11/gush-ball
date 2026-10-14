@@ -17,6 +17,17 @@
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
     }
+    # per-page share tags (#327) for index.html's httpInclude. Lookup failure -> 200 empty, so index.html keeps its
+    # defaults instead of 500ing (httpInclude errors on >= 400)
+    handle /api/og {
+        uri strip_prefix /api
+        reverse_proxy backend:8000 {
+            @failed status 4xx 5xx
+            handle_response @failed {
+                respond 200
+            }
+        }
+    }
     handle_path /api/* {
         request_body {
             max_size 11MB
@@ -35,5 +46,9 @@
         root * /srv
         try_files {path} /index.html
         file_server
+    }
+    handle_errors {
+        @og expression {http.request.orig_uri.path} == "/api/og"
+        respond @og 200
     }
 }
