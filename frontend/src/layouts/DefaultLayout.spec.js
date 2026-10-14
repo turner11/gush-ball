@@ -314,6 +314,18 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('header a[href="/team_a/admin"]').text()).toBe('ניהול')
   })
 
+  it('swaps tab bar for top nav at lg, not md: the md header has no room for the links (#341)', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="top-nav"]').classes()).toEqual(expect.arrayContaining(['hidden', 'lg:block']))
+    expect(wrapper.find('[data-testid="tab-bar"]').classes()).toContain('lg:hidden')
+    expect(wrapper.find('[data-testid="tab-bar"]').classes()).not.toContain('md:hidden')
+  })
+
   it('renders no team <select>', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 

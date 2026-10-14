@@ -134,14 +134,14 @@ onMounted(async () => {
           >
             <AppIcon name="grid" />
           </RouterLink>
-          <nav data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden md:block">
-            <ul class="flex gap-3 lg:gap-6">
+          <nav data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden lg:block">
+            <ul class="flex gap-6">
               <li v-for="item in navItems" :key="item.label">
                 <RouterLink :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
               </li>
             </ul>
           </nav>
-          <ThemeToggle class="shrink-0 ms-auto md:ms-0" />
+          <ThemeToggle class="shrink-0 ms-auto lg:ms-0" />
           <template v-if="checked">
             <template v-if="user">
               <RouterLink v-if="user.is_admin" :to="teamBase + '/admin'" class="nav-link">ניהול</RouterLink>
@@ -189,12 +189,13 @@ onMounted(async () => {
       <h1 class="sr-only">{{ selectedTeam.name }}</h1>
     </section>
 
-    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-10 md:pb-12">
+    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-10 lg:pb-12">
       <ErrorBoundary>
         <RouterView />
       </ErrorBoundary>
     </main>
 
-    <TabBar :items="tabItems" />
+    <!-- lg, not md: 7 public links crowd the md header (#341) -->
+    <TabBar :items="tabItems" class="lg:hidden" />
   </div>
 </template>

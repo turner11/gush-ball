@@ -71,6 +71,6 @@ async function onLogout() {
       </ErrorBoundary>
     </main>
 
-    <TabBar :items="tabItems" />
+    <TabBar :items="tabItems" class="md:hidden" />
   </div>
 </template>
