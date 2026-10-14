@@ -5,7 +5,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
-import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
+import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { gameAddress, played, STATUS_LABELS } from '../lib/games'
@@ -24,7 +24,13 @@ const address = computed(() => gameAddress(game.value, team.value))
 watch(
   [selectedTeamId, teamsLoaded, () => route.params.id],
   async () => {
-    if (!teamsLoaded.value || !selectedTeamId.value) return
+    if (!teamsLoaded.value) return
+    if (!selectedTeamId.value) {
+      // /teams failed or is empty: nothing to fetch, so end loading instead of showing the skeleton forever
+      error.value = 'המשחק לא נמצא.'
+      loading.value = false
+      return
+    }
     const id = selectedTeamId.value
     loading.value = true
     error.value = ''
@@ -61,7 +67,7 @@ watch(
         <p class="eyebrow">{{ team.name }}</p>
         <h1 class="page-title">נגד {{ game.opponent.name }}</h1>
       </div>
-      <RouterLink :to="{ name: 'schedule', params: { slug: teamSlug(team) } }" class="section-link">ללוח המשחקים</RouterLink>
+      <RouterLink :to="scheduleRoute" class="section-link">ללוח המשחקים</RouterLink>
     </header>
 
     <section class="card sm:p-8">

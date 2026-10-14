@@ -25,7 +25,7 @@ function mockFetch(game) {
 }
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 
-async function mountAt(teamsLoaded) {
+async function mountAt(teamsLoaded, teamId = '1') {
   const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -38,7 +38,7 @@ async function mountAt(teamsLoaded) {
   await router.isReady()
   const { useSelectedTeam } = await import('../composables/useSelectedTeam')
   const sel = useSelectedTeam()
-  sel.selectedTeamId.value = '1'
+  sel.selectedTeamId.value = teamId
   sel.teamsLoaded.value = teamsLoaded
   const { default: GameView } = await import('./GameView.vue')
   const wrapper = mount(GameView, { global: { plugins: [router] } })
@@ -52,6 +52,14 @@ describe('GameView', () => {
     localStorage.clear()
   })
   afterEach(() => vi.restoreAllMocks())
+
+  it('shows the not-found state with a schedule link when no team resolves', async () => {
+    mockFetch(ok(GAME))
+    const { wrapper } = await mountAt(true, null)
+    expect(wrapper.find('[aria-busy]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('המשחק לא נמצא.')
+    expect(wrapper.find('a').attributes('href')).toBe('/team_a/schedule')
+  })
 
   it('renders a played game: scoreboard, date, venue and description', async () => {
     mockFetch(ok(GAME))
