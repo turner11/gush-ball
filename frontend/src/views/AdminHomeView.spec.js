@@ -35,6 +35,7 @@ describe('AdminHomeView', () => {
         { path: '/admin/games', component: { template: '<div/>' } },
         { path: '/admin/standings', component: { template: '<div/>' } },
         { path: '/admin/teams', name: 'admin-teams', component: { template: '<div/>' } },
+        { path: '/admin/users', name: 'admin-users', component: { template: '<div/>' } },
       ],
     })
   })
@@ -284,5 +285,21 @@ describe('AdminHomeView', () => {
     await syncButton(wrapper).trigger('click')
 
     expect(postBody().team_ids).toEqual([1])
+  })
+
+  it('users card shows for a full admin only', async () => {
+    mockSyncApis()
+    const auth = (await import('../composables/useAuth')).useAuth()
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+
+    auth.user.value = { username: 'a' }
+    let wrapper = mountFull(AdminHomeView)
+    await flushPromises()
+    expect(wrapper.text()).toContain('ניהול משתמשים')
+
+    auth.user.value = { username: 't', team_id: 1, team_ids: [1] }
+    wrapper = mountFull(AdminHomeView)
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('ניהול משתמשים')
   })
 })

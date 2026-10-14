@@ -43,6 +43,7 @@ const router = createRouter({
     { path: '/:slug/admin/games', name: 'admin-games', component: () => import('../views/AdminGamesView.vue'), meta: admin('ניהול משחקים') },
     { path: '/admin/standings', name: 'admin-standings', component: () => import('../views/AdminStandingsView.vue'), meta: admin('ניהול טבלה') },
     { path: '/admin/teams', name: 'admin-teams', component: () => import('../views/AdminTeamsView.vue'), meta: admin('ניהול קבוצות') },
+    { path: '/admin/users', name: 'admin-users', component: () => import('../views/AdminUsersView.vue'), meta: admin('ניהול משתמשים') },
     { path: '/admin/teams/import', name: 'admin-teams-import', component: () => import('../views/AdminClubImportView.vue'), meta: admin('ייבוא קבוצות מאגודה') },
     { path: '/admin/teams/batch', name: 'admin-teams-batch-edit', component: () => import('../views/AdminTeamsBatchEditView.vue'), meta: admin('עריכת קבוצות') },
     { path: '/admin/teams/:id', name: 'admin-team-edit', component: () => import('../views/AdminTeamEditView.vue'), meta: admin('עריכת קבוצה') },

@@ -13,7 +13,7 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import MembershipRequests from '../components/MembershipRequests.vue'
-import { ownTeams, useAuth } from '../composables/useAuth'
+import { fullAdmin, ownTeams, useAuth } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
 import { formatDuration } from '../lib/format'
@@ -141,7 +141,7 @@ onUnmounted(() => {
 <template>
   <section class="space-y-6">
     <h1 class="page-title">אזור ניהול</h1>
-    <nav class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <nav class="grid grid-cols-2 gap-3" :class="fullAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
       <RouterLink :to="base + '/admin/players'" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
         <span class="block font-extrabold">ניהול שחקנים</span>
@@ -161,6 +161,15 @@ onUnmounted(() => {
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="shield" /></span>
         <span class="block font-extrabold">ניהול קבוצות</span>
         <span class="block text-sm text-muted">קבוצות, מיתוג ותוכן</span>
+      </RouterLink>
+      <RouterLink
+        v-if="fullAdmin"
+        :to="{ name: 'admin-users' }"
+        class="card col-span-2 space-y-2 transition hover:border-team lg:col-span-1"
+      >
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
+        <span class="block font-extrabold">ניהול משתמשים</span>
+        <span class="block text-sm text-muted">חשבונות, חיפוש ומחיקה</span>
       </RouterLink>
     </nav>
 

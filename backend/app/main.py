@@ -19,6 +19,7 @@ from app.routers import (
     sync,
     teams,
     uploads,
+    users,
 )
 
 # uvicorn does not configure the root logger; without this app.* INFO records are dropped.
@@ -53,3 +54,4 @@ app.include_router(standings.router)
 app.include_router(sync.router)
 app.include_router(teams.router)
 app.include_router(uploads.router)
+app.include_router(users.router)
