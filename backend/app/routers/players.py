@@ -16,7 +16,8 @@ class PlayerCreate(BaseModel):
 
 
 class PlayerUpdate(BaseModel):
-    name: str | None = None
+    # omitted = unchanged; null -> 422 (NOT NULL column)
+    name: str = None
     name_en: str | None = None
     jersey_number: int | None = None
 

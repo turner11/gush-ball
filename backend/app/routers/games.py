@@ -1,19 +1,29 @@
 import re
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.deps import DbSession, OptionalUser, RequireTeamAdmin, can_write_team, get_team_or_404
+from app.deps import (
+    DbSession,
+    OptionalUser,
+    RequireTeamAdmin,
+    can_write_team,
+    get_game_or_404,
+    get_team_or_404,
+)
 from app.models import Game, GameStatus, get_or_create_opponent
 
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
 
+OpponentName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+
 
 class GameCreate(BaseModel):
-    opponent_name: str
+    opponent_name: OpponentName
     scheduled_at: datetime
     is_home: bool = True
     status: GameStatus = GameStatus.SCHEDULED
@@ -23,17 +33,18 @@ class GameCreate(BaseModel):
 
 
 class GameUpdate(BaseModel):
-    opponent_name: str | None = None
-    scheduled_at: datetime | None = None
-    is_home: bool | None = None
-    status: GameStatus | None = None
+    # omitted = unchanged; null -> 422 (NOT NULL column)
+    opponent_name: OpponentName = None
+    scheduled_at: datetime = None
+    is_home: bool = None
+    status: GameStatus = None
     team_score: int | None = None
     opponent_score: int | None = None
     description: str | None = None
     stats_url: str | None = None
 
 
-def _sheet_url(value: str) -> str:
+def sheet_url(value: str) -> str:
     """A Google Sheets URL as-is, or a bare sheet ID expanded to its canonical URL. Pins the host (SSRF, #264)."""
     v = value.strip()
     if re.fullmatch(r"[\w-]+", v, re.ASCII):
@@ -81,13 +92,6 @@ class AdminGameRead(GameRead):
     needs_review: bool
     is_manually_overridden: bool
     scrape_suggestion: dict | None
-
-
-def _get_game_or_404(db: Session, team_id: int, game_id: int) -> Game:
-    game = db.scalar(select(Game).where(Game.id == game_id, Game.team_id == team_id))
-    if game is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
-    return game
 
 
 def _public_game(game: Game, show_sheet: bool) -> GameRead:
@@ -156,7 +160,11 @@ def list_pending_review_games(
 
 @router.get("/{game_id}", response_model=GameRead)
 def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> GameRead:
-    return _public_game(_get_game_or_404(db, team_id, game_id), can_write_team(db, user, team_id))
+    game = get_game_or_404(db, team_id, game_id)
+    show = can_write_team(db, user, team_id)
+    if game.needs_review and not show:  # unapproved scraped game, hidden like in list_games
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+    return _public_game(game, show)
 
 
 @router.patch("/{game_id}", response_model=AdminGameRead)
@@ -167,12 +175,12 @@ def update_game(
     db: DbSession,
     _admin_id: RequireTeamAdmin,
 ) -> Game:
-    game = _get_game_or_404(db, team_id, game_id)
+    game = get_game_or_404(db, team_id, game_id)
     updates = payload.model_dump(exclude_unset=True)
     # stats_url is admin bookkeeping, not a scrape field: editing it never flags an override.
     has_changes = bool(updates.keys() - {"stats_url"})
     if "stats_url" in updates:
-        updates["stats_url"] = _sheet_url(updates["stats_url"]) if updates["stats_url"] else None
+        updates["stats_url"] = sheet_url(updates["stats_url"]) if updates["stats_url"] else None
     _apply_game_updates(db, game, updates)
     if has_changes:
         game.is_manually_overridden = True
@@ -194,7 +202,7 @@ def approve_game(
     db: DbSession,
     _admin_id: RequireTeamAdmin,
 ) -> Game:
-    game = _get_game_or_404(db, team_id, game_id)
+    game = get_game_or_404(db, team_id, game_id)
     game.needs_review = False
     game.is_scraped = True
     db.commit()
@@ -209,7 +217,7 @@ def accept_game_suggestion(
     db: DbSession,
     _admin_id: RequireTeamAdmin,
 ) -> Game:
-    game = _get_game_or_404(db, team_id, game_id)
+    game = get_game_or_404(db, team_id, game_id)
     if game.scrape_suggestion is None or game.scrape_suggestion_dismissed:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No pending suggestion")
     updates = GameUpdate.model_validate(game.scrape_suggestion).model_dump(exclude_unset=True)
@@ -229,7 +237,7 @@ def reject_game_suggestion(
     db: DbSession,
     _admin_id: RequireTeamAdmin,
 ) -> Game:
-    game = _get_game_or_404(db, team_id, game_id)
+    game = get_game_or_404(db, team_id, game_id)
     if game.scrape_suggestion is None or game.scrape_suggestion_dismissed:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No pending suggestion")
     game.scrape_suggestion_dismissed = True
@@ -245,6 +253,6 @@ def delete_game(
     db: DbSession,
     _admin_id: RequireTeamAdmin,
 ) -> None:
-    game = _get_game_or_404(db, team_id, game_id)
+    game = get_game_or_404(db, team_id, game_id)
     db.delete(game)
     db.commit()

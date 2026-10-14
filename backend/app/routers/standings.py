@@ -28,15 +28,16 @@ class StandingRowCreate(BaseModel):
 
 
 class StandingRowUpdate(BaseModel):
-    league_name: Name | None = None
-    team_name: Name | None = None
-    rank: NonNegativeInt | None = None
-    played: NonNegativeInt | None = None
-    won: NonNegativeInt | None = None
-    lost: NonNegativeInt | None = None
-    points_for: NonNegativeInt | None = None
-    points_against: NonNegativeInt | None = None
-    points: NonNegativeInt | None = None
+    # omitted = unchanged; null -> 422 (NOT NULL column)
+    league_name: Name = None
+    team_name: Name = None
+    rank: NonNegativeInt = None
+    played: NonNegativeInt = None
+    won: NonNegativeInt = None
+    lost: NonNegativeInt = None
+    points_for: NonNegativeInt = None
+    points_against: NonNegativeInt = None
+    points: NonNegativeInt = None
 
 
 class StandingRowOut(BaseModel):

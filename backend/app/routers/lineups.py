@@ -9,9 +9,15 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.deps import DbSession, RequireStatsViewer, RequireTeamAdmin, get_team_or_404
+from app.deps import (
+    DbSession,
+    RequireStatsViewer,
+    RequireTeamAdmin,
+    get_game_or_404,
+    get_team_or_404,
+)
 from app.models import Game, LineupSnapshot
-from app.routers.games import _get_game_or_404, _sheet_url
+from app.routers.games import sheet_url
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["lineups"])
@@ -45,11 +51,11 @@ def load_game_stats(
 ) -> StatsLoadOut:
     # Deliberately not PATCH /games/{id}: that would set is_manually_overridden and divert
     # the next scrape into the review queue.
-    game = _get_game_or_404(db, team_id, game_id)
+    game = get_game_or_404(db, team_id, game_id)
     raw = payload.url or game.stats_url
     if not raw:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No stats URL")
-    url = _sheet_url(raw)  # also re-validates a stored URL (#264)
+    url = sheet_url(raw)  # also re-validates a stored URL (#264)
     try:
         df = get_snapshots_df(pd.read_csv(StringIO(fetch_csv(url))))
     except HTTPError as exc:
@@ -83,7 +89,7 @@ def load_game_stats(
 @router.delete("/teams/{team_id}/games/{game_id}/stats", status_code=status.HTTP_204_NO_CONTENT)
 def delete_game_stats(team_id: int, game_id: int, db: DbSession, _admin: RequireTeamAdmin) -> None:
     # Keeps stats_url so the sheet stays linked; not a PATCH, so no override flag (see load_game_stats).
-    game = _get_game_or_404(db, team_id, game_id)
+    game = get_game_or_404(db, team_id, game_id)
     game.lineup_snapshots = []
     db.commit()
 
@@ -104,7 +110,7 @@ def list_lineups(
         .where(Game.team_id == team_id, Game.needs_review.is_(False))
     )
     if game_id is not None:
-        _get_game_or_404(db, team_id, game_id)
+        get_game_or_404(db, team_id, game_id)
         query = query.where(LineupSnapshot.game_id == game_id)
     rows = db.scalars(query).all()
     if not rows:

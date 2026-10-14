@@ -2,11 +2,11 @@ import logging
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import exists, or_, select
+from sqlalchemy import Select, exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import AdminUser, Membership, Team
+from app.models import AdminUser, Game, Membership, Team
 from app.security import password_fingerprint
 
 DbSession = Annotated[Session, Depends(get_db)]
@@ -68,14 +68,14 @@ def current_admin(request: Request, user: RequireUser, db: DbSession) -> AdminUs
 RequireAnyAdmin = Annotated[AdminUser, Depends(current_admin)]
 
 
-def admin_clubs(db: Session, user: AdminUser) -> list[str]:
-    return list(
-        db.scalars(
-            select(Membership.club).where(
-                Membership.user_id == user.id, Membership.role == "admin", Membership.club.is_not(None)
-            )
-        )
+def _admin_club_names(user_id: int) -> Select:
+    return select(Membership.club).where(
+        Membership.user_id == user_id, Membership.role == "admin", Membership.club.is_not(None)
     )
+
+
+def admin_clubs(db: Session, user: AdminUser) -> list[str]:
+    return list(db.scalars(_admin_club_names(user.id)))
 
 
 def admin_team_ids(db: Session, user: AdminUser) -> list[int] | None:
@@ -87,11 +87,7 @@ def admin_team_ids(db: Session, user: AdminUser) -> list[int] | None:
     )
     # NULL guards: `Team.club IN (...)` never matches a NULL club, and the subqueries drop NULL rows, so a
     # clubless team can't leak to club admins (the `club == None` trap from #242).
-    club_teams = Team.club.in_(
-        select(Membership.club).where(
-            Membership.user_id == user.id, Membership.role == "admin", Membership.club.is_not(None)
-        )
-    )
+    club_teams = Team.club.in_(_admin_club_names(user.id))
     return list(db.scalars(select(Team.id).where(or_(Team.id.in_(direct), club_teams))))
 
 
@@ -167,3 +163,10 @@ def get_team_or_404(db: Session, team_id: int) -> Team:
     if team is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
     return team
+
+
+def get_game_or_404(db: Session, team_id: int, game_id: int) -> Game:
+    game = db.scalar(select(Game).where(Game.id == game_id, Game.team_id == team_id))
+    if game is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+    return game
