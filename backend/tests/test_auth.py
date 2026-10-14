@@ -611,3 +611,11 @@ def test_forgot_password_sends_in_prod_with_smtp(seeded: TestClient, sent, monke
     monkeypatch.setattr(auth.settings, "smtp_host", "smtp.test")
     assert _forgot(seeded).status_code == 200
     assert len(sent) == 1
+
+
+def test_send_email_never_logs_body_on_https(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    from app.routers import auth
+    monkeypatch.setattr(auth.settings, "smtp_host", "")
+    monkeypatch.setattr(auth.settings, "public_url", "https://example.com")
+    auth._send_email("a@b.c", "s", "SECRET-LINK")
+    assert "SECRET-LINK" not in caplog.text

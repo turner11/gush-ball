@@ -158,8 +158,11 @@ def _require_email_delivery() -> None:
 
 def _send_email(to: str, subject: str, body: str) -> None:
     if not settings.smtp_host:
-        # Dev-only: no SMTP configured, so the message goes to the log (https deployments are stopped earlier by _require_email_delivery).
-        log.warning("email to %s (SMTP not configured): %s", to, body)
+        # Dev-only: the body (a live link) is logged only off https; prod drops it.
+        if settings.public_url.startswith("https://"):
+            log.warning("SMTP not configured, email dropped")
+        else:
+            log.warning("email to %s (SMTP not configured): %s", to, body)
         return
     msg = EmailMessage()
     msg["Subject"] = subject
