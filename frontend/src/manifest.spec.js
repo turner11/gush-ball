@@ -29,3 +29,19 @@ describe('web app manifest', () => {
     }
   })
 })
+
+describe('index.html share tags', () => {
+  const html = read('index.html').toString()
+
+  it('asks the backend for per-page tags by original path', () => {
+    expect(html).toContain('httpInclude (print "/api/og?path=" (urlquery .OriginalReq.URL.Path))')
+  })
+
+  it('keeps the default tags as the {{else}} fallback, exactly once', () => {
+    const fallback = html.slice(html.indexOf('{{else}}'), html.indexOf('{{end}}'))
+    for (const tag of ['<title>', 'name="description"', 'og:title', 'og:description', 'og:image']) {
+      expect(fallback, tag).toContain(tag)
+    }
+    expect(html.match(/og:title/g)).toHaveLength(1)
+  })
+})
