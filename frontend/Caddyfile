@@ -22,6 +22,10 @@
     handle /api/og {
         uri strip_prefix /api
         reverse_proxy backend:8000 {
+            # a hung backend must not hang every page: give up and fall back to the defaults
+            transport http {
+                response_header_timeout 2s
+            }
             @failed status 4xx 5xx
             handle_response @failed {
                 respond 200
