@@ -3,7 +3,12 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  plugins: [
+    vue(),
+    tailwindcss(),
+    // index.html carries Caddy template actions; dev has no Caddy, so show the defaults without the raw {{ }} text
+    { name: 'strip-caddy-templates', apply: 'serve', transformIndexHtml: (html) => html.replace(/\{\{.*?\}\}/g, '') },
+  ],
   server: {
     proxy: {
       '/api': {

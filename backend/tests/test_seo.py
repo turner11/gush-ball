@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import Player, Team
+from app.models import Game, GameStatus, Opponent, Player, PlayerImage, Team
 from app.routers.seo import _url_slug
 
 NS = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -70,3 +70,82 @@ def test_sitemap_lists_live_players_only(client, db_session: Session) -> None:
 )
 def test_url_slug_matches_frontend_cases(name_en: str | None, slug: str) -> None:
     assert _url_slug(Team(id=3, name="x", slug="x", name_en=name_en)) == slug
+
+
+def _og(client, path: str) -> str:
+    response = client.get("/og", params={"path": path})
+    assert response.status_code == 200
+    return response.text
+
+
+def _team(db_session: Session, **kw) -> Team:
+    team = Team(name=kw.pop("name", "אליזור"), slug="a", name_en=kw.pop("name_en", "Elizur"), **kw)
+    db_session.add(team)
+    db_session.commit()
+    return team
+
+
+def test_og_team_home_and_pages_use_team_name_and_logo(client, db_session: Session) -> None:
+    team = _team(db_session, logo_url="https://cdn.example/logo.png")
+
+    home = _og(client, "/elizur")
+    assert '<meta property="og:title" content="אליזור" />' in home
+    assert 'property="og:image" content="https://cdn.example/logo.png"' in home
+    assert 'property="og:title" content="שחקנים · אליזור"' in _og(client, "/elizur/roster")
+    assert 'property="og:title" content="לוח משחקים · אליזור"' in _og(client, f"/{team.id}/schedule")
+
+
+def test_og_relative_logo_and_missing_logo_become_absolute(client, db_session: Session) -> None:
+    team = _team(db_session, logo_url="/x.png")
+    assert 'og:image" content="https://example.org/x.png"' in _og(client, "/elizur")
+    team.logo_url = None
+    db_session.commit()
+    assert 'og:image" content="https://example.org/logo.jpg"' in _og(client, "/elizur")
+
+
+def test_og_player_uses_first_photo_then_team_logo(client, db_session: Session) -> None:
+    team = _team(db_session, logo_url="https://cdn.example/logo.png")
+    with_photos = Player(team_id=team.id, name="דנה", jersey_number=1)
+    bare = Player(team_id=team.id, name="גיל", jersey_number=2)
+    gone = Player(team_id=team.id, name="נמחק", jersey_number=3, deleted_at=datetime(2026, 1, 1, tzinfo=UTC))
+    db_session.add_all([with_photos, bare, gone])
+    db_session.commit()
+    db_session.add_all([PlayerImage(player_id=with_photos.id, url="https://cdn.example/1.jpg"), PlayerImage(player_id=with_photos.id, url="https://cdn.example/2.jpg")])
+    db_session.commit()
+
+    body = _og(client, f"/players/{with_photos.id}")
+    assert 'og:title" content="דנה · אליזור"' in body
+    assert 'og:image" content="https://cdn.example/1.jpg"' in body
+    assert 'og:image" content="https://cdn.example/logo.png"' in _og(client, f"/players/{bare.id}")
+    assert _og(client, f"/players/{gone.id}") == ""
+
+
+def test_og_game_title_names_opponent_and_final_score(client, db_session: Session) -> None:
+    team = _team(db_session)
+    other = Team(name="אחר", slug="b", name_en="Other")
+    opponent = Opponent(name="מכבי")
+    db_session.add_all([other, opponent])
+    db_session.commit()
+    game = Game(team_id=team.id, opponent_id=opponent.id, scheduled_at=datetime(2026, 1, 1, tzinfo=UTC), status=GameStatus.FINAL, team_score=80, opponent_score=70)
+    db_session.add(game)
+    db_session.commit()
+
+    body = _og(client, f"/elizur/games/{game.id}")
+    assert 'og:title" content="אליזור נגד מכבי"' in body
+    assert 'og:description" content="אליזור 80 – 70 מכבי"' in body
+    assert _og(client, f"/other/games/{game.id}") == ""
+
+
+@pytest.mark.parametrize("path", ["", "/", "/admin", "/elizur/admin", "/nope", "/elizur/nope", "/players/abc", "/players/999", "/elizur/games/999", "/teams", "/join"])
+def test_og_unknown_paths_are_empty(client, db_session: Session, path: str) -> None:
+    _team(db_session)
+    assert _og(client, path) == ""
+
+
+def test_og_escapes_html_and_template_braces(client, db_session: Session) -> None:
+    _team(db_session, name='<b>"x"{{env "A"}}</b>')
+    body = _og(client, "/elizur")
+    for bad in ("{{", "}}", "<b>", '"x"'):
+        assert bad not in body
+    for tag in ("<title>", 'name="description"', 'og:title"', 'og:description"', 'og:image"'):
+        assert body.count(tag) == 1

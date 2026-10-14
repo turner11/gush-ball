@@ -263,7 +263,13 @@ URLs in them come from `PUBLIC_URL`.
 2. After the deploy, open `https://<domain>/robots.txt` and `https://<domain>/sitemap.xml`. The first must end with an
    absolute `Sitemap:` line with no `{{` in it; the second lists the team, player and page URLs.
 3. View source on the home page and check that `og:image` is an absolute URL.
-4. Optional: add the site in [Google Search Console](https://search.google.com/search-console) and submit
+4. Open `view-source:https://<domain>/<team slug>` and `view-source:https://<domain>/players/<id>`. `og:title` must be
+   the team or player name and `og:image` that logo or photo, with no `{{`. *Why:* WhatsApp and Facebook read only these
+   tags, and they come from a per-page lookup (`/api/og`). Then paste both URLs into the
+   [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) (press **Scrape Again**) and into a
+   WhatsApp chat. If a page returns 500 or shows the default title everywhere, the lookup is failing: roll back the
+   `{{with httpInclude ...}}` block in `frontend/index.html`.
+5. Optional: add the site in [Google Search Console](https://search.google.com/search-console) and submit
    `/sitemap.xml`. It shows which pages are indexed and any rendering problems.
 
 ## Troubleshooting

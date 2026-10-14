@@ -1,12 +1,15 @@
+import html
 import re
+from urllib.parse import urljoin
 from xml.sax.saxutils import escape
 
 from fastapi import APIRouter, Response
+from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 
 from app.config import settings
 from app.deps import DbSession
-from app.models import Player, Team
+from app.models import Game, GameStatus, Opponent, Player, PlayerImage, Team
 
 router = APIRouter(tags=["seo"])
 
@@ -31,3 +34,75 @@ def sitemap(db: DbSession) -> Response:
     urls = "".join(f"<url><loc>{escape(f'{base}/{path}')}</loc></url>" for path in paths)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return Response(xml, media_type="application/xml")
+
+
+# ponytail: mirrors router/index.js meta (title, description); change both
+_HOME_DESCRIPTION = "האתר של {team}: משחקים ותוצאות, טבלת הליגה, שחקנים, חדשות ומדיה."
+_PAGE_META = {
+    "schedule": ("לוח משחקים", "לוח המשחקים והתוצאות של {team}."),
+    "standings": ("טבלה", "טבלת הליגה והמיקום של {team}."),
+    "roster": ("שחקנים", "סגל השחקנים של {team}."),
+    "media": ("מדיה", "תמונות, סרטונים וקישורים של {team}."),
+}
+_GAME_DESCRIPTION = "משחק של {team}: תאריך, מקום ותוצאה."
+
+
+def _team_for_slug(db: DbSession, slug: str) -> Team | None:
+    # mirrors useTeamFromRoute: url slug first, then numeric id
+    teams = list(db.scalars(select(Team).order_by(Team.id)))
+    slug = slug.lower()
+    return next((t for t in teams if _url_slug(t) == slug), None) or next((t for t in teams if str(t.id) == slug), None)
+
+
+def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
+    """(title, description, image url) for a public page, or None when the path is not covered."""
+    parts = [p for p in path.split("/") if p]
+    if len(parts) == 2 and parts[0] == "players":
+        player = db.get(Player, int(parts[1])) if parts[1].isdigit() else None
+        if player is None or player.deleted_at is not None:
+            return None
+        photo = db.scalar(select(PlayerImage.url).where(PlayerImage.player_id == player.id).order_by(PlayerImage.id))
+        return f"{player.name} · {player.team.name}", f"פרופיל שחקן של {player.team.name}.", photo or player.team.logo_url
+    team = _team_for_slug(db, parts[0]) if parts and parts[0] not in ("admin", "join", "teams", "players") else None
+    if team is None:
+        return None
+    if len(parts) == 1:
+        return team.name, _HOME_DESCRIPTION.format(team=team.name), team.logo_url
+    if len(parts) == 2 and parts[1] in _PAGE_META:
+        title, description = _PAGE_META[parts[1]]
+        return f"{title} · {team.name}", description.format(team=team.name), team.logo_url
+    if len(parts) == 3 and parts[1] == "games" and parts[2].isdigit():
+        game = db.get(Game, int(parts[2]))
+        if game is None or game.team_id != team.id:
+            return None
+        opponent = db.get(Opponent, game.opponent_id)
+        scored = game.status == GameStatus.FINAL and game.team_score is not None and game.opponent_score is not None
+        description = f"{team.name} {game.team_score} – {game.opponent_score} {opponent.name}" if scored else _GAME_DESCRIPTION.format(team=team.name)
+        return f"{team.name} נגד {opponent.name}", description, team.logo_url
+    return None
+
+
+def _attr(value: str) -> str:
+    # Caddy executes the included body as a template, so braces must not survive either
+    return html.escape(value, quote=True).replace("{", "&#123;").replace("}", "&#125;")
+
+
+@router.get("/og", response_class=HTMLResponse)
+def og_tags(db: DbSession, path: str = "") -> str:
+    """Per-page title/description/og tags, spliced into index.html by Caddy; empty = keep the defaults."""
+    tags = _page_tags(db, path)
+    if tags is None:
+        return ""
+    title, description, image = tags
+    base = settings.public_url.rstrip("/")
+    image_url = urljoin(base + "/", image) if image else f"{base}/logo.jpg"
+    title, description, image_url = _attr(title), _attr(description), _attr(image_url)
+    return "\n".join(
+        [
+            f"<title>{title}</title>",
+            f'<meta name="description" content="{description}" />',
+            f'<meta property="og:title" content="{title}" />',
+            f'<meta property="og:description" content="{description}" />',
+            f'<meta property="og:image" content="{image_url}" />',
+        ]
+    )
