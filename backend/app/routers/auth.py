@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.deps import (
     DbSession,
+    OptionalUser,
     RequireUser,
     admin_clubs,
     admin_team_ids,
@@ -91,6 +92,7 @@ def _reserve_attempt(keys: list[str]) -> None:
 def _start_session(request: Request, admin: AdminUser) -> None:
     request.session["admin_id"] = admin.id
     request.session["pw"] = password_fingerprint(admin.password_hash)
+    request.session["sv"] = admin.session_version
 
 
 def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
@@ -134,7 +136,10 @@ def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, A
 
 
 @router.post("/logout")
-def logout(request: Request) -> dict[str, bool]:
+def logout(request: Request, user: OptionalUser, db: DbSession) -> dict[str, bool]:
+    if user is not None:
+        user.session_version += 1  # revokes copies of the cookie, not just this browser's
+        db.commit()
     request.session.clear()
     return {"ok": True}
 
