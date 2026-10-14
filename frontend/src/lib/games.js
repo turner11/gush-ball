@@ -19,6 +19,9 @@ export const STATUS_LABELS = {
 
 export const gameStatsRoute = (g) => ({ name: 'stats', query: { game: g.id } })
 
+// Where the game is played: our court at home, the opponent's address away.
+export const gameAddress = (g, team) => (g.is_home ? team?.home_court_address : g.opponent?.address)
+
 export const played = (g) => g.team_score != null && g.opponent_score != null
 
 // Scoreboard order, home side first (rightmost in RTL). Pass what each side shows: scores, names, logos...

@@ -1,8 +1,10 @@
 <script setup>
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 
+import { teamSlug } from '../composables/useSelectedTeam'
 import { formatGameDate } from '../lib/format'
-import { homeFirst, played, result, STATUS_LABELS } from '../lib/games'
+import { gameAddress, homeFirst, played, result, STATUS_LABELS } from '../lib/games'
 import GameLocationLinks from './GameLocationLinks.vue'
 import GameStatsLink from './GameStatsLink.vue'
 
@@ -16,7 +18,7 @@ const sides = computed(() => {
   const them = { name: g.opponent.name, logo: g.opponent.logo_url, url: g.opponent.source_url }
   return homeFirst(g, us, them)
 })
-const address = computed(() => (props.game.is_home ? props.team?.home_court_address : props.game.opponent?.address))
+const address = computed(() => gameAddress(props.game, props.team))
 const edge = computed(() => ({ W: 'border-win', L: 'border-loss' })[result(props.game)] ?? 'border-transparent')
 </script>
 
@@ -43,7 +45,15 @@ const edge = computed(() => ({ W: 'border-win', L: 'border-loss' })[result(props
         </template>
       </p>
       <p v-if="d" class="text-sm text-muted">{{ d.weekday }} · {{ d.time }} · <span class="badge badge-muted">{{ game.is_home ? 'בית' : 'חוץ' }}</span></p>
-      <GameStatsLink v-if="!$slots.actions" :game="game" class="section-link" />
+      <div class="flex flex-wrap gap-x-4">
+        <RouterLink
+          v-if="team"
+          :to="{ name: 'game', params: { slug: teamSlug(team), id: game.id } }"
+          class="section-link"
+          :aria-label="'פרטי המשחק נגד ' + game.opponent.name"
+        >פרטי המשחק</RouterLink>
+        <GameStatsLink v-if="!$slots.actions" :game="game" class="section-link" />
+      </div>
     </div>
     <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
       <GameLocationLinks v-if="address" :address="address" />
