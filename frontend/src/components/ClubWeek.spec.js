@@ -45,6 +45,17 @@ describe('ClubWeek', () => {
     expect(urls.filter((u) => u.startsWith('/api/games'))).toEqual(['/api/games?from=2026-03-05&to=2026-03-19'])
   })
 
+  it.each([
+    [new Date(2026, 9, 21, 0, 30), '2026-10-14', '2026-10-28'], // Israel DST ends 25 Oct
+    [new Date(2026, 9, 28, 0, 30), '2026-10-21', '2026-11-04'], // US DST ends 1 Nov
+    [new Date(2026, 2, 20, 23, 30), '2026-03-13', '2026-03-27'], // Israel DST starts 27 Mar
+  ])('keeps whole calendar days across DST (%s)', async (now, from, to) => {
+    vi.setSystemTime(now)
+    mockFetch(GAMES)
+    await mountIt()
+    expect(global.fetch.mock.calls.map((c) => c[0])).toContain(`/api/games?from=${from}&to=${to}`)
+  })
+
   it('renders upcoming and past rows with their team', async () => {
     mockFetch(GAMES)
     const w = await mountIt()

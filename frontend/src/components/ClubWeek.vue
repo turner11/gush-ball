@@ -7,7 +7,11 @@ import { splitGames } from '../lib/games'
 import GameRow from './GameRow.vue'
 
 // "This week at the club": every team's games from the last 7 to the next 7 days (#326).
-const day = (offset) => new Date(Date.now() + offset * 864e5).toLocaleDateString('en-CA') // local YYYY-MM-DD
+function day(offset) {
+  const d = new Date()
+  d.setDate(d.getDate() + offset) // calendar days, so DST can't shift the date
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const loading = ref(true)
 const error = ref(false)

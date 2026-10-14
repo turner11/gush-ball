@@ -582,3 +582,19 @@ def test_club_games_skips_review_pending(client: TestClient, db_session: Session
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"from": "2026-03-10", "to": "9999-12-31"},
+        {"from": "2026-03-17", "to": "2026-03-10"},
+        {"from": "2026-01-01", "to": "2026-03-10"},
+    ],
+)
+def test_club_games_rejects_bad_range(client: TestClient, params: dict[str, str]) -> None:
+    response = client.get("/games", params=params)
+
+    assert response.status_code == 422
+    assert params["from"] in response.json()["detail"]
+    assert params["to"] in response.json()["detail"]

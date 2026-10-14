@@ -145,8 +145,6 @@ const hasSocialEmbed = computed(
           </div>
         </div>
 
-        <ClubWeek />
-
         <section v-if="newestPost" class="space-y-3">
           <div class="section-header">
             <h2 class="section-title">עדכונים</h2>
@@ -202,6 +200,8 @@ const hasSocialEmbed = computed(
             </a>
           </div>
         </section>
+
+        <ClubWeek />
       </div>
 
       <aside v-if="hasSocial" class="min-w-0 space-y-4">
