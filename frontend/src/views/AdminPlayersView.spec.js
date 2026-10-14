@@ -297,4 +297,65 @@ describe('AdminPlayersView', () => {
 
     expect(router.currentRoute.value.path).toBe('/team_b/admin/players')
   })
+
+  it('edit form links a user, and "ללא" unlinks (#329)', async () => {
+    const patches = []
+    global.fetch = vi.fn((url, options = {}) => {
+      const key = `${options.method || 'GET'} ${url}`
+      if (key === 'GET /api/teams') return Promise.resolve(jsonRes(TEAMS))
+      if (key === 'GET /api/teams/1/players') return Promise.resolve(jsonRes(PLAYERS))
+      if (key === 'GET /api/teams/1/players/linkable-users') return Promise.resolve(jsonRes([{ id: 5, username: 'dana' }]))
+      if (key === 'GET /api/teams/1/players/links') {
+        return Promise.resolve(jsonRes(patches.length ? [{ player_id: 10, user_id: 5, username: 'dana' }] : []))
+      }
+      if (key === 'PATCH /api/teams/1/players/10') {
+        patches.push(JSON.parse(options.body))
+        return Promise.resolve(jsonRes(PLAYERS[0]))
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${key}`))
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.find('#player-user').exists()).toBe(false)
+
+    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    const select = wrapper.find('#player-user')
+    expect(select.text()).toContain('dana')
+    await select.setValue('5')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patches[0].user_id).toBe(5)
+
+    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.find('#player-user').setValue('')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patches[1].user_id).toBeNull()
+  })
+
+  it('saving an edit does not send user_id when /players/links failed (#329)', async () => {
+    const patches = []
+    global.fetch = vi.fn((url, options = {}) => {
+      const key = `${options.method || 'GET'} ${url}`
+      if (key === 'GET /api/teams') return Promise.resolve(jsonRes(TEAMS))
+      if (key === 'GET /api/teams/1/players') return Promise.resolve(jsonRes(PLAYERS))
+      if (key === 'GET /api/teams/1/players/linkable-users') return Promise.resolve(jsonRes([{ id: 5, username: 'dana' }]))
+      if (key === 'GET /api/teams/1/players/links') return Promise.resolve(errorRes())
+      if (key === 'PATCH /api/teams/1/players/10') {
+        patches.push(JSON.parse(options.body))
+        return Promise.resolve(jsonRes(PLAYERS[0]))
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${key}`))
+    })
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patches[0]).not.toHaveProperty('user_id')
+  })
 })

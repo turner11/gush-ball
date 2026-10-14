@@ -22,7 +22,7 @@ issue, before starting.
 - `Team`: one of the club's *own* teams. Rich: colors, logo, socials, home court, content, and an optional `club`, the name of a `Club` (id, name, ibasketball url; scraped fill-only, full-admin editable). `Team.club` and `Membership.club` are FKs to the unique `clubs.name` with ON UPDATE CASCADE, so a rename keeps club-admin scope.
 - `Opponent`: **not** a `Team`. Thin: name + logo + source URL, scraped or entered ad hoc. This
   split is deliberate — never fold opponents into the `Team` model to "save a table."
-- `Player`: belongs to a `Team`; jersey number; images.
+- `Player`: belongs to a `Team`; jersey number; images; optional `user_id` link to an account (#329).
 - `Game`: one `Team`'s schedule entry against an `Opponent`. Phase 2 adds scrape-bookkeeping
   columns (`source_event_id`, `is_scraped`, `needs_review`, `is_manually_overridden`) — Phase 1
   work should not add these early.
@@ -47,7 +47,7 @@ issue, before starting.
 - **Override protection**: a scraped update to a game the admin has manually edited never
   auto-applies. It lands as a diff suggestion in the review queue for the admin to accept or
   reject. Re-scraping must never silently clobber an admin edit.
-- **Auth**: `AdminUser.is_full_admin` for full admins, plus `Membership` rows with `role='admin'` (team admin = that team's content/players/games plus sync; club admin = the same on every team of that club, plus assigning team admins inside it). Only a full admin creates accounts or assigns club admins. Session cookie. Login is username or email + password, or "Sign in with Google" (verified email required, disabled when `GOOGLE_CLIENT_ID` is unset; an unknown verified email creates a rights-less player account whose username is the Google display name, never the email (#249)), plus an emailed 1h single-use password-reset link, or self-signup with username + email + password (#259): the email is stored only once its emailed 1h link is used, so an unverified address is never a Google/reset key. No roles beyond full / club / team admin; `pending`/`member` memberships carry no admin rights. The server enforces scope on every write (`RequireAnyAdmin` requires an admin grant; `RequireTeamAdmin` / `check_team_scope` / `check_admin_grant` in `app/deps.py`); `RequireAdmin` means full admin. `RequireStatsViewer` gates stats reads (any `member`/`admin` row or full admin). Don't grow this into a role hierarchy speculatively.
+- **Auth**: `AdminUser.is_full_admin` for full admins, plus `Membership` rows with `role='admin'` (team admin = that team's content/players/games plus sync; club admin = the same on every team of that club, plus assigning team admins inside it). Only a full admin creates accounts or assigns club admins. Session cookie. Login is username or email + password, or "Sign in with Google" (verified email required, disabled when `GOOGLE_CLIENT_ID` is unset; an unknown verified email creates a rights-less player account whose username is the Google display name, never the email (#249)), plus an emailed 1h single-use password-reset link, or self-signup with username + email + password (#259): the email is stored only once its emailed 1h link is used, so an unverified address is never a Google/reset key. No roles beyond full / club / team admin; `pending`/`member` memberships carry no admin rights. The server enforces scope on every write (`RequireAnyAdmin` requires an admin grant; `RequireTeamAdmin` / `check_team_scope` / `check_admin_grant` in `app/deps.py`); `RequireAdmin` means full admin. `RequireStatsViewer` gates stats reads (any `member`/`admin` row or full admin). A user linked to a `Player` (`Player.user_id`, set by that team's admins) may edit that row's `name`/`name_en` and photos only (`check_player_self_or_team_admin` in `app/deps.py`); this is a per-row self-edit right, not a role (#329), and `user_id` is returned only to admins of that team. Don't grow this into a role hierarchy speculatively.
 - **Player accounts, no fan accounts**: a player signs up with Google or a password and asks to join a team (approved by that team's admin, its club admin, or a full admin) or a club (approved by a full admin only) from `/join`; admins approve or reject on the admin home. Approval makes a `member`, never an admin. An approved membership (or any admin grant) unlocks the `/stats` page for every team; everything else (schedule, standings, scores, "remembered team") stays anonymous. "Remembered team" is a `localStorage` value, not a user profile.
 - **i18n**: Hebrew + RTL only for v1 UI. Translatable fields (team/player names, post/link/video
   titles) carry an optional `_en` column so bilingual can switch on later without a schema
@@ -120,7 +120,7 @@ Don't build these ahead of their phase, even if a related task makes them tempti
 - Social media embeds (Phase 3)
 - Live/real-time score updates
 - English UI (schema is ready; UI is not)
-- Admin roles/permissions beyond full admin + club admin + team admin (one user may hold several team/club grants)
+- Admin roles/permissions beyond full admin + club admin + team admin (one user may hold several team/club grants); a linked player's self-edit of their own row is not a role
 
 ## Where things live
 

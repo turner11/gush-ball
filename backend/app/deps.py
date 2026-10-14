@@ -6,7 +6,7 @@ from sqlalchemy import Select, exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import AdminUser, Game, Membership, Team
+from app.models import AdminUser, Game, Membership, Player, Team
 from app.security import password_fingerprint
 
 DbSession = Annotated[Session, Depends(get_db)]
@@ -122,6 +122,25 @@ def check_membership_scope(db: Session, admin: AdminUser, row: Membership) -> No
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only a full admin can manage club memberships")
 
 
+SELF_EDITABLE_PLAYER_FIELDS = {"name", "name_en"}
+
+
+def check_player_self_or_team_admin(
+    db: Session, user: AdminUser, player: Player, fields: frozenset[str] | set[str] = frozenset()
+) -> None:
+    """Whoever may write the player's team may do anything; the linked user only edits `SELF_EDITABLE_PLAYER_FIELDS`
+    (and photos, which pass no fields) of their own row (#329)."""
+    if can_write_team(db, user, player.team_id):
+        return
+    if player.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
+    blocked = sorted(set(fields) - SELF_EDITABLE_PLAYER_FIELDS)
+    if blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=f"Only an admin can change: {', '.join(blocked)}"
+        )
+
+
 def require_admin(admin: RequireAnyAdmin) -> int:
     """Full admin only. Fail-closed default for every route not explicitly opened to scoped admins."""
     if not admin.is_full_admin:
@@ -147,6 +166,17 @@ def can_view_stats(db: Session, user: AdminUser) -> bool:
         return True
     approved = Membership.user_id == user.id, Membership.role.in_(("member", "admin"))
     return db.scalar(select(exists().where(*approved))) is True
+
+
+def require_uploader(user: RequireUser, db: DbSession) -> AdminUser:
+    """Admins, plus users linked to a roster player (they upload their own photo)."""
+    linked = select(exists().where(Player.user_id == user.id, Player.deleted_at.is_(None)))
+    if not (is_admin(db, user) or db.scalar(linked)):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
+    return user
+
+
+RequireUploader = Annotated[AdminUser, Depends(require_uploader)]
 
 
 def require_stats_viewer(user: RequireUser, db: DbSession) -> AdminUser:

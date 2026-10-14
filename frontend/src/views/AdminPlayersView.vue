@@ -20,7 +20,10 @@ const shownPlayers = computed(() =>
 )
 const deletedPlayers = ref(null) // null = hidden
 const editing = ref(null)
-const form = ref({ name: '', name_en: '', jersey_number: '' })
+const form = ref({ name: '', name_en: '', jersey_number: '', user_id: '' })
+const linkableUsers = ref([]) // null = failed to load
+const links = ref({}) // player id -> linked username
+const linkedUserIds = ref({}) // player id -> linked user id
 const newImageUrl = ref({})
 const error = ref(null)
 
@@ -31,6 +34,18 @@ const router = useRouter()
 function clearSearch() {
   query.value = ''
   searchInput.value?.focus()
+}
+
+// Link data is secondary: a failure only degrades the picker, never the player list.
+async function loadLinks(teamId) {
+  const [users, rows] = await Promise.all([
+    apiFetch(`/teams/${teamId}/players/linkable-users`).catch(() => null),
+    apiFetch(`/teams/${teamId}/players/links`).catch(() => []),
+  ])
+  if (teamId !== selectedTeamId.value) return
+  linkableUsers.value = users
+  links.value = Object.fromEntries(rows.map((r) => [r.player_id, r.username]))
+  linkedUserIds.value = Object.fromEntries(rows.map((r) => [r.player_id, r.user_id]))
 }
 
 async function loadPlayers() {
@@ -47,6 +62,7 @@ async function loadPlayers() {
     const loaded = await apiFetch(`/teams/${id}/players`)
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     players.value = loaded
+    await loadLinks(id)
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
@@ -61,7 +77,7 @@ watch(selectedTeamId, loadPlayers)
 
 function resetForm() {
   editing.value = null
-  form.value = { name: '', name_en: '', jersey_number: '' }
+  form.value = { name: '', name_en: '', jersey_number: '', user_id: '' }
 }
 
 const formEl = ref(null)
@@ -73,6 +89,7 @@ function startEdit(player) {
     name: player.name,
     name_en: player.name_en ?? '',
     jersey_number: player.jersey_number ?? '',
+    user_id: linkedUserIds.value[player.id] ?? '',
   }
 }
 
@@ -86,10 +103,16 @@ async function onSubmit() {
   error.value = null
   try {
     if (editing.value) {
+      // user_id only when changed: a failed links load must never silently unlink the player
+      const was = linkedUserIds.value[editing.value.id] ?? ''
+      const body = String(form.value.user_id) === String(was)
+        ? payload
+        : { ...payload, user_id: form.value.user_id === '' ? null : Number(form.value.user_id) }
       const updated = await apiFetch(`/teams/${selectedTeamId.value}/players/${editing.value.id}`, {
         method: 'PATCH',
-        body: payload,
+        body,
       })
+      await loadLinks(selectedTeamId.value)
       const idx = players.value.findIndex((p) => p.id === updated.id)
       if (idx !== -1) players.value[idx] = updated
     } else {
@@ -203,7 +226,10 @@ async function deleteImage(player, image) {
             <tbody>
               <tr v-for="player in shownPlayers" :key="player.id" class="table-body-row">
                 <td data-label="מספר">{{ player.jersey_number }}</td>
-                <td data-label="שם">{{ player.name }}</td>
+                <td data-label="שם">
+                  {{ player.name }}
+                  <span v-if="links[player.id]" class="badge-muted">{{ links[player.id] }}</span>
+                </td>
                 <td data-label="תמונות" class="max-sm:flex-wrap">
                   <div>
                     <ul class="space-y-1">
@@ -272,6 +298,17 @@ async function deleteImage(player, image) {
         <div>
           <label for="player-jersey-number" class="field-label">מספר חולצה</label>
           <input id="player-jersey-number" v-model="form.jersey_number" type="number" class="field-input" />
+        </div>
+
+        <div v-if="editing">
+          <label for="player-user" class="field-label">משתמש מקושר</label>
+          <select id="player-user" v-model="form.user_id" class="field-input" :disabled="linkableUsers === null">
+            <option value="">{{ linkableUsers === null ? 'שגיאה בטעינת המשתמשים' : 'ללא' }}</option>
+            <option v-if="form.user_id !== '' && !(linkableUsers ?? []).some((u) => u.id === form.user_id)" :value="form.user_id">
+              משתמש מקושר (#{{ form.user_id }})
+            </option>
+            <option v-for="u in linkableUsers ?? []" :key="u.id" :value="u.id">{{ u.username }}</option>
+          </select>
         </div>
 
         <div class="flex gap-2">

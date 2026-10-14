@@ -30,7 +30,7 @@ from app.deps import (
     client_ip,
     is_admin,
 )
-from app.models import AdminUser, Membership
+from app.models import AdminUser, Membership, Player
 from app.security import Email, Username, hash_password, password_fingerprint, verify_password
 
 log = logging.getLogger(__name__)
@@ -107,6 +107,9 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
         "team_id": team_ids[0] if team_ids is not None and len(team_ids) == 1 else None,
         "team_ids": team_ids,
         "clubs": admin_clubs(db, user),
+        "player_ids": list(
+            db.scalars(select(Player.id).where(Player.user_id == user.id, Player.deleted_at.is_(None)).order_by(Player.id))
+        ),
         "memberships": [{"id": m.id, "team_id": m.team_id, "club": m.club, "role": m.role} for m in memberships],
     }
     if admin:  # the live-stats links are admin-only, so fans and players never receive them

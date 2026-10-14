@@ -1,11 +1,27 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
+import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
+import { useAuth } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
 
 const route = useRoute()
+const { user } = useAuth()
+const editing = ref(false)
+const editButton = ref(null)
+const isMine = computed(() => !!player.value && !!user.value?.player_ids?.includes(player.value.id))
+
+function onSaved(updated) {
+  player.value = updated
+}
+
+async function closeEditor() {
+  editing.value = false
+  await nextTick()
+  editButton.value?.focus()
+}
 const player = ref(null)
 const loading = ref(true)
 const error = ref('')
@@ -54,8 +70,22 @@ watch(
     <template v-else-if="player">
       <div class="page-header">
         <h1 class="page-title">{{ player.name }}<template v-if="player.jersey_number != null"> #{{ player.jersey_number }}</template></h1>
-        <RouterLink :to="{ name: 'roster', params: { slug: String(player.team_id) } }" class="section-link">כל השחקנים</RouterLink>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <button
+            v-if="isMine"
+            ref="editButton"
+            type="button"
+            class="btn-secondary"
+            :aria-expanded="editing"
+            aria-controls="profile-form"
+            @click="editing = !editing"
+          >
+            עריכת הפרופיל שלי
+          </button>
+          <RouterLink :to="{ name: 'roster', params: { slug: String(player.team_id) } }" class="section-link">כל השחקנים</RouterLink>
+        </div>
       </div>
+      <PlayerProfileForm v-if="isMine && editing" :player="player" @saved="onSaved" @cancel="closeEditor" />
       <ul v-if="images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         <li v-for="image in images" :key="image.key" class="card overflow-hidden">
           <img :src="image.url" :alt="image.alt" loading="lazy" class="aspect-square w-full object-cover object-top" />
