@@ -20,7 +20,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.db import SessionLocal
-from app.deps import DbSession, RequireAnyAdmin, admin_team_ids, check_team_scope
+from app.deps import DbSession, RequireAnyAdmin, admin_team_ids
 from app.scrape import KINDS, sync_all
 
 log = logging.getLogger(__name__)
@@ -92,8 +92,9 @@ async def sync_now(
     scope = admin_team_ids(db, admin)
     if scope is not None:
         team_ids = team_ids or scope
-        for team_id in team_ids:
-            check_team_scope(db, admin, team_id)
+        denied = sorted(set(team_ids) - set(scope))
+        if denied:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"Not allowed for team(s) {denied}")
     if _running:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Sync already running")
 
