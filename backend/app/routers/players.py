@@ -2,10 +2,18 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, HttpUrl
+from sqlalchemy import ColumnElement, or_, select
 from sqlalchemy.orm import Session
 
-from app.deps import DbSession, RequireAnyAdmin, RequireTeamAdmin, check_team_scope, get_team_or_404
-from app.models import Player, PlayerImage
+from app.deps import (
+    DbSession,
+    RequireTeamAdmin,
+    RequireUser,
+    check_player_self_or_team_admin,
+    check_team_scope,
+    get_team_or_404,
+)
+from app.models import AdminUser, Membership, Player, PlayerImage, Team
 
 router = APIRouter(tags=["players"])
 
@@ -20,6 +28,7 @@ class PlayerUpdate(BaseModel):
     name: str = None
     name_en: str | None = None
     jersey_number: int | None = None
+    user_id: int | None = None  # the linked account; omitted = unchanged, null = unlink (team admins only)
 
 
 class PlayerImageCreate(BaseModel):
@@ -46,6 +55,37 @@ class PlayerOut(BaseModel):
     name_en: str | None
     jersey_number: int | None
     images: list[PlayerImageOut]
+
+
+class LinkableUserOut(BaseModel):
+    id: int
+    username: str
+
+
+class PlayerLinkOut(BaseModel):
+    player_id: int
+    user_id: int
+    username: str
+
+
+def _covering_grant(team: Team) -> ColumnElement[bool]:
+    """True for users holding a member/admin grant on this team or its club (a NULL club never matches, #242)."""
+    scope = Membership.team_id == team.id
+    if team.club is not None:
+        scope = or_(scope, Membership.club == team.club)
+    return (
+        select(Membership.id)
+        .where(Membership.user_id == AdminUser.id, Membership.role.in_(("member", "admin")), scope)
+        .exists()
+    )
+
+
+def _check_linkable(db: Session, team: Team, user_id: int) -> None:
+    if not db.scalar(select(AdminUser.id).where(AdminUser.id == user_id, _covering_grant(team))):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"User {user_id} has no member/admin grant on team {team.id}",
+        )
 
 
 def _get_team_player_or_404(db: Session, team_id: int, player_id: int) -> Player:
@@ -82,16 +122,47 @@ def list_players(team_id: int, db: DbSession) -> list[Player]:
     return [p for p in team.players if p.deleted_at is None]
 
 
+# before the /{player_id} routes
+@router.get("/teams/{team_id}/players/linkable-users", response_model=list[LinkableUserOut])
+def list_linkable_users(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> list[LinkableUserOut]:
+    """Accounts that may be linked to a player of this team. No emails."""
+    team = get_team_or_404(db, team_id)
+    rows = db.execute(
+        select(AdminUser.id, AdminUser.username).where(_covering_grant(team)).order_by(AdminUser.username)
+    )
+    return [LinkableUserOut(id=i, username=u) for i, u in rows]
+
+
+@router.get("/teams/{team_id}/players/links", response_model=list[PlayerLinkOut])
+def list_player_links(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> list[PlayerLinkOut]:
+    """Which roster rows are linked to which account; admin-only so the public roster never reveals it."""
+    rows = db.execute(
+        select(Player.id, AdminUser.id, AdminUser.username)
+        .join(AdminUser, Player.user_id == AdminUser.id)
+        .where(Player.team_id == team_id, Player.deleted_at.is_(None))
+    )
+    return [PlayerLinkOut(player_id=p, user_id=u, username=n) for p, u, n in rows]
+
+
 @router.patch("/teams/{team_id}/players/{player_id}", response_model=PlayerOut)
 def update_player(
     team_id: int,
     player_id: int,
     payload: PlayerUpdate,
     db: DbSession,
-    _admin_id: RequireTeamAdmin,
+    user: RequireUser,
 ) -> Player:
-    player = _get_team_player_or_404(db, team_id, player_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    try:
+        player = _get_team_player_or_404(db, team_id, player_id)
+    except HTTPException:
+        check_team_scope(db, user, team_id)  # outsiders get 403, so a missing id is no existence oracle
+        raise
+    updates = payload.model_dump(exclude_unset=True)
+    check_player_self_or_team_admin(db, user, player, set(updates))
+    # validate only on change: a user who later lost their grant must not block re-saving the player
+    if updates.get("user_id") is not None and updates["user_id"] != player.user_id:
+        _check_linkable(db, get_team_or_404(db, team_id), updates["user_id"])
+    for field, value in updates.items():
         setattr(player, field, value)
     db.commit()
     db.refresh(player)
@@ -136,9 +207,9 @@ def get_player(player_id: int, db: DbSession) -> Player:
     status_code=status.HTTP_201_CREATED,
 )
 def add_player_image(
-    player_id: int, payload: PlayerImageCreate, db: DbSession, admin: RequireAnyAdmin
+    player_id: int, payload: PlayerImageCreate, db: DbSession, user: RequireUser
 ) -> PlayerImage:
-    check_team_scope(db, admin, _get_player_or_404(db, player_id).team_id)
+    check_player_self_or_team_admin(db, user, _get_player_or_404(db, player_id))
     image = PlayerImage(player_id=player_id, url=str(payload.url))
     db.add(image)
     db.commit()
@@ -150,9 +221,9 @@ def add_player_image(
     "/players/{player_id}/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT
 )
 def delete_player_image(
-    player_id: int, image_id: int, db: DbSession, admin: RequireAnyAdmin
+    player_id: int, image_id: int, db: DbSession, user: RequireUser
 ) -> None:
-    check_team_scope(db, admin, _get_player_or_404(db, player_id).team_id)
+    check_player_self_or_team_admin(db, user, _get_player_or_404(db, player_id))
     image = db.get(PlayerImage, image_id)
     if image is None or image.player_id != player_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")

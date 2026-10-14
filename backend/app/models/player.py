@@ -20,6 +20,7 @@ class Player(Base):
     jersey_number: Mapped[int | None] = mapped_column(default=None)
     source_url: Mapped[str | None] = mapped_column(String(500), default=None)
     deleted_at: Mapped[datetime | None] = mapped_column(default=None)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("admin_users.id", ondelete="SET NULL"), index=True, default=None)
 
     team: Mapped["Team"] = relationship(back_populates="players")
     images: Mapped[list["PlayerImage"]] = relationship(back_populates="player", cascade="all, delete-orphan")

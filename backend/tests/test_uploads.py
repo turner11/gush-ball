@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from app import storage
 from app.models import AdminUser, Player, Team
-from app.security import hash_password
 from app.routers import uploads as uploads_router
+from app.security import hash_password
 
 
 @pytest.fixture()
