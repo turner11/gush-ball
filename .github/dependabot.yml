@@ -13,6 +13,6 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: docker
-    directories: ["/backend", "/frontend"]
+    directories: ["/backend", "/frontend", "/.docker/runner-claude"]
     schedule:
       interval: weekly

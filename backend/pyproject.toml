@@ -27,6 +27,7 @@ bbstats = { path = "../stats", editable = true }
 
 [dependency-groups]
 dev = [
+    "pip-audit>=2.10.1",
     "pytest>=9.1.1",
     "ruff>=0.16.9",
 ]
