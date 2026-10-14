@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from app import storage
 from app.routers import uploads as uploads_router
 
 
@@ -12,9 +13,8 @@ def stub_upload_file(monkeypatch: pytest.MonkeyPatch) -> Generator[dict[str, Any
     """Monkeypatch the storage call the router delegates to; records how it was called."""
     calls: dict[str, Any] = {}
 
-    def _fake_upload_file(data: bytes, filename: str, content_type: str) -> str:
+    def _fake_upload_file(data: bytes, content_type: str) -> str:
         calls["data"] = data
-        calls["filename"] = filename
         calls["content_type"] = content_type
         return "https://cdn.example.com/uploads/fake-key.jpg"
 
@@ -103,3 +103,24 @@ def test_upload_returns_url_from_storage(
     assert response.json() == {"url": "https://cdn.example.com/uploads/fake-key.jpg"}
     assert stub_upload_file["content_type"] == "image/png"
     assert stub_upload_file["data"] == b"fake-image-bytes"
+
+
+def test_upload_ignores_client_filename_extension(
+    admin_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recorded: list[dict[str, Any]] = []
+
+    class _Recorder:
+        def put_object(self, **kwargs: Any) -> None:
+            recorded.append(kwargs)
+
+    monkeypatch.setattr(storage.boto3, "client", lambda *args, **kwargs: _Recorder())
+
+    response = admin_client.post(
+        "/uploads", files={"file": ("evil.html", b"<script>", "image/png")}
+    )
+
+    assert response.status_code == 201
+    key = recorded[0]["Key"]
+    assert key.endswith(".png")
+    assert ".html" not in key

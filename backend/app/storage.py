@@ -1,4 +1,3 @@
-from pathlib import PurePosixPath
 from uuid import uuid4
 
 import boto3
@@ -6,10 +5,19 @@ from fastapi import HTTPException, status
 
 from app.config import settings
 
+# The object key's extension comes from this allow-list, never from the client's filename.
+EXTENSION_BY_CONTENT_TYPE = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+    "video/mp4": ".mp4",
+}
 
-def upload_file(data: bytes, filename: str, content_type: str) -> str:
+
+def upload_file(data: bytes, content_type: str) -> str:
     """Upload bytes to object storage under a random key, return the public URL."""
-    extension = PurePosixPath(filename).suffix
+    extension = EXTENSION_BY_CONTENT_TYPE[content_type]
     key = f"{uuid4().hex}{extension}"
 
     try:
