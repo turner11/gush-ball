@@ -240,6 +240,23 @@ def test_password_reset_logs_out_existing_sessions(seeded: TestClient, sent) -> 
     assert seeded.get("/auth/me").status_code == 401
 
 
+def test_logout_revokes_a_copied_session_cookie(seeded: TestClient) -> None:
+    assert seeded.post("/auth/login", json=GOOD).status_code == 200
+    stolen = seeded.cookies.get("session")
+    assert seeded.post("/auth/logout").status_code == 200
+    seeded.cookies.clear()
+    seeded.cookies.set("session", stolen)
+    assert seeded.get("/auth/me").status_code == 401
+    assert seeded.post("/teams", json={"name": "x"}).status_code == 401
+
+
+def test_login_after_logout_works(seeded: TestClient) -> None:
+    assert seeded.post("/auth/login", json=GOOD).status_code == 200
+    assert seeded.post("/auth/logout").status_code == 200
+    assert seeded.post("/auth/login", json=GOOD).status_code == 200
+    assert seeded.get("/auth/me").status_code == 200
+
+
 def test_reset_email_uses_starttls(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
     bodies: list[str] = []
