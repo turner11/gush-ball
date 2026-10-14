@@ -3,8 +3,11 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app import storage
+from app.models import AdminUser, Player, Team
+from app.security import hash_password
 from app.routers import uploads as uploads_router
 
 
@@ -124,3 +127,19 @@ def test_upload_ignores_client_filename_extension(
     key = recorded[0]["Key"]
     assert key.endswith(".png")
     assert ".html" not in key
+
+
+@pytest.mark.parametrize("linked", [True, False])
+def test_upload_allowed_only_for_linked_player(
+    linked: bool, client: TestClient, db_session: Session, stub_upload_file: dict[str, Any]
+) -> None:
+    team = Team(name="T", slug="t")
+    user = AdminUser(username="p", password_hash=hash_password("password123"))
+    db_session.add_all([team, user])
+    db_session.flush()
+    if linked:
+        db_session.add(Player(team_id=team.id, name="P", user_id=user.id))
+    db_session.commit()
+    assert client.post("/auth/login", json={"username": "p", "password": "password123"}).status_code == 200
+    response = client.post("/uploads", files={"file": ("a.png", b"x", "image/png")})
+    assert response.status_code == (201 if linked else 403)
