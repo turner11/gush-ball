@@ -4,12 +4,13 @@ import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
+import GameScoreboard from '../components/GameScoreboard.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
-import { formatDateTime, formatGameDate } from '../lib/format'
-import { homeFirst, played, result, splitGames } from '../lib/games'
+import { formatDateTime } from '../lib/format'
+import { gameAddress, played, splitGames } from '../lib/games'
 
 const team = ref(null)
 // Path strings, not named routes: this view also renders on the slug-less home route.
@@ -64,17 +65,9 @@ const matchCards = computed(() =>
   [
     { title: 'המשחק האחרון', game: lastGame.value },
     { title: 'המשחק הבא', game: nextGame.value },
-  ]
-    .filter((m) => m.game)
-    .map((m) => {
-      const g = m.game
-      const us = { name: team.value.name, logo: team.value.logo_url || '/logo.jpg', score: g.team_score, url: team.value.ibasketball_team_url }
-      const them = { name: g.opponent.name, logo: g.opponent.logo_url, score: g.opponent_score, url: g.opponent.source_url }
-      return { ...m, d: formatGameDate(g.scheduled_at), played: played(g), sides: homeFirst(g, us, them) }
-    }),
+  ].filter((m) => m.game),
 )
 
-const addressOf = (g) => (g.is_home ? team.value.home_court_address : g.opponent.address)
 const lone = computed(() => matchCards.value.length === 1)
 
 // ponytail: the API has no ORDER BY, so highest id = newest.
@@ -141,37 +134,11 @@ const hasSocialEmbed = computed(
               <h2 class="eyebrow">{{ m.title }}</h2>
               <span class="badge badge-muted">{{ m.game.is_home ? 'בית' : 'חוץ' }}</span>
             </div>
-            <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
-              <div class="min-w-0 space-y-1">
-                <img v-if="m.sides[0].logo" :src="m.sides[0].logo" alt="" class="mx-auto size-12 object-contain" :class="lone ? 'sm:size-24' : 'sm:size-14'" />
-                <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': lone }"><a v-if="m.sides[0].url" :href="m.sides[0].url" target="_blank" rel="noopener" class="hover:underline">{{ m.sides[0].name }}</a
-                  ><template v-else>{{ m.sides[0].name }}</template></p>
-              </div>
-              <div class="space-y-1">
-                <template v-if="m.played">
-                  <p class="score" :class="{ 'sm:text-6xl': lone }">{{ m.sides[0].score }} : {{ m.sides[1].score }}</p>
-                  <span v-if="result(m.game)" :class="['badge', result(m.game) === 'W' ? 'badge-win' : 'badge-loss']">{{
-                    result(m.game) === 'W' ? 'ניצחון' : 'הפסד'
-                  }}</span>
-                </template>
-                <template v-else-if="m.d">
-                  <p class="text-2xl font-black tabular-nums" :class="{ 'sm:text-6xl': lone }">{{ m.d.time }}</p>
-                  <p class="text-xs text-muted" :class="{ 'sm:text-sm': lone }">
-                    {{ m.d.weekday }} {{ m.d.day }}
-                    {{ m.d.month }}
-                  </p>
-                </template>
-              </div>
-              <div class="min-w-0 space-y-1">
-                <img v-if="m.sides[1].logo" :src="m.sides[1].logo" alt="" class="mx-auto size-12 object-contain" :class="lone ? 'sm:size-24' : 'sm:size-14'" />
-                <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': lone }"><a v-if="m.sides[1].url" :href="m.sides[1].url" target="_blank" rel="noopener" class="hover:underline">{{ m.sides[1].name }}</a
-                  ><template v-else>{{ m.sides[1].name }}</template></p>
-              </div>
-            </div>
+            <GameScoreboard :game="m.game" :team="team" :large="lone" />
             <div class="mt-auto flex flex-wrap items-center gap-2 text-sm text-muted">
               <!-- an unplayed game already shows its date in the middle -->
-              <span v-if="m.played">{{ formatDateTime(m.game.scheduled_at) }}</span>
-              <GameLocationLinks v-if="addressOf(m.game)" :address="addressOf(m.game)" />
+              <span v-if="played(m.game)">{{ formatDateTime(m.game.scheduled_at) }}</span>
+              <GameLocationLinks v-if="gameAddress(m.game, team)" :address="gameAddress(m.game, team)" />
               <RouterLink :to="base + '/schedule'" class="section-link ms-auto">ללוח המשחקים</RouterLink>
             </div>
           </div>

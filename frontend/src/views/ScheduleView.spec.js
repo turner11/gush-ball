@@ -57,6 +57,7 @@ describe('ScheduleView', () => {
       routes: [
         { path: '/', component: { template: '<div/>' } },
         { path: '/stats', name: 'stats', component: { template: '<div/>' } },
+        { path: '/:slug/games/:id', name: 'game', component: { template: '<div/>' } },
       ],
     })
   })

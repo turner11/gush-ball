@@ -159,4 +159,9 @@ describe('router auth guard', () => {
     expect(router.getRoutes().find((r) => r.name === 'not-found').meta.noindex).toBe(true)
     expect(router.getRoutes().find((r) => r.name === 'stats').meta.noindex).toBe(true)
   })
+
+  it('resolves the public game route', async () => {
+    const { default: router } = await import('./index.js')
+    expect(router.resolve({ name: 'game', params: { slug: 'x', id: 5 } }).path).toBe('/x/games/5')
+  })
 })
