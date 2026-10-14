@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -167,3 +168,62 @@ def test_club_admin_sync_defaults_to_club_teams(
     db_session.commit()
     assert club_admin_client.post("/sync/now", json={"team_ids": [other.id]}).status_code == 403
     assert sync_router._running is False
+
+
+@pytest.mark.parametrize("run_scope", ["all", "partial"])
+def test_team_admin_sync_status_hides_runs_outside_scope(
+    team_admin_client: TestClient,
+    own_team: Team,
+    other_team: Team,
+    monkeypatch: pytest.MonkeyPatch,
+    run_scope: str,
+) -> None:
+    team_ids = None if run_scope == "all" else [own_team.id, other_team.id]
+    monkeypatch.setattr(
+        sync_router,
+        "_last",
+        {
+            "team_ids": team_ids,
+            "errors": ["boom other"],
+            "games": 3,
+            "failed": False,
+            "finished_at": datetime.now(UTC),
+        },
+    )
+
+    response = team_admin_client.get("/sync/status")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["errors"] == []
+    assert body["finished_at"] is None
+    assert body["games"] is None
+    assert body["running"] is sync_router._running
+
+
+def test_team_admin_sync_status_shows_own_run(
+    team_admin_client: TestClient, stub_scrapers: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sync_router, "_last", None)
+    team_admin_client.post("/sync/now")
+
+    body = team_admin_client.get("/sync/status").json()
+
+    assert body["finished_at"] is not None
+    assert body["errors"] == []
+
+
+def test_team_admin_sync_status_shows_own_failed_run(
+    team_admin_client: TestClient, own_team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _boom(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(sync_router, "_last", None)
+    monkeypatch.setattr(sync_router, "sync_all", _boom)
+
+    assert team_admin_client.post("/sync/now", json={"team_ids": [own_team.id]}).status_code == 202
+    body = team_admin_client.get("/sync/status").json()
+
+    assert body["failed"] is True
+    assert body["errors"] == ["boom"]
