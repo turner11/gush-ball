@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.main import app
 from app.models import Game, GameStatus, Opponent, Team
 
 
@@ -504,3 +505,39 @@ def test_patch_stats_url_keeps_gid(admin_client: TestClient, db_session: Session
 
     assert r.json()["stats_url"] == url
     assert bbstats.to_csv_url(url).endswith("&gid=123")
+
+
+@pytest.mark.parametrize("field", ["opponent_name", "scheduled_at", "is_home", "status"])
+def test_patch_game_null_required_field_rejected(
+    admin_client: TestClient, db_session: Session, field: str
+) -> None:
+    game = _make_game(db_session, _make_team(db_session))
+
+    response = admin_client.patch(f"/teams/{game.team_id}/games/{game.id}", json={field: None})
+    assert response.status_code == 422
+
+    db_session.expire_all()
+    assert db_session.get(Game, game.id).is_manually_overridden is False
+
+
+@pytest.mark.parametrize("name", ["", "   "])
+def test_create_game_blank_opponent_name_rejected(
+    admin_client: TestClient, db_session: Session, name: str
+) -> None:
+    team = _make_team(db_session)
+
+    response = admin_client.post(f"/teams/{team.id}/games", json=_game_payload(opponent_name=name))
+    assert response.status_code == 422
+    assert db_session.query(Opponent).count() == 0
+
+
+def test_get_game_needing_review_is_hidden_from_public(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    game = _make_game(db_session, _make_team(db_session))
+    game.needs_review = True
+    db_session.commit()
+    url = f"/teams/{game.team_id}/games/{game.id}"
+
+    assert admin_client.get(url).status_code == 200
+    assert TestClient(app).get(url).status_code == 404

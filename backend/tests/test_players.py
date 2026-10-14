@@ -245,3 +245,13 @@ def test_player_image_out_includes_focus_fields(admin_client: TestClient, team: 
     )
     body = response.json()
     assert (body["focus_x"], body["focus_y"], body["zoom"]) == (None, None, None)
+
+
+def test_patch_player_null_name_rejected(admin_client: TestClient, db_session: Session, team: Team) -> None:
+    player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
+
+    response = admin_client.patch(f"/teams/{team.id}/players/{player_id}", json={"name": None})
+    assert response.status_code == 422
+
+    db_session.expire_all()
+    assert db_session.get(Player, player_id).name == "Dana"

@@ -22,9 +22,10 @@ class TeamLinkCreate(BaseModel):
 
 
 class TeamLinkUpdate(BaseModel):
-    label: str | None = None
+    # omitted = unchanged; null -> 422 (NOT NULL column)
+    label: str = None
     label_en: str | None = None
-    url: HttpUrl | None = None
+    url: HttpUrl = None
 
 
 class TeamLinkOut(BaseModel):
@@ -46,9 +47,10 @@ class TitledUrlCreate(BaseModel):
 
 
 class TitledUrlUpdate(BaseModel):
-    title: str | None = None
+    # omitted = unchanged; null -> 422 (NOT NULL column)
+    title: str = None
     title_en: str | None = None
-    url: HttpUrl | None = None
+    url: HttpUrl = None
     player_ids: list[int] = []
 
 
@@ -71,9 +73,10 @@ class TeamPostCreate(BaseModel):
 
 
 class TeamPostUpdate(BaseModel):
-    title: str | None = None
+    # omitted = unchanged; null -> 422 (NOT NULL column)
+    title: str = None
     title_en: str | None = None
-    body: str | None = None
+    body: str = None
     body_en: str | None = None
 
 
@@ -140,10 +143,6 @@ def _add_crud_routes(
         item = get_item_or_404(db, team_id, item_id)
         data = payload.model_dump(exclude_unset=True)
         _check_player_ids(get_team_or_404(db, team_id), data)
-        if "url" in data and data["url"] is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="url cannot be null"
-            )
         for field, value in _to_columns(data).items():
             setattr(item, field, value)
         db.commit()

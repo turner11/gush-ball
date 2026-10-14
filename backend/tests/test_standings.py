@@ -1,7 +1,8 @@
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models import Opponent
+from app.models import Opponent, StandingRow
 
 
 def _row(**overrides: object) -> dict:
@@ -140,3 +141,16 @@ def test_delete_standing_row_removes_it(admin_client: TestClient, client: TestCl
 
     get_response = client.get(f"/standings/{created['id']}")
     assert get_response.status_code == 404
+
+
+@pytest.mark.parametrize("field", ["league_name", "rank"])
+def test_patch_standing_row_null_field_rejected(
+    admin_client: TestClient, db_session: Session, field: str
+) -> None:
+    created = _create_row(admin_client)
+
+    response = admin_client.patch(f"/standings/{created['id']}", json={field: None})
+    assert response.status_code == 422
+
+    db_session.expire_all()
+    assert getattr(db_session.get(StandingRow, created["id"]), field) == created[field]

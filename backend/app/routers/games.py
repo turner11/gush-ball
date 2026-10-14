@@ -1,8 +1,9 @@
 import re
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -11,9 +12,11 @@ from app.models import Game, GameStatus, get_or_create_opponent
 
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
 
+OpponentName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+
 
 class GameCreate(BaseModel):
-    opponent_name: str
+    opponent_name: OpponentName
     scheduled_at: datetime
     is_home: bool = True
     status: GameStatus = GameStatus.SCHEDULED
@@ -23,10 +26,11 @@ class GameCreate(BaseModel):
 
 
 class GameUpdate(BaseModel):
-    opponent_name: str | None = None
-    scheduled_at: datetime | None = None
-    is_home: bool | None = None
-    status: GameStatus | None = None
+    # omitted = unchanged; null -> 422 (NOT NULL column)
+    opponent_name: OpponentName = None
+    scheduled_at: datetime = None
+    is_home: bool = None
+    status: GameStatus = None
     team_score: int | None = None
     opponent_score: int | None = None
     description: str | None = None
@@ -156,7 +160,11 @@ def list_pending_review_games(
 
 @router.get("/{game_id}", response_model=GameRead)
 def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> GameRead:
-    return _public_game(_get_game_or_404(db, team_id, game_id), can_write_team(db, user, team_id))
+    game = _get_game_or_404(db, team_id, game_id)
+    show = can_write_team(db, user, team_id)
+    if game.needs_review and not show:  # unapproved scraped game, hidden like in list_games
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+    return _public_game(game, show)
 
 
 @router.patch("/{game_id}", response_model=AdminGameRead)
