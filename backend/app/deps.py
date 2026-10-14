@@ -6,7 +6,7 @@ from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import AdminUser, Membership, Team
+from app.models import AdminUser, Game, Membership, Team
 from app.security import password_fingerprint
 
 DbSession = Annotated[Session, Depends(get_db)]
@@ -167,3 +167,10 @@ def get_team_or_404(db: Session, team_id: int) -> Team:
     if team is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
     return team
+
+
+def get_game_or_404(db: Session, team_id: int, game_id: int) -> Game:
+    game = db.scalar(select(Game).where(Game.id == game_id, Game.team_id == team_id))
+    if game is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+    return game
