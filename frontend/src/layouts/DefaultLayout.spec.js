@@ -568,6 +568,7 @@ describe('DefaultLayout', () => {
     const header = wrapper.find('header')
     expect(header.find('a[href="/team_a/admin"]').text()).toBe('ניהול')
     expect(header.find('a[href="/account"]').text()).toBe('admin')
+    expect(header.find('a[href="/account"]').classes()).toContain('max-sm:hidden')
     expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(true)
     expect(header.find('a[href="/admin/login"]').exists()).toBe(false)
   })
@@ -588,6 +589,7 @@ describe('DefaultLayout', () => {
     const account = header.find('a[href="/account"]')
     expect(account.exists()).toBe(true)
     expect(account.text()).toBe('Dana C')
+    expect(account.classes()).not.toContain('max-sm:hidden')
   })
 
   it('logout posts /auth/logout, swaps to the login link and stays on the page', async () => {

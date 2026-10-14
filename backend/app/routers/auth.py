@@ -15,7 +15,7 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from itsdangerous import BadSignature, URLSafeTimedSerializer
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -57,8 +57,26 @@ class SignupRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+_ZERO_WIDTH = dict.fromkeys(map(ord, "\u200b‌‍﻿"))
+
+
+def _clean_name(name: str | None) -> str:
+    """Zero-width characters dropped, whitespace collapsed: a name made only of them becomes empty."""
+    return " ".join((name or "").translate(_ZERO_WIDTH).split())
+
+
+def _non_empty(value: str) -> str:
+    if not value:
+        raise ValueError("display_name is empty after removing zero-width characters")
+    return value
+
+
 class UpdateMeRequest(BaseModel):
-    display_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+    display_name: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=64),
+        AfterValidator(lambda v: _non_empty(_clean_name(v))),
+    ]
 
 
 class ChangePasswordRequest(BaseModel):
@@ -413,7 +431,7 @@ _DISPLAY_NAME_MAX = 64  # same cap as PATCH /auth/me
 
 def _signup_username(db: Session, name: str | None) -> str:
     """The Google display name, never the email: admins see usernames. Numeric suffix when taken."""
-    base = " ".join((name or "").split())[:_USERNAME_MAX].rstrip()
+    base = _clean_name(name)[:_USERNAME_MAX].rstrip()
     if not base or "@" in base:  # "@" in a username would make password login look it up as an email
         base = _FALLBACK_USERNAME
     candidate, n = base, 1
@@ -442,8 +460,10 @@ def google_callback(
     user = db.scalar(select(AdminUser).where(AdminUser.email == email))
     if user is None:  # signup: no memberships, not a full admin, unusable password (a reset link can set one)
         username = _signup_username(db, name)
-        # A display name is never a login key, so the "@" rule does not apply; a duplicate keeps the same name.
-        display_name = " ".join((name or "").split())[:_DISPLAY_NAME_MAX].rstrip() or username
+        # Same "@" rule as the username (an email-shaped name leaks the address); a duplicate name stays shared.
+        display_name = _clean_name(name)[:_DISPLAY_NAME_MAX].rstrip()
+        if not display_name or "@" in display_name:
+            display_name = username
         user = AdminUser(
             username=username,
             display_name=display_name,

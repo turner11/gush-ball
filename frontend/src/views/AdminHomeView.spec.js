@@ -77,6 +77,15 @@ describe('AdminHomeView', () => {
     expect(wrapper.find('membership-requests-stub').exists()).toBe(true)
   })
 
+  it('links to the account page', async () => {
+    mockFetch({ 'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }), 'GET /api/teams': () => jsonRes(TEAMS) })
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true } } })
+    await flushPromises()
+
+    expect(wrapper.find('a[href="/account"]').exists()).toBe(true)
+  })
+
   it('clicking the sync button POSTs /sync/now and shows the running message', async () => {
     mockFetch({
       'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }),

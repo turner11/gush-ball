@@ -142,7 +142,13 @@ onMounted(async () => {
           <template v-if="checked">
             <template v-if="user">
               <RouterLink v-if="user.is_admin" :to="teamBase + '/admin'" class="nav-link">ניהול</RouterLink>
-              <RouterLink :to="{ name: 'account' }" title="החשבון שלי" class="btn-icon sm:w-auto sm:gap-2 sm:px-3">
+              <!-- Admins reach /account from admin home below sm: the 390px header is full. -->
+              <RouterLink
+                :to="{ name: 'account' }"
+                title="החשבון שלי"
+                class="btn-icon sm:w-auto sm:gap-2 sm:px-3"
+                :class="{ 'max-sm:hidden': user.is_admin }"
+              >
                 <AppIcon name="users" />
                 <span class="max-w-32 truncate max-sm:sr-only" dir="auto">{{ user.display_name }}</span>
               </RouterLink>

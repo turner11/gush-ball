@@ -697,6 +697,15 @@ def test_google_signup_display_name_is_google_name(client: TestClient, db_sessio
     assert rows == [("Dana Cohen", "Dana Cohen"), ("Dana Cohen 2", "Dana Cohen"), ("שחקן", "שחקן")]
 
 
+def test_google_signup_display_name_falls_back_for_at_sign_or_zero_width(
+    client: TestClient, db_session: Session, google
+) -> None:
+    _signup(client, google, email="a@example.com", name="dana@example.com")
+    _signup(client, google, email="b@example.com", name="\u200b")
+    rows = list(db_session.execute(select(AdminUser.username, AdminUser.display_name).order_by(AdminUser.id)))
+    assert rows == [("שחקן", "שחקן"), ("שחקן 2", "שחקן 2")]
+
+
 def test_update_own_display_name(seeded: TestClient) -> None:
     assert seeded.patch("/auth/me", json={"display_name": "x"}).status_code == 401
     seeded.post("/auth/login", json=GOOD)
@@ -704,7 +713,7 @@ def test_update_own_display_name(seeded: TestClient) -> None:
     assert r.status_code == 200 and r.json()["display_name"] == "Dana C"
     me = seeded.get("/auth/me").json()
     assert me["display_name"] == "Dana C" and me["username"] == "admin"
-    for bad in ("   ", "x" * 65):
+    for bad in ("   ", "\u200b‍ ﻿", "x" * 65):
         assert seeded.patch("/auth/me", json={"display_name": bad}).status_code == 422
 
 

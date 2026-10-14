@@ -140,7 +140,10 @@ onUnmounted(() => {
 
 <template>
   <section class="space-y-6">
-    <h1 class="page-title">אזור ניהול</h1>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h1 class="page-title">אזור ניהול</h1>
+      <RouterLink to="/account" class="nav-link">החשבון שלי</RouterLink>
+    </div>
     <nav class="grid grid-cols-2 gap-3" :class="fullAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
       <RouterLink :to="base + '/admin/players'" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
