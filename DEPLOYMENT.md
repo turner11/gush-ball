@@ -146,7 +146,7 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `STATS_TEMPLATE_URL` | Optional, URL or sheet ID of the headers-only template Google Sheet (see §4.3) |
 | `PUBLIC_URL` | `https://<domain>`. Required: password-reset links and the Google redirect URI are built from it. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional, enable "Sign in with Google" (see 4.1). |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for password reset and password sign-up (STARTTLS, port defaults to 587). Without `SMTP_HOST` both return 503; links are never logged in prod. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for password reset and password sign-up (STARTTLS, port defaults to 587). Without `SMTP_HOST` both return 503; links are never logged in prod. Setup: see [4.4](#44-email-smtp). |
 | `SENTRY_DSN` | Optional, backend error reporting (see §10). Runtime. |
 | `SENTRY_TRACES_SAMPLE_RATE` | Optional, share of public read requests traced (default 1.0, all). Writes and scrapes are always traced. Lower it if Sentry's span usage nears the plan quota. |
 | `VITE_SENTRY_DSN` | Optional, frontend error reporting (see §10). Must be available at **build** time. |
@@ -230,6 +230,23 @@ Lets admins open the BBStats Streamlit app from a game and start each game's she
 6. Verify: log in, edit a game and click **גיליון חדש מתבנית**. Google's "Make a copy" page opens. Paste the copy's URL
    and click **טען סטטיסטיקה**. You see "הקישור נשמר — הגיליון עדיין ריק" and the schedule card shows
    **סטטיסטיקה חיה**.
+
+### 4.4 Email (SMTP)
+
+Password sign-up, the verify link and "forgot password" all send email. Without it they return 503.
+
+1. Get SMTP credentials from any STARTTLS/587 provider. Example, Gmail: open
+   [App passwords](https://myaccount.google.com/apppasswords) (needs 2-Step Verification), create one named
+   "gush-ball", and copy the 16 characters without spaces. *Why:* Gmail rejects the normal password for SMTP.
+   Hetzner blocks ports 25 and 465, so use 587.
+2. In Coolify open the resource (as in §3 step 4) → **Environment Variables**, set `SMTP_HOST` (`smtp.gmail.com`),
+   `SMTP_PORT` (`587`), `SMTP_USER` (your address), `SMTP_PASSWORD` (the app password; no spaces, `$` or quotes, per §3.4)
+   and `SMTP_FROM` (the same address; Gmail rewrites any other From).
+3. Click **Save**, then **Redeploy**. *Why:* the backend reads them at start.
+4. Verify: sign up at `https://<domain>/admin/signup` with a real inbox. The page says "נרשמת! שלחנו קישור לאימות…" and
+   the "אימות כתובת אימייל" email arrives (check spam). Also try "שכחתי סיסמה" on the login page.
+5. If nothing arrives: Coolify → the backend service → **Logs**, search `SMTP`. An authentication error means a wrong
+   password; a timeout means a wrong host or port. *Why:* sending is a background task, so failures never reach the page.
 
 ## 5. Nightly scrape
 
