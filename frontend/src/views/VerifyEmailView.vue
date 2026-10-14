@@ -6,13 +6,15 @@ import { apiFetch } from '../lib/api'
 
 const LOGO_URL = '/logo.jpg'
 
-const token = useRoute().query.token
-// idle | posting | ok | invalid | taken | error. Verifies on click, not on mount: mail scanners prefetch links.
+const route = useRoute()
+const token = route.query.token
+// idle | posting | ok | invalid | taken | login | error. Verifies on click, not on mount: mail scanners prefetch links.
 const state = ref(token ? 'idle' : 'invalid')
 
 const ERRORS = {
   invalid: 'הקישור אינו תקף או שפג תוקפו',
   taken: 'כתובת האימייל כבר משויכת לחשבון אחר',
+  login: 'התחברו לחשבון שאיתו נרשמתם כדי לאשר את הכתובת',
   error: 'שגיאה באימות, נסו שוב',
 }
 
@@ -22,7 +24,8 @@ async function onConfirm() {
     await apiFetch('/auth/verify-email', { method: 'POST', body: { token } })
     state.value = 'ok'
   } catch (err) {
-    state.value = err.status === 400 ? 'invalid' : err.status === 409 ? 'taken' : 'error'
+    state.value =
+      err.status === 400 ? 'invalid' : err.status === 409 ? 'taken' : err.status === 401 || err.status === 403 ? 'login' : 'error'
   }
 }
 </script>
@@ -49,7 +52,7 @@ async function onConfirm() {
         >
           {{ state === 'posting' ? 'מאמת…' : 'אישור' }}
         </button>
-        <RouterLink v-else :to="{ name: 'admin-login' }" class="section-link">כניסה</RouterLink>
+        <RouterLink v-else :to="{ name: 'admin-login', query: state === 'login' ? { next: route.fullPath } : {} }" class="section-link">כניסה</RouterLink>
       </template>
     </div>
   </section>
