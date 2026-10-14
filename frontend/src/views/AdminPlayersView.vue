@@ -103,9 +103,14 @@ async function onSubmit() {
   error.value = null
   try {
     if (editing.value) {
+      // user_id only when changed: a failed links load must never silently unlink the player
+      const was = linkedUserIds.value[editing.value.id] ?? ''
+      const body = String(form.value.user_id) === String(was)
+        ? payload
+        : { ...payload, user_id: form.value.user_id === '' ? null : Number(form.value.user_id) }
       const updated = await apiFetch(`/teams/${selectedTeamId.value}/players/${editing.value.id}`, {
         method: 'PATCH',
-        body: { ...payload, user_id: form.value.user_id === '' ? null : Number(form.value.user_id) },
+        body,
       })
       await loadLinks(selectedTeamId.value)
       const idx = players.value.findIndex((p) => p.id === updated.id)

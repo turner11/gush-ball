@@ -1,14 +1,17 @@
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, ConfigDict, HttpUrl
+from pydantic import BaseModel, ConfigDict, HttpUrl, StringConstraints
 from sqlalchemy import ColumnElement, or_, select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.deps import (
     DbSession,
     RequireTeamAdmin,
     RequireUser,
+    can_write_team,
     check_player_self_or_team_admin,
     check_team_scope,
     get_team_or_404,
@@ -16,6 +19,8 @@ from app.deps import (
 from app.models import AdminUser, Membership, Player, PlayerImage, Team
 
 router = APIRouter(tags=["players"])
+
+PlayerName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 
 class PlayerCreate(BaseModel):
     name: str
@@ -25,8 +30,8 @@ class PlayerCreate(BaseModel):
 
 class PlayerUpdate(BaseModel):
     # omitted = unchanged; null -> 422 (NOT NULL column)
-    name: str = None
-    name_en: str | None = None
+    name: PlayerName = None
+    name_en: PlayerName | None = None
     jersey_number: int | None = None
     user_id: int | None = None  # the linked account; omitted = unchanged, null = unlink (team admins only)
 
@@ -209,7 +214,12 @@ def get_player(player_id: int, db: DbSession) -> Player:
 def add_player_image(
     player_id: int, payload: PlayerImageCreate, db: DbSession, user: RequireUser
 ) -> PlayerImage:
-    check_player_self_or_team_admin(db, user, _get_player_or_404(db, player_id))
+    player = _get_player_or_404(db, player_id)
+    check_player_self_or_team_admin(db, user, player)
+    # a self-editor's photo is public (CSP img-src *), so only our own storage is allowed; admins may paste any URL
+    prefix = settings.object_storage_public_url.rstrip("/")
+    if not can_write_team(db, user, player.team_id) and not (prefix and str(payload.url).startswith(prefix + "/")):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Upload the photo instead of linking a URL")
     image = PlayerImage(player_id=player_id, url=str(payload.url))
     db.add(image)
     db.commit()

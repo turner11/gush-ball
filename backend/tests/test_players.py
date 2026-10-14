@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.main import app
 from app.models import AdminUser, Membership, Player, PlayerImage, Team
 from app.security import hash_password
@@ -372,7 +373,10 @@ def test_linked_user_cannot_edit_other_player(client: TestClient, db_session: Se
     assert client.patch(f"/teams/{own_team.id}/players/{other.id}", json={"name": "X"}).status_code == 403
 
 
-def test_linked_user_manages_own_images_only(client: TestClient, db_session: Session, own_team: Team) -> None:
+def test_linked_user_manages_own_images_only(
+    client: TestClient, db_session: Session, own_team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "object_storage_public_url", "https://x.test")
     user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
     mine = _player(db_session, own_team, user=user)
     other = _player(db_session, own_team, name="Other")
@@ -424,3 +428,21 @@ def test_me_lists_linked_player_ids(client: TestClient, db_session: Session, own
     db_session.commit()
     _player(db_session, own_team, name="Other")
     assert client.get("/auth/me").json()["player_ids"] == [mine.id]
+
+
+def test_linked_user_cannot_attach_external_photo_url(
+    client: TestClient, db_session: Session, own_team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "object_storage_public_url", "https://cdn.test")
+    user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
+    mine = _player(db_session, own_team, user=user)
+    assert client.post(f"/players/{mine.id}/images", json={"url": "https://evil.test/a.png"}).status_code == 422
+    assert client.post(f"/players/{mine.id}/images", json={"url": "https://cdn.test.evil.test/a.png"}).status_code == 422
+    assert client.post(f"/players/{mine.id}/images", json={"url": "https://cdn.test/a.png"}).status_code == 201
+
+
+@pytest.mark.parametrize("field", ["name", "name_en"])
+def test_patch_player_name_over_120_chars_is_422(admin_client: TestClient, team: Team, field: str) -> None:
+    player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
+    response = admin_client.patch(f"/teams/{team.id}/players/{player_id}", json={field: "x" * 121})
+    assert response.status_code == 422
