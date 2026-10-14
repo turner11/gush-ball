@@ -19,7 +19,7 @@ const error = ref(false)
 const games = ref([])
 const teams = ref([])
 
-const { selectedTeamId } = useSelectedTeam()
+const { selectedTeamId, teamsLoaded } = useSelectedTeam()
 const current = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value))
 const clubTeams = computed(() => clubTeamsOf(teams.value, current.value))
 const hasClubPage = computed(() => clubTeams.value.length > 1)
@@ -58,7 +58,8 @@ load()
       </div>
       <RouterLink :to="{ name: 'teams' }" class="section-link">כל הקבוצות</RouterLink>
     </div>
-    <div v-if="loading" class="space-y-3" aria-busy="true">
+    <!-- on a cold load the layout resolves the slug to a team after our fetch: wait, or "no club" flashes -->
+    <div v-if="loading || (!selectedTeamId && !teamsLoaded)" class="space-y-3" aria-busy="true">
       <div class="skeleton h-16" />
       <div class="skeleton h-16" />
     </div>

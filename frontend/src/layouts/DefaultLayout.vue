@@ -135,7 +135,7 @@ onMounted(async () => {
             <AppIcon name="grid" />
           </RouterLink>
           <nav data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden md:block">
-            <ul class="flex gap-4 lg:gap-6">
+            <ul class="flex gap-3 lg:gap-6">
               <li v-for="item in navItems" :key="item.label">
                 <RouterLink :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
               </li>
