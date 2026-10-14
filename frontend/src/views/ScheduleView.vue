@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import AppIcon from '../components/AppIcon.vue'
+import CalendarSubscribe from '../components/CalendarSubscribe.vue'
 import GameRow from '../components/GameRow.vue'
 import { useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
@@ -55,6 +56,7 @@ watch(selectedTeamId, loadGames, { immediate: true })
         <h1 class="page-title">לוח משחקים</h1>
         <a v-if="team?.ibasketball_team_url" :href="team.ibasketball_team_url" target="_blank" rel="noopener" class="section-link">{{ team.name }}<AppIcon name="external" /></a>
       </div>
+      <CalendarSubscribe v-if="team" :team-id="team.id" />
     </div>
 
     <div v-if="loading" class="space-y-3" aria-busy="true">
