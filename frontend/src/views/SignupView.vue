@@ -37,7 +37,7 @@ async function onSubmit() {
   } catch (err) {
     if (err.status === 409) usernameError.value = err.message
     else if (err.status === 429) error.value = 'יותר מדי ניסיונות, נסו שוב מאוחר יותר'
-    else if (err.status === 503) error.value = 'הרשמה עם סיסמה אינה זמינה כרגע. אפשר להיכנס עם Google בעמוד הכניסה'
+    else if (err.status === 503) error.value = 'הרשמה עם סיסמה אינה זמינה כרגע. פנו למנהל האתר'
     else error.value = 'שגיאה בהרשמה, נסו שוב'
   } finally {
     submitting.value = false

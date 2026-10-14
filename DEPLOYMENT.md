@@ -240,7 +240,7 @@ Password sign-up, the verify link and "forgot password" all send email. Without 
    "gush-ball", and copy the 16 characters without spaces. *Why:* Gmail rejects the normal password for SMTP.
    Hetzner blocks ports 25 and 465, so use 587.
 2. In Coolify open the resource (as in §3 step 4) → **Environment Variables**, set `SMTP_HOST` (`smtp.gmail.com`),
-   `SMTP_PORT` (`587`), `SMTP_USER` (your address), `SMTP_PASSWORD` (the app password; no spaces, `$` or quotes, per §3.4)
+   `SMTP_PORT` (`587`), `SMTP_USER` (your address), `SMTP_PASSWORD` (the app password; no spaces, `$` or quotes, per §3 step 4)
    and `SMTP_FROM` (the same address; Gmail rewrites any other From).
 3. Click **Save**, then **Redeploy**. *Why:* the backend reads them at start.
 4. Verify: sign up at `https://<domain>/admin/signup` with a real inbox. The page says "נרשמת! שלחנו קישור לאימות…" and
