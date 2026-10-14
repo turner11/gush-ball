@@ -71,4 +71,12 @@ describe('SignupView', () => {
     await fill(wrapper)
     expect(wrapper.find('[role="alert"]').text()).toContain('יותר מדי ניסיונות')
   })
+
+  it('503 says password signup is unavailable instead of try again', async () => {
+    const wrapper = await mountSignup(fail(503, 'שליחת אימייל אינה מוגדרת'))
+    await fill(wrapper)
+    const text = wrapper.find('[role="alert"]').text()
+    expect(text).toContain('אינה זמינה')
+    expect(text).not.toContain('נסו שוב')
+  })
 })
