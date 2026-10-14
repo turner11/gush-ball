@@ -23,6 +23,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { apiFetch } from '../lib/api'
+import { BACKGROUND_PRESETS, isPresetBackground } from '../lib/backgrounds'
 
 // Editable review table shared by the club import (create) and batch edit (update).
 // `save(row)` creates or updates the team and resolves to its id; it throws on failure.
@@ -147,8 +148,8 @@ async function onSubmit() {
             </td>
             <td data-label="רקע">
               <select v-model="row.background" class="field-input mt-0 w-full min-w-0 sm:min-w-28" :aria-label="`רקע — ${row.initialName}`">
-                <option value="hoop-1">רקע 1</option>
-                <option value="hoop-2">רקע 2</option>
+                <option v-for="preset in BACKGROUND_PRESETS" :key="preset.value" :value="preset.value">{{ preset.label }}</option>
+                <option v-if="!isPresetBackground(row.background)" :value="row.background">תמונה מותאמת</option>
               </select>
             </td>
             <td data-label="רשתות חברתיות">

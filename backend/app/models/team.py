@@ -25,7 +25,8 @@ class Team(Base):
     secondary_color: Mapped[str | None] = mapped_column(String(7), default=None)
     logo_url: Mapped[str | None] = mapped_column(String(500), default=None)
 
-    background: Mapped[str] = mapped_column(String(20), default="hoop-1", server_default="hoop-1")
+    # preset key or image URL
+    background: Mapped[str] = mapped_column(String(500), default="hoop-1", server_default="hoop-1")
 
     # A Club by its unique name; groups teams and keys club-admin scope. A rename cascades.
     club: Mapped[str | None] = mapped_column(String(120), ForeignKey("clubs.name", onupdate="CASCADE"), default=None)

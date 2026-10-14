@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import ImageUpload from '../components/ImageUpload.vue'
@@ -9,6 +9,7 @@ import { clubAdmin, fullAdmin } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
+import { BACKGROUND_PRESETS, backgroundSrc, isPresetBackground } from '../lib/backgrounds'
 
 const route = useRoute()
 const teamId = route.params.id
@@ -50,7 +51,9 @@ const team = ref(null)
 const loading = ref(true)
 const submitting = ref(false)
 const saved = ref(false)
-const clubOptions = ref([])
+const allTeams = ref([])
+const clubOptions = computed(() => [...new Set(allTeams.value.map((t) => t.club).filter(Boolean))].sort())
+const previewFailed = ref(false)
 const form = reactive({
   ...Object.fromEntries(GROUPS.flatMap((g) => g.fields).map((f) => [f.key, ''])),
   primary_color: '#000000',
@@ -86,11 +89,24 @@ async function onSubmit() {
   }
 }
 
-watch(form, () => (saved.value = false))
+watch(form, () => {
+  saved.value = false
+  previewFailed.value = false
+})
+
+// ponytail: club backgrounds derived from teams' current values; add Club.backgrounds if admins need a persistent library
+const customBackgrounds = computed(() => {
+  const used = allTeams.value.filter((t) => t.club && t.club === team.value?.club).map((t) => t.background)
+  return [...new Set([...used, form.background])].filter((b) => b && !isPresetBackground(b))
+})
+const backgroundUrl = computed({
+  get: () => (isPresetBackground(form.background) ? '' : form.background),
+  set: (value) => (form.background = value || 'hoop-1'),
+})
 
 async function loadClubOptions() {
   try {
-    clubOptions.value = [...new Set((await apiFetch('/teams')).map((t) => t.club).filter(Boolean))].sort()
+    allTeams.value = await apiFetch('/teams')
   } catch {
     // only a suggestion list
   }
@@ -178,9 +194,20 @@ const contentSections = [
               <div>
                 <label for="team-background" class="field-label">רקע</label>
                 <select id="team-background" v-model="form.background" class="field-input">
-                  <option value="hoop-1">רקע 1</option>
-                  <option value="hoop-2">רקע 2</option>
+                  <option v-for="preset in BACKGROUND_PRESETS" :key="preset.value" :value="preset.value">{{ preset.label }}</option>
+                  <option v-for="(url, i) in customBackgrounds" :key="url" :value="url">תמונה מותאמת {{ i + 1 }}</option>
                 </select>
+                <label for="team-background-url" class="field-label">או כתובת תמונה</label>
+                <input id="team-background-url" v-model.lazy="backgroundUrl" type="url" dir="ltr" class="field-input" />
+                <ImageUpload label="העלאת תמונת רקע" @uploaded="(url) => (form.background = url)" />
+                <img
+                  v-if="!previewFailed"
+                  :src="backgroundSrc(form.background)"
+                  alt="תצוגה מקדימה של הרקע"
+                  class="mt-2 h-20 w-full rounded-xl border border-line object-cover object-[50%_65%]"
+                  @error="previewFailed = true"
+                />
+                <p v-else class="error-text" role="alert">לא ניתן לטעון את התמונה</p>
               </div>
             </template>
             <div v-for="field in group.fields" :key="field.key">
@@ -200,7 +227,7 @@ const contentSections = [
                 <p v-if="!fullAdmin" id="club-hint" class="mt-1 text-sm text-muted">רק מנהל ראשי יכול לשנות מועדון</p>
               </template>
               <template v-if="field.key === 'logo_url'">
-                <ImageUpload @uploaded="(url) => (form.logo_url = url)" />
+                <ImageUpload label="העלאת לוגו" @uploaded="(url) => (form.logo_url = url)" />
                 <img v-if="form.logo_url" :src="form.logo_url" alt="" class="mt-2 size-16 object-contain" />
               </template>
             </div>
