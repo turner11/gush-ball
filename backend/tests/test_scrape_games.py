@@ -477,7 +477,7 @@ def test_resync_does_not_adopt_orphan_from_another_day(
     assert game.source_event_id == 9001
 
 
-def test_sync_leaves_other_teams_game_untouched(
+def test_sync_derby_gives_each_club_team_its_own_game(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     team_a = _make_team(db_session)
@@ -499,7 +499,8 @@ def test_sync_leaves_other_teams_game_untouched(
     db_session.refresh(game)
     assert game.team_id == team_b.id
     assert game.opponent_id == opp.id
-    assert db_session.query(Game).count() == 1
+    assert db_session.query(Game).filter_by(team_id=team_a.id, source_event_id=9001).count() == 1
+    assert db_session.query(Game).count() == 2
 
 
 def test_resync_overridden_game_without_changes_clears_suggestion(

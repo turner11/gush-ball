@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Enum, ForeignKey, String, Text, exists, false
+from sqlalchemy import JSON, Enum, ForeignKey, String, Text, UniqueConstraint, exists, false
 from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from app.db import Base
@@ -22,6 +22,8 @@ class GameStatus(enum.Enum):
 
 class Game(Base):
     __tablename__ = "games"
+    # Per team, not global: a derby (one event, two club teams) is one row per side.
+    __table_args__ = (UniqueConstraint("team_id", "source_event_id", name="uq_games_team_source_event"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # >=1 snapshot; EXISTS in the same SELECT so game lists stay one query.
@@ -42,7 +44,7 @@ class Game(Base):
 
     # Phase 2 scrape bookkeeping (#14). All default False so manually created
     # games stay live exactly as they do today.
-    source_event_id: Mapped[int | None] = mapped_column(unique=True, default=None)
+    source_event_id: Mapped[int | None] = mapped_column(default=None)
     is_scraped: Mapped[bool] = mapped_column(default=False, server_default=false())
     needs_review: Mapped[bool] = mapped_column(default=False, server_default=false())
     is_manually_overridden: Mapped[bool] = mapped_column(default=False, server_default=false())
