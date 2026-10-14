@@ -1,11 +1,11 @@
 import re
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, StringConstraints
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.deps import (
     DbSession,
@@ -18,6 +18,7 @@ from app.deps import (
 from app.models import Game, GameStatus, get_or_create_opponent
 
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
+club_router = APIRouter(prefix="/games", tags=["games"])
 
 OpponentName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 
@@ -136,6 +137,21 @@ def list_games(team_id: int, db: DbSession, user: OptionalUser) -> list[GameRead
     show = can_write_team(db, user, team_id)
     games = db.scalars(select(Game).where(Game.team_id == team_id, Game.needs_review.is_(False)))
     return [_public_game(g, show) for g in games]
+
+
+@club_router.get("", response_model=list[GameRead])
+def list_club_games(db: DbSession, from_: Annotated[date, Query(alias="from")], to: date) -> list[GameRead]:
+    """Approved games of every team with from <= day <= to (scheduled_at is naive Israel wall-clock time)."""
+    games = db.scalars(
+        select(Game)
+        .options(selectinload(Game.opponent))
+        .where(
+            Game.needs_review.is_(False),
+            Game.scheduled_at >= datetime.combine(from_, time.min),
+            Game.scheduled_at < datetime.combine(to + timedelta(days=1), time.min),
+        )
+    )
+    return [_public_game(g, False) for g in games]
 
 
 @router.get("/pending-review", response_model=list[AdminGameRead])

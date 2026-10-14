@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import ClubWeek from '../components/ClubWeek.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import PlayerCard from '../components/PlayerCard.vue'
@@ -143,6 +144,8 @@ const hasSocialEmbed = computed(
             </div>
           </div>
         </div>
+
+        <ClubWeek />
 
         <section v-if="newestPost" class="space-y-3">
           <div class="section-header">

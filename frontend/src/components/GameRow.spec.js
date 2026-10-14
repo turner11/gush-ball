@@ -28,7 +28,7 @@ describe('GameRow showTeam', () => {
     const plain = mount(GameRow, { props, global: { stubs } })
     expect(plain.findComponent({ name: 'GameStatsLink' }).exists()).toBe(true)
     const w = mount(GameRow, { props: { ...props, showTeam: true }, global: { stubs } })
-    expect(w.find('p.sm\:hidden').text()).toBe('קבוצה א')
+    expect(w.find('p.text-xs').text()).toBe('קבוצה א')
     expect(w.findComponent({ name: 'GameStatsLink' }).exists()).toBe(false)
   })
 })
