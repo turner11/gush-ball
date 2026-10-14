@@ -1,34 +1,37 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 import ConfirmDialog from './ConfirmDialog.vue'
 
-const requests = ref(null) // null = loading
+const rows = ref(null) // null = loading; pending requests and approved members
 const loadFailed = ref(false)
 const busyId = ref(null)
 const actionError = ref('')
 const status = ref('')
-const pendingReject = ref(null) // the request awaiting confirmation
+const pendingDelete = ref(null) // the row awaiting confirmation
+const requests = computed(() => rows.value?.filter((r) => r.role === 'pending'))
+const members = computed(() => rows.value?.filter((r) => r.role === 'member'))
+const scopeLabel = (row) => (row.club ? `מועדון: ${row.club}` : `קבוצה: ${row.team_name}`)
 
 async function load() {
   loadFailed.value = false
   try {
-    requests.value = await apiFetch('/memberships')
+    rows.value = await apiFetch('/memberships')
   } catch {
     loadFailed.value = true
   }
 }
 onMounted(load)
 
-// Runs one approve/reject call; on success the row leaves the list.
-async function act(request, call, message) {
+// Runs one call; onSuccess updates the row (approve) or drops it (remove).
+async function act(request, call, message, onSuccess) {
   busyId.value = request.id
   actionError.value = ''
   status.value = ''
   try {
     await call()
-    requests.value = requests.value.filter((r) => r.id !== request.id)
+    onSuccess()
     status.value = message
   } catch {
     actionError.value = 'שגיאה בעדכון הבקשה, נסו שוב'
@@ -38,13 +41,24 @@ async function act(request, call, message) {
 }
 
 const approve = (request) =>
-  act(request, () => apiFetch(`/memberships/${request.id}/approve`, { method: 'POST' }), `הבקשה של ${request.username} אושרה`)
+  act(request, () => apiFetch(`/memberships/${request.id}/approve`, { method: 'POST' }), `הבקשה של ${request.username} אושרה`, () => {
+    request.role = 'member'
+  })
 
-function onRejectConfirmed() {
-  const request = pendingReject.value
-  pendingReject.value = null
-  return act(request, () => apiFetch(`/memberships/${request.id}`, { method: 'DELETE' }), `הבקשה של ${request.username} נדחתה`)
+function onDeleteConfirmed() {
+  const row = pendingDelete.value
+  pendingDelete.value = null
+  const message = row.role === 'pending' ? `הבקשה של ${row.username} נדחתה` : `${row.username} הוסר/ה`
+  return act(row, () => apiFetch(`/memberships/${row.id}`, { method: 'DELETE' }), message, () => {
+    rows.value = rows.value.filter((r) => r.id !== row.id)
+  })
 }
+
+const confirmMessage = computed(() => {
+  const row = pendingDelete.value
+  if (!row) return ''
+  return row.role === 'pending' ? `לדחות את הבקשה של ${row.username}?` : `להסיר את ${row.username} מ${scopeLabel(row)}?`
+})
 </script>
 
 <template>
@@ -54,7 +68,7 @@ function onRejectConfirmed() {
       <span v-if="requests?.length" class="badge-muted">{{ requests.length }}</span>
     </div>
 
-    <div v-if="requests === null && !loadFailed" class="space-y-2" aria-busy="true">
+    <div v-if="rows === null && !loadFailed" class="space-y-2" aria-busy="true">
       <div class="skeleton h-14"></div>
       <div class="skeleton h-14"></div>
     </div>
@@ -70,7 +84,7 @@ function onRejectConfirmed() {
           <p v-if="request.email_hint" class="truncate text-sm text-muted" dir="ltr">{{ request.email_hint }}</p>
           <span v-else class="badge badge-loss">אימייל לא מאומת</span>
           <p class="text-sm text-muted">
-            {{ request.club ? `מועדון: ${request.club}` : `קבוצה: ${request.team_name}` }}
+            {{ scopeLabel(request) }}
           </p>
         </div>
         <div class="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
@@ -86,20 +100,43 @@ function onRejectConfirmed() {
             class="btn-danger-ghost"
             :disabled="busyId === request.id"
             :aria-label="`דחיית הבקשה של ${request.username}`"
-            @click="pendingReject = request"
+            @click="pendingDelete = request"
           >דחייה</button>
         </div>
       </li>
     </ul>
 
+    <details v-if="rows !== null" class="border-t border-line pt-3">
+      <summary class="flex min-h-11 cursor-pointer items-center gap-2 font-bold">
+        חברים מאושרים
+        <span class="badge-muted">{{ members.length }}</span>
+      </summary>
+      <p v-if="!members.length" class="empty-state">אין חברים מאושרים</p>
+      <ul v-else class="divide-y divide-line">
+        <li v-for="member in members" :key="member.id" class="space-y-2 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
+          <div class="min-w-0">
+            <p class="truncate font-bold" dir="auto">{{ member.username }}</p>
+            <p class="text-sm text-muted">{{ scopeLabel(member) }}</p>
+          </div>
+          <button
+            type="button"
+            class="btn-danger-ghost w-full sm:w-auto"
+            :disabled="busyId === member.id"
+            :aria-label="`הסרת ${member.username}`"
+            @click="pendingDelete = member"
+          >הסרה</button>
+        </li>
+      </ul>
+    </details>
+
     <p v-if="actionError" class="error-text" role="alert">{{ actionError }}</p>
     <p v-if="status" class="text-sm text-muted" role="status">{{ status }}</p>
 
     <ConfirmDialog
-      :open="pendingReject !== null"
-      :message="`לדחות את הבקשה של ${pendingReject?.username}?`"
-      @update:open="(value) => !value && (pendingReject = null)"
-      @confirm="onRejectConfirmed"
+      :open="pendingDelete !== null"
+      :message="confirmMessage"
+      @update:open="(value) => !value && (pendingDelete = null)"
+      @confirm="onDeleteConfirmed"
     />
   </section>
 </template>

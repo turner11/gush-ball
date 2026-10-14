@@ -35,8 +35,9 @@ class MembershipOut(BaseModel):
     role: str
 
 
-class PendingOut(BaseModel):  # masked email only: the full address stays private (#272)
+class MemberRowOut(BaseModel):  # masked email only: the full address stays private (#272)
     id: int
+    role: str  # pending | member
     username: str
     email_hint: str | None  # None = unverified account
     team_id: int | None
@@ -67,41 +68,55 @@ def request_to_join(payload: JoinIn, user: RequireUser, db: DbSession) -> Member
     return row
 
 
-@router.get("", response_model=list[PendingOut])
-def list_pending(admin: RequireAnyAdmin, db: DbSession) -> list[PendingOut]:
+@router.get("", response_model=list[MemberRowOut])
+def list_managed(admin: RequireAnyAdmin, db: DbSession) -> list[MemberRowOut]:
     query = (
-        select(Membership.id, AdminUser.username, AdminUser.email, Membership.team_id, Team.name, Membership.club)
+        select(Membership.id, Membership.role, AdminUser.username, AdminUser.email, Membership.team_id, Team.name, Membership.club)
         .join(AdminUser, AdminUser.id == Membership.user_id)
         .outerjoin(Team, Team.id == Membership.team_id)
-        .where(Membership.role == "pending")
+        .where(Membership.role.in_(("pending", "member")))
         .order_by(Membership.id)
     )
     scope = admin_team_ids(db, admin)
     if scope is not None:  # club requests are excluded by construction: their team_id is NULL
         query = query.where(Membership.team_id.in_(scope))
     return [
-        PendingOut(id=i, username=u, email_hint=_mask_email(e), team_id=t, team_name=n, club=c)
-        for i, u, e, t, n, c in db.execute(query)
+        MemberRowOut(id=i, role=r, username=u, email_hint=_mask_email(e), team_id=t, team_name=n, club=c)
+        for i, r, u, e, t, n, c in db.execute(query)
     ]
 
 
-def _pending_in_scope(db: DbSession, admin: AdminUser, membership_id: int) -> Membership:
+def _row_in_scope(db: DbSession, admin: AdminUser, membership_id: int, roles: tuple[str, ...]) -> Membership:
     row = db.get(Membership, membership_id)
-    if row is None or row.role != "pending":  # never touches member/admin grants
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Pending request {membership_id} not found")
+    if row is None or row.role not in roles:  # an admin grant never matches
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Membership {membership_id} not found")
     check_membership_scope(db, admin, row)
     return row
 
 
 @router.post("/{membership_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
 def approve(membership_id: int, admin: RequireAnyAdmin, db: DbSession) -> Response:
-    _pending_in_scope(db, admin, membership_id).role = "member"
+    _row_in_scope(db, admin, membership_id, ("pending",)).role = "member"
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
-def reject(membership_id: int, admin: RequireAnyAdmin, db: DbSession) -> Response:
-    db.delete(_pending_in_scope(db, admin, membership_id))
+def remove(membership_id: int, admin: RequireAnyAdmin, db: DbSession) -> Response:
+    db.delete(_row_in_scope(db, admin, membership_id, ("pending", "member")))
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/mine/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
+def leave(membership_id: int, user: RequireUser, db: DbSession) -> Response:
+    row = db.scalar(
+        select(Membership).where(
+            Membership.id == membership_id, Membership.user_id == user.id, Membership.role.in_(("pending", "member"))
+        )
+    )
+    if row is None:  # same answer for not yours, an admin grant and missing
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Membership {membership_id} not found")
+    db.delete(row)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
