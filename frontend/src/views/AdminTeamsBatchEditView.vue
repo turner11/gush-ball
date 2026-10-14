@@ -13,8 +13,14 @@ const NO_CLUB = '__none__'
 const clubFilter = ref(ALL)
 const clubs = computed(() => [...new Set(teams.value.map((t) => t.club).filter(Boolean))].sort())
 const hasNoClubTeams = computed(() => teams.value.some((t) => !t.club))
-const matchesFilter = (t) => clubFilter.value === ALL || (clubFilter.value === NO_CLUB ? !t.club : t.club === clubFilter.value)
-watch(clubFilter, () => (rows.value = teams.value.filter(matchesFilter)))
+const matchesFilter = (t, f = clubFilter.value) => f === ALL || (f === NO_CLUB ? !t.club : t.club === f)
+// Rows the old filter showed that are gone from `rows` were removed or saved: forget them, then re-select the batch.
+watch(clubFilter, (_, old) => {
+  teams.value = teams.value.filter((t) => rows.value.includes(t) || !matchesFilter(t, old))
+  rows.value = teams.value.filter((t) => matchesFilter(t))
+})
+const isDirty = (t) => t.admin_id !== '' || EDITABLE_KEYS.some((k) => t[k] !== snapshots.get(t.id)[k])
+const hiddenEdits = computed(() => teams.value.filter((t) => !rows.value.includes(t) && isDirty(t)).length)
 const state = ref('loading') // 'loading' | 'ready' | 'error'
 const snapshots = new Map() // team id -> the editable fields as loaded
 
@@ -39,7 +45,7 @@ async function load() {
   state.value = 'loading'
   try {
     teams.value = (await apiFetch('/teams')).map(toRow)
-    rows.value = teams.value.filter(matchesFilter)
+    rows.value = teams.value.filter((t) => matchesFilter(t))
     state.value = 'ready'
   } catch {
     state.value = 'error'
@@ -53,7 +59,6 @@ async function saveRow(row) {
     EDITABLE_KEYS.filter((k) => row[k] !== before[k]).map((k) => [k, row[k] === '' ? null : row[k]]),
   )
   if (Object.keys(diff).length) await apiFetch(`/teams/${row.id}`, { method: 'PATCH', body: diff })
-  snapshots.set(row.id, pickEditable(row)) // saved: a later filter change must not re-PATCH it
   return row.id
 }
 
@@ -94,6 +99,7 @@ onMounted(() => fullAdmin.value && load())
           <option v-for="c in clubs" :key="c" :value="c">{{ c }}</option>
         </select>
       </div>
+      <p v-if="hiddenEdits" class="text-sm text-muted" role="status">{{ hiddenEdits }} שינויים מוסתרים</p>
       <TeamBatchTable v-model:rows="rows" :submit-label="`שמירת ${rows.length} קבוצות`" :save="saveRow" />
     </template>
   </section>

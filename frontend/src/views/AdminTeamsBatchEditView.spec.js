@@ -144,6 +144,25 @@ describe('AdminTeamsBatchEditView', () => {
       expect(bodyOf(patches()[0])).toEqual({ home_court_address: 'אולם' })
     })
 
+    it('rows removed or already saved do not come back on a filter change', async () => {
+      const { wrapper } = await mountView(mixed())
+      await wrapper.find('#batch-club-filter').setValue('גוש')
+      await wrapper.find('button[aria-label="הסרה מהרשימה — קבוצה 1"]').trigger('click')
+      await wrapper.find('#batch-club-filter').setValue('__all__')
+      expect(nameInputs(wrapper)).toEqual(['שם — קבוצה 2', 'שם — קבוצה 3', 'שם — קבוצה 4'])
+    })
+
+    it('notes edits hidden by the filter', async () => {
+      const { wrapper } = await mountView(mixed())
+      expect(wrapper.text()).not.toContain('שינויים מוסתרים')
+      await wrapper.find('#batch-club-filter').setValue('אחר')
+      await wrapper.find('input[aria-label="כתובת — קבוצה 3"]').setValue('אולם')
+      await wrapper.find('#batch-club-filter').setValue('גוש')
+      expect(wrapper.text()).toContain('1 שינויים מוסתרים')
+      await wrapper.find('#batch-club-filter').setValue('__all__')
+      expect(wrapper.text()).not.toContain('שינויים מוסתרים')
+    })
+
     it('is hidden when no team has a club', async () => {
       const { wrapper } = await mountView([team(1)])
       expect(wrapper.find('#batch-club-filter').exists()).toBe(false)
