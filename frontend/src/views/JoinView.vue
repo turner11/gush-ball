@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 
+import MyMemberships from '../components/MyMemberships.vue'
 import { useAuth } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
@@ -22,14 +23,6 @@ async function loadTeams() {
 onMounted(loadTeams)
 
 const memberships = computed(() => user.value?.memberships ?? [])
-const teamName = (id) => teams.value?.find((t) => t.id === id)?.name ?? '…'
-const rowName = (m) => (m.club ? `מועדון ${m.club}` : teamName(m.team_id))
-
-const BADGES = {
-  pending: { text: 'ממתין לאישור', cls: 'badge-muted' },
-  member: { text: 'חבר', cls: 'badge-win' },
-  admin: { text: 'מנהל', cls: 'badge-win' },
-}
 
 // Teams and clubs the player has no row for yet.
 const teamOptions = computed(() =>
@@ -75,24 +68,13 @@ async function onSubmit() {
   <section class="mx-auto max-w-xl space-y-4">
     <header class="page-header">
       <h1 class="page-title">הצטרפות לקבוצה</h1>
-      <p class="text-sm text-muted">מחובר/ת בתור <span dir="auto">{{ user?.username }}</span></p>
+      <p class="text-sm text-muted">
+        מחובר/ת בתור <span dir="auto">{{ user?.display_name }}</span>
+        <RouterLink :to="{ name: 'account' }" class="section-link ms-2">החשבון שלי</RouterLink>
+      </p>
     </header>
 
-    <div v-if="memberships.length" class="card space-y-3">
-      <h2 class="section-title">הבקשות שלי</h2>
-      <ul class="divide-y divide-line">
-        <li v-for="m in memberships" :key="m.id" class="py-2">
-          <div class="flex items-center justify-between gap-2">
-            <span class="min-w-0 truncate font-bold" dir="auto">{{ rowName(m) }}</span>
-            <span :class="BADGES[m.role].cls">{{ BADGES[m.role].text }}</span>
-          </div>
-          <p v-if="m.role === 'pending'" class="text-sm text-muted">
-            {{ m.club ? 'מנהל האתר יאשר את הבקשה' : 'מנהל הקבוצה יאשר את הבקשה' }}
-          </p>
-        </li>
-      </ul>
-      <RouterLink v-if="user?.can_view_stats" to="/stats" class="btn-primary w-full sm:w-auto">צפייה בסטטיסטיקה</RouterLink>
-    </div>
+    <MyMemberships v-if="memberships.length" :teams="teams" />
 
     <div class="card space-y-3">
       <h2 class="section-title">בקשת הצטרפות</h2>

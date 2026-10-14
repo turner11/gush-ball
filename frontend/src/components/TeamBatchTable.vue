@@ -24,6 +24,7 @@ import { useRouter } from 'vue-router'
 
 import { apiFetch } from '../lib/api'
 import { BACKGROUND_PRESETS, isPresetBackground } from '../lib/backgrounds'
+import { userLabel } from '../lib/format'
 
 // Editable review table shared by the club import (create) and batch edit (update).
 // `save(row)` creates or updates the team and resolves to its id; it throws on failure.
@@ -43,7 +44,7 @@ const summary = ref(null)
 
 const key = (row) => row.id ?? row.ibasketball_team_url
 const socialCount = (row) => SOCIALS.filter((s) => row[s.key]).length
-const currentAdmins = (row) => admins.value.filter((a) => a.team_ids.includes(row.id)).map((a) => a.username).join('، ')
+const currentAdmins = (row) => admins.value.filter((a) => a.team_ids.includes(row.id)).map(userLabel).join('، ')
 const total = computed(() => rows.value.length)
 
 async function loadAdmins() {
@@ -169,7 +170,7 @@ async function onSubmit() {
               <template v-else>
                 <select v-model="row.admin_id" :disabled="adminsState === 'loading'" class="field-input mt-0 w-full min-w-0 sm:min-w-40" :aria-label="`מנהל — ${row.initialName}`">
                   <option value="">ללא שינוי</option>
-                  <option v-for="a in admins" :key="a.id" :value="a.id">{{ a.username }}</option>
+                  <option v-for="a in admins" :key="a.id" :value="a.id">{{ userLabel(a) }}</option>
                 </select>
                 <p v-if="currentAdmins(row)" class="text-sm text-muted">מנהלים נוכחיים: {{ currentAdmins(row) }}</p>
               </template>

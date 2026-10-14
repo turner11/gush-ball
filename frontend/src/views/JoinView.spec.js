@@ -38,7 +38,7 @@ async function mountJoin(user, options = {}) {
   return wrapper
 }
 
-const PLAYER = { username: 'Dana', is_admin: false, memberships: [] }
+const PLAYER = { username: 'Dana', display_name: 'Dana', is_admin: false, memberships: [] }
 
 describe('JoinView', () => {
   beforeEach(() => vi.resetModules())
@@ -66,12 +66,13 @@ describe('JoinView', () => {
     const member = { ...PLAYER, can_view_stats: true, memberships: [{ id: 1, team_id: 1, club: null, role: 'member' }] }
     const global = { stubs: { RouterLink: RouterLinkStub } }
     let wrapper = await mountJoin(member, { global })
-    expect(wrapper.findComponent(RouterLinkStub).props('to')).toBe('/stats')
+    const statsLink = () => wrapper.findAllComponents(RouterLinkStub).find((l) => l.props('to') === '/stats')
+    expect(statsLink().exists()).toBe(true)
     expect(wrapper.text()).toContain('צפייה בסטטיסטיקה')
 
     vi.resetModules()
     wrapper = await mountJoin({ ...member, can_view_stats: false }, { global })
-    expect(wrapper.findComponent(RouterLinkStub).exists()).toBe(false)
+    expect(statsLink()).toBeUndefined()
   })
 
   it('submits a team request, refreshes the session and shows the status', async () => {

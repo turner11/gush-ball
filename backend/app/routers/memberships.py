@@ -39,6 +39,7 @@ class MemberRowOut(BaseModel):  # masked email only: the full address stays priv
     id: int
     role: str  # pending | member
     username: str
+    display_name: str
     email_hint: str | None  # None = unverified account
     team_id: int | None
     team_name: str | None
@@ -71,7 +72,7 @@ def request_to_join(payload: JoinIn, user: RequireUser, db: DbSession) -> Member
 @router.get("", response_model=list[MemberRowOut])
 def list_managed(admin: RequireAnyAdmin, db: DbSession) -> list[MemberRowOut]:
     query = (
-        select(Membership.id, Membership.role, AdminUser.username, AdminUser.email, Membership.team_id, Team.name, Membership.club)
+        select(Membership.id, Membership.role, AdminUser.username, AdminUser.display_name, AdminUser.email, Membership.team_id, Team.name, Membership.club)
         .join(AdminUser, AdminUser.id == Membership.user_id)
         .outerjoin(Team, Team.id == Membership.team_id)
         .where(Membership.role.in_(("pending", "member")))
@@ -81,8 +82,8 @@ def list_managed(admin: RequireAnyAdmin, db: DbSession) -> list[MemberRowOut]:
     if scope is not None:  # club requests are excluded by construction: their team_id is NULL
         query = query.where(Membership.team_id.in_(scope))
     return [
-        MemberRowOut(id=i, role=r, username=u, email_hint=_mask_email(e), team_id=t, team_name=n, club=c)
-        for i, r, u, e, t, n, c in db.execute(query)
+        MemberRowOut(id=i, role=r, username=u, display_name=d, email_hint=_mask_email(e), team_id=t, team_name=n, club=c)
+        for i, r, u, d, e, t, n, c in db.execute(query)
     ]
 
 

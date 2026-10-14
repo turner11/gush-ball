@@ -21,6 +21,7 @@ class UserMembershipOut(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
+    display_name: str
     email: str | None
     memberships: list[UserMembershipOut]
 
@@ -28,7 +29,9 @@ class UserOut(BaseModel):
 @router.get("", response_model=list[UserOut])
 def list_users(_admin_id: RequireAdmin, db: DbSession) -> list[UserOut]:
     # ponytail: no server-side search/pagination; add ?q= when the list passes a few hundred
-    users = db.execute(select(AdminUser.id, AdminUser.username, AdminUser.email).order_by(AdminUser.username)).all()
+    users = db.execute(
+        select(AdminUser.id, AdminUser.username, AdminUser.display_name, AdminUser.email).order_by(AdminUser.username)
+    ).all()
     grants: dict[int, list[UserMembershipOut]] = {}
     rows = db.execute(
         select(Membership.user_id, Membership.team_id, Team.name, Membership.club, Membership.role)
@@ -37,7 +40,9 @@ def list_users(_admin_id: RequireAdmin, db: DbSession) -> list[UserOut]:
     )
     for user_id, team_id, team_name, club, role in rows:
         grants.setdefault(user_id, []).append(UserMembershipOut(team_id=team_id, team_name=team_name, club=club, role=role))
-    return [UserOut(id=i, username=u, email=e, memberships=grants.get(i, [])) for i, u, e in users]
+    return [
+        UserOut(id=i, username=u, display_name=d, email=e, memberships=grants.get(i, [])) for i, u, d, e in users
+    ]
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

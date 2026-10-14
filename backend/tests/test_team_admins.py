@@ -39,7 +39,7 @@ def test_full_admin_creates_lists_and_deletes_team_admin(
     created = admin_client.post(url, json=NEW)
     assert created.status_code == 201
     body = created.json()
-    assert set(body) == {"id", "username", "email", "club"}
+    assert set(body) == {"id", "username", "display_name", "email", "club"}
     assert body["username"] == "coach"
 
     row = db_session.scalar(select(AdminUser).where(AdminUser.username == "coach"))

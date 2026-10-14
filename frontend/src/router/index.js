@@ -31,6 +31,7 @@ const router = createRouter({
     { path: '/:slug/media', name: 'media', component: () => import('../views/MediaView.vue'), meta: { title: 'מדיה', description: (team) => `תמונות, סרטונים וקישורים של ${team}.` } },
     { path: '/:slug/stats', name: 'stats', component: () => import('../views/StatsView.vue'), meta: { title: 'סטטיסטיקה', description: (team) => `סטטיסטיקת חמישיות של ${team}.`, noindex: true } },
     { path: '/teams', name: 'teams', component: () => import('../views/TeamsView.vue'), meta: { title: 'קבוצות', description: () => 'כל הקבוצות של המועדון: בחרו קבוצה למשחקים, לטבלה ולשחקנים.' } },
+    { path: '/account', name: 'account', component: () => import('../views/AccountView.vue'), meta: { title: 'החשבון שלי', requiresUser: true, noindex: true } },
     { path: '/join', name: 'join', component: () => import('../views/JoinView.vue'), meta: { title: 'הצטרפות', requiresUser: true, noindex: true } },
     { path: '/:slug', name: 'team-home', component: () => import('../views/HomeView.vue'), meta: { description: homeDescription } },
     { path: '/admin/login', name: 'admin-login', component: () => import('../views/LoginView.vue'), meta: { title: 'כניסה' } },

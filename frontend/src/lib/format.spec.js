@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { formatDateTime, formatDuration, formatGameDate, signed } from './format'
+import { formatDateTime, formatDuration, formatGameDate, signed, userLabel } from './format'
 
 const OPTS = { weekday: 'long', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }
 
@@ -51,5 +51,15 @@ describe('formatDuration', () => {
     expect(formatDuration(45)).toBe('45 שניות')
     expect(formatDuration(125)).toBe('שתי דקות, 5 שניות')
     expect(formatDuration(3780)).toBe('1 שעה, 3 דקות')
+  })
+})
+
+describe('userLabel', () => {
+  it('shows the display name alone when it equals the username', () => {
+    expect(userLabel({ username: 'dana', display_name: 'dana' })).toBe('dana')
+  })
+
+  it('appends the username when they differ', () => {
+    expect(userLabel({ username: 'dana2', display_name: 'Dana Cohen' })).toBe('Dana Cohen (dana2)')
   })
 })

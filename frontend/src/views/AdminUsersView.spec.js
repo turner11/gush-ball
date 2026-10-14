@@ -2,10 +2,10 @@ import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const USERS = [
-  { id: 1, username: 'admin', email: 'admin@x.com', memberships: [] },
+  { id: 1, username: 'admin', display_name: 'admin', email: 'admin@x.com', memberships: [] },
   {
     id: 2,
-    username: 'dana',
+    username: 'dana', display_name: 'dana',
     email: 'dana@club.com',
     memberships: [{ team_id: 5, team_name: 'נוער', club: null, role: 'pending' }],
   },

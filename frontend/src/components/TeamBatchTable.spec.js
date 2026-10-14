@@ -34,7 +34,7 @@ const row = (n) => ({
   error: null,
 })
 
-const ADMINS = [{ id: 5, username: 'coach', team_ids: [9] }]
+const ADMINS = [{ id: 5, username: 'coach', display_name: 'coach', team_ids: [9] }]
 
 async function mountTable(rows, save) {
   const router = createRouter({
