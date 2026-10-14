@@ -22,9 +22,7 @@ class Player(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(default=None)
 
     team: Mapped["Team"] = relationship(back_populates="players")
-    images: Mapped[list["PlayerImage"]] = relationship(
-        back_populates="player", cascade="all, delete-orphan"
-    )
+    images: Mapped[list["PlayerImage"]] = relationship(back_populates="player", cascade="all, delete-orphan")
 
 
 class PlayerImage(Base):

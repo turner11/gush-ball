@@ -108,9 +108,7 @@ def _focus(img_w: int, img_h: int, face: tuple[int, int, int, int]) -> tuple[flo
 def _largest_face(gray) -> tuple[int, int, int, int] | None:
     """(x, y, w, h) of the largest face in a grayscale image, or None."""
     m = min(gray.shape)
-    faces = _CASCADE.detectMultiScale(
-        gray, scaleFactor=1.1, minNeighbors=5, minSize=(m // 10, m // 10)
-    )
+    faces = _CASCADE.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(m // 10, m // 10))
     if len(faces) == 0:
         return None
     return tuple(int(v) for v in max(faces, key=lambda f: f[2] * f[3]))
@@ -160,21 +158,12 @@ def _fill_team_club(db: Session, team: Team, name: str, url: str) -> None:
     """Fill-only: assigns a club to a clubless team and fills a missing club url.
     Never moves a team, renames a club or takes a url another club already owns."""
     by_url = db.scalar(select(Club).where(Club.ibasketball_url == url))
-    club = (
-        get_or_create_club(db, team.club)
-        if team.club
-        else by_url or get_or_create_club(db, name[:120])
-    )
+    club = get_or_create_club(db, team.club) if team.club else by_url or get_or_create_club(db, name[:120])
     if club.ibasketball_url is None and by_url is None:
         club.ibasketball_url = url
     if club.ibasketball_url != url:
         log.warning(
-            "Team %s: club %r has url %s, page says %s (%r); not changing",
-            team.slug,
-            club.name,
-            club.ibasketball_url,
-            url,
-            name,
+            "Team %s: club %r has url %s, page says %s (%r); not changing", team.slug, club.name, club.ibasketball_url, url, name
         )
         return
     team.club = club.name

@@ -42,9 +42,7 @@ def test_team_admin_forbidden_reading_other_team_admin_lists(
 
 def test_team_admin_can_write_own_team(team_admin_client: TestClient, own_team: Team) -> None:
     c, t = team_admin_client, own_team.id
-    assert (
-        c.patch(f"/teams/{t}", json={"facebook_url": "https://facebook.com/own"}).status_code == 200
-    )
+    assert c.patch(f"/teams/{t}", json={"facebook_url": "https://facebook.com/own"}).status_code == 200
     assert c.post(f"/teams/{t}/posts", json={"title": "Hi", "body": "Body"}).status_code == 201
     assert c.post(f"/teams/{t}/players", json={"name": "Dana"}).status_code == 201
     game = c.post(
@@ -89,9 +87,7 @@ def test_team_admin_player_images_scoped(
     db_session.commit()
     body = {"url": "https://x.test/b.png"}
 
-    assert (
-        team_admin_client.post(f"/players/{other_player.id}/images", json=body).status_code == 403
-    )
+    assert team_admin_client.post(f"/players/{other_player.id}/images", json=body).status_code == 403
     r = team_admin_client.delete(f"/players/{other_player.id}/images/{img.id}")
     assert r.status_code == 403
     assert db_session.get(PlayerImage, img.id) is not None
@@ -104,9 +100,7 @@ def test_me_reports_team_scope(team_admin_client: TestClient, own_team: Team) ->
     assert me["team_ids"] == [own_team.id]
 
 
-def test_me_reports_club_scope(
-    club_admin_client: TestClient, own_team: Team, sibling_team: Team
-) -> None:
+def test_me_reports_club_scope(club_admin_client: TestClient, own_team: Team, sibling_team: Team) -> None:
     me = club_admin_client.get("/auth/me").json()
     assert me["team_id"] is None
     assert sorted(me["team_ids"]) == sorted([own_team.id, sibling_team.id])
@@ -116,14 +110,9 @@ def test_club_admin_can_write_every_team_in_club(
     club_admin_client: TestClient, own_team: Team, sibling_team: Team
 ) -> None:
     for team in (own_team, sibling_team):
-        r = club_admin_client.patch(
-            f"/teams/{team.id}", json={"facebook_url": "https://facebook.com/x"}
-        )
+        r = club_admin_client.patch(f"/teams/{team.id}", json={"facebook_url": "https://facebook.com/x"})
         assert r.status_code == 200
-        assert (
-            club_admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).status_code
-            == 201
-        )
+        assert club_admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).status_code == 201
 
 
 def test_only_full_admin_changes_team_club(
@@ -149,9 +138,7 @@ def test_membership_fks_cascade() -> None:
         assert fk.ondelete == "CASCADE"
 
 
-def _login_user(
-    client: TestClient, db_session: Session, username: str, *memberships: Membership
-) -> None:
+def _login_user(client: TestClient, db_session: Session, username: str, *memberships: Membership) -> None:
     user = AdminUser(username=username, password_hash=hash_password("password123"))
     db_session.add(user)
     db_session.flush()
@@ -159,12 +146,7 @@ def _login_user(
         m.user_id = user.id
         db_session.add(m)
     db_session.commit()
-    assert (
-        client.post(
-            "/auth/login", json={"username": username, "password": "password123"}
-        ).status_code
-        == 200
-    )
+    assert client.post("/auth/login", json={"username": username, "password": "password123"}).status_code == 200
 
 
 @pytest.mark.parametrize("role", [None, "pending", "member"])
@@ -175,10 +157,7 @@ def test_user_without_admin_grant_is_403_on_admin_routes(
     _login_user(client, db_session, "player", *grants)
     tid = own_team.id
     assert client.post("/uploads", files={"file": ("a.png", b"x", "image/png")}).status_code == 403
-    assert (
-        client.patch(f"/teams/{tid}", json={"facebook_url": "https://facebook.com/x"}).status_code
-        == 403
-    )
+    assert client.patch(f"/teams/{tid}", json={"facebook_url": "https://facebook.com/x"}).status_code == 403
     assert client.post("/sync/now").status_code == 403
     assert client.post(f"/teams/{tid}/games/1/stats", json={}).status_code == 403
     assert client.get("/sync/status").status_code == 403
@@ -210,12 +189,7 @@ def test_admin_of_many_teams_across_clubs(
         Membership(club="Gush", role="admin"),
     )
     for team in (own_team, sibling_team, other_team):
-        assert (
-            client.patch(
-                f"/teams/{team.id}", json={"facebook_url": "https://facebook.com/x"}
-            ).status_code
-            == 200
-        )
+        assert client.patch(f"/teams/{team.id}", json={"facebook_url": "https://facebook.com/x"}).status_code == 200
     me = client.get("/auth/me").json()
     assert sorted(me["team_ids"]) == sorted([own_team.id, sibling_team.id, other_team.id])
     assert me["clubs"] == ["Gush"]
@@ -225,17 +199,6 @@ def test_admin_of_many_teams_across_clubs(
 def test_member_row_grants_no_write_scope(
     client: TestClient, db_session: Session, own_team: Team, other_team: Team
 ) -> None:
-    _login_user(
-        client,
-        db_session,
-        "mixed",
-        Membership(team_id=own_team.id, role="admin"),
-        Membership(team_id=other_team.id, role="member"),
-    )
+    _login_user(client, db_session, "mixed", Membership(team_id=own_team.id, role="admin"), Membership(team_id=other_team.id, role="member"))
     assert client.get("/auth/me").json()["team_ids"] == [own_team.id]
-    assert (
-        client.patch(
-            f"/teams/{other_team.id}", json={"facebook_url": "https://facebook.com/x"}
-        ).status_code
-        == 403
-    )
+    assert client.patch(f"/teams/{other_team.id}", json={"facebook_url": "https://facebook.com/x"}).status_code == 403

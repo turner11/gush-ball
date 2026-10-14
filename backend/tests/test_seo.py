@@ -49,9 +49,7 @@ def test_sitemap_lists_live_players_only(client, db_session: Session) -> None:
     db_session.add(team)
     db_session.commit()
     live = Player(team_id=team.id, name="חי", jersey_number=1)
-    gone = Player(
-        team_id=team.id, name="נמחק", jersey_number=2, deleted_at=datetime(2026, 1, 1, tzinfo=UTC)
-    )
+    gone = Player(team_id=team.id, name="נמחק", jersey_number=2, deleted_at=datetime(2026, 1, 1, tzinfo=UTC))
     db_session.add_all([live, gone])
     db_session.commit()
 

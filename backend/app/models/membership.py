@@ -17,13 +17,7 @@ class Membership(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("admin_users.id", ondelete="CASCADE"), index=True
-    )
-    team_id: Mapped[int | None] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"), default=None
-    )
-    club: Mapped[str | None] = mapped_column(
-        String(120), ForeignKey("clubs.name", onupdate="CASCADE"), default=None
-    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("admin_users.id", ondelete="CASCADE"), index=True)
+    team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), default=None)
+    club: Mapped[str | None] = mapped_column(String(120), ForeignKey("clubs.name", onupdate="CASCADE"), default=None)
     role: Mapped[str] = mapped_column(String(10))

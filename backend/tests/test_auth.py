@@ -34,12 +34,7 @@ def _clear_attempts():
 @pytest.fixture()
 def seeded(client: TestClient, db_session: Session) -> TestClient:
     db_session.add(
-        AdminUser(
-            username="admin",
-            email="admin@example.com",
-            password_hash=hash_password("password123"),
-            is_full_admin=True,
-        )
+        AdminUser(username="admin", email="admin@example.com", password_hash=hash_password("password123"), is_full_admin=True)
     )
     db_session.commit()
     return client
@@ -56,10 +51,7 @@ def test_login_lockout_is_per_ip(seeded: TestClient) -> None:
     for i in range(auth._MAX_ATTEMPTS):
         assert seeded.post("/auth/login", json=_bad(f"nobody{i}"), headers=h1).status_code == 401
     assert seeded.post("/auth/login", json=GOOD, headers=h1).status_code == 429
-    assert (
-        seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "2.2.2.2"}).status_code
-        == 200
-    )
+    assert seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "2.2.2.2"}).status_code == 200
 
 
 def test_login_lockout_is_per_username(seeded: TestClient) -> None:
@@ -70,9 +62,7 @@ def test_login_lockout_is_per_username(seeded: TestClient) -> None:
     assert response.status_code == 429
 
 
-def test_login_lockout_expires_after_window(
-    seeded: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_login_lockout_expires_after_window(seeded: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     for _ in range(auth._MAX_ATTEMPTS):
         seeded.post("/auth/login", json=_bad())
     later = auth.time.monotonic() + auth._WINDOW_SECONDS + 1
@@ -88,9 +78,7 @@ def test_successful_login_clears_failures(seeded: TestClient) -> None:
         assert seeded.post("/auth/login", json=_bad()).status_code == 401
 
 
-def test_unknown_user_still_runs_bcrypt(
-    seeded: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unknown_user_still_runs_bcrypt(seeded: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
 
     def spy(password: str, password_hash: str) -> bool:
@@ -121,19 +109,15 @@ def test_session_expires_after_max_age(seeded: TestClient, monkeypatch: pytest.M
 
     assert seeded.post("/auth/login", json=GOOD).status_code == 200
     assert seeded.get("/auth/me").status_code == 200
-    monkeypatch.setattr(
-        TimestampSigner, "get_timestamp", lambda self: int(time.time()) + 12 * 3600 + 1
-    )
+    monkeypatch.setattr(TimestampSigner, "get_timestamp", lambda self: int(time.time()) + 12 * 3600 + 1)
     assert seeded.get("/auth/me").status_code == 401
 
 
 def test_login_success_is_logged(seeded: TestClient, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO):
         seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "3.3.3.3"})
-    assert any(
-        "login ok" in r.getMessage() and "admin" in r.getMessage() and "3.3.3.3" in r.getMessage()
-        for r in caplog.records
-    )
+    assert any("login ok" in r.getMessage() and "admin" in r.getMessage() and "3.3.3.3" in r.getMessage()
+               for r in caplog.records)
 
 
 def test_login_failure_is_logged(seeded: TestClient, caplog: pytest.LogCaptureFixture) -> None:
@@ -162,33 +146,17 @@ def test_admin_read_not_logged(admin_client: TestClient, caplog: pytest.LogCaptu
 
 
 def test_login_by_email_is_case_insensitive(seeded: TestClient) -> None:
-    r = seeded.post(
-        "/auth/login", json={"username": "Admin@Example.COM", "password": "password123"}
-    )
+    r = seeded.post("/auth/login", json={"username": "Admin@Example.COM", "password": "password123"})
     assert r.status_code == 200
 
 
 def test_login_email_case_variants_share_lockout(seeded: TestClient) -> None:
-    variants = [
-        "admin@example.com",
-        "ADMIN@example.com",
-        "Admin@Example.com",
-        "admin@EXAMPLE.com",
-        "ADMIN@EXAMPLE.COM",
-    ]
+    variants = ["admin@example.com", "ADMIN@example.com", "Admin@Example.com", "admin@EXAMPLE.com", "ADMIN@EXAMPLE.COM"]
     for i, email in enumerate(variants[: auth._MAX_ATTEMPTS]):
         headers = {"X-Forwarded-For": f"7.7.7.{i}"}
-        assert (
-            seeded.post(
-                "/auth/login", json={"username": email, "password": "x"}, headers=headers
-            ).status_code
-            == 401
-        )
+        assert seeded.post("/auth/login", json={"username": email, "password": "x"}, headers=headers).status_code == 401
     good = {"username": "Admin@example.com", "password": "password123"}
-    assert (
-        seeded.post("/auth/login", json=good, headers={"X-Forwarded-For": "7.7.7.99"}).status_code
-        == 429
-    )
+    assert seeded.post("/auth/login", json=good, headers={"X-Forwarded-For": "7.7.7.99"}).status_code == 429
 
 
 # ---- forgot / reset password ----
@@ -209,9 +177,7 @@ def _forgot(c: TestClient, email: str = "admin@example.com", ip: str = "5.5.5.5"
     return c.post("/auth/forgot-password", json={"email": email}, headers={"X-Forwarded-For": ip})
 
 
-def test_forgot_password_same_response_for_known_and_unknown_email(
-    seeded: TestClient, sent
-) -> None:
+def test_forgot_password_same_response_for_known_and_unknown_email(seeded: TestClient, sent) -> None:
     known = _forgot(seeded, "Admin@Example.com")
     unknown = _forgot(seeded, "nobody@example.com")
     assert known.status_code == unknown.status_code == 200
@@ -223,33 +189,19 @@ def test_forgot_password_is_rate_limited_without_touching_login(seeded: TestClie
     for i in range(auth._MAX_ATTEMPTS):
         assert _forgot(seeded, ip=f"6.6.6.{i}").status_code == 200
     assert _forgot(seeded, ip="6.6.6.200").status_code == 429
-    assert (
-        seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "6.6.6.0"}).status_code
-        == 200
-    )
+    assert seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "6.6.6.0"}).status_code == 200
 
 
 def test_reset_link_uses_public_url_not_host_header(seeded: TestClient, sent) -> None:
-    seeded.post(
-        "/auth/forgot-password",
-        json={"email": "admin@example.com"},
-        headers={"Host": "evil.example"},
-    )
+    seeded.post("/auth/forgot-password", json={"email": "admin@example.com"}, headers={"Host": "evil.example"})
     assert sent[0][1].startswith(f"{settings.public_url}/admin/reset-password?token=")
 
 
 def test_reset_password_changes_password(seeded: TestClient, sent) -> None:
     _forgot(seeded)
-    r = seeded.post(
-        "/auth/reset-password", json={"token": _token(sent), "password": "newpassword1"}
-    )
+    r = seeded.post("/auth/reset-password", json={"token": _token(sent), "password": "newpassword1"})
     assert r.status_code == 200
-    assert (
-        seeded.post(
-            "/auth/login", json={"username": "admin", "password": "newpassword1"}
-        ).status_code
-        == 200
-    )
+    assert seeded.post("/auth/login", json={"username": "admin", "password": "newpassword1"}).status_code == 200
     assert seeded.post("/auth/login", json=GOOD).status_code == 401
 
 
@@ -260,47 +212,31 @@ def test_reset_token_is_single_use(seeded: TestClient, sent) -> None:
     assert seeded.post("/auth/reset-password", json=body).status_code == 400
 
 
-def test_reset_token_expires_after_an_hour(
-    seeded: TestClient, sent, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_reset_token_expires_after_an_hour(seeded: TestClient, sent, monkeypatch: pytest.MonkeyPatch) -> None:
     from itsdangerous.timed import TimestampSigner
 
     _forgot(seeded)
     monkeypatch.setattr(TimestampSigner, "get_timestamp", lambda self: int(time.time()) + 3601)
-    r = seeded.post(
-        "/auth/reset-password", json={"token": _token(sent), "password": "newpassword1"}
-    )
+    r = seeded.post("/auth/reset-password", json={"token": _token(sent), "password": "newpassword1"})
     assert r.status_code == 400
 
 
 def test_reset_rejects_tampered_token(seeded: TestClient, sent) -> None:
     _forgot(seeded)
-    r = seeded.post(
-        "/auth/reset-password", json={"token": _token(sent) + "x", "password": "newpassword1"}
-    )
+    r = seeded.post("/auth/reset-password", json={"token": _token(sent) + "x", "password": "newpassword1"})
     assert r.status_code == 400
 
 
 def test_reset_rejects_short_password(seeded: TestClient, sent) -> None:
     _forgot(seeded)
-    assert (
-        seeded.post(
-            "/auth/reset-password", json={"token": _token(sent), "password": "short"}
-        ).status_code
-        == 422
-    )
+    assert seeded.post("/auth/reset-password", json={"token": _token(sent), "password": "short"}).status_code == 422
 
 
 def test_password_reset_logs_out_existing_sessions(seeded: TestClient, sent) -> None:
     assert seeded.post("/auth/login", json=GOOD).status_code == 200
     assert seeded.get("/auth/me").status_code == 200
     _forgot(seeded)
-    assert (
-        seeded.post(
-            "/auth/reset-password", json={"token": _token(sent), "password": "newpassword1"}
-        ).status_code
-        == 200
-    )
+    assert seeded.post("/auth/reset-password", json={"token": _token(sent), "password": "newpassword1"}).status_code == 200
     assert seeded.get("/auth/me").status_code == 401
 
 
@@ -359,9 +295,7 @@ def google(monkeypatch: pytest.MonkeyPatch):
         state["posted"].append(data)
         if state["error"]:
             raise state["error"]
-        payload = (
-            base64.urlsafe_b64encode(json.dumps(state["claims"]).encode()).rstrip(b"=").decode()
-        )
+        payload = base64.urlsafe_b64encode(json.dumps(state["claims"]).encode()).rstrip(b"=").decode()
         req = httpx.Request("POST", url)
         return httpx.Response(200, json={"id_token": f"h.{payload}.s"}, request=req)
 
@@ -370,17 +304,13 @@ def google(monkeypatch: pytest.MonkeyPatch):
 
 
 def _start_google(c: TestClient, popup: bool = False) -> dict[str, list[str]]:
-    r = c.get(
-        "/auth/google/login", params={"popup": "1"} if popup else None, follow_redirects=False
-    )
+    r = c.get("/auth/google/login", params={"popup": "1"} if popup else None, follow_redirects=False)
     assert r.status_code == 302
     return parse_qs(urlparse(r.headers["location"]).query)
 
 
 def _callback(c: TestClient, state: str, code: str = "code"):
-    return c.get(
-        "/auth/google/callback", params={"code": code, "state": state}, follow_redirects=False
-    )
+    return c.get("/auth/google/callback", params={"code": code, "state": state}, follow_redirects=False)
 
 
 FAIL = "/admin/login?error=google"
@@ -409,9 +339,7 @@ def test_google_callback_logs_in_allowlisted_admin(seeded: TestClient, google) -
     assert r.status_code == 302 and r.headers["location"] == "/admin"
     assert seeded.get("/auth/me").status_code == 200
     verifier = google["posted"][0]["code_verifier"]
-    challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
-    )
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
     assert challenge == q["code_challenge"][0]
 
 
@@ -463,9 +391,7 @@ def test_google_callback_rejects_bad_state(seeded: TestClient, google) -> None:
         {"exp": 1},
     ],
 )
-def test_google_callback_rejects_bad_claims(
-    seeded: TestClient, google, db_session: Session, over: dict
-) -> None:
+def test_google_callback_rejects_bad_claims(seeded: TestClient, google, db_session: Session, over: dict) -> None:
     google["claims"] = _claims(**over)
     q = _start_google(seeded)
     r = _callback(seeded, q["state"][0])
@@ -481,13 +407,9 @@ def test_google_callback_handles_token_endpoint_error(seeded: TestClient, google
     assert r.status_code == 302 and r.headers["location"] == FAIL
 
 
-def test_login_and_me_return_stats_urls(
-    seeded: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_login_and_me_return_stats_urls(seeded: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(auth.settings, "stats_url", "https://app.streamlit.app")
-    monkeypatch.setattr(
-        auth.settings, "stats_template_url", "https://docs.google.com/spreadsheets/d/T/edit"
-    )
+    monkeypatch.setattr(auth.settings, "stats_template_url", "https://docs.google.com/spreadsheets/d/T/edit")
     assert seeded.get("/auth/me").status_code == 401
     expected = {
         "stats_app_url": "https://app.streamlit.app",
@@ -506,9 +428,7 @@ def _signup(c: TestClient, google, **claims):
     return _callback(c, _start_google(c)["state"][0])
 
 
-def test_google_signup_creates_rightsless_account(
-    client: TestClient, db_session: Session, google
-) -> None:
+def test_google_signup_creates_rightsless_account(client: TestClient, db_session: Session, google) -> None:
     r = _signup(client, google, email="New@Example.com", name="Dana Cohen")
     assert r.status_code == 302 and r.headers["location"] == "/join"
     user = db_session.scalar(select(AdminUser))
@@ -519,10 +439,7 @@ def test_google_signup_creates_rightsless_account(
     assert "stats_app_url" not in me
     assert client.post("/uploads", files={"file": ("a.png", b"x", "image/png")}).status_code == 403
     client.post("/auth/logout")
-    assert (
-        _signup(client, google, email="new@example.com", name="Dana Cohen").headers["location"]
-        == "/join"
-    )
+    assert _signup(client, google, email="new@example.com", name="Dana Cohen").headers["location"] == "/join"
     assert db_session.scalar(select(func.count(AdminUser.id))) == 1
 
 
@@ -537,12 +454,8 @@ def test_google_signup_username_is_never_the_email(
     assert db_session.scalar(select(AdminUser.username)) == expected
 
 
-def test_google_signup_cut_name_has_no_trailing_space(
-    client: TestClient, db_session: Session, google
-) -> None:
-    _signup(
-        client, google, email="a@example.com", name="x" * 69 + " y"
-    )  # the cut lands right after the space
+def test_google_signup_cut_name_has_no_trailing_space(client: TestClient, db_session: Session, google) -> None:
+    _signup(client, google, email="a@example.com", name="x" * 69 + " y")  # the cut lands right after the space
     assert db_session.scalar(select(AdminUser.username)) == "x" * 69
 
 
@@ -587,15 +500,10 @@ def test_password_signup_creates_rightsless_account_without_email(
     assert db_session.scalar(select(func.count(Membership.id))) == 0
     assert client.get("/auth/me").status_code == 200
     client.post("/auth/logout")
-    assert (
-        client.post("/auth/login", json={"username": "dana", "password": "password123"}).status_code
-        == 200
-    )
+    assert client.post("/auth/login", json={"username": "dana", "password": "password123"}).status_code == 200
 
 
-def test_password_signup_emails_verify_link_to_lowercased_address(
-    client: TestClient, verify_sent
-) -> None:
+def test_password_signup_emails_verify_link_to_lowercased_address(client: TestClient, verify_sent) -> None:
     _pw_signup(client)
     assert len(verify_sent) == 1
     to, link = verify_sent[0]
@@ -616,28 +524,16 @@ def test_unverified_signup_email_is_not_a_google_or_reset_key(
     assert client.get("/auth/me").json()["username"] != "dana"
 
 
-def test_verify_email_stores_email_once(
-    client: TestClient, db_session: Session, verify_sent
-) -> None:
+def test_verify_email_stores_email_once(client: TestClient, db_session: Session, verify_sent) -> None:
     _pw_signup(client)
     token = _token(verify_sent)
     assert client.post("/auth/verify-email", json={"token": token}).status_code == 200
     assert db_session.scalar(select(AdminUser.email)) == "new@example.com"
     client.post("/auth/logout")
-    assert (
-        client.post(
-            "/auth/login", json={"username": "new@example.com", "password": "password123"}
-        ).status_code
-        == 200
-    )
+    assert client.post("/auth/login", json={"username": "new@example.com", "password": "password123"}).status_code == 200
     assert client.post("/auth/verify-email", json={"token": token}).status_code == 400
     # salt separation: a verify token is no reset token
-    assert (
-        client.post(
-            "/auth/reset-password", json={"token": token, "password": "newpassword1"}
-        ).status_code
-        == 400
-    )
+    assert client.post("/auth/reset-password", json={"token": token, "password": "newpassword1"}).status_code == 400
 
 
 def test_verify_email_rejects_expired_or_tampered_token(
@@ -652,9 +548,7 @@ def test_verify_email_rejects_expired_or_tampered_token(
     assert client.post("/auth/verify-email", json={"token": token}).status_code == 400
 
 
-def test_verify_email_rejects_address_taken_meanwhile(
-    seeded: TestClient, db_session: Session, verify_sent
-) -> None:
+def test_verify_email_rejects_address_taken_meanwhile(seeded: TestClient, db_session: Session, verify_sent) -> None:
     assert _pw_signup(seeded, email="admin@example.com").status_code == 200
     token = _token(verify_sent)
     assert seeded.post("/auth/verify-email", json={"token": token}).status_code == 409
@@ -671,9 +565,7 @@ def test_verify_email_rejects_address_taken_meanwhile(
         ({"username": "  "}, 422),
     ],
 )
-def test_password_signup_validation(
-    seeded: TestClient, db_session: Session, verify_sent, over, status_code
-) -> None:
+def test_password_signup_validation(seeded: TestClient, db_session: Session, verify_sent, over, status_code) -> None:
     r = _pw_signup(seeded, **over)
     assert r.status_code == status_code
     if status_code == 409:
@@ -682,13 +574,8 @@ def test_password_signup_validation(
     assert verify_sent == []
 
 
-def test_password_signup_rate_limited_per_ip_without_touching_login(
-    seeded: TestClient, verify_sent
-) -> None:
+def test_password_signup_rate_limited_per_ip_without_touching_login(seeded: TestClient, verify_sent) -> None:
     for i in range(auth._MAX_ATTEMPTS):
         assert _pw_signup(seeded, username=f"u{i}").status_code == 200
     assert _pw_signup(seeded, username="late").status_code == 429
-    assert (
-        seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "6.6.6.6"}).status_code
-        == 200
-    )
+    assert seeded.post("/auth/login", json=GOOD, headers={"X-Forwarded-For": "6.6.6.6"}).status_code == 200

@@ -29,18 +29,11 @@ def sync_all(
     _sp_team_id.cache_clear()
     errors: list[str] = []
     standings = sync_all_standings(db, errors, team_ids=team_ids) if "standings" in kinds else None
-    games = (
-        sync_all_games(db, errors, team_ids=team_ids, auto_accept=auto_accept)
-        if "games" in kinds
-        else None
-    )
+    games = sync_all_games(db, errors, team_ids=team_ids, auto_accept=auto_accept) if "games" in kinds else None
     players = sync_all_players(db, errors, team_ids=team_ids) if "players" in kinds else None
     log.info(
         "Sync finished: %s standings rows, %s games, %s players, %d errors",
-        standings,
-        games,
-        players,
-        len(errors),
+        standings, games, players, len(errors),
     )
     return {"standings": standings, "games": games, "players": players, "errors": errors}
 

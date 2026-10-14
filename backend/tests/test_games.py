@@ -42,9 +42,7 @@ def _game_payload(**overrides: object) -> dict:
     return payload
 
 
-def test_create_game_as_admin_creates_new_opponent(
-    admin_client: TestClient, db_session: Session
-) -> None:
+def test_create_game_as_admin_creates_new_opponent(admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
 
     response = admin_client.post(f"/teams/{team.id}/games", json=_game_payload())
@@ -58,9 +56,7 @@ def test_create_game_as_admin_creates_new_opponent(
     assert opponents == {"Maccabi Test"}
 
 
-def test_create_game_reuses_existing_opponent_by_name(
-    admin_client: TestClient, db_session: Session
-) -> None:
+def test_create_game_reuses_existing_opponent_by_name(admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
 
     first = admin_client.post(f"/teams/{team.id}/games", json=_game_payload())
@@ -83,9 +79,7 @@ def test_create_game_unknown_team_returns_404(admin_client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_list_games_is_public(
-    client: TestClient, admin_client: TestClient, db_session: Session
-) -> None:
+def test_list_games_is_public(client: TestClient, admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     admin_client.post(f"/teams/{team.id}/games", json=_game_payload())
 
@@ -135,9 +129,7 @@ def test_list_and_get_game_do_not_expose_review_flags(
     assert hidden_fields.isdisjoint(get_body)
 
 
-def test_get_game_by_id_is_public(
-    client: TestClient, admin_client: TestClient, db_session: Session
-) -> None:
+def test_get_game_by_id_is_public(client: TestClient, admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     created = admin_client.post(f"/teams/{team.id}/games", json=_game_payload()).json()
 
@@ -280,9 +272,7 @@ def test_approve_game_requires_admin(client: TestClient, db_session: Session) ->
     assert response.status_code == 401
 
 
-def test_approve_game_unknown_game_returns_404(
-    admin_client: TestClient, db_session: Session
-) -> None:
+def test_approve_game_unknown_game_returns_404(admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
 
     response = admin_client.post(f"/teams/{team.id}/games/999999/approve")
@@ -422,9 +412,7 @@ def test_accept_suggestion_without_suggestion_returns_409(
     assert reject_response.status_code == 409
 
 
-def test_patch_while_suggestion_pending_clears_it(
-    admin_client: TestClient, db_session: Session
-) -> None:
+def test_patch_while_suggestion_pending_clears_it(admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     game = _make_game(db_session, team)
     game.is_manually_overridden = True
@@ -453,9 +441,7 @@ def _patch_stats_url(admin_client: TestClient, game: Game, value: object):
     return admin_client.patch(f"/teams/{game.team_id}/games/{game.id}", json={"stats_url": value})
 
 
-def test_patch_stats_url_null_unlinks_without_override(
-    admin_client: TestClient, db_session: Session
-) -> None:
+def test_patch_stats_url_null_unlinks_without_override(admin_client: TestClient, db_session: Session) -> None:
     game = _make_game(db_session, _make_team(db_session))
     game.stats_url = "https://docs.google.com/spreadsheets/d/X"
     db_session.commit()
@@ -469,9 +455,7 @@ def test_patch_stats_url_null_unlinks_without_override(
     assert game.is_manually_overridden is False
 
 
-def test_patch_stats_url_expands_bare_sheet_id(
-    admin_client: TestClient, db_session: Session
-) -> None:
+def test_patch_stats_url_expands_bare_sheet_id(admin_client: TestClient, db_session: Session) -> None:
     game = _make_game(db_session, _make_team(db_session))
 
     r = _patch_stats_url(admin_client, game, "abc_123")
@@ -492,9 +476,7 @@ def test_patch_stats_url_expands_bare_sheet_id(
         "https://docs.google.com/forms/d/X",
     ],
 )
-def test_patch_stats_url_rejects_non_google_hosts(
-    admin_client: TestClient, db_session: Session, bad: str
-) -> None:
+def test_patch_stats_url_rejects_non_google_hosts(admin_client: TestClient, db_session: Session, bad: str) -> None:
     game = _make_game(db_session, _make_team(db_session))
 
     r = _patch_stats_url(admin_client, game, bad)

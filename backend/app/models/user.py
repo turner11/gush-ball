@@ -14,9 +14,7 @@ class AdminUser(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
-    email: Mapped[str | None] = mapped_column(
-        String(254), unique=True, index=True, default=None
-    )  # lowercase
+    email: Mapped[str | None] = mapped_column(String(254), unique=True, index=True, default=None)  # lowercase
     password_hash: Mapped[str] = mapped_column(String(255))
     is_full_admin: Mapped[bool] = mapped_column(default=False, server_default=sa.false())
     memberships: Mapped[list[Membership]] = relationship(cascade="all, delete-orphan")

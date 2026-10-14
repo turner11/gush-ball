@@ -5,7 +5,6 @@ Revises: b97eaf6d9a79
 Create Date: 2026-10-13 22:23:16.390944
 
 """
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -40,9 +39,7 @@ def upgrade() -> None:
     )
     _seed_clubs(op.get_bind())
     for table in ("teams", "memberships"):
-        op.create_foreign_key(
-            f"fk_{table}_club_clubs", table, "clubs", ["club"], ["name"], onupdate="CASCADE"
-        )
+        op.create_foreign_key(f"fk_{table}_club_clubs", table, "clubs", ["club"], ["name"], onupdate="CASCADE")
 
 
 def downgrade() -> None:
