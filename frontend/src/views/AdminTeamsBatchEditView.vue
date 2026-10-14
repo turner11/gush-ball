@@ -20,7 +20,7 @@ watch(clubFilter, (_, old) => {
   rows.value = teams.value.filter((t) => matchesFilter(t))
 })
 const isDirty = (t) => t.admin_id !== '' || EDITABLE_KEYS.some((k) => t[k] !== snapshots.get(t.id)[k])
-const hiddenEdits = computed(() => teams.value.filter((t) => !rows.value.includes(t) && isDirty(t)).length)
+const hiddenEdits = computed(() => teams.value.filter((t) => !matchesFilter(t) && isDirty(t)).length)
 const state = ref('loading') // 'loading' | 'ready' | 'error'
 const snapshots = new Map() // team id -> the editable fields as loaded
 

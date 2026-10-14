@@ -163,6 +163,14 @@ describe('AdminTeamsBatchEditView', () => {
       expect(wrapper.text()).not.toContain('שינויים מוסתרים')
     })
 
+    it('does not count an edited row that was removed as hidden', async () => {
+      const { wrapper } = await mountView(mixed())
+      await wrapper.find('#batch-club-filter').setValue('גוש')
+      await wrapper.find('input[aria-label="כתובת — קבוצה 1"]').setValue('אולם')
+      await wrapper.find('button[aria-label="הסרה מהרשימה — קבוצה 1"]').trigger('click')
+      expect(wrapper.text()).not.toContain('שינויים מוסתרים')
+    })
+
     it('is hidden when no team has a club', async () => {
       const { wrapper } = await mountView([team(1)])
       expect(wrapper.find('#batch-club-filter').exists()).toBe(false)
