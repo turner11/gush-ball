@@ -292,8 +292,8 @@ The code sends no request bodies, cookies, component props or local variables, a
 5. In each project open *Settings → Security & Privacy*. Keep *Data Scrubber* and *Use Default Scrubbers* on and turn on
    *Prevent Storing of IP Addresses*. Then open *Advanced Data Scrubbing* → *Add Rule* → method **Mask**, data type
    **Email addresses**, source `**`. *Why:* a second privacy layer behind the SDK settings; the rule also catches an
-   email inside an error message. *Verify:* [Data Scrubbing docs](https://docs.sentry.io/security-legal-pii/scrubbing/)
-   list the rule, and *Prevent Storing of IP Addresses* shows as on.
+   email inside an error message. See [Advanced Data Scrubbing](https://docs.sentry.io/security-legal-pii/scrubbing/advanced-datascrubbing/).
+   *Verify:* the project's *Settings → Security & Privacy* page lists the rule, and *Prevent Storing of IP Addresses* shows as on.
 6. In Coolify open the resource → **Environment Variables** and add `SENTRY_DSN` (backend DSN, runtime) and
    `VITE_SENTRY_DSN` (frontend DSN). Make `VITE_SENTRY_DSN` **available during build** (*Build time* dropdown, or the
    *Build Variable* checkbox on older Coolify). *Why:* Vite inlines it into the JavaScript at build time.
@@ -302,7 +302,7 @@ The code sends no request bodies, cookies, component props or local variables, a
 7. In Coolify open *Advanced → Build* and set **Source commit availability → Available during build**. *Why:* this passes
    the git sha as `SOURCE_COMMIT`, which becomes the Sentry release. Coolify keeps it off by default to preserve the
    build cache. *Verify:* the setting shows as enabled after saving
-   ([Coolify docs](https://coolify.io/docs/applications/)).
+   ([Coolify docs](https://coolify.io/docs/knowledge-base/environment-variables)).
 8. Click **Redeploy**. *Why:* both DSNs are read at start/build. *Verify:* the deployment log ends with a healthy
    container and the site loads.
 9. Verify the backend: log in as a full admin and open `https://<domain>/api/health/sentry-test`. Expect an error

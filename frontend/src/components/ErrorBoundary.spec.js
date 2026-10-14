@@ -1,4 +1,3 @@
-import { captureException } from '@sentry/vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { h, ref } from 'vue'
@@ -6,7 +5,15 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import ErrorBoundary from './ErrorBoundary.vue'
 
-vi.mock('@sentry/vue', () => ({ captureException: vi.fn() }))
+// The module resolves only after `sentryLoaded` is released, like a slow chunk download.
+const { captureException, releaseSentry, sentryLoaded } = vi.hoisted(() => {
+  let release
+  return { captureException: vi.fn(), releaseSentry: () => release(), sentryLoaded: new Promise((r) => (release = r)) }
+})
+vi.mock('../lib/sentry', async () => {
+  await sentryLoaded
+  return { captureException }
+})
 
 describe('ErrorBoundary', () => {
   it('resets after navigation', async () => {
@@ -53,7 +60,8 @@ describe('ErrorBoundary', () => {
     expect(wrapper.text()).not.toContain('Failed to fetch')
   })
 
-  it('reports the captured error to Sentry', async () => {
+  it('sends an error captured before the Sentry chunk loads once it loads', async () => {
+    vi.stubEnv('VITE_SENTRY_DSN', 'https://k@o1.ingest.sentry.io/1')
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const router = createRouter({
       history: createMemoryHistory(),
@@ -68,7 +76,29 @@ describe('ErrorBoundary', () => {
     }
     mount(ErrorBoundary, { slots: { default: () => h(Child) }, global: { plugins: [router] } })
     await flushPromises()
+    expect(captureException).not.toHaveBeenCalled()
 
+    releaseSentry()
+    await flushPromises()
     expect(captureException).toHaveBeenCalledWith(err)
+  })
+
+  it('never loads Sentry without a DSN', async () => {
+    vi.stubEnv('VITE_SENTRY_DSN', '')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    captureException.mockClear()
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:p*', component: { render: () => null } }],
+    })
+    await router.push('/a')
+    const Child = {
+      setup() {
+        throw new Error('boom')
+      },
+    }
+    mount(ErrorBoundary, { slots: { default: () => h(Child) }, global: { plugins: [router] } })
+    await flushPromises()
+    expect(captureException).not.toHaveBeenCalled()
   })
 })
