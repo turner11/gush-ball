@@ -216,12 +216,13 @@ def test_team_admin_sync_status_shows_own_run(
 def test_team_admin_sync_status_shows_own_failed_run(
     team_admin_client: TestClient, own_team: Team, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        sync_router,
-        "_last",
-        {"team_ids": [own_team.id], "errors": ["boom"], "failed": True, "finished_at": datetime.now(UTC)},
-    )
+    def _boom(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("boom")
 
+    monkeypatch.setattr(sync_router, "_last", None)
+    monkeypatch.setattr(sync_router, "sync_all", _boom)
+
+    assert team_admin_client.post("/sync/now", json={"team_ids": [own_team.id]}).status_code == 202
     body = team_admin_client.get("/sync/status").json()
 
     assert body["failed"] is True
