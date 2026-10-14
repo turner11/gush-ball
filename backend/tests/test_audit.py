@@ -7,7 +7,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import scrape_games, scrape_standings
-from app.models import AdminUser, Game, GameStatus, Membership, Opponent, Player, PlayerImage, Team, TeamLink
+from app.models import (
+    AdminUser,
+    Game,
+    GameStatus,
+    Membership,
+    Opponent,
+    Player,
+    PlayerImage,
+    Team,
+    TeamLink,
+)
 from app.security import hash_password
 from tests.test_scrape_games import FUTURE_EVENT, FakeApi
 from tests.test_scrape_games import _make_team as _make_game_scrape_team
@@ -182,7 +192,7 @@ def _standing_delete(c, db):
 
 
 def _team_create(c, db):
-    return lambda: c.post("/teams", json={"name": "New"}), "create", "team", None, None
+    return lambda: c.post("/teams", json={"name": "New"}), "create", "team", None, "created"
 
 
 def _team_patch(c, db):
@@ -243,7 +253,8 @@ def _admin_revoke(c, db):
 def _admin_create(c, db):
     t = _team(db)
     body = {"username": "newadmin", "password": "password123"}
-    return lambda: c.post(f"/teams/{t.id}/admins", json=body), "create", "membership", None, t.id
+    new_membership_id = lambda r: db.scalar(select(Membership.id).where(Membership.user_id == r.json()["id"]))
+    return lambda: c.post(f"/teams/{t.id}/admins", json=body), "create", "membership", new_membership_id, t.id
 
 
 CASES: list[Case] = [
@@ -268,8 +279,11 @@ def test_request_write_emits_one_row(case: Case, admin_client: TestClient, db_se
     new = _rows(db_session)[before:]
     assert len(new) == 1
     row = new[0]
-    assert (row.action, row.entity_type, row.team_id) == (action, entity_type, team_id)
-    if entity_id is None:
+    assert (row.action, row.entity_type) == (action, entity_type)
+    assert row.team_id == (response.json()["id"] if team_id == "created" else team_id)
+    if callable(entity_id):
+        assert row.entity_id == entity_id(response)
+    elif entity_id is None:
         assert row.entity_id == response.json()["id"]
     else:
         assert row.entity_id == entity_id
@@ -284,12 +298,13 @@ def test_update_logs_only_changed_fields(admin_client: TestClient, db_session: S
 
     admin_client.patch(f"/teams/{t.id}/games/{g.id}", json={"team_score": 90})
 
-    assert _rows(db_session)[before].changes == {"team_score": [None, 90]}
+    # an admin edit of a scraped-style game also flips the override flag; nothing else changes
+    assert _rows(db_session)[before].changes == {"team_score": [None, 90], "is_manually_overridden": [False, True]}
 
 
 def test_scraper_writes_are_unattributed(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(scrape_standings, "_get_html", lambda url: FIXTURE_HTML)
-    scrape_standings.sync_team_standings(db_session, _make_standings_team(db_session))
+    scrape_standings.sync_team_standings(db_session, _make_standings_team(db_session, slug="standings-team"))
     monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
     monkeypatch.setattr(scrape_games, "_get_page", lambda url: "")
     scrape_games.sync_team_games(db_session, _make_game_scrape_team(db_session))

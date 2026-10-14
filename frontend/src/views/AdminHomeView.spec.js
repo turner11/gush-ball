@@ -36,6 +36,7 @@ describe('AdminHomeView', () => {
         { path: '/admin/standings', component: { template: '<div/>' } },
         { path: '/admin/teams', name: 'admin-teams', component: { template: '<div/>' } },
         { path: '/admin/users', name: 'admin-users', component: { template: '<div/>' } },
+        { path: '/admin/audit', name: 'admin-audit', component: { template: '<div/>' } },
       ],
     })
   })
