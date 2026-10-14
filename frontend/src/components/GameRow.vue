@@ -8,8 +8,10 @@ import { gameAddress, homeFirst, played, result, STATUS_LABELS } from '../lib/ga
 import GameLocationLinks from './GameLocationLinks.vue'
 import GameStatsLink from './GameStatsLink.vue'
 
-// One schedule row. The optional `actions` slot is a full-width row under the content and replaces the live-stats link (the admin list uses it).
-const props = defineProps({ game: { type: Object, required: true }, team: { type: Object, default: null } })
+// One schedule row. The optional `actions` slot is a full-width row under the content and replaces the live-stats link (the admin list uses it). `showTeam` (club-wide lists) adds a phone-only team label and drops the stats link, whose route has no slug.
+const props = defineProps({ game: { type: Object, required: true }, team: { type: Object, default: null },
+  showTeam: { type: Boolean, default: false },
+})
 
 const d = computed(() => formatGameDate(props.game.scheduled_at))
 const sides = computed(() => {
@@ -35,6 +37,7 @@ const edge = computed(() => ({ W: 'border-win', L: 'border-loss' })[result(props
       </template>
     </div>
     <div class="min-w-0 flex-1">
+      <p v-if="showTeam && team" class="text-xs font-bold text-muted sm:hidden">{{ team.name }}</p>
       <p class="break-words font-bold">
         <template v-for="(side, i) in sides" :key="i">
           <span v-if="i" class="font-normal text-muted max-sm:hidden"> - </span>
@@ -52,7 +55,7 @@ const edge = computed(() => ({ W: 'border-win', L: 'border-loss' })[result(props
           class="section-link"
           :aria-label="'פרטי המשחק נגד ' + game.opponent.name"
         >פרטי המשחק</RouterLink>
-        <GameStatsLink v-if="!$slots.actions" :game="game" class="section-link" />
+        <GameStatsLink v-if="!$slots.actions && !showTeam" :game="game" class="section-link" />
       </div>
     </div>
     <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">

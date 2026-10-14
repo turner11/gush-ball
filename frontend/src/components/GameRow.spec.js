@@ -21,3 +21,14 @@ describe('GameRow game page link', () => {
     expect(link.props('to')).toEqual({ name: 'game', params: { slug: 'gush_u14', id: 7 } })
   })
 })
+
+describe('GameRow showTeam', () => {
+  it('show-team labels the row with our team and drops the stats link', () => {
+    const props = { game: { ...game, id: 7 }, team: { id: 1, name: 'קבוצה א', name_en: 'a' } }
+    const plain = mount(GameRow, { props, global: { stubs } })
+    expect(plain.findComponent({ name: 'GameStatsLink' }).exists()).toBe(true)
+    const w = mount(GameRow, { props: { ...props, showTeam: true }, global: { stubs } })
+    expect(w.find('p.text-xs').text()).toBe('קבוצה א')
+    expect(w.findComponent({ name: 'GameStatsLink' }).exists()).toBe(false)
+  })
+})
