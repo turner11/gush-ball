@@ -7,3 +7,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && npm install -g @anthropic-ai/claude-code \
     && curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh \
     && rm -rf /var/lib/apt/lists/*
+
+# The base image gives `runner` passwordless sudo, which would defeat RUN_AS_ROOT=false.
+RUN gpasswd -d runner sudo
