@@ -48,6 +48,18 @@ describe('VerifyEmailView', () => {
     expect(wrapper.find('[role="alert"]').text()).toContain('כבר משויכת')
   })
 
+  it('401 and 403 ask to sign in and link back to this page', async () => {
+    for (const status of [401, 403]) {
+      vi.resetModules()
+      const wrapper = await mountVerify('/admin/verify-email?token=abc', fail(status))
+      await wrapper.find('button').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('[role="alert"]').text()).toContain('התחברו לחשבון')
+      const href = wrapper.find('a').attributes('href')
+      expect(href).toContain('next=' + encodeURIComponent('/admin/verify-email?token=abc'))
+    }
+  })
+
   it('a missing token goes straight to the invalid-link state', async () => {
     const wrapper = await mountVerify('/admin/verify-email', ok)
     expect(wrapper.find('[role="alert"]').text()).toContain('הקישור אינו תקף')

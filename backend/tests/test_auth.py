@@ -555,6 +555,26 @@ def test_verify_email_rejects_address_taken_meanwhile(seeded: TestClient, db_ses
     assert db_session.scalar(select(AdminUser.email).where(AdminUser.username == "dana")) is None
 
 
+def test_verify_email_requires_session_of_the_signed_up_user(seeded: TestClient, db_session: Session, verify_sent) -> None:
+    _pw_signup(seeded, email="victim@example.com")
+    token = _token(verify_sent)
+
+    def dana_email():
+        return db_session.scalar(select(AdminUser.email).where(AdminUser.username == "dana"))
+
+    seeded.post("/auth/logout")
+    assert seeded.post("/auth/verify-email", json={"token": token}).status_code == 401
+    assert seeded.post("/auth/login", json=GOOD).status_code == 200
+    assert seeded.post("/auth/verify-email", json={"token": token}).status_code == 403
+    db_session.expire_all()
+    assert dana_email() is None
+    seeded.post("/auth/logout")
+    assert seeded.post("/auth/login", json={"username": "dana", "password": "password123"}).status_code == 200
+    assert seeded.post("/auth/verify-email", json={"token": token}).status_code == 200
+    db_session.expire_all()
+    assert dana_email() == "victim@example.com"
+
+
 @pytest.mark.parametrize(
     ("over", "status_code"),
     [
