@@ -146,8 +146,12 @@ describe('AdminTeamsView', () => {
     const retry = wrapper.findAll('button').find((b) => b.text() === 'נסו שוב')
     expect(retry).toBeTruthy()
 
-    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+    let finish
+    mockFetch({ 'GET /api/teams': () => new Promise((r) => (finish = () => r(jsonRes(TEAMS)))) })
     await retry.trigger('click')
+    expect(wrapper.text()).not.toContain('אין קבוצות עדיין.')
+    expect(wrapper.find('[aria-hidden="true"].space-y-2').exists()).toBe(true)
+    finish()
     await flushPromises()
     expect(wrapper.text()).toContain('קבוצה א')
     expect(wrapper.find('[data-testid="list-error"]').exists()).toBe(false)

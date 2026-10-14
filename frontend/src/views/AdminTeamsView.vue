@@ -25,6 +25,7 @@ const submitting = ref(false)
 const pendingDeleteId = ref(null)
 
 async function load() {
+  loading.value = true
   listError.value = null
   const loaded = await list()
   if (!loaded) listError.value = error.value

@@ -209,7 +209,7 @@ const contentSections = [
 
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
 
-        <div class="sticky-actions flex flex-wrap items-center gap-3">
+        <div class="sticky-actions flex flex-wrap items-center gap-x-3 gap-y-1">
           <button type="submit" :disabled="submitting" class="btn-primary w-full sm:w-auto">
             שמירה
           </button>
