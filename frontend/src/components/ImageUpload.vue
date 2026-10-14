@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 
+defineProps({ label: { type: String, default: undefined } })
 const emit = defineEmits(['uploaded'])
 const uploading = ref(false)
 const error = ref(null)
@@ -29,7 +30,7 @@ async function onChange(event) {
 
 <template>
   <span class="inline-flex items-center gap-2 text-sm">
-    <input type="file" accept="image/*" :disabled="uploading" class="file:me-2 file:rounded-xl file:border file:border-line file:bg-raised file:px-3 file:min-h-11" @change="onChange" />
+    <input type="file" :aria-label="label" accept="image/*" :disabled="uploading" class="file:me-2 file:rounded-xl file:border file:border-line file:bg-raised file:px-3 file:min-h-11" @change="onChange" />
     <span v-if="uploading" role="status">מעלה...</span>
     <span v-if="error" class="error-text" role="alert">{{ error }}</span>
   </span>

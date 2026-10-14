@@ -9,6 +9,7 @@ import ThemeToggle from '../components/ThemeToggle.vue'
 import { useAuth } from '../composables/useAuth'
 import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { backgroundSrc } from '../lib/backgrounds'
 import { setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from '../lib/head'
 import { onColor } from '../lib/teamColors'
 
@@ -40,6 +41,7 @@ const { selectedTeamId, ensureDefault } = useSelectedTeam()
 // Scoped to this layout's root so admin pages stay neutral; unset vars fall back in style.css.
 const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value))
 // Empty until teams load, so links fall back to the bare legacy paths (which redirect).
+const heroImage = computed(() => `url("${backgroundSrc(selectedTeam.value?.background)}")`)
 const teamBase = computed(() => (selectedTeam.value ? '/' + teamSlug(selectedTeam.value) : ''))
 const homePath = computed(() => teamBase.value || '/')
 const teamStyle = computed(() => {
@@ -177,7 +179,7 @@ onMounted(async () => {
       v-if="selectedTeam && isHome"
       data-testid="hero"
       class="relative h-28 bg-brand bg-cover bg-[position:50%_65%] sm:h-40 [@media(max-height:30rem)]:h-16"
-      :style="{ backgroundImage: `url(/backgrounds/${selectedTeam.background ?? 'hoop-1'}.jpg)` }"
+      :style="{ backgroundImage: heroImage }"
     >
       <!-- the header already shows logo + name; the hero is atmosphere only -->
       <div class="absolute inset-0 bg-linear-to-t from-surface to-transparent" aria-hidden="true" />

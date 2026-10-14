@@ -31,8 +31,9 @@ HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 Name = Annotated[str, StringConstraints(max_length=120)]
 ClubName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Address = Annotated[str, StringConstraints(max_length=300)]
-Background = Literal["hoop-1", "hoop-2"]  # bundled presets in frontend/public/backgrounds
 Url500 = Annotated[HttpUrl, UrlConstraints(max_length=500)]
+# a bundled preset key in frontend/public/backgrounds, or an image URL (upload or external)
+Background = Literal["hoop-1", "hoop-2"] | Url500
 
 
 def _require_ibasketball(url: HttpUrl) -> HttpUrl:

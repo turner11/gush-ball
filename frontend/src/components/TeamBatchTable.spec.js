@@ -69,6 +69,13 @@ describe('TeamBatchTable', () => {
     expect(link.attributes('rel')).toBe('noopener')
   })
 
+  it('keeps a custom background visible in the select', async () => {
+    mockFetch({ 'GET /api/teams/assignable-users': () => res([]) })
+    const url = 'https://cdn.example.com/bg.jpg'
+    const { wrapper } = await mountTable([{ ...row(1), background: url }], vi.fn())
+    expect(wrapper.find('select[aria-label="רקע — קבוצה 1"]').element.value).toBe(url)
+  })
+
   it('assigns the picked admin after saving and removes the row', async () => {
     mockFetch({
       'GET /api/teams/assignable-users': () => res(ADMINS),

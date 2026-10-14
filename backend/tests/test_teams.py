@@ -147,6 +147,16 @@ def test_rejects_unknown_background(admin_client: TestClient) -> None:
     assert admin_client.post("/teams", json={"name": "Team X", "background": "nope"}).status_code == 422
     created = _create_team(admin_client, "Team Y")
     assert admin_client.patch(f"/teams/{created['id']}", json={"background": "nope"}).status_code == 422
+    for bad in ("javascript:alert(1)", "https://example.com/" + "a" * 500):
+        assert admin_client.patch(f"/teams/{created['id']}", json={"background": bad}).status_code == 422
+
+
+def test_background_accepts_image_url(admin_client: TestClient) -> None:
+    created = _create_team(admin_client, "Team Z")
+    url = f"/teams/{created['id']}"
+    bg = "https://cdn.example.com/bg.jpg"
+    assert admin_client.patch(url, json={"background": bg}).status_code == 200
+    assert admin_client.get(url).json()["background"] == bg
 
 
 def test_club_preview_rejects_non_ibasketball_url(admin_client: TestClient) -> None:
