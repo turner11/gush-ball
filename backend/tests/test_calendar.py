@@ -88,4 +88,13 @@ def test_calendar_lines_are_folded_at_75_octets(client: TestClient, db_session: 
 
 
 def test_calendar_unknown_team_404(client: TestClient) -> None:
-    assert client.get("/teams/999/calendar.ics").status_code == 404
+    response = client.get("/teams/999/calendar.ics")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Team not found"}  # proves get_team_or_404 ran, not just an unmatched path
+
+
+def test_calendar_postponed_game_summary_is_prefixed(client: TestClient, db_session: Session, own_team: Team) -> None:
+    game = _game(db_session, own_team, "Late", datetime(2026, 1, 1, 18, 0))
+    game.status = GameStatus.POSTPONED
+    db_session.commit()
+    assert "SUMMARY:נדחה: " in _feed(client, own_team).replace("\r\n ", "")

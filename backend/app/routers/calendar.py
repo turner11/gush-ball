@@ -41,6 +41,7 @@ def _event_lines(team: Team, game: Game, stamp: str) -> list[str]:
     home, away = (team.name, game.opponent.name) if game.is_home else (game.opponent.name, team.name)
     address = team.home_court_address if game.is_home else game.opponent.address
     played = game.team_score is not None and game.opponent_score is not None
+    postponed = "נדחה: " if game.status is GameStatus.POSTPONED else ""  # the site shows the same badge
     notes: list[str] = []
     if played:
         home_score, away_score = (game.team_score, game.opponent_score) if game.is_home else (game.opponent_score, game.team_score)
@@ -53,7 +54,7 @@ def _event_lines(team: Team, game: Game, stamp: str) -> list[str]:
         f"DTSTAMP:{stamp}",
         f"DTSTART:{_utc(game.scheduled_at)}",
         "DURATION:PT2H",  # ponytail: fixed 2h slot; no end time in the data
-        f"SUMMARY:{_text(f'{home} נגד {away}')}",
+        f"SUMMARY:{_text(f'{postponed}{home} נגד {away}')}",
     ]
     if address:
         lines.append(f"LOCATION:{_text(address)}")
