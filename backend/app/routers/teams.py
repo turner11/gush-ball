@@ -211,15 +211,20 @@ def list_teams(db: DbSession) -> list[Team]:
     return list(db.scalars(select(Team)).all())
 
 
+# approved only: an impostor self-signup must not be promotable to admin
+_HAS_APPROVED_GRANT = (
+    select(Membership.id).where(Membership.user_id == AdminUser.id, Membership.role.in_(("member", "admin"))).exists()
+)
+
+
 @router.get("/assignable-users", response_model=list[AssignableUserOut])  # before /{team_id}
 def list_assignable_users(admin: RequireAnyAdmin, db: DbSession) -> list[AssignableUserOut]:
     """Candidates for "assign admin". No emails: club admins must not see other clubs' contact details."""
     if not (admin.is_full_admin or admin_clubs(db, admin)):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to manage admins")
-    approved = select(Membership.id).where(Membership.user_id == AdminUser.id, Membership.role.in_(("member", "admin")))
-    users = db.execute(  # approved only: an impostor self-signup must not be promotable to admin
+    users = db.execute(
         select(AdminUser.id, AdminUser.username)
-        .where(AdminUser.is_full_admin.is_(False), approved.exists())
+        .where(AdminUser.is_full_admin.is_(False), _HAS_APPROVED_GRANT)
         .order_by(AdminUser.username)
     ).all()
     direct: dict[int, list[int]] = {}
@@ -326,7 +331,9 @@ def assign_team_admin(
     if scope == "club" and team.club is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "לקבוצה אין מועדון")
     # is_full_admin false keeps full admins unreachable: this can never create or demote a full admin.
-    user = db.scalar(select(AdminUser).where(AdminUser.id == user_id, AdminUser.is_full_admin.is_(False)))
+    user = db.scalar(
+        select(AdminUser).where(AdminUser.id == user_id, AdminUser.is_full_admin.is_(False), _HAS_APPROVED_GRANT)
+    )
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
     grant = db.scalar(select(Membership).where(*_grant_filter(user_id, team, scope)))
