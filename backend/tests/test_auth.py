@@ -713,7 +713,7 @@ def test_update_own_display_name(seeded: TestClient) -> None:
     assert r.status_code == 200 and r.json()["display_name"] == "Dana C"
     me = seeded.get("/auth/me").json()
     assert me["display_name"] == "Dana C" and me["username"] == "admin"
-    for bad in ("   ", "\u200b‍ ﻿", "x" * 65):
+    for bad in ("   ", "\u200b\u200d \ufeff", "x" * 65):
         assert seeded.patch("/auth/me", json={"display_name": bad}).status_code == 422
 
 

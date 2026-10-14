@@ -57,7 +57,7 @@ class SignupRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
-_ZERO_WIDTH = dict.fromkeys(map(ord, "\u200b‌‍﻿"))
+_ZERO_WIDTH = dict.fromkeys(map(ord, "\u200b\u200c\u200d\ufeff"))
 
 
 def _clean_name(name: str | None) -> str:
