@@ -103,6 +103,59 @@ describe('AdminTeamEditView', () => {
     expect(patchBody).not.toHaveProperty('youtube_url')
   })
 
+  it('offers custom backgrounds from teams of the same club and previews the selection', async () => {
+    const A = 'https://cdn.example.com/a.jpg'
+    const B = 'https://cdn.example.com/b.jpg'
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ ...TEAM, club: 'גוש' }),
+      'GET /api/teams': () =>
+        jsonRes([
+          { ...TEAM, club: 'גוש' },
+          { ...TEAM, id: 2, club: 'גוש', background: A },
+          { ...TEAM, id: 3, club: 'אחר', background: B },
+        ]),
+      ...CONTENT_HANDLERS,
+    })
+
+    const wrapper = await mountView()
+    const values = wrapper.findAll('#team-background option').map((o) => o.element.value)
+    expect(values).toContain(A)
+    expect(values).not.toContain(B)
+
+    await wrapper.find('#team-background').setValue(A)
+    expect(wrapper.find('img[alt="תצוגה מקדימה של הרקע"]').attributes('src')).toBe(A)
+  })
+
+  it('sets the background from an upload and from a pasted URL', async () => {
+    const U = 'https://cdn.example.com/uploaded.jpg'
+    const V = 'https://cdn.example.com/pasted.jpg'
+    const patches = []
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'GET /api/teams': () => jsonRes([TEAM]),
+      'POST /api/uploads': () => jsonRes({ url: U }),
+      'PATCH /api/teams/1': (options) => {
+        patches.push(JSON.parse(options.body))
+        return jsonRes({ ...TEAM, ...patches.at(-1) })
+      },
+      ...CONTENT_HANDLERS,
+    })
+
+    const wrapper = await mountView()
+    const input = wrapper.find('input[aria-label="העלאת תמונת רקע"]')
+    Object.defineProperty(input.element, 'files', { value: [new File(['x'], 'bg.png', { type: 'image/png' })], configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patches[0].background).toBe(U)
+
+    await wrapper.find('#team-background-url').setValue(V)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patches[1].background).toBe(V)
+  })
+
   it('a save after a failed save updates the team and shows נשמר', async () => {
     let calls = 0
     mockFetch({

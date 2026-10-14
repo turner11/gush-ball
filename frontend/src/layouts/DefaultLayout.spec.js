@@ -420,6 +420,20 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('[data-testid="hero"]').attributes('style')).toContain('/backgrounds/hoop-2.jpg')
   })
 
+  it('renders a custom background URL in the hero', async () => {
+    const url = 'https://cdn.example.com/bg.jpg'
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS.map((t) => ({ ...t, background: url }))) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
+    await flushPromises()
+
+    const style = wrapper.find('[data-testid="hero"]').attributes('style')
+    expect(style).toContain(url)
+    expect(style).not.toContain('/backgrounds/')
+  })
+
   it('header is sticky and never shows the text club title', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
