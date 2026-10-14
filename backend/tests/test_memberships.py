@@ -79,10 +79,26 @@ def test_list_is_scoped(
         assert response.status_code == 200
         items = response.json()
         assert len(items) == count, fixture
-        assert all("email" not in i for i in items) and "@" not in response.text
+        assert all("email" not in i for i in items) and "secret" not in response.text
         if fixture == "club_admin_client":
             assert {i["team_id"] for i in items} == {own_team.id, sibling_team.id}
         client.post("/auth/logout")
+
+
+def test_queue_shows_masked_email_and_flags_unverified(
+    team_admin_client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    _pending(db_session, Membership(team_id=own_team.id, role="pending"))
+    unverified = AdminUser(username="noemail", email=None, password_hash="x")
+    db_session.add(unverified)
+    db_session.flush()
+    db_session.add(Membership(user_id=unverified.id, team_id=own_team.id, role="pending"))
+    db_session.commit()
+    response = team_admin_client.get("/memberships")
+    first, second = response.json()
+    assert first["email_hint"] == "s***@example.com"
+    assert second["email_hint"] is None
+    assert "secret" not in response.text
 
 
 def test_team_admin_approves_own_team_request_only(
@@ -182,4 +198,4 @@ def test_signup_emails_not_exposed_to_admins(
 ) -> None:
     _pending(db_session, Membership(team_id=sibling_team.id, role="pending"))
     assert "@" not in club_admin_client.get("/teams/assignable-users").text
-    assert "@" not in club_admin_client.get("/memberships").text
+    assert "secret" not in club_admin_client.get("/memberships").text
