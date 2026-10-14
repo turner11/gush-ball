@@ -656,3 +656,27 @@ def test_send_email_never_logs_body_on_https(monkeypatch: pytest.MonkeyPatch, ca
     monkeypatch.setattr(auth.settings, "public_url", "https://example.com")
     auth._send_email("a@b.c", "s", "SECRET-LINK")
     assert "SECRET-LINK" not in caplog.text
+
+
+def test_session_cookie_is_httponly_lax_and_not_secure_on_http(seeded: TestClient) -> None:
+    cookie = seeded.post("/auth/login", json=GOOD).headers["set-cookie"].lower()
+    assert "httponly" in cookie
+    assert "samesite=lax" in cookie
+    assert "secure" not in cookie
+
+
+def test_session_cookie_secure_when_public_url_is_https(monkeypatch: pytest.MonkeyPatch) -> None:
+    import importlib
+
+    from starlette.middleware.sessions import SessionMiddleware
+
+    import app.main
+
+    original = app.main.app
+    monkeypatch.setattr(settings, "public_url", "https://example.org")
+    try:
+        reloaded = importlib.reload(app.main)
+        session = next(m for m in reloaded.app.user_middleware if m.cls is SessionMiddleware)
+        assert session.kwargs["https_only"] is True
+    finally:
+        app.main.app = original
