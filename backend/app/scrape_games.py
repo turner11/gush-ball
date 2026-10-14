@@ -15,6 +15,7 @@ from urllib.parse import urljoin, urlsplit
 import cv2
 import httpx
 import numpy as np
+from bbstats import http_url_or_none
 from bs4 import BeautifulSoup
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
@@ -172,10 +173,10 @@ def _fill_team_club(db: Session, team: Team, name: str, url: str) -> None:
 def _resolve_opponent(db: Session, data: dict[str, Any]) -> Opponent:
     name = html.unescape(data["title"]["rendered"])
     opponent = get_or_create_opponent(db, name)
-    opponent.source_url = data["link"]  # the link is the source id: newest published link wins
+    opponent.source_url = http_url_or_none(data["link"])  # the link is the source id: newest published link wins
     if opponent.logo_url is None:
         media = data.get("_embedded", {}).get("wp:featuredmedia") or []
-        opponent.logo_url = media[0]["source_url"] if media else None
+        opponent.logo_url = http_url_or_none(media[0]["source_url"]) if media else None
     # ponytail: "" = page has no address (never refetched); None = fetch failed, retried next sync
     if opponent.address is None and opponent.source_url:
         opponent.address = _scrape_address(opponent.source_url)
@@ -226,8 +227,9 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
             if team.home_court_address is None:
                 team.home_court_address = _venue(page)
             link = page.select_one("div.data-club a[href]")
-            if link is not None:
-                _fill_team_club(db, team, link.get_text(strip=True), link["href"])
+            club_url = http_url_or_none(link["href"]) if link is not None else None
+            if club_url is not None:
+                _fill_team_club(db, team, link.get_text(strip=True), club_url)
 
     # ponytail: single page (100); follow X-WP-TotalPages if a team ever exceeds it
     events = _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)

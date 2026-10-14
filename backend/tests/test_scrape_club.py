@@ -144,3 +144,23 @@ def test_preview_skips_rest_calls_when_all_teams_exist(
     _patch(monkeypatch, fetcher)
     assert scrape_club.preview_club_teams(db_session, CLUB_URL) == []
     assert fetcher.json_calls == 0
+
+
+def test_parse_club_page_drops_non_http_hrefs() -> None:
+    bad_card = _card("Bad", "ליגה ג", "9").replace("https://ibasketball.co.il/team/9-Bad/", "javascript:alert(1)")
+    html = _page(_card("Alpha", "ליגה ג", "1"), bad_card).replace(
+        "</div><div", '<a class="league data-item" href="javascript:alert(2)">ליגה ג</a></div><div', 1
+    )
+    rows = scrape_club.parse_club_page(html)
+
+    assert [r["name"] for r in rows] == ["Alpha"]
+    assert rows[0]["ibasketball_league_url"] is None
+
+
+def test_preview_drops_non_http_logo(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    fetcher = Fetcher(_page(_card("A", "ליגה א", "1")), [[_rest_team("1", "javascript:alert(1)", [])]])
+    _patch(monkeypatch, fetcher)
+
+    rows = scrape_club.preview_club_teams(db_session, CLUB_URL)
+
+    assert rows[0]["logo_url"] is None

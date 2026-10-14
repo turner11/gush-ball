@@ -252,3 +252,11 @@ def test_sync_all_standings_rolls_back_after_db_failure_so_next_team_still_syncs
     assert count == 2
     rows = db_session.query(StandingRow).all()
     assert [r.team_name for r in rows] == ["אליצור קרית אתא לאטי", "מכבי חיפה"]
+
+
+def test_parse_league_table_drops_non_http_source_url() -> None:
+    html = FIXTURE_HTML.replace("https://ibasketball.co.il/team/120/", "javascript:alert(1)")
+    _, rows = scrape_standings.parse_league_table(html)
+
+    assert rows[0]["source_url"] is None
+    assert rows[1]["source_url"] == "https://ibasketball.co.il/team/121/"

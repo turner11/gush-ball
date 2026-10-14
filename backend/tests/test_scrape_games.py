@@ -1064,3 +1064,31 @@ def test_resync_refreshes_opponent_source_url_to_latest_link(
     db_session.refresh(opponent)
     assert db_session.query(Opponent).count() == 1
     assert opponent.source_url == OPPONENT_DETAIL["link"]
+
+
+def test_sync_drops_non_http_opponent_link_and_logo(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, page_calls: list[str]
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setitem(OPPONENT_DETAIL, "link", "javascript:alert(1)")
+    monkeypatch.setitem(OPPONENT_DETAIL, "_embedded", {"wp:featuredmedia": [{"source_url": "javascript:alert(2)"}]})
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FINAL_EVENT_AWAY]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    opponent = db_session.query(Opponent).one()
+    assert (opponent.source_url, opponent.logo_url) == (None, None)
+    assert "javascript:alert(1)" not in page_calls
+    assert db_session.query(Game).filter_by(source_event_id=9002).one()
+
+
+def test_sync_ignores_non_http_club_link(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _make_team(db_session)
+    bad_club = CLUB_HTML.replace(CLUB_URL, "javascript:alert(1)")
+    monkeypatch.setattr(scrape_games, "_get_page", lambda url: ADDRESS_HTML + bad_club)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    assert db_session.query(Club).count() == 0
+    assert team.club is None
