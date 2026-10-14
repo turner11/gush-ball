@@ -1,5 +1,4 @@
 <script setup>
-import { captureException } from '@sentry/vue'
 import { onErrorCaptured, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -10,7 +9,8 @@ const route = useRoute()
 
 onErrorCaptured((err) => {
   console.error(err)
-  captureException(err) // `return false` below stops Vue's app-level handler, so report here
+  // `return false` below stops Vue's app-level handler, so report here (lazy: keeps Sentry out of main chunk)
+  import('@sentry/vue').then((Sentry) => Sentry.captureException(err))
   error.value = err
   return false
 })

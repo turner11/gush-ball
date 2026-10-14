@@ -290,14 +290,21 @@ The code sends no request bodies, cookies, component props or local variables, a
 4. In each project open *Alerts → Rules* and check that the default "new issue" rule emails you. *Why:* otherwise nobody
    hears about errors. *Verify:* your address is listed as the recipient.
 5. In each project open *Settings → Security & Privacy*. Keep *Data Scrubber* and *Use Default Scrubbers* on and turn on
-   *Prevent Storing of IP Addresses*. *Why:* a second privacy layer behind the SDK settings.
+   *Prevent Storing of IP Addresses*. Then open *Advanced Data Scrubbing* → *Add Rule* → method **Mask**, data type
+   **Email addresses**, source `**`. *Why:* a second privacy layer behind the SDK settings; the rule also catches an
+   email inside an error message. *Verify:* [Data Scrubbing docs](https://docs.sentry.io/security-legal-pii/scrubbing/)
+   list the rule, and *Prevent Storing of IP Addresses* shows as on.
 6. In Coolify open the resource → **Environment Variables** and add `SENTRY_DSN` (backend DSN, runtime) and
    `VITE_SENTRY_DSN` (frontend DSN). Make `VITE_SENTRY_DSN` **available during build** (*Build time* dropdown, or the
    *Build Variable* checkbox on older Coolify). *Why:* Vite inlines it into the JavaScript at build time.
+   *Verify:* both variables are listed on the page, and `VITE_SENTRY_DSN` is marked as a build variable
+   ([Coolify docs](https://coolify.io/docs/knowledge-base/environment-variables)).
 7. In Coolify open *Advanced → Build* and set **Source commit availability → Available during build**. *Why:* this passes
    the git sha as `SOURCE_COMMIT`, which becomes the Sentry release. Coolify keeps it off by default to preserve the
-   build cache.
-8. Click **Redeploy**. *Why:* both DSNs are read at start/build.
+   build cache. *Verify:* the setting shows as enabled after saving
+   ([Coolify docs](https://coolify.io/docs/applications/)).
+8. Click **Redeploy**. *Why:* both DSNs are read at start/build. *Verify:* the deployment log ends with a healthy
+   container and the site loads.
 9. Verify the backend: log in as a full admin and open `https://<domain>/api/health/sentry-test`. Expect an error
    response. *Verify:* within a minute the error appears under `gush-ball-backend` → Issues, its **Release** equals the
    deployed commit sha, and the alert email arrives.
