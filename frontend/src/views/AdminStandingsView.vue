@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { fullAdmin, useAuth } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
 import { teamRows } from '../lib/standings'
@@ -42,6 +43,7 @@ watch(selectedLeague, (league) => {
   if (!editing.value) form.value.league_name = league
 })
 const error = ref(null)
+const pendingDelete = ref(null)
 
 const leagues = computed(() => {
   const visible = readOnly.value && team.value ? teamRows(rows.value, team.value) : rows.value
@@ -117,6 +119,7 @@ async function onSubmit() {
 }
 
 async function onDelete(row) {
+  pendingDelete.value = null
   error.value = null
   try {
     await apiFetch(`/standings/${row.id}`, { method: 'DELETE' })
@@ -161,7 +164,7 @@ async function onDelete(row) {
                 <td v-if="!readOnly" class="justify-end">
                   <span class="inline-flex gap-1">
                     <button type="button" class="btn-ghost" @click="startEdit(row)">ערוך</button>
-                    <button type="button" class="btn-danger-ghost" @click="onDelete(row)">מחק</button>
+                    <button type="button" class="btn-danger-ghost" @click="pendingDelete = row">מחק</button>
                   </span>
                 </td>
               </tr>
@@ -204,5 +207,12 @@ async function onDelete(row) {
       </form>
     </div>
     <a v-if="!readOnly" href="#standing-form" class="fab lg:hidden" aria-label="הוספת שורה"><AppIcon name="plus" /></a>
+
+    <ConfirmDialog
+      :open="pendingDelete !== null"
+      :message="`למחוק את השורה של ${pendingDelete?.team_name}?`"
+      @update:open="(value) => !value && (pendingDelete = null)"
+      @confirm="onDelete(pendingDelete)"
+    />
   </section>
 </template>

@@ -186,7 +186,7 @@ async function onSubmit() {
     <p v-if="summary" class="error-text" role="alert">{{ summary }}</p>
     <p v-if="saving" role="status" aria-live="polite" class="text-sm text-muted">שומרים {{ progress }}/{{ batchSize }}…</p>
 
-    <div class="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
+    <div class="sticky-actions">
       <button type="submit" :disabled="saving" class="btn-primary w-full sm:w-auto">{{ submitLabel }}</button>
     </div>
   </form>

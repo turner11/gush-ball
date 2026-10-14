@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import GameRow from '../components/GameRow.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import SearchInput from '../components/SearchInput.vue'
@@ -44,6 +45,7 @@ const pendingGames = ref([])
 const editing = ref(null)
 const form = ref(emptyForm())
 const error = ref(null)
+const pendingDelete = ref(null)
 const { user } = useAuth()
 const statsUrl = ref('')
 const statsMessage = ref(null)
@@ -272,6 +274,7 @@ async function rejectSuggestion(game) {
 }
 
 async function onDelete(game) {
+  pendingDelete.value = null
   error.value = null
   try {
     await apiFetch(`/teams/${selectedTeamId.value}/games/${game.id}`, { method: 'DELETE' })
@@ -361,7 +364,7 @@ async function onDelete(game) {
                   :aria-label="'גיליון הסטטיסטיקה של המשחק נגד ' + game.opponent.name + ' (נפתח בלשונית חדשה)'"
                 >גיליון<AppIcon name="external" /></a>
                 <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
-                <button type="button" class="btn-danger-ghost" @click="onDelete(game)">מחק</button>
+                <button type="button" class="btn-danger-ghost" @click="pendingDelete = game">מחק</button>
               </template>
             </GameRow>
           </ol>
@@ -445,5 +448,12 @@ async function onDelete(game) {
       </form>
     </div>
     <a href="#game-form" class="fab lg:hidden" aria-label="הוספת משחק"><AppIcon name="plus" /></a>
+
+    <ConfirmDialog
+      :open="pendingDelete !== null"
+      :message="`למחוק את המשחק נגד ${pendingDelete?.opponent.name}?`"
+      @update:open="(value) => !value && (pendingDelete = null)"
+      @confirm="onDelete(pendingDelete)"
+    />
   </section>
 </template>

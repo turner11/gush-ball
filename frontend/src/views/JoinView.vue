@@ -16,7 +16,6 @@ const status = ref('')
 const submitError = ref('')
 
 async function loadTeams() {
-  teamsApi.error.value = null
   teams.value = null
   teams.value = (await teamsApi.list()) ?? []
 }

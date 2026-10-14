@@ -43,10 +43,11 @@ async function onLogout() {
 
 <template>
   <div class="flex min-h-dvh flex-col bg-surface text-ink">
+    <a href="#main" class="btn-primary sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50">דלג לתוכן</a>
     <header class="sticky top-0 z-40 bg-brand text-white shadow-sm">
       <div class="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:px-6">
         <RouterLink :to="base + '/admin'" class="inline-flex min-h-11 items-center font-black">ניהול</RouterLink>
-        <nav class="ms-6 hidden md:block">
+        <nav aria-label="ניהול" class="ms-6 hidden md:block">
           <ul class="flex gap-5">
             <li><RouterLink :to="base + '/admin'" active-class="" exact-active-class="font-bold" class="nav-link">ראשי</RouterLink></li>
             <li><RouterLink :to="base + '/admin/players'" active-class="font-bold" class="nav-link">שחקנים</RouterLink></li>

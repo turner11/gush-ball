@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,6 +18,11 @@ const GAMES = [
     opponent: { id: 5, name: 'מכבי', name_en: null, logo_url: null, source_url: null },
   },
 ]
+
+// The ConfirmDialog's buttons render through an AlertDialog portal teleported to document.body.
+function body() {
+  return new DOMWrapper(document.body)
+}
 
 function mockFetch(handlers) {
   global.fetch = vi.fn((url, options = {}) => {
@@ -62,6 +67,7 @@ describe('AdminGamesView', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    document.body.innerHTML = ''
   })
 
   it("loads and renders the selected team's games (opponent, date, status)", async () => {
@@ -198,16 +204,36 @@ describe('AdminGamesView', () => {
     })
 
     const { default: AdminGamesView } = await import('./AdminGamesView.vue')
-    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] }, attachTo: document.body })
     await flushPromises()
 
     expect(wrapper.text()).toContain('מכבי')
 
     const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחק')
     await deleteButton.trigger('click')
+    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('מכבי')
+  })
+
+  it('cancelling the delete dialog keeps the game and sends no DELETE', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] }, attachTo: document.body })
+    await flushPromises()
+
+    await wrapper.findAll('button').find((b) => b.text() === 'מחק').trigger('click')
+    await body().findAll('button').find((b) => b.text() === 'ביטול').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('מכבי')
+    expect(global.fetch.mock.calls.some(([, o]) => o?.method === 'DELETE')).toBe(false)
   })
 
   it('a failed POST sets an error and does not add the game to the list', async () => {

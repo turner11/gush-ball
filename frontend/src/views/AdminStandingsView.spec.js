@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -22,6 +22,11 @@ const MULTI = [
   { ...ROWS[0], id: 2, team_name: 'קבוצה ב', rank: 2, source_url: 'https://x.il/team/b' },
   { ...ROWS[0], id: 3, league_name: 'ליגה ב', team_name: 'קבוצה ג', source_url: 'https://x.il/team/c' },
 ]
+
+// The ConfirmDialog's buttons render through an AlertDialog portal teleported to document.body.
+function body() {
+  return new DOMWrapper(document.body)
+}
 
 function mockFetch(handlers) {
   global.fetch = vi.fn((url, options = {}) => {
@@ -63,6 +68,7 @@ describe('AdminStandingsView', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    document.body.innerHTML = ''
   })
 
   it('loads and renders standing rows', async () => {
@@ -161,13 +167,14 @@ describe('AdminStandingsView', () => {
     })
 
     const { default: AdminStandingsView } = await import('./AdminStandingsView.vue')
-    const wrapper = mount(AdminStandingsView, { global: { plugins: [router] } })
+    const wrapper = mount(AdminStandingsView, { global: { plugins: [router] }, attachTo: document.body })
     await flushPromises()
 
     expect(wrapper.text()).toContain('קבוצה א')
 
     const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחק')
     await deleteButton.trigger('click')
+    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('קבוצה א')
@@ -180,11 +187,12 @@ describe('AdminStandingsView', () => {
     })
 
     const { default: AdminStandingsView } = await import('./AdminStandingsView.vue')
-    const wrapper = mount(AdminStandingsView, { global: { plugins: [router] } })
+    const wrapper = mount(AdminStandingsView, { global: { plugins: [router] }, attachTo: document.body })
     await flushPromises()
 
     const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחק')
     await deleteButton.trigger('click')
+    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('שגיאה במחיקת השורה, נסה שוב')

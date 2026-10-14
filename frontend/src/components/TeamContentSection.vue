@@ -18,12 +18,14 @@ const { error, list, create, update, delete: destroy } = useTeamContent(props.re
 const items = ref([])
 const blank = (field) => (field.type === 'players' ? [] : '')
 const form = reactive(Object.fromEntries(props.fields.map((f) => [f.key, blank(f)])))
+const loading = ref(true)
 const submitting = ref(false)
 const editingId = ref(null)
 const pendingDeleteId = ref(null)
 
 async function load() {
   items.value = (await list(props.teamId)) ?? []
+  loading.value = false
 }
 
 function resetForm() {
@@ -71,6 +73,7 @@ async function onDeleteConfirmed() {
   const itemId = pendingDeleteId.value
   pendingDeleteId.value = null
   await destroy(props.teamId, itemId)
+  if (error.value) return
   items.value = items.value.filter((item) => item.id !== itemId)
   if (editingId.value === itemId) resetForm()
 }
@@ -82,7 +85,11 @@ onMounted(load)
   <section class="card space-y-3">
     <h2 class="section-title">{{ heading }}</h2>
 
-    <ul v-if="items.length" class="divide-y divide-line">
+    <div v-if="loading" class="space-y-2" aria-hidden="true">
+      <div class="skeleton h-11" />
+      <div class="skeleton h-11" />
+    </div>
+    <ul v-else-if="items.length" class="divide-y divide-line">
       <li
         v-for="item in items"
         :key="item.id"

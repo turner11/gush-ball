@@ -19,11 +19,18 @@ const searchInput = ref(null)
 const shownTeams = computed(() =>
   ownTeams(teams.value).filter((t) => matchesQuery(query.value, [t.name, t.name_en, t.club])),
 )
+const loading = ref(true)
+const listError = ref(null) // load/delete failures, shown above the list (the form's `error` is for creating)
 const submitting = ref(false)
 const pendingDeleteId = ref(null)
 
 async function load() {
-  teams.value = (await list()) ?? []
+  listError.value = null
+  const loaded = await list()
+  if (!loaded) listError.value = error.value
+  else teams.value = loaded
+  error.value = null
+  loading.value = false
 }
 
 async function onCreate() {
@@ -55,6 +62,11 @@ async function onDeleteConfirmed() {
   const teamId = pendingDeleteId.value
   pendingDeleteId.value = null
   await destroy(teamId)
+  if (error.value) {
+    listError.value = error.value
+    error.value = null
+    return
+  }
   teams.value = teams.value.filter((team) => team.id !== teamId)
 }
 
@@ -73,6 +85,10 @@ onMounted(load)
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div class="min-w-0 space-y-4">
+        <div v-if="listError" class="card flex flex-wrap items-center gap-3" data-testid="list-error">
+          <p class="error-text" role="alert">{{ listError }}</p>
+          <button type="button" class="btn-secondary ms-auto" @click="load">נסו שוב</button>
+        </div>
         <SearchInput v-if="teams.length" id="admin-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה" />
         <ul v-if="shownTeams.length" class="card divide-y divide-line p-0">
           <li v-for="team in shownTeams" :key="team.id" class="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -88,7 +104,10 @@ onMounted(load)
           <p>אין תוצאות עבור "{{ query.trim() }}".</p>
           <button type="button" class="btn-secondary mt-3" @click="clearSearch">נקה חיפוש</button>
         </div>
-        <p v-else class="empty-state">אין קבוצות עדיין.</p>
+        <div v-else-if="loading" class="space-y-2" aria-hidden="true">
+          <div v-for="n in 3" :key="n" class="skeleton h-14" />
+        </div>
+        <p v-else-if="!listError" class="empty-state">אין קבוצות עדיין.</p>
       </div>
 
       <form v-if="fullAdmin" class="card space-y-3 lg:sticky lg:top-20" @submit.prevent="onCreate">

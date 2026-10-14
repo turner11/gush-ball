@@ -31,6 +31,7 @@ export async function apiFetch(path, options = {}) {
 // For composables that expose an `error` ref instead of throwing: on failure, sets
 // `errorRef` to the user-facing `message` and resolves to undefined.
 export async function tryApiFetch(errorRef, message, path, options) {
+  errorRef.value = null // a stale error from an earlier call must not mask this call's result
   try {
     return await apiFetch(path, options)
   } catch {

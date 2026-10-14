@@ -54,7 +54,7 @@ watch(
     <template v-else-if="player">
       <div class="page-header">
         <h1 class="page-title">{{ player.name }}<template v-if="player.jersey_number != null"> #{{ player.jersey_number }}</template></h1>
-        <RouterLink to="/roster" class="section-link">כל השחקנים</RouterLink>
+        <RouterLink :to="{ name: 'roster', params: { slug: String(player.team_id) } }" class="section-link">כל השחקנים</RouterLink>
       </div>
       <ul v-if="images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         <li v-for="image in images" :key="image.key" class="card overflow-hidden">

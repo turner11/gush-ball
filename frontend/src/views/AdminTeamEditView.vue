@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import ImageUpload from '../components/ImageUpload.vue'
@@ -49,6 +49,7 @@ const GROUPS = [
 const team = ref(null)
 const loading = ref(true)
 const submitting = ref(false)
+const saved = ref(false)
 const clubOptions = ref([])
 const form = reactive({
   ...Object.fromEntries(GROUPS.flatMap((g) => g.fields).map((f) => [f.key, ''])),
@@ -69,17 +70,23 @@ async function load() {
 
 async function onSubmit() {
   submitting.value = true
+  saved.value = false
   try {
     const payload = {
       ...Object.fromEntries(Object.entries(form).filter(([, value]) => value !== '')),
       club: form.club || null, // null lets a full admin take a team out of its club
     }
     const updated = await update(teamId, payload)
-    if (updated && !error.value) team.value = updated
+    if (updated && !error.value) {
+      team.value = updated
+      saved.value = true
+    }
   } finally {
     submitting.value = false
   }
 }
+
+watch(form, () => (saved.value = false))
 
 async function loadClubOptions() {
   try {
@@ -202,10 +209,11 @@ const contentSections = [
 
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
 
-        <div class="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
+        <div class="sticky-actions flex flex-wrap items-center gap-3">
           <button type="submit" :disabled="submitting" class="btn-primary w-full sm:w-auto">
             שמירה
           </button>
+          <span class="text-sm text-muted" aria-live="polite">{{ saved ? 'נשמר' : '' }}</span>
         </div>
       </form>
 

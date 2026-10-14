@@ -117,6 +117,42 @@ describe('AdminTeamsView', () => {
     )
   })
 
+  it('a failed DELETE keeps the team in the list and shows the error', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'DELETE /api/teams/1': () => ({ ok: false, status: 500, statusText: 'x', json: async () => ({}) }),
+    })
+
+    const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
+    const wrapper = mount(AdminTeamsView, { attachTo: document.body })
+    await flushPromises()
+
+    await wrapper.findAll('button').find((b) => b.text() === 'מחיקה').trigger('click')
+    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('קבוצה א')
+    expect(wrapper.find('[data-testid="list-error"]').exists()).toBe(true)
+  })
+
+  it('a failed load shows an error with retry instead of the empty state', async () => {
+    mockFetch({ 'GET /api/teams': () => ({ ok: false, status: 500, statusText: 'x', json: async () => ({}) }) })
+
+    const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
+    const wrapper = mount(AdminTeamsView)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('אין קבוצות עדיין.')
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'נסו שוב')
+    expect(retry).toBeTruthy()
+
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+    await retry.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('קבוצה א')
+    expect(wrapper.find('[data-testid="list-error"]').exists()).toBe(false)
+  })
+
   it('links each team to its public page', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes([{ id: 1, name: 'קבוצה א', name_en: 'Team A' }]) })
     const router = createRouter({

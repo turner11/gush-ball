@@ -31,7 +31,10 @@ const okFetch = () =>
 async function mountAt(path) {
   const router = createRouter({
     history: createWebHistory(),
-    routes: [{ path: '/players/:id', component: PlayerView }],
+    routes: [
+      { path: '/players/:id', component: PlayerView },
+      { path: '/:slug/roster', name: 'roster', component: { template: '<div/>' } },
+    ],
   })
   router.push(path)
   await router.isReady()
@@ -69,5 +72,13 @@ describe('PlayerView', () => {
     expect((await mountAt('/players/9')).text()).toContain('השחקן לא נמצא')
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, statusText: 'Error', json: async () => ({}) }))
     expect((await mountAt('/players/9')).text()).toContain('שגיאה בטעינת השחקן')
+  })
+
+  it('"כל השחקנים" links to the player own team roster', async () => {
+    global.fetch = okFetch()
+    const wrapper = await mountAt('/players/3')
+
+    const link = wrapper.findAll('a').find((a) => a.text().includes('כל השחקנים'))
+    expect(link.attributes('href')).toBe('/1/roster')
   })
 })

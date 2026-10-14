@@ -90,4 +90,10 @@ describe('AdminLayout nav', () => {
     const w = await mountAt('/team_a/admin/games', { team_id: 2, team_ids: [2] })
     expect(w.vm.$router.currentRoute.value.path).toBe('/team_b/admin/games')
   })
+
+  it('has a skip link to #main', async () => {
+    const w = await mountAt('/admin')
+    expect(w.find('a[href="#main"]').exists()).toBe(true)
+    expect(w.find('main#main').exists()).toBe(true)
+  })
 })
