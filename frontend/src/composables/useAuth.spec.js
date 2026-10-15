@@ -119,4 +119,12 @@ describe('useAuth', () => {
     user.value = { username: 't', team_ids: [1] }
     expect(clubAdmin('Gush')).toBe(false)
   })
+
+  it('safeNext keeps internal paths and drops anything that can leave the site', async () => {
+    const { safeNext } = await import('./useAuth')
+    expect(safeNext('/teams/10?x=1')).toBe('/teams/10?x=1')
+    for (const bad of ['/\t/evil.com', '/\n/evil.com', '//evil.com', '/\\evil.com', 'https://evil.com', null]) {
+      expect(safeNext(bad)).toBeNull()
+    }
+  })
 })

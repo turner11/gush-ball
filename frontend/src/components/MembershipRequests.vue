@@ -109,7 +109,7 @@ const confirmMessage = computed(() => {
           <p class="truncate font-bold" dir="auto">{{ userLabel(request) }}</p>
           <p v-if="request.email_hint" class="truncate text-sm text-muted" dir="ltr">{{ request.email_hint }}</p>
           <span v-else class="badge badge-loss">אימייל לא מאומת</span>
-          <p class="text-sm text-muted" dir="auto">קבוצה חדשה: {{ request.name }} · {{ request.league_name }}</p>
+          <p class="text-sm text-muted" dir="auto">קבוצה חדשה: {{ request.name }}<template v-if="request.league_name"> · {{ request.league_name }}</template></p>
           <a :href="request.ibasketball_team_url" target="_blank" rel="noopener" class="section-link">לדף הקבוצה באיגוד</a>
         </div>
         <div class="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">

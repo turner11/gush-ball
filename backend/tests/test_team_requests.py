@@ -34,6 +34,7 @@ def feed(monkeypatch: pytest.MonkeyPatch, db_session: Session) -> dict:
     monkeypatch.setattr(scrape_league_teams, "_fetch", lambda league_id: state["items"])
 
     def page_club(db: Session, team_url: str) -> str | None:
+        state.setdefault("page_fetches", []).append(team_url)
         return get_or_create_club(db, state["club"]).name if state["club"] else None
 
     monkeypatch.setattr(scrape_games, "team_page_club", page_club)
@@ -98,10 +99,12 @@ def test_second_pending_request_for_same_team_is_409_and_allowed_again_after_rej
     assert _ask(client).status_code == 201
 
 
-def test_fourth_pending_request_per_user_is_409(client: TestClient, db_session: Session) -> None:
+def test_fourth_pending_request_per_user_is_409(client: TestClient, db_session: Session, feed: dict) -> None:
     _login_user(client, db_session, "dana")
     assert [_ask(client, code).status_code for code in (1, 2, 3)] == [201, 201, 201]
+    feed["page_fetches"].clear()
     assert _ask(client, 4).status_code == 409
+    assert feed["page_fetches"] == []  # at the cap, no team page is fetched
 
 
 def test_inbox_scoped_to_club_admin_and_full_admin(client: TestClient, db_session: Session, feed: dict) -> None:

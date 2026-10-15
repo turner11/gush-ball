@@ -115,6 +115,7 @@ describe('LoginView', () => {
   it('the sign-up link keeps next', async () => {
     const wrapper = await mountLogin('/admin/login?next=/teams/10', options({ google: false }))
     expect(wrapper.find('a[href="/admin/signup?next=/teams/10"]').exists()).toBe(true)
+    wrapper.unmount()
   })
 
   it('links to sign-up', async () => {

@@ -106,11 +106,11 @@ def request_team(
     # ponytail: pre-check for a clean 409; a concurrent double-submit hits the unique index (500), harmless
     if entry["requested"]:
         raise HTTPException(status.HTTP_409_CONFLICT, ALREADY_REQUESTED)
+    pending = db.scalars(select(TeamRequest.id).where(TeamRequest.user_id == user.id, TeamRequest.status == "pending"))
+    if not user.is_full_admin and len(pending.all()) >= MAX_PENDING:  # before the fetch: the cap is what bounds it
+        raise HTTPException(status.HTTP_409_CONFLICT, TOO_MANY)
     club = scrape_games.team_page_club(db, entry["ibasketball_team_url"])
     auto = can_approve_team_request(db, user, club)
-    pending = db.scalars(select(TeamRequest.id).where(TeamRequest.user_id == user.id, TeamRequest.status == "pending"))
-    if not auto and len(pending.all()) >= MAX_PENDING:
-        raise HTTPException(status.HTTP_409_CONFLICT, TOO_MANY)
     logo = entry["logo_url"]
     row = TeamRequest(
         user_id=user.id,
