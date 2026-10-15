@@ -1168,3 +1168,22 @@ def test_team_page_club_resolves_club_and_survives_fetch_error(
 
     monkeypatch.setattr(scrape_games.httpx, "get", boom)
     assert scrape_games.team_page_club(db_session, "https://ibasketball.co.il/team/1-x/") is None
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "javascript:alert(1)",
+        "http://169.254.169.254/latest/meta-data/",
+        "https://evil.com/team/1-x/",
+        "https://evil.com\\@ibasketball.co.il/team/1-x/",
+    ],
+)
+def test_team_page_club_refuses_non_ibasketball_url(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, bad: str
+) -> None:
+    def never(url: str, **kw: object) -> None:
+        raise AssertionError(f"fetched {url}")
+
+    monkeypatch.setattr(scrape_games.httpx, "get", never)
+    assert scrape_games.team_page_club(db_session, bad) is None

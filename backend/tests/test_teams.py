@@ -115,6 +115,8 @@ def test_update_team_rejects_non_http_scheme(admin_client: TestClient, field: st
         "http://169.254.169.254/latest/meta-data/",
         "https://evil.com/league/1/",
         "http://ibasketball.co.il/league/1/",
+        "https://evil.com\\@ibasketball.co.il/league/1/",
+        "https://ibasketball.co.il:8080/league/1/",
     ],
 )
 def test_update_team_rejects_non_ibasketball_host(admin_client: TestClient, field: str, value: str) -> None:

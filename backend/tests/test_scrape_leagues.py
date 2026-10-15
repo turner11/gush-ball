@@ -84,3 +84,26 @@ def test_sync_leagues_keeps_rows_and_reports_error_on_failure(
 
     assert len(errors) == 1 and errors[0].startswith("leagues:")
     assert [r.ibasketball_id for r in db_session.scalars(select(League))] == [99]
+
+
+BAD_URLS = [
+    "javascript:alert(1)",
+    "http://169.254.169.254/latest/meta-data/",
+    "https://evil.com/team/1-x/",
+    "https://evil.com\\@ibasketball.co.il/team/1-x/",
+]
+
+
+@pytest.mark.parametrize("bad", BAD_URLS)
+def test_sync_leagues_skips_league_with_non_ibasketball_link(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, bad: str
+) -> None:
+    db_session.add(League(ibasketball_id=11, name="poisoned", url="https://ibasketball.co.il/league/old/", season=2025))
+    db_session.commit()
+    page = [PAGE1[0], {"id": 11, "name": "רעיל", "link": bad, "count": 5}]
+    monkeypatch.setattr(scrape_leagues, "_get", _fake_get({2: [page]}, []))
+
+    assert scrape_leagues.sync_leagues(db_session) == 1
+
+    rows = list(db_session.scalars(select(League)))
+    assert [(r.ibasketball_id, r.url) for r in rows] == [(10, "https://ibasketball.co.il/league/2026-7/")]

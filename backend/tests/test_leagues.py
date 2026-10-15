@@ -120,3 +120,21 @@ def test_league_teams_flags_pending_requests(client: TestClient, db_session: Ses
     db_session.commit()
     flags = {t["name"]: t["requested"] for t in client.get("/leagues/10/teams").json()["teams"]}
     assert flags == {"א": True, "ב": False}
+
+
+BAD_URLS = [
+    "javascript:alert(1)",
+    "http://169.254.169.254/latest/meta-data/",
+    "https://evil.com/team/1-x/",
+    "https://evil.com\\@ibasketball.co.il/team/1-x/",
+]
+
+
+@pytest.mark.parametrize("bad", BAD_URLS)
+def test_league_teams_skips_team_with_non_ibasketball_link(
+    client: TestClient, db_session: Session, fake_fetch: dict, bad: str
+) -> None:
+    _league(db_session, 10, "ליגת א")
+    fake_fetch["items"] = [_sp("טוב", 1), {**_sp("רע", 2), "link": bad}]
+    names = [t["name"] for t in client.get("/leagues/10/teams").json()["teams"]]
+    assert names == ["טוב"]
