@@ -45,6 +45,13 @@ _PAGE_META = {
     "media": ("מדיה", "תמונות, סרטונים וקישורים של {team}."),
 }
 _GAME_DESCRIPTION = "משחק של {team}: תאריך, מקום ותוצאה."
+_TITLE_MAX = 60
+
+
+def _title(base: str, name_en: str | None) -> str:
+    # ponytail: mirrors frontend pageTitle (lib/head.js); change both
+    full = f"{base} · {name_en} · כדורסל"
+    return full if name_en and len(full) <= _TITLE_MAX else f"{base} · כדורסל"
 
 
 def _team_for_slug(db: DbSession, slug: str) -> Team | None:
@@ -62,15 +69,15 @@ def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
         if player is None or player.deleted_at is not None:
             return None
         photo = db.scalar(select(PlayerImage.url).where(PlayerImage.player_id == player.id).order_by(PlayerImage.id))
-        return f"{player.name} · {player.team.name}", f"פרופיל שחקן של {player.team.name}.", photo or player.team.logo_url
+        return _title(f"{player.name} · {player.team.name}", player.name_en), f"פרופיל שחקן של {player.team.name}.", photo or player.team.logo_url
     team = _team_for_slug(db, parts[0]) if parts and parts[0] not in ("admin", "join", "teams", "players") else None
     if team is None:
         return None
     if len(parts) == 1:
-        return team.name, _HOME_DESCRIPTION.format(team=team.name), team.logo_url
+        return _title(team.name, team.name_en), _HOME_DESCRIPTION.format(team=team.name), team.logo_url
     if len(parts) == 2 and parts[1] in _PAGE_META:
         title, description = _PAGE_META[parts[1]]
-        return f"{title} · {team.name}", description.format(team=team.name), team.logo_url
+        return _title(f"{title} · {team.name}", team.name_en), description.format(team=team.name), team.logo_url
     if len(parts) == 3 and parts[1] == "games" and parts[2].isdigit():
         game = db.get(Game, int(parts[2]))
         if game is None or game.team_id != team.id:
@@ -78,7 +85,7 @@ def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
         opponent = db.get(Opponent, game.opponent_id)
         scored = game.status == GameStatus.FINAL and game.team_score is not None and game.opponent_score is not None
         description = f"{team.name} {game.team_score} – {game.opponent_score} {opponent.name}" if scored else _GAME_DESCRIPTION.format(team=team.name)
-        return f"{team.name} נגד {opponent.name}", description, team.logo_url
+        return _title(f"{team.name} נגד {opponent.name}", team.name_en), description, team.logo_url
     return None
 
 

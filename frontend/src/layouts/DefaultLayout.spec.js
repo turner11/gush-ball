@@ -197,16 +197,17 @@ describe('DefaultLayout', () => {
 
   it('on the player route the layout leaves the title and JSON-LD to PlayerView', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
-    document.title = 'player title'
     const ld = document.createElement('script')
     ld.type = 'application/ld+json'
     ld.setAttribute('data-page', '')
     ld.textContent = '{"@type":"Person"}'
-    document.head.appendChild(ld)
-
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     mount(DefaultLayout, { global: { plugins: [router] } })
     await router.push('/players/3')
+    await flushPromises()
+    document.title = 'player title' // as PlayerView sets it
+    document.head.appendChild(ld)
+    await router.push('/players/4') // head watcher reruns with teams loaded
     await flushPromises()
 
     expect(document.title).toBe('player title')

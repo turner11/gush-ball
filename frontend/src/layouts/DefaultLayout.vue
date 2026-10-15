@@ -10,7 +10,7 @@ import { useAuth } from '../composables/useAuth'
 import { clubTeamsOf, teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { backgroundSrc } from '../lib/backgrounds'
-import { setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from '../lib/head'
+import { pageTitle, setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from '../lib/head'
 import { onColor } from '../lib/teamColors'
 
 // Bound (not a static src) so the SFC compiler serves it from public/ as-is.
@@ -63,7 +63,6 @@ const route = useRoute()
 const isHome = computed(() => ['home', 'team-home'].includes(route.name))
 watch(selectedTeam, () => {
   if (!selectedTeam.value) return
-  document.title = selectedTeam.value.name
   document.querySelector('link[rel="icon"]').href = selectedTeam.value.logo_url || LOGO_URL
 }, { immediate: true })
 // Crawler-facing head: description, canonical (query dropped), noindex on 404, SportsTeam on team home.
@@ -74,7 +73,9 @@ watch([selectedTeam, () => route.path, () => route.name], () => {
   const team = selectedTeam.value
   if (!team) return
   setMeta('description', route.meta.description?.(team.name))
+  if (route.name === 'player') return // PlayerView owns the title and the Person JSON-LD
   setJsonLd(route.name === 'team-home' ? sportsTeamJsonLd(team, location.origin + homePath.value) : null)
+  document.title = pageTitle(route.params.slug && route.meta.title ? `${route.meta.title} · ${team.name}` : team.name, team.name_en)
 }, { immediate: true })
 useTeamFromRoute(teams)
 
@@ -114,7 +115,10 @@ onMounted(async () => {
               class="size-9 shrink-0 rounded-lg bg-white object-contain p-0.5 md:size-10"
             />
             <img v-else :src="LOGO_URL" alt="GushBall" class="size-9 shrink-0 rounded md:size-10" />
-            <span v-if="selectedTeam" class="truncate font-extrabold">{{ selectedTeam.name }}</span>
+            <span v-if="selectedTeam" class="flex min-w-0 flex-col leading-tight">
+              <span class="truncate font-extrabold">{{ selectedTeam.name }}</span>
+              <span v-if="selectedTeam.name_en" class="truncate text-xs font-medium"><bdi lang="en">{{ selectedTeam.name_en }}</bdi></span>
+            </span>
           </RouterLink>
           <a
             v-if="selectedTeam?.home_court_address"
