@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app import storage
-from app.models import AdminUser, Player, Team
+from app.models import AdminUser, Membership, Player, Team
 from app.routers import uploads as uploads_router
 from app.security import hash_password
 
@@ -129,9 +129,9 @@ def test_upload_ignores_client_filename_extension(
     assert ".html" not in key
 
 
-@pytest.mark.parametrize("linked", [True, False])
-def test_upload_allowed_only_for_linked_player(
-    linked: bool, client: TestClient, db_session: Session, stub_upload_file: dict[str, Any]
+@pytest.mark.parametrize(("linked", "granted", "expected"), [(True, True, 201), (True, False, 403), (False, True, 403)])
+def test_upload_allowed_only_for_linked_player_with_grant(
+    linked: bool, granted: bool, expected: int, client: TestClient, db_session: Session, stub_upload_file: dict[str, Any]
 ) -> None:
     team = Team(name="T", slug="t")
     user = AdminUser(username="p", password_hash=hash_password("password123"))
@@ -139,7 +139,9 @@ def test_upload_allowed_only_for_linked_player(
     db_session.flush()
     if linked:
         db_session.add(Player(team_id=team.id, name="P", user_id=user.id))
+    if granted:
+        db_session.add(Membership(team_id=team.id, role="member", user_id=user.id))
     db_session.commit()
     assert client.post("/auth/login", json={"username": "p", "password": "password123"}).status_code == 200
     response = client.post("/uploads", files={"file": ("a.png", b"x", "image/png")})
-    assert response.status_code == (201 if linked else 403)
+    assert response.status_code == expected
