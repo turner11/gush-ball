@@ -176,7 +176,7 @@ describe('AdminTeamsView', () => {
     expect(wrapper.find('a[href="/team_a"]').exists()).toBe(true)
   })
 
-  it('flags a team with a pending league URL suggestion, linking to its edit form', async () => {
+  it('flags a team with a pending league URL suggestion', async () => {
     mockFetch({
       'GET /api/teams': () =>
         jsonRes([
@@ -201,7 +201,7 @@ describe('AdminTeamsView', () => {
     const badges = wrapper.findAll('.badge-loss')
     expect(badges).toHaveLength(1)
     expect(badges[0].text()).toContain('ליגה חדשה זוהתה')
-    expect(wrapper.find('a.badge-loss').attributes('href')).toBe('/admin/teams/1')
+    expect(wrapper.find('a.badge-loss').exists()).toBe(false)
   })
 
   it('shows the club import link to a full admin only', async () => {
