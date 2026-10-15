@@ -8,7 +8,7 @@ from pydantic import AfterValidator, AnyUrl, BaseModel, HttpUrl, StringConstrain
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app import scrape_club
+from app import scrape_club, scrape_games
 from app.db import SessionLocal
 from app.deps import (
     DbSession,
@@ -38,7 +38,7 @@ Background = Literal["hoop-1", "hoop-2"] | Url500
 
 def _require_ibasketball(url: HttpUrl) -> HttpUrl:
     # The scraper fetches these server-side, so pin them to the real source (SSRF).
-    if url.scheme != "https" or url.host not in {"ibasketball.co.il", "www.ibasketball.co.il"}:
+    if scrape_games.ibasketball_url_or_none(str(url)) is None:
         raise ValueError("must be an https://ibasketball.co.il URL")
     return url
 

@@ -37,6 +37,16 @@ from app.models import (
 )
 
 BASE = "https://ibasketball.co.il/wp-json"
+IBASKETBALL_HOSTS = {"ibasketball.co.il", "www.ibasketball.co.il"}
+
+
+def ibasketball_url_or_none(url: str | None) -> str | None:
+    """The url if it is an https ibasketball.co.il url, else None (SSRF + href guard)."""
+    url = http_url_or_none(url)
+    # netloc, not hostname: it rejects userinfo, ports and backslash tricks (`https://evil.com\@ibasketball.co.il`)
+    if url is None or (parts := urlsplit(url)).scheme != "https" or parts.netloc.lower() not in IBASKETBALL_HOSTS:
+        return None
+    return url
 CRAWL_DELAY = 10
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # same cap as routers/uploads.py
 AJAX_URL = "https://ibasketball.co.il/wp-admin/admin-ajax.php"
@@ -179,9 +189,13 @@ def _page_club(db: Session, current: str | None, name: str, url: str) -> str | N
 def team_page_club(db: Session, team_url: str) -> str | None:
     """Club name from one team page (#351); None if it has no club link or the fetch fails (a request without a
     club goes to a full admin)."""
+    url = ibasketball_url_or_none(team_url)
+    if url is None:
+        log.warning("Refusing to fetch non-ibasketball team page %r", team_url)
+        return None
     try:
         # ponytail: not `_get`, which sleeps CRAWL_DELAY and a user is waiting; the per-user pending cap bounds this
-        resp = httpx.get(team_url, timeout=15)
+        resp = httpx.get(url, timeout=15)
         resp.raise_for_status()
     except httpx.HTTPError:
         log.warning("Could not fetch team page %s", team_url, exc_info=True)
