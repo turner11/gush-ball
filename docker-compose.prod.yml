@@ -21,12 +21,15 @@ services:
       context: ./backend
       additional_contexts:
         stats: ./stats
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-}
     restart: unless-stopped
     logging: *logging
     environment:
       DATABASE_URL: postgresql+psycopg://gush_ball:${POSTGRES_PASSWORD:?}@db:5432/gush_ball
       SESSION_SECRET: ${SESSION_SECRET:?}
       CORS_ORIGINS: ${CORS_ORIGINS:?}
+      SENTRY_DSN: ${SENTRY_DSN:-}
       ENABLE_DOCS: ${ENABLE_DOCS:-false}
       STATS_URL: ${STATS_URL:-}
       STATS_TEMPLATE_URL: ${STATS_TEMPLATE_URL:-}
@@ -48,7 +51,11 @@ services:
       - db
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     restart: unless-stopped
     logging: *logging
     # No published ports: Coolify's proxy routes the domain to this container's port 80 and

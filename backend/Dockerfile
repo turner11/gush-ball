@@ -17,4 +17,8 @@ USER app
 
 ENV UV_NO_SYNC=1
 
+# Last, so a new commit only changes a metadata layer. sentry_sdk reads SENTRY_RELEASE itself.
+ARG SOURCE_COMMIT
+ENV SENTRY_RELEASE=$SOURCE_COMMIT
+
 CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000"]

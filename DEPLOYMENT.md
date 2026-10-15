@@ -14,6 +14,7 @@ Order matters: storage first (you need its values for the env vars), then the do
 | Cloudflare R2 | `gush-ball-media` (public) + `gush-ball-backups` (private), one API token each |
 | Coolify | one Docker Compose resource: env vars, domain, scheduled scrape task, auto-deploy on push to `master` |
 | GitHub | `master` ruleset requiring CI, push webhook to Coolify (Public Repository source only) |
+| Sentry | two projects (backend, frontend) + new-issue alert email |
 | Hetzner box | `~/gush-ball-backup.env`, `~/backup.sh`, one crontab line (nightly backup) |
 
 ## 1. Object storage (Cloudflare R2)
@@ -146,6 +147,8 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `PUBLIC_URL` | `https://<domain>`. Required: password-reset links and the Google redirect URI are built from it. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional, enable "Sign in with Google" (see 4.1). |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for password reset and password sign-up (STARTTLS, port defaults to 587). Without `SMTP_HOST` both return 503; links are never logged in prod. |
+| `SENTRY_DSN` | Optional, backend error reporting (see §10). Runtime. |
+| `VITE_SENTRY_DSN` | Optional, frontend error reporting (see §10). Must be available at **build** time. |
 | `ENABLE_DOCS` | **Leave unset** in prod (keeps `/api/docs` and `/api/openapi.json` off). |
 
 `backend/.env.example` is the **local-dev** template; don't use it for prod.
@@ -272,6 +275,46 @@ URLs in them come from `PUBLIC_URL`.
 5. Optional: add the site in [Google Search Console](https://search.google.com/search-console) and submit
    `/sitemap.xml`. It shows which pages are indexed and any rendering problems.
 
+## 10. Error monitoring (Sentry)
+
+Docs: [Sentry pricing](https://sentry.io/pricing/) · [FastAPI](https://docs.sentry.io/platforms/python/integrations/fastapi/) ·
+[Vue](https://docs.sentry.io/platforms/javascript/guides/vue/). Without the DSNs the site runs normally and sends nothing.
+The code sends no request bodies, cookies, component props or local variables, and no log breadcrumbs.
+
+1. Sign up at [sentry.io/signup](https://sentry.io/signup/) and pick the **Developer** (free) plan. *Why:* it covers a
+   small site. *Verify:* [pricing](https://sentry.io/pricing/) shows the current event quota.
+2. Projects → *Create Project* → platform **FastAPI** → name `gush-ball-backend`. Copy the DSN from Settings → Projects →
+   `gush-ball-backend` → *Client Keys (DSN)*. *Why:* this is the backend's address in Sentry. *Verify:* it looks like
+   `https://<key>@o<id>.ingest.<region>.sentry.io/<n>`.
+3. Create a second project the same way with platform **Vue**, named `gush-ball-frontend`, and copy its DSN.
+4. In each project open *Alerts → Rules* and check that the default "new issue" rule emails you. *Why:* otherwise nobody
+   hears about errors. *Verify:* your address is listed as the recipient.
+5. In each project open *Settings → Security & Privacy*. Keep *Data Scrubber* and *Use Default Scrubbers* on and turn on
+   *Prevent Storing of IP Addresses*. Then open *Advanced Data Scrubbing* → *Add Rule* → method **Mask**, data type
+   **Email addresses**, source `**`. *Why:* a second privacy layer behind the SDK settings; the rule also catches an
+   email inside an error message. See [Advanced Data Scrubbing](https://docs.sentry.io/security-legal-pii/scrubbing/advanced-datascrubbing/).
+   *Verify:* the project's *Settings → Security & Privacy* page lists the rule, and *Prevent Storing of IP Addresses* shows as on.
+6. In Coolify open the resource → **Environment Variables** and add `SENTRY_DSN` (backend DSN, runtime) and
+   `VITE_SENTRY_DSN` (frontend DSN). Make `VITE_SENTRY_DSN` **available during build** (*Build time* dropdown, or the
+   *Build Variable* checkbox on older Coolify). *Why:* Vite inlines it into the JavaScript at build time.
+   *Verify:* both variables are listed on the page, and `VITE_SENTRY_DSN` is marked as a build variable
+   ([Coolify docs](https://coolify.io/docs/knowledge-base/environment-variables)).
+7. In Coolify open *Advanced → Build* and set **Source commit availability → Available during build**. *Why:* this passes
+   the git sha as `SOURCE_COMMIT`, which becomes the Sentry release. Coolify keeps it off by default to preserve the
+   build cache. *Verify:* the setting shows as enabled after saving
+   ([Coolify docs](https://coolify.io/docs/knowledge-base/environment-variables)).
+8. Click **Redeploy**. *Why:* both DSNs are read at start/build. *Verify:* the deployment log ends with a healthy
+   container and the site loads.
+9. Verify the backend: log in as a full admin and open `https://<domain>/api/health/sentry-test`. Expect an error
+   response. *Verify:* within a minute the error appears under `gush-ball-backend` → Issues, its **Release** equals the
+   deployed commit sha, and the alert email arrives.
+10. Verify the frontend: log in as an admin and open `https://<domain>/admin/sentry-test`. You see the "משהו השתבש" page.
+    *Verify:* the error appears under `gush-ball-frontend`. If not, look for a CSP error in DevTools → Console.
+11. Verify privacy: open one event. *Verify:* it has no email address, `Cookie` header or request body.
+
+The nightly scrape (§5) needs no extra step: Coolify scheduled tasks run in the backend container and inherit
+`SENTRY_DSN`, and a failing team is reported as an error event.
+
 ## Troubleshooting
 
 | Symptom | Likely cause |
@@ -281,6 +324,8 @@ URLs in them come from `PUBLIC_URL`.
 | Backend can't connect to DB | `POSTGRES_PASSWORD` changed after the first boot (the DB keeps the old one) |
 | Domain returns 502 / "no available server" | Domain set on the wrong service (must be `web`), or `web` failed to start |
 | Admin login fails / CORS errors | `CORS_ORIGINS` doesn't match `https://<domain>` exactly |
+| No events in Sentry | `SENTRY_DSN` unset or not redeployed; `VITE_SENTRY_DSN` not available at build time (§10 step 6) |
+| Browser console: CSP `connect-src` blocks sentry.io | `connect-src` in `frontend/Caddyfile` lost `https://*.sentry.io` |
 | Build fails at the `stats` context | Submodules not enabled on the Coolify resource |
 | Upload returns 502 "Object storage is not configured correctly" | Wrong `OBJECT_STORAGE_*` value or token not scoped to that bucket |
 | Upload works but image is broken | `OBJECT_STORAGE_PUBLIC_URL` wrong, or bucket public access off |

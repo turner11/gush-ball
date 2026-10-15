@@ -43,6 +43,8 @@ const router = createRouter({
     { path: '/:slug/admin', name: 'team-admin-home', component: () => import('../views/AdminHomeView.vue'), meta: admin('ניהול') },
     { path: '/:slug/admin/players', name: 'admin-players', component: () => import('../views/AdminPlayersView.vue'), meta: admin('ניהול שחקנים') },
     { path: '/:slug/admin/games', name: 'admin-games', component: () => import('../views/AdminGamesView.vue'), meta: admin('ניהול משחקים') },
+    // ponytail: exists only to verify Sentry setup (#331); throws through AdminLayout -> ErrorBoundary.
+    { path: '/admin/sentry-test', name: 'admin-sentry-test', component: { setup() { throw new Error('Sentry frontend test error') } }, meta: admin('בדיקת ניטור שגיאות') },
     { path: '/admin/standings', name: 'admin-standings', component: () => import('../views/AdminStandingsView.vue'), meta: admin('ניהול טבלה') },
     { path: '/admin/audit', name: 'admin-audit', component: () => import('../views/AdminAuditView.vue'), meta: admin('יומן שינויים') },
     { path: '/admin/teams', name: 'admin-teams', component: () => import('../views/AdminTeamsView.vue'), meta: admin('ניהול קבוצות') },

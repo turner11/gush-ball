@@ -9,6 +9,8 @@ const route = useRoute()
 
 onErrorCaptured((err) => {
   console.error(err)
+  // `return false` below stops Vue's app-level handler, so report here (lazy: keeps Sentry out of main chunk)
+  if (import.meta.env.VITE_SENTRY_DSN) import('../lib/sentry').then((s) => s.report(err))
   error.value = err
   return false
 })

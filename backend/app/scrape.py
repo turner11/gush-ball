@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.monitoring import init_sentry
 from app.scrape_games import _sp_team_id, sync_all_games, sync_all_players
 from app.scrape_standings import sync_all_standings
 
@@ -40,5 +41,6 @@ def sync_all(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    init_sentry()
     with SessionLocal() as db:
         print(sync_all(db))
