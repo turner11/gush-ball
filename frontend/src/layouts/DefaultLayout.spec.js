@@ -212,11 +212,12 @@ describe('DefaultLayout', () => {
     mockFetch({ 'GET /api/teams': () => ({ ok: false, status: 503, statusText: 'Unavailable', json: async () => ({}) }) })
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
 
-    mount(DefaultLayout, { global: { plugins: [router] } })
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
     await router.push('/teams')
     await flushPromises()
 
     expect(localStorage.getItem('gush-ball:selected-team-id')).toBe('1')
+    expect(wrapper.find('[data-testid="top-nav"]').exists()).toBe(true) // remembered team keeps the nav
   })
 
   it('a first-time visitor on a slug-less page gets no team', async () => {
@@ -230,6 +231,9 @@ describe('DefaultLayout', () => {
 
     expect(wrapper.find('header').classes()).not.toContain('bg-team')
     expect(localStorage.getItem('gush-ball:selected-team-id')).toBeNull()
+    // nothing chosen: every nav link would bounce back to /teams, so hide them
+    expect(wrapper.find('[data-testid="top-nav"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="tab-bar"]').exists()).toBe(false)
   })
 
   it('unknown slug redirects to the remembered/first team', async () => {
