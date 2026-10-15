@@ -88,6 +88,7 @@ class TeamOut(BaseModel):
     twitter_url: str | None
     ibasketball_team_url: str | None
     ibasketball_league_url: str | None
+    league_url_suggestion: str | None
 
 
 class ClubPreviewIn(BaseModel):
@@ -254,6 +255,10 @@ def update_team(team_id: int, payload: TeamUpdate, admin: RequireAnyAdmin, db: D
         updates.pop("background", None)  # column is NOT NULL
     if updates.get("club"):
         get_or_create_club(db, updates["club"])  # teams.club is an FK to clubs.name
+    league_url = updates.get("ibasketball_league_url", team.ibasketball_league_url)
+    if league_url != team.ibasketball_league_url:  # changed, not merely re-sent: accepting the suggestion clears it
+        team.league_url_overridden = league_url != team.league_url_suggestion
+        team.league_url_suggestion = None
     for field, value in updates.items():
         setattr(team, field, value)
     db.commit()

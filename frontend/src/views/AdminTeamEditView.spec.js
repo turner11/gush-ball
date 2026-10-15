@@ -75,6 +75,24 @@ describe('AdminTeamEditView', () => {
     expect(wrapper.find('#team-primary-color').element.value).toBe('#ff0000')
   })
 
+  it('offers the scraper-suggested league URL and fills the field on "use it"', async () => {
+    const SUGGESTED = 'https://ibasketball.co.il/league/2'
+    mockFetch({ 'GET /api/teams/1': () => jsonRes({ ...TEAM, league_url_suggestion: SUGGESTED }), ...CONTENT_HANDLERS })
+
+    const wrapper = await mountView()
+    expect(wrapper.find('#league-suggestion').text()).toContain(SUGGESTED)
+
+    await wrapper.find('#league-suggestion button').trigger('click')
+
+    expect(wrapper.find('#team-ibasketball_league_url').element.value).toBe(SUGGESTED)
+    expect(wrapper.find('#league-suggestion').exists()).toBe(false)
+  })
+
+  it('shows no league suggestion when the scraper has none', async () => {
+    mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
+    expect((await mountView()).find('#league-suggestion').exists()).toBe(false)
+  })
+
   it('PATCHes edited fields and omits the empty ones', async () => {
     let patchBody
     mockFetch({

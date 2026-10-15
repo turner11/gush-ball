@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app import scrape_games
 from app.config import settings
-from app.models import Club, Game, GameStatus, Opponent, Player, PlayerImage, Team
+from app.models import Club, Game, GameStatus, League, Opponent, Player, PlayerImage, Team
 
 OUR_SP_ID = 1542241
 OPP_SP_ID = 2001
@@ -56,14 +56,17 @@ def _opponent_detail(sp_id: int) -> dict:
 
 @pytest.fixture(autouse=True)
 def _clear_sp_team_cache() -> None:
-    scrape_games._sp_team_id.cache_clear()
+    scrape_games._sp_team.cache_clear()
 
 
 class FakeApi:
     """Path-keyed fake for app.scrape_games._get_json. Records calls, no network/sleep."""
 
-    def __init__(self, events: list[dict], known_opponents: tuple[int, ...] = (OPP_SP_ID,)) -> None:
+    def __init__(
+        self, events: list[dict], known_opponents: tuple[int, ...] = (OPP_SP_ID,), team_leagues: tuple[int, ...] = ()
+    ) -> None:
         self.events = events
+        self.team_leagues = team_leagues
         self.known_opponents = known_opponents
         self.calls: list[tuple[str, dict]] = []
 
@@ -73,7 +76,7 @@ class FakeApi:
             ids = [int(i) for i in str(params["include"]).split(",")]
             return [_opponent_detail(i) for i in ids if i in self.known_opponents]
         if path == "/sportspress/v2/teams":
-            return [{"id": OUR_SP_ID}]
+            return [{"id": OUR_SP_ID, "leagues": list(self.team_leagues)}]
         if path == "/sportspress/v2/events":
             return self.events
         raise AssertionError(f"unexpected path {path}")
@@ -1093,3 +1096,55 @@ def test_sync_ignores_non_http_club_link(db_session: Session, monkeypatch: pytes
 
     assert db_session.query(Club).count() == 0
     assert team.club is None
+
+
+OLD_LEAGUE = "https://ibasketball.co.il/league/2025-212/"
+NEW_LEAGUE = "https://ibasketball.co.il/league/2026-300/"
+NEW_LEAGUE_ID = 120129
+
+
+def _roll(db_session: Session, monkeypatch: pytest.MonkeyPatch, *, team_leagues=(119715, NEW_LEAGUE_ID),
+          league_ids=(NEW_LEAGUE_ID,), **team_fields) -> Team:
+    for i in league_ids:
+        db_session.add(League(ibasketball_id=i, name="ליגה", url=NEW_LEAGUE if i == NEW_LEAGUE_ID else f"{NEW_LEAGUE}{i}/", season=2026))
+    team = _make_team(db_session)
+    for key, value in {"ibasketball_league_url": OLD_LEAGUE, **team_fields}.items():
+        setattr(team, key, value)
+    db_session.commit()
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([], team_leagues=team_leagues))
+    scrape_games.sync_team_games(db_session, team)
+    db_session.refresh(team)
+    return team
+
+
+def test_sync_moves_stale_league_url_to_current_season_league(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _roll(db_session, monkeypatch)
+    assert (team.ibasketball_league_url, team.league_url_suggestion) == (NEW_LEAGUE, None)
+
+
+def test_sync_never_moves_overridden_league_url_and_suggests_instead(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _roll(db_session, monkeypatch, league_url_overridden=True)
+    assert (team.ibasketball_league_url, team.league_url_suggestion) == (OLD_LEAGUE, NEW_LEAGUE)
+
+
+def test_sync_fills_missing_league_url(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _roll(db_session, monkeypatch, ibasketball_league_url=None)
+    assert team.ibasketball_league_url == NEW_LEAGUE
+
+
+def test_sync_keeps_current_league_url_and_clears_suggestion(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _roll(
+        db_session, monkeypatch, team_leagues=(119715,), ibasketball_league_url=NEW_LEAGUE,
+        league_url_overridden=True, league_url_suggestion=OLD_LEAGUE,
+    )
+    assert (team.ibasketball_league_url, team.league_url_suggestion) == (NEW_LEAGUE, None)
+
+
+@pytest.mark.parametrize("league_ids", [(), (NEW_LEAGUE_ID, 120130)], ids=["none-filled", "ambiguous"])
+def test_sync_leaves_league_url_when_current_league_is_not_unique(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, league_ids: tuple[int, ...]
+) -> None:
+    team = _roll(db_session, monkeypatch, team_leagues=(NEW_LEAGUE_ID, 120130), league_ids=league_ids)
+    assert (team.ibasketball_league_url, team.league_url_suggestion) == (OLD_LEAGUE, None)

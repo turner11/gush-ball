@@ -226,6 +226,17 @@ const contentSections = [
                 <datalist id="club-options"><option v-for="name in clubOptions" :key="name" :value="name" /></datalist>
                 <p v-if="!fullAdmin" id="club-hint" class="mt-1 text-sm text-muted">רק מנהל ראשי יכול לשנות מועדון</p>
               </template>
+              <div
+                v-if="field.key === 'ibasketball_league_url' && team?.league_url_suggestion && form.ibasketball_league_url !== team.league_url_suggestion"
+                id="league-suggestion"
+                class="mt-2 flex flex-wrap items-center gap-2 text-sm"
+              >
+                <span class="text-muted">הליגה העדכנית שזוהתה:</span>
+                <bdi dir="ltr" class="break-all">{{ team.league_url_suggestion }}</bdi>
+                <button type="button" class="btn-secondary" @click="form.ibasketball_league_url = team.league_url_suggestion">
+                  השתמש בכתובת
+                </button>
+              </div>
               <template v-if="field.key === 'logo_url'">
                 <ImageUpload label="העלאת לוגו" @uploaded="(url) => (form.logo_url = url)" />
                 <img v-if="form.logo_url" :src="form.logo_url" alt="" class="mt-2 size-16 object-contain" />

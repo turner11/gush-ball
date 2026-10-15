@@ -269,3 +269,15 @@ def test_sync_all_refreshes_leagues_only_on_unscoped_run(db_session: Session, st
     assert stub_scrapers["leagues"] == 0
     scrape.sync_all(db_session)
     assert stub_scrapers["leagues"] == 1
+
+
+def test_sync_all_refreshes_leagues_before_games_and_standings(
+    db_session: Session, stub_scrapers: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    order: list[str] = []
+    for kind, attr in [("leagues", "sync_leagues"), ("games", "sync_all_games"), ("standings", "sync_all_standings")]:
+        monkeypatch.setattr(scrape, attr, lambda *a, _k=kind, **kw: order.append(_k))
+
+    scrape.sync_all(db_session)
+
+    assert order == ["leagues", "games", "standings"]
