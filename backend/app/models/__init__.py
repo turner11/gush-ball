@@ -2,6 +2,7 @@ from app.models.audit_log import AuditLog  # registers the audit listener
 from app.models.club import Club, get_or_create_club
 from app.models.content import TeamImage, TeamLink, TeamPost, TeamVideo
 from app.models.game import Game, GameStatus
+from app.models.league import League
 from app.models.lineup_snapshot import LineupSnapshot
 from app.models.membership import Membership
 from app.models.opponent import Opponent, get_or_create_opponent
@@ -16,6 +17,7 @@ __all__ = [
     "Club",
     "Game",
     "GameStatus",
+    "League",
     "LineupSnapshot",
     "Membership",
     "Opponent",

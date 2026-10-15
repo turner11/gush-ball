@@ -1,7 +1,7 @@
 # Gush Ball — project spec
 
-Club basketball website: scraped external league data, curated by a club admin (and optional per-team admins), served to
-anonymous fans. Read this before picking up any GitHub issue — it carries the decisions and
+Basketball platform for any ibasketball team (GushBall is the first club on it; the brand is "GushBall"): scraped external
+league data, curated by a club admin (and optional per-team admins), served to anonymous fans. Read this before picking up any GitHub issue — it carries the decisions and
 rationale that aren't visible from the code alone. Setup/run commands live in README.md, not here.
 
 ## Phasing
@@ -19,9 +19,10 @@ issue, before starting.
 
 ## Domain model (the shape and the why — read the code for exact columns)
 
-- `Team`: one of the club's *own* teams. Rich: colors, logo, socials, home court, content, and an optional `club`, the name of a `Club` (id, name, ibasketball url; scraped fill-only, full-admin editable). `Team.club` and `Membership.club` are FKs to the unique `clubs.name` with ON UPDATE CASCADE, so a rename keeps club-admin scope.
+- `Team`: a team on the site (any ibasketball team; GushBall's teams were the first). Rich: colors, logo, socials, home court, content, and an optional `club`, the name of a `Club` (id, name, ibasketball url; scraped fill-only, full-admin editable). `Team.club` and `Membership.club` are FKs to the unique `clubs.name` with ON UPDATE CASCADE, so a rename keeps club-admin scope.
 - `Opponent`: **not** a `Team`. Thin: name + logo + source URL, scraped or entered ad hoc. This
   split is deliberate — never fold opponents into the `Team` model to "save a table."
+- `League`: thin: ibasketball id, name, page URL, season start year. Current-season, non-empty leagues only, refilled nightly from `wp-json/sportspress/v2/leagues` (`sync_leagues`, unscoped syncs only). Teams link by `Team.ibasketball_league_url == League.url`, with no FK. Users can request a missing team (#351); follow-ups are #350 (picker), #351, #352.
 - `Player`: belongs to a `Team`; jersey number; images; optional `user_id` link to an account (#329).
 - `Game`: one `Team`'s schedule entry against an `Opponent`. Phase 2 adds scrape-bookkeeping
   columns (`source_event_id`, `is_scraped`, `needs_review`, `is_manually_overridden`) — Phase 1
