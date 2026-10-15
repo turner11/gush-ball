@@ -148,7 +148,7 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional, enable "Sign in with Google" (see 4.1). |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for password reset and password sign-up (STARTTLS, port defaults to 587). Without `SMTP_HOST` both return 503; links are never logged in prod. |
 | `SENTRY_DSN` | Optional, backend error reporting (see §10). Runtime. |
-| `SENTRY_TRACES_SAMPLE_RATE` | Optional, share of public read requests traced (default 0.1). Writes and scrapes are always traced. Lower it if Sentry's span usage nears the plan quota. |
+| `SENTRY_TRACES_SAMPLE_RATE` | Optional, share of public read requests traced (default 1.0, all). Writes and scrapes are always traced. Lower it if Sentry's span usage nears the plan quota. |
 | `VITE_SENTRY_DSN` | Optional, frontend error reporting (see §10). Must be available at **build** time. |
 | `ENABLE_DOCS` | **Leave unset** in prod (keeps `/api/docs` and `/api/openapi.json` off). |
 
