@@ -458,7 +458,7 @@ describe('DefaultLayout', () => {
     const header = wrapper.find('header')
     expect(header.element.parentElement.classList).toContain('sticky')
     expect(header.element.parentElement.classList).toContain('top-0')
-    expect(header.text()).not.toContain('גוש כדורסל')
+    expect(header.text()).not.toContain('GushBall')
   })
 
   it('header brand shows the selected team logo and name', async () => {
