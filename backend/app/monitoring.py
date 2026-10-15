@@ -20,4 +20,28 @@ def init_sentry() -> None:
         # level=None: no log breadcrumbs (auth.py logs login identifiers, which can be emails).
         # ERROR logs still become events.
         integrations=[LoggingIntegration(level=None, event_level=logging.ERROR)],
+        traces_sampler=_traces_sampler,
+        # No downstream Sentry service: don't add sentry-trace/baggage headers to ibasketball or Google calls.
+        trace_propagation_targets=[],
+        before_send=_drop_query_string,
+        before_send_transaction=_drop_query_string,
     )
+
+
+def _traces_sampler(sampling_context: dict) -> float:
+    """Writes are rare and are the CRUD worth tracing; public reads are the volume, so they use the env rate."""
+    method = sampling_context.get("asgi_scope", {}).get("method")
+    if method is not None and method not in ("GET", "HEAD", "OPTIONS"):
+        return 1.0
+    return settings.sentry_traces_sample_rate
+
+
+def _drop_query_string(event: dict, hint: dict) -> dict:
+    """The ASGI integration sends query_string even without PII; /auth/google/callback carries the OAuth code."""
+    event.get("request", {}).pop("query_string", None)
+    return event
+
+
+def trace_scrape(name: str):
+    """One transaction per scrape kind (each gets its own 1,000-span budget). sampled=True: a scrape is never sampled out (inert when tracing is off)."""
+    return sentry_sdk.start_transaction(op="scrape", name=name, sampled=True)

@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Team
+from app.monitoring import trace_scrape
 from app.scrape_games import _get_json, _get_page
 
 LOGO_MAX = 500  # Team.logo_url / Url500 width
@@ -89,12 +90,13 @@ def _suggest_names(rows: list[dict], taken: set[str]) -> None:
 
 
 def preview_club_teams(db: Session, club_url: str) -> list[dict]:
-    rows = parse_club_page(_get_page(club_url))
-    existing = db.execute(select(Team.name, Team.ibasketball_team_url)).all()
-    known_codes = {_team_code(url) for _, url in existing if url}
-    rows = [r for r in rows if _team_code(r["ibasketball_team_url"]) not in known_codes]
-    if not rows:
-        return []
-    _fetch_logos_and_addresses(rows)
-    _suggest_names(rows, {name for name, _ in existing})
-    return rows
+    with trace_scrape("club_preview"):
+        rows = parse_club_page(_get_page(club_url))
+        existing = db.execute(select(Team.name, Team.ibasketball_team_url)).all()
+        known_codes = {_team_code(url) for _, url in existing if url}
+        rows = [r for r in rows if _team_code(r["ibasketball_team_url"]) not in known_codes]
+        if not rows:
+            return []
+        _fetch_logos_and_addresses(rows)
+        _suggest_names(rows, {name for name, _ in existing})
+        return rows

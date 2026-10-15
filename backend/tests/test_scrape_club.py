@@ -164,3 +164,19 @@ def test_preview_drops_non_http_logo(db_session: Session, monkeypatch: pytest.Mo
     rows = scrape_club.preview_club_teams(db_session, CLUB_URL)
 
     assert rows[0]["logo_url"] is None
+
+
+def test_preview_club_teams_runs_in_scrape_transaction(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    import sentry_sdk
+
+    seen: list[str] = []
+
+    _page_html = _page()
+
+    def _get(url: str) -> str:
+        seen.append(sentry_sdk.get_current_span().containing_transaction.name)
+        return _page_html
+
+    monkeypatch.setattr(scrape_club, "_get_page", _get)
+    scrape_club.preview_club_teams(db_session, "https://ibasketball.co.il/club/1/")
+    assert seen == ["club_preview"]

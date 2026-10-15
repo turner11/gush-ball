@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.monitoring import init_sentry
+from app.monitoring import init_sentry, trace_scrape
 from app.scrape_games import _sp_team_id, sync_all_games, sync_all_players
 from app.scrape_standings import sync_all_standings
 
@@ -18,6 +18,13 @@ log = logging.getLogger(__name__)
 
 
 KINDS = ("standings", "games", "players")
+
+
+def _run_kind(kind: str, kinds: Collection[str], sync: Any, *args: Any, **kwargs: Any) -> Any:
+    if kind not in kinds:
+        return None
+    with trace_scrape(kind):  # own transaction per kind: each gets its own 1000-span budget
+        return sync(*args, **kwargs)
 
 
 def sync_all(
@@ -29,9 +36,9 @@ def sync_all(
     # sync_all_standings logs and skips per-team failures, so games always run.
     _sp_team_id.cache_clear()
     errors: list[str] = []
-    standings = sync_all_standings(db, errors, team_ids=team_ids) if "standings" in kinds else None
-    games = sync_all_games(db, errors, team_ids=team_ids, auto_accept=auto_accept) if "games" in kinds else None
-    players = sync_all_players(db, errors, team_ids=team_ids) if "players" in kinds else None
+    standings = _run_kind("standings", kinds, sync_all_standings, db, errors, team_ids=team_ids)
+    games = _run_kind("games", kinds, sync_all_games, db, errors, team_ids=team_ids, auto_accept=auto_accept)
+    players = _run_kind("players", kinds, sync_all_players, db, errors, team_ids=team_ids)
     log.info(
         "Sync finished: %s standings rows, %s games, %s players, %d errors",
         standings, games, players, len(errors),

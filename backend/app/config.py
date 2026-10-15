@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # Sentry error reporting; empty = monitoring off (dev/CI).
     sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = Field(1.0, ge=0, le=1)  # reads only; writes and scrapes are always traced
 
     # Object storage (S3-compatible / R2). Empty-string defaults, like the other settings above,
     # so the app still boots for local dev/tests without real credentials — only /uploads itself
