@@ -24,9 +24,9 @@ const tabItems = computed(() => [
   { to: { name: 'admin-teams' }, label: 'קבוצות', icon: 'shield' },
 ])
 
-// A team admin's list holds only their own team, so a foreign or unknown slug falls back to it.
+// A team admin's list holds only their own team, so a foreign or unknown slug falls back to it (hence fallbackToFirst).
 const teams = ref([])
-useTeamFromRoute(teams)
+useTeamFromRoute(teams, { fallbackToFirst: true })
 onMounted(async () => {
   try {
     teams.value = ownTeams(await apiFetch('/teams'))

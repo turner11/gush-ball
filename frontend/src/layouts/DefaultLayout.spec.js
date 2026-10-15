@@ -236,7 +236,7 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('[data-testid="tab-bar"]').exists()).toBe(false)
   })
 
-  it('unknown slug redirects to the remembered/first team', async () => {
+  it('unknown slug redirects to the remembered team', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -245,6 +245,32 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.path).toBe('/team_a')
+  })
+
+  it('unknown slug with no remembered team goes to /teams and remembers nothing (#358)', async () => {
+    localStorage.clear()
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/nope/stats?game=5')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/teams')
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBeNull()
+  })
+
+  it('bare / with a deleted remembered team goes to /teams and remembers nothing (#358)', async () => {
+    localStorage.setItem('gush-ball:selected-team-id', '99')
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/teams')
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBeNull()
   })
 
   it("/<id> redirects to that team's canonical slug and selects it", async () => {
@@ -272,7 +298,7 @@ describe('DefaultLayout', () => {
     expect(localStorage.getItem('gush-ball:selected-team-id')).toBe('2')
   })
 
-  it('unknown numeric id falls back to the remembered/first team', async () => {
+  it('unknown numeric id falls back to the remembered team', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
