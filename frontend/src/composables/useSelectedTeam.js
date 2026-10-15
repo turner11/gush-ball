@@ -40,8 +40,10 @@ export function useSelectedTeam() {
 }
 
 // The URL slug picks the team on every route that has one (home, /:slug/schedule, /:slug/admin, …).
-// An unknown slug or a team id is replaced by the canonical slug, keeping the page, query and hash.
-export function useTeamFromRoute(teams) {
+// A team id is replaced by the canonical slug, keeping the page, query and hash. Any other unknown slug resolves to
+// the remembered team, else /teams; it never picks a team the visitor didn't choose (#358). The admin layout passes
+// fallbackToFirst because its list is only the admin's own teams.
+export function useTeamFromRoute(teams, { fallbackToFirst = false } = {}) {
   const route = useRoute()
   const router = useRouter()
   watch([() => route.params.slug, () => route.name, teams], () => {
@@ -56,7 +58,11 @@ export function useTeamFromRoute(teams) {
     // /<team id> redirects to that team's canonical slug; slugs above always win over ids.
     const fallback = teams.value.find((t) => String(t.id) === slug)
       ?? teams.value.find((t) => String(t.id) === selectedTeamId.value)
-      ?? teams.value[0]
+      ?? (fallbackToFirst ? teams.value[0] : undefined)
+    if (!fallback) {
+      router.replace({ name: 'teams' })
+      return
+    }
     router.replace({
       name: route.name === 'home' ? 'team-home' : route.name,
       params: { ...route.params, slug: teamSlug(fallback) },
