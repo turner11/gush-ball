@@ -43,5 +43,5 @@ def _drop_query_string(event: dict, hint: dict) -> dict:
 
 
 def trace_scrape(name: str):
-    """One transaction per scrape run. sampled=True: a scrape is never sampled out (inert when tracing is off)."""
+    """One transaction per scrape kind (each gets its own 1,000-span budget). sampled=True: a scrape is never sampled out (inert when tracing is off)."""
     return sentry_sdk.start_transaction(op="scrape", name=name, sampled=True)
