@@ -152,7 +152,7 @@ describe('router auth guard', () => {
 
     global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 1, is_admin: true }) })
     await router.push('/admin')
-    expect(document.title).toBe('ניהול · גוש כדורסל')
+    expect(document.title).toBe('ניהול · GushBall')
   })
 
   it('every public route except not-found/login/reset has a description; not-found is noindex', async () => {

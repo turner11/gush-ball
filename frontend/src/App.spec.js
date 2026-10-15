@@ -17,7 +17,7 @@ describe('App', () => {
     const wrapper = mount(App, { global: { plugins: [router] } })
 
     expect(wrapper.text()).toContain('לוח משחקים')
-    expect(wrapper.find('img[alt="גוש כדורסל"]').exists()).toBe(true)
+    expect(wrapper.find('img[alt="GushBall"]').exists()).toBe(true)
   })
 
   it('renders the admin layout exactly once on an authenticated admin page', async () => {

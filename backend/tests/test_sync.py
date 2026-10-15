@@ -14,7 +14,7 @@ from app.routers import sync as sync_router
 @pytest.fixture()
 def stub_scrapers(monkeypatch: pytest.MonkeyPatch) -> Generator[dict[str, Any], None, None]:
     """Monkeypatch the scraper entry points the router delegates to; records calls."""
-    calls: dict[str, Any] = {"standings": 0, "games": 0, "players": 0}
+    calls: dict[str, Any] = {"standings": 0, "games": 0, "players": 0, "leagues": 0}
 
     def _fake_sync_all_standings(db: Any, errors: Any = None, **kw: Any) -> int:
         calls["standings"] += 1
@@ -35,6 +35,12 @@ def stub_scrapers(monkeypatch: pytest.MonkeyPatch) -> Generator[dict[str, Any], 
         return 0
 
     monkeypatch.setattr(scrape, "sync_all_players", _fake_sync_all_players)
+
+    def _fake_sync_leagues(db: Any, errors: Any = None) -> int:
+        calls["leagues"] += 1
+        return 0
+
+    monkeypatch.setattr(scrape, "sync_leagues", _fake_sync_leagues)
     yield calls
 
 
@@ -123,6 +129,7 @@ def test_sync_now_defaults_all_kinds_all_teams_auto_accept(
     assert stub_scrapers["standings_kw"] == {"team_ids": None}
     assert stub_scrapers["games_kw"] == {"team_ids": None, "auto_accept": True}
     assert stub_scrapers["players_kw"] == {"team_ids": None}
+    assert stub_scrapers["leagues"] == 1
 
 
 def test_team_admin_sync_is_scoped_to_own_team(
@@ -133,6 +140,7 @@ def test_team_admin_sync_is_scoped_to_own_team(
     assert stub_scrapers["games_kw"]["team_ids"] == [own_team.id]
     assert stub_scrapers["standings_kw"]["team_ids"] == [own_team.id]
     assert stub_scrapers["players_kw"]["team_ids"] == [own_team.id]
+    assert stub_scrapers["leagues"] == 0
 
 
 def test_team_admin_cannot_sync_other_team(
@@ -244,11 +252,20 @@ def test_sync_all_runs_each_kind_in_its_own_scrape_transaction(db_session: Sessi
     monkeypatch.setattr(scrape, "sync_all_standings", _stub("standings"))
     monkeypatch.setattr(scrape, "sync_all_games", _stub("games"))
     monkeypatch.setattr(scrape, "sync_all_players", _stub("players"))
+    monkeypatch.setattr(scrape, "sync_leagues", _stub("leagues"))
     scrape.sync_all(db_session)
     transactions = {kind: span.containing_transaction for kind, span in seen.items()}
-    assert len({id(t) for t in transactions.values()}) == 3  # own 1000-span budget per kind
+    assert len({id(t) for t in transactions.values()}) == 4  # own 1000-span budget per kind
     assert {kind: (t.op, t.name) for kind, t in transactions.items()} == {
         "standings": ("scrape", "standings"),
         "games": ("scrape", "games"),
         "players": ("scrape", "players"),
+        "leagues": ("scrape", "leagues"),
     }
+
+
+def test_sync_all_refreshes_leagues_only_on_unscoped_run(db_session: Session, stub_scrapers: dict[str, Any]) -> None:
+    scrape.sync_all(db_session, team_ids=[1])
+    assert stub_scrapers["leagues"] == 0
+    scrape.sync_all(db_session)
+    assert stub_scrapers["leagues"] == 1

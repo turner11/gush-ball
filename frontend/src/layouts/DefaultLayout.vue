@@ -103,7 +103,7 @@ onMounted(async () => {
         <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6 md:h-16">
           <RouterLink
             :to="homePath"
-            :aria-label="(selectedTeam?.name ?? 'גוש כדורסל') + ' — דף הבית'"
+            :aria-label="(selectedTeam?.name ?? 'GushBall') + ' — דף הבית'"
             class="flex min-h-11 min-w-0 items-center gap-2"
           >
             <!-- white tile: uploaded logos often carry their own white background -->
@@ -113,7 +113,7 @@ onMounted(async () => {
               alt=""
               class="size-9 shrink-0 rounded-lg bg-white object-contain p-0.5 md:size-10"
             />
-            <img v-else :src="LOGO_URL" alt="גוש כדורסל" class="size-9 shrink-0 rounded md:size-10" />
+            <img v-else :src="LOGO_URL" alt="GushBall" class="size-9 shrink-0 rounded md:size-10" />
             <span v-if="selectedTeam" class="truncate font-extrabold">{{ selectedTeam.name }}</span>
           </RouterLink>
           <a

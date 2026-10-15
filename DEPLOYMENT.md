@@ -239,7 +239,7 @@ Coolify → the `backend` service → *Scheduled Tasks* → add, frequency `0 4 
 uv run python -m app.scrape
 ```
 
-`app.scrape` runs standings then games sequentially, respecting ibasketball.co.il's `Crawl-Delay: 10`; a failing team is
+`app.scrape` runs standings, games, players, then leagues sequentially, respecting ibasketball.co.il's `Crawl-Delay: 10`; a failing team is
 logged and skipped. The admin's "סנכרון עכשיו" button does the same on demand.
 
 ## 6. Nightly backup
