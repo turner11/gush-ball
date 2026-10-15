@@ -29,6 +29,7 @@ const router = createRouter({
     { path: '/:slug/roster', name: 'roster', component: () => import('../views/RosterView.vue'), meta: { title: 'שחקנים', description: (team) => `סגל השחקנים של ${team}.` } },
     { path: '/players/:id', name: 'player', component: () => import('../views/PlayerView.vue'), meta: { title: 'שחקן', description: () => 'פרופיל שחקן.' } },
     { path: '/:slug/media', name: 'media', component: () => import('../views/MediaView.vue'), meta: { title: 'מדיה', description: (team) => `תמונות, סרטונים וקישורים של ${team}.` } },
+    { path: '/:slug/club', name: 'club-week', component: () => import('../views/ClubWeekView.vue'), meta: { title: 'השבוע במועדון', description: (team) => `משחקים ותוצאות השבוע בכל קבוצות המועדון של ${team}.` } },
     { path: '/:slug/stats', name: 'stats', component: () => import('../views/StatsView.vue'), meta: { title: 'סטטיסטיקה', description: (team) => `סטטיסטיקת חמישיות של ${team}.`, noindex: true } },
     { path: '/teams', name: 'teams', component: () => import('../views/TeamsView.vue'), meta: { title: 'קבוצות', description: () => 'כל הקבוצות של המועדון: בחרו קבוצה למשחקים, לטבלה ולשחקנים.' } },
     { path: '/join', name: 'join', component: () => import('../views/JoinView.vue'), meta: { title: 'הצטרפות', requiresUser: true, noindex: true } },

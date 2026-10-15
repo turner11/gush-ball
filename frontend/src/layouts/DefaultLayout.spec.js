@@ -48,6 +48,7 @@ describe('DefaultLayout', () => {
       routes: [
         { path: '/', name: 'home', component: { template: '<div/>' } },
         { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { description: (t) => `לוח של ${t}` } },
+        { path: '/:slug/club', name: 'club-week', component: { template: '<div/>' } },
         { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' } },
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
         { path: '/teams', name: 'teams', component: { template: '<div/>' } },
@@ -313,6 +314,18 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('header a[href="/team_a/admin"]').text()).toBe('ניהול')
   })
 
+  it('swaps tab bar for top nav at lg, not md: the md header has no room for the links (#341)', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="top-nav"]').classes()).toEqual(expect.arrayContaining(['hidden', 'lg:block']))
+    expect(wrapper.find('[data-testid="tab-bar"]').classes()).toContain('lg:hidden')
+    expect(wrapper.find('[data-testid="tab-bar"]').classes()).not.toContain('md:hidden')
+  })
+
   it('renders no team <select>', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
@@ -528,6 +541,25 @@ describe('DefaultLayout', () => {
       .findAll('a')
       .map((a) => a.attributes('href'))
     expect(hrefs).toEqual(['/team_a', '/team_a/schedule', '/team_a/standings', '/team_a/roster', '/team_a/media', '/team_a/stats'])
+  })
+
+  it.each([
+    ['club-mates', [{ club: 'מכבי' }, { club: 'מכבי' }, {}], true],
+    ['no club-mates', [{ club: 'מכבי' }, { club: 'הפועל' }, {}], false],
+  ])('nav and tab bar link מועדון only with %s', async (_n, extras, shown) => {
+    const teams = TEAMS.map((t, i) => ({ ...t, ...extras[i] }))
+    mockFetch({ 'GET /api/teams': () => jsonRes(teams) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
+    await flushPromises()
+
+    for (const id of ['top-nav', 'tab-bar']) {
+      const hrefs = wrapper.find(`[data-testid="${id}"]`).findAll('a').map((a) => a.attributes('href'))
+      expect(hrefs.includes('/team_a/club')).toBe(shown)
+      if (shown) expect(hrefs.slice(0, 3)).toEqual(['/team_a', '/team_a/schedule', '/team_a/club'])
+    }
   })
 
   it('header omits the map link when the team has no address', async () => {

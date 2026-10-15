@@ -1,16 +1,17 @@
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import ClubWeek from './ClubWeek.vue'
 
 const NOW = new Date(2026, 2, 12, 12, 0)
 const TEAMS = [
-  { id: 1, name: 'קבוצה א', name_en: 'Team A' },
-  { id: 2, name: 'קבוצה ב', name_en: 'Team B' },
+  { id: 1, name: 'קבוצה א', name_en: 'Team A', club: 'מכבי' },
+  { id: 2, name: 'קבוצה ב', name_en: 'Team B', club: 'מכבי' },
+  { id: 3, name: 'קבוצה ג', name_en: 'Team C', club: 'הפועל' },
 ]
 const opp = { name: 'מכבי', logo_url: null, source_url: null, address: null }
 const GAMES = [
   { id: 10, team_id: 1, is_home: true, scheduled_at: '2026-03-14T18:00:00', status: 'scheduled', team_score: null, opponent_score: null, opponent: opp },
+  { id: 12, team_id: 3, is_home: true, scheduled_at: '2026-03-13T18:00:00', status: 'scheduled', team_score: null, opponent_score: null, opponent: opp },
   { id: 11, team_id: 2, is_home: false, scheduled_at: '2026-03-10T18:00:00', status: 'final', team_score: 80, opponent_score: 70, opponent: opp },
 ]
 const stubs = { GameLocationLinks: true, GameStatsLink: true, RouterLink: RouterLinkStub }
@@ -22,14 +23,19 @@ function mockFetch(games) {
     return Promise.resolve({ ok: true, status: 200, json: async () => body })
   })
 }
-const mountIt = async () => {
-  const w = mount(ClubWeek, { global: { stubs } })
+// The selected team is module-level state, so each mount gets a fresh module.
+const mountIt = async (selectedId = '1') => {
+  vi.resetModules()
+  localStorage.setItem('gush-ball:selected-team-id', selectedId)
+  const { default: ClubWeekView } = await import('./ClubWeekView.vue')
+  const w = mount(ClubWeekView, { global: { stubs } })
   await flushPromises()
   return w
 }
 
-describe('ClubWeek', () => {
+describe('ClubWeekView', () => {
   beforeEach(() => {
+    localStorage.clear()
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(NOW)
   })
@@ -65,6 +71,29 @@ describe('ClubWeek', () => {
     const tos = w.findAllComponents(RouterLinkStub).map((l) => l.props('to'))
     expect(tos).toContainEqual({ name: 'game', params: { slug: 'team_a', id: 10 } })
     expect(tos).toContainEqual({ name: 'game', params: { slug: 'team_b', id: 11 } })
+  })
+
+  it("only lists games of the current team's club", async () => {
+    mockFetch(GAMES)
+    const w = await mountIt()
+    const ids = w.findAllComponents(RouterLinkStub).map((l) => l.props('to')?.params?.id)
+    expect(ids).toContain(10)
+    expect(ids).toContain(11)
+    expect(ids).not.toContain(12)
+    expect(w.text()).not.toContain('קבוצה ג')
+  })
+
+  it('shows the no-club-page state when the team has no club-mates', async () => {
+    mockFetch(GAMES)
+    const w = await mountIt('3')
+    expect(w.text()).toContain('לקבוצה זו אין עמוד מועדון')
+    expect(w.findAllComponents(RouterLinkStub).map((l) => l.props('to'))).toContain('/team_c')
+  })
+
+  it('renders the page title as an h1', async () => {
+    mockFetch(GAMES)
+    const w = await mountIt()
+    expect(w.get('h1').text()).toBe('השבוע במועדון')
   })
 
   it('shows the empty state for an empty week', async () => {

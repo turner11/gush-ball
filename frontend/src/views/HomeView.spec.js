@@ -72,7 +72,7 @@ describe('HomeView', () => {
     })
 
     const { default: HomeView } = await import('./HomeView.vue')
-    const wrapper = mount(HomeView, { global: { plugins: [router], stubs: { ClubWeek: true } } })
+    const wrapper = mount(HomeView, { global: { plugins: [router] } })
     await flushPromises()
 
     expect(wrapper.text()).toContain('אתר הליגה')
@@ -91,7 +91,7 @@ describe('HomeView', () => {
     })
 
     const { default: HomeView } = await import('./HomeView.vue')
-    const wrapper = mount(HomeView, { global: { plugins: [router], stubs: { ClubWeek: true } } })
+    const wrapper = mount(HomeView, { global: { plugins: [router] } })
     await flushPromises()
 
     // The layout hero owns the team identity (#106).
@@ -105,7 +105,7 @@ describe('HomeView', () => {
 
     const { default: HomeView } = await import('./HomeView.vue')
     const { useSelectedTeam } = await import('../composables/useSelectedTeam')
-    const wrapper = mount(HomeView, { global: { plugins: [router], stubs: { ClubWeek: true } } })
+    const wrapper = mount(HomeView, { global: { plugins: [router] } })
     await flushPromises()
 
     // First-time visitor: no welcome until /teams has actually loaded.
@@ -127,7 +127,7 @@ describe('HomeView', () => {
       'GET /api/teams/1/games': () => jsonRes(games),
     })
     const { default: HomeView } = await import('./HomeView.vue')
-    const wrapper = mount(HomeView, { global: { plugins: [router], stubs: { ClubWeek: true } } })
+    const wrapper = mount(HomeView, { global: { plugins: [router] } })
     await flushPromises()
     return wrapper
   }
