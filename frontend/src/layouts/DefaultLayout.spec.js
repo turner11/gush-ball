@@ -48,7 +48,7 @@ describe('DefaultLayout', () => {
       history: createWebHistory(),
       routes: [
         { path: '/', name: 'home', component: { template: '<div/>' } },
-        { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { description: (t) => `לוח של ${t}` } },
+        { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { title: 'לוח', description: (t) => `לוח של ${t}` } },
         { path: '/:slug/club', name: 'club-week', component: { template: '<div/>' } },
         { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' } },
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
@@ -162,7 +162,7 @@ describe('DefaultLayout', () => {
     await router.push('/team_b')
     await flushPromises()
 
-    expect(document.title).toBe(TEAMS[1].name)
+    expect(document.title).toBe('קבוצה ב · Team B · כדורסל')
   })
 
   it('tab title follows a team switch', async () => {
@@ -174,11 +174,43 @@ describe('DefaultLayout', () => {
     await flushPromises()
     await router.push('/team_a/schedule')
     await flushPromises()
-    expect(document.title).toBe(TEAMS[0].name)
+    expect(document.title).toBe('לוח · קבוצה א · Team A · כדורסל')
 
     await router.push('/team_b')
     await flushPromises()
-    expect(document.title).toBe(TEAMS[1].name)
+    expect(document.title).toBe('קבוצה ב · Team B · כדורסל')
+  })
+
+  it('header shows the English name under the name, and nothing without name_en', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS.map((t) => (t.id === 2 ? { ...t, name_en: null } : t))) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
+    await flushPromises()
+    expect(wrapper.find('header a bdi[lang="en"]').text()).toBe('Team A')
+
+    await router.push('/2')
+    await flushPromises()
+    expect(wrapper.find('header a bdi').exists()).toBe(false)
+  })
+
+  it('on the player route the layout leaves the title and JSON-LD to PlayerView', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+    document.title = 'player title'
+    const ld = document.createElement('script')
+    ld.type = 'application/ld+json'
+    ld.setAttribute('data-page', '')
+    ld.textContent = '{"@type":"Person"}'
+    document.head.appendChild(ld)
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/players/3')
+    await flushPromises()
+
+    expect(document.title).toBe('player title')
+    expect(document.head.querySelector('script[data-page]').textContent).toBe('{"@type":"Person"}')
   })
 
   it("tab icon is the selected team's logo, club logo when it has none", async () => {

@@ -16,6 +16,7 @@ const PLAYER = {
 // Team media: only items tagged with player 3 belong on the page.
 const RESPONSES = {
   '/api/players/3': PLAYER,
+  '/api/teams/1': { id: 1, name: 'קבוצה א', name_en: 'Team A' },
   '/api/teams/1/images': [
     { id: 10, title: 'אימון', url: '/t1.jpg', player_ids: [3] },
     { id: 11, title: 'אחר', url: '/other.jpg', player_ids: [4] },
@@ -60,6 +61,21 @@ describe('PlayerView', () => {
     ])
   })
 
+  it('shows the English name, sets the title and Person JSON-LD', async () => {
+    const fetchMock = okFetch()
+    global.fetch = vi.fn((url) => (url === '/api/players/3' ? Promise.resolve({ ok: true, status: 200, json: async () => ({ ...PLAYER, name_en: 'Yossi Cohen' }) }) : fetchMock(url)))
+    const wrapper = await mountAt('/players/3')
+
+    expect(wrapper.find('bdi[lang="en"]').text()).toBe('Yossi Cohen')
+    expect(wrapper.text()).toContain('כל השחקנים של קבוצה א')
+    expect(document.title).toBe('יוסי כהן · קבוצה א · Yossi Cohen · כדורסל')
+    const ld = JSON.parse(document.head.querySelector('script[data-page]').textContent)
+    expect(ld['@type']).toBe('Person')
+    expect(ld.alternateName).toBe('Yossi Cohen')
+    expect(ld.memberOf.url).toMatch(/\/team_a$/)
+    expect(ld.image).toBe('/a.jpg')
+  })
+
   it('shows only the videos the player is tagged in', async () => {
     global.fetch = okFetch()
     const text = (await mountAt('/players/3')).text()
@@ -70,7 +86,9 @@ describe('PlayerView', () => {
 
   it('tells not-found apart from a failed load', async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 404, statusText: 'Not Found', json: async () => ({}) }))
+    document.head.querySelectorAll('script[data-page]').forEach((el) => el.remove())
     expect((await mountAt('/players/9')).text()).toContain('השחקן לא נמצא')
+    expect(document.head.querySelector('script[data-page]')).toBeNull()
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, statusText: 'Error', json: async () => ({}) }))
     expect((await mountAt('/players/9')).text()).toContain('שגיאה בטעינת השחקן')
   })
