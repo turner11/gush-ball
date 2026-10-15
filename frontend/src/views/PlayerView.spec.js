@@ -76,7 +76,10 @@ describe('PlayerView', () => {
     expect(ld.image).toBe('/a.jpg')
   })
 
-  it('ignores a stale load when the user navigates to another player mid-load', async () => {
+  it.each([
+    ['succeeds', (base, url) => base(url)],
+    ['fails', () => ({ ok: false, status: 500, statusText: 'Error', json: async () => ({}) })],
+  ])('ignores a stale load that %s after the user navigates to another player', async (_, staleResult) => {
     const base = okFetch()
     let release
     let held = 0
@@ -84,7 +87,7 @@ describe('PlayerView', () => {
     const player4 = { ...PLAYER, id: 4, name: 'דני לוי' }
     global.fetch = vi.fn((url) => {
       if (url === '/api/players/4') return Promise.resolve({ ok: true, status: 200, json: async () => player4 })
-      if (url === '/api/teams/1/videos' && !held++) return gate.then(() => base(url)) // holds only player 3's load open
+      if (url === '/api/teams/1/videos' && !held++) return gate.then(() => staleResult(base, url)) // holds only player 3's load open
       return base(url)
     })
     const wrapper = await mountAt('/players/3')
@@ -95,6 +98,7 @@ describe('PlayerView', () => {
 
     expect(document.title).toContain('דני לוי')
     expect(JSON.parse(document.head.querySelector('script[data-page]').textContent).name).toBe('דני לוי')
+    expect(wrapper.text()).toContain('דני לוי')
   })
 
   it('shows only the videos the player is tagged in', async () => {

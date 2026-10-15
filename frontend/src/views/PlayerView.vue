@@ -62,12 +62,13 @@ watch(
       document.title = pageTitle(`${p.name} · ${t.name}`, p.name_en)
       setJsonLd(playerJsonLd(p, t, location.origin + route.path, `${location.origin}/${teamSlug(t)}`))
     } catch (e) {
+      if (id !== route.params.id) return
       player.value = null
       setJsonLd(null)
       document.title = pageTitle('שחקן')
       error.value = e.status === 404 ? 'השחקן לא נמצא.' : 'שגיאה בטעינת השחקן, נסה שוב'
     } finally {
-      loading.value = false
+      if (id === route.params.id) loading.value = false
     }
   },
   { immediate: true },
