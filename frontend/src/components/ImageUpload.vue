@@ -19,8 +19,9 @@ async function onChange(event) {
   try {
     const res = await apiFetch('/uploads', { method: 'POST', body: fd })
     emit('uploaded', res.url)
-  } catch {
-    error.value = 'שגיאה בהעלאת הקובץ'
+  } catch (err) {
+    error.value =
+      err.status === 429 ? 'יותר מדי ניסיונות, נסו שוב מאוחר יותר' : 'שגיאה בהעלאת הקובץ'
   } finally {
     uploading.value = false
     input.value = ''
