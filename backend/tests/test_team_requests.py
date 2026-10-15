@@ -9,6 +9,7 @@ from app import scrape_games, scrape_league_teams
 from app.models import AdminUser, League, Membership, Team, get_or_create_club
 from app.models.team_request import TeamRequest
 from app.routers import sync
+from app.routers.team_requests import EMAIL_REQUIRED
 from tests.test_team_admin import _login_user
 
 URL = "https://ibasketball.co.il/team/{}-x/"
@@ -53,6 +54,13 @@ def _ask(client: TestClient, code: int = 1, league: int = 10):
     return client.post("/team-requests", json={"league_id": league, "ibasketball_team_url": URL.format(code)})
 
 
+def _requester(client: TestClient, db: Session, name: str, *memberships: Membership) -> None:
+    """A signed-in user with a verified email (the only kind that may request a team)."""
+    _login_user(client, db, name, *memberships)
+    db.execute(update(AdminUser).where(AdminUser.username == name).values(email=f"{name}@example.com"))
+    db.commit()
+
+
 def _club_admin(client: TestClient, db: Session, name: str = "boss", club: str = "Gush") -> None:
     _login_user(client, db, name, Membership(club=club, role="admin"))
 
@@ -62,7 +70,7 @@ def test_anonymous_cannot_request(client: TestClient) -> None:
 
 
 def test_request_is_pending_with_feed_data_and_page_club(client: TestClient, db_session: Session) -> None:
-    _login_user(client, db_session, "dana")
+    _requester(client, db_session, "dana")
     res = _ask(client)
     assert res.status_code == 201
     assert res.json()["status"] == "pending"
@@ -77,7 +85,7 @@ def test_request_is_pending_with_feed_data_and_page_club(client: TestClient, db_
 def test_request_rejects_unknown_league_team_not_in_league_and_team_on_site(
     client: TestClient, db_session: Session
 ) -> None:
-    _login_user(client, db_session, "dana")
+    _requester(client, db_session, "dana")
     assert _ask(client, league=99).status_code == 404
     assert _ask(client, code=77).status_code == 404
     db_session.add(Team(name="א", slug="a", ibasketball_team_url=URL.format(1)))
@@ -88,19 +96,19 @@ def test_request_rejects_unknown_league_team_not_in_league_and_team_on_site(
 def test_second_pending_request_for_same_team_is_409_and_allowed_again_after_reject(
     client: TestClient, db_session: Session
 ) -> None:
-    _login_user(client, db_session, "dana")
+    _requester(client, db_session, "dana")
     assert _ask(client).status_code == 201
-    _login_user(client, db_session, "ron")
+    _requester(client, db_session, "ron")
     assert _ask(client).status_code == 409
     _club_admin(client, db_session)
     request_id = client.get("/team-requests").json()[0]["id"]
     assert client.post(f"/team-requests/{request_id}/reject").status_code == 204
-    _login_user(client, db_session, "ron2")
+    _requester(client, db_session, "ron2")
     assert _ask(client).status_code == 201
 
 
 def test_fourth_pending_request_per_user_is_409(client: TestClient, db_session: Session, feed: dict) -> None:
-    _login_user(client, db_session, "dana")
+    _requester(client, db_session, "dana")
     assert [_ask(client, code).status_code for code in (1, 2, 3)] == [201, 201, 201]
     feed["page_fetches"].clear()
     assert _ask(client, 4).status_code == 409
@@ -108,7 +116,7 @@ def test_fourth_pending_request_per_user_is_409(client: TestClient, db_session: 
 
 
 def test_inbox_scoped_to_club_admin_and_full_admin(client: TestClient, db_session: Session, feed: dict) -> None:
-    _login_user(client, db_session, "dana")
+    _requester(client, db_session, "dana")
     _ask(client, 1)
     feed["club"] = None
     _ask(client, 2)
@@ -135,7 +143,7 @@ def test_inbox_scoped_to_club_admin_and_full_admin(client: TestClient, db_sessio
 def test_club_admin_approves_creates_team_grants_admin_and_starts_sync(
     client: TestClient, db_session: Session, feed: dict
 ) -> None:
-    _login_user(client, db_session, "dana")
+    _requester(client, db_session, "dana")
     request_id = _ask(client).json()["id"]
     _club_admin(client, db_session)
     assert client.post(f"/team-requests/{request_id}/approve").status_code == 204
@@ -154,7 +162,7 @@ def test_club_admin_approves_creates_team_grants_admin_and_starts_sync(
 def test_out_of_scope_approve_or_reject_is_403_and_non_pending_is_404(
     client: TestClient, db_session: Session
 ) -> None:
-    _login_user(client, db_session, "dana")
+    _requester(client, db_session, "dana")
     request_id = _ask(client).json()["id"]
     get_or_create_club(db_session, "Other")
     _club_admin(client, db_session, "other", "Other")
@@ -170,7 +178,7 @@ def test_out_of_scope_approve_or_reject_is_403_and_non_pending_is_404(
 
 
 def test_reject_sets_rejected_and_me_lists_request_statuses(client: TestClient, db_session: Session) -> None:
-    _login_user(client, db_session, "dana")
+    _requester(client, db_session, "dana")
     request_id = _ask(client).json()["id"]
     assert client.get("/auth/me").json()["team_requests"] == [{"id": request_id, "name": "א", "status": "pending"}]
     _club_admin(client, db_session)
@@ -196,10 +204,21 @@ def test_self_approver_request_is_approved_immediately(
 
 
 def test_approve_409_when_team_already_on_site(client: TestClient, db_session: Session) -> None:
-    _login_user(client, db_session, "dana")
+    _requester(client, db_session, "dana")
     request_id = _ask(client).json()["id"]
     db_session.add(Team(name="א", slug="a", ibasketball_team_url=URL.format(1)))
     db_session.commit()
     _club_admin(client, db_session)
     assert client.post(f"/team-requests/{request_id}/approve").status_code == 409
     assert db_session.scalar(select(TeamRequest.status)) == "pending"
+
+
+def test_unverified_email_cannot_request_and_nothing_is_fetched(
+    client: TestClient, db_session: Session, feed: dict
+) -> None:
+    _login_user(client, db_session, "dana")
+    res = _ask(client)
+    assert res.status_code == 403
+    assert res.json()["detail"] == EMAIL_REQUIRED
+    assert db_session.scalar(select(TeamRequest)) is None
+    assert not feed.get("page_fetches")

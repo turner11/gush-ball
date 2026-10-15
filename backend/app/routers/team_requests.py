@@ -12,7 +12,14 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app import scrape_club, scrape_games, scrape_league_teams
-from app.deps import DbSession, RequireAnyAdmin, RequireUser, admin_clubs, can_approve_team_request
+from app.deps import (
+    DbSession,
+    RequireAnyAdmin,
+    RequireUser,
+    admin_clubs,
+    can_approve_team_request,
+    is_admin,
+)
 from app.models import AdminUser, League, Membership, Team, TeamRequest
 from app.routers import sync, teams
 from app.routers.memberships import mask_email
@@ -23,6 +30,7 @@ log = logging.getLogger(__name__)
 MAX_PENDING = 3  # per user, so a requester can't make us fetch team pages without limit
 ON_SITE = "הקבוצה כבר באתר"
 ALREADY_REQUESTED = "הקבוצה כבר התבקשה וממתינה לאישור"
+EMAIL_REQUIRED = "כדי לבקש קבוצה צריך כתובת אימייל מאומתת. אמתו אותה בקישור שנשלח אליכם בהרשמה, או התחברו עם Google"
 TOO_MANY = f"יש לך כבר {MAX_PENDING} בקשות ממתינות. אפשר לבקש קבוצה נוספת אחרי שאחת מהן תטופל"
 
 
@@ -88,6 +96,9 @@ def _start_sync(background_tasks: BackgroundTasks, team: Team) -> None:
 def request_team(
     payload: TeamRequestIn, user: RequireUser, db: DbSession, background_tasks: BackgroundTasks
 ) -> TeamRequest:
+    # first, so a rejected request is never stored or fetched; admins already passed the #270 gate (and may lack an email)
+    if user.email is None and not is_admin(db, user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, EMAIL_REQUIRED)
     league = db.scalar(select(League).where(League.ibasketball_id == payload.league_id))
     if league is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"League {payload.league_id} not found")

@@ -163,4 +163,15 @@ describe('LeagueTeamsView', () => {
     expect(wrapper.find('p.error-text[role="alert"]').text()).toBe('יש לך כבר 3 בקשות ממתינות')
     expect(wrapper.find(REQUEST_BUTTON).exists()).toBe(true)
   })
+
+  it('a 403 shows the server message (unverified email)', async () => {
+    mockApi(foreignLeague(), { 'POST /api/team-requests': () => err(403, 'כדי לבקש קבוצה צריך כתובת אימייל מאומתת') }, ok(ME))
+    const wrapper = await mountView()
+    await wrapper.find(REQUEST_BUTTON).trigger('click')
+    await flushPromises()
+    await confirmButton().trigger('click')
+    await flushPromises()
+    expect(wrapper.find('p.error-text[role="alert"]').text()).toBe('כדי לבקש קבוצה צריך כתובת אימייל מאומתת')
+    expect(wrapper.find(REQUEST_BUTTON).exists()).toBe(true)
+  })
 })

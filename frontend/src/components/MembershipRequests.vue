@@ -12,6 +12,7 @@ const actionError = ref('')
 const status = ref('')
 const teamRequests = ref([]) // pending requests to add a new team (#351)
 const pendingDelete = ref(null) // the row awaiting confirmation
+const pendingApproveTeam = ref(null) // the team request awaiting the "becomes admin" confirm
 const pendingReject = ref(null) // the team request awaiting rejection
 const requests = computed(() => rows.value?.filter((r) => r.role === 'pending'))
 const members = computed(() => rows.value?.filter((r) => r.role === 'member'))
@@ -68,6 +69,12 @@ const approveTeam = (request) =>
     () => dropTeamRequest(request),
   )
 
+function onApproveTeamConfirmed() {
+  const row = pendingApproveTeam.value
+  pendingApproveTeam.value = null
+  return approveTeam(row)
+}
+
 function onRejectConfirmed() {
   const row = pendingReject.value
   pendingReject.value = null
@@ -118,7 +125,7 @@ const confirmMessage = computed(() => {
             class="btn-primary"
             :disabled="busyId === request.id"
             :aria-label="`אישור הבקשה של ${userLabel(request)}`"
-            @click="approveTeam(request)"
+            @click="pendingApproveTeam = request"
           >אישור</button>
           <button
             type="button"
@@ -188,6 +195,13 @@ const confirmMessage = computed(() => {
       :message="confirmMessage"
       @update:open="(value) => !value && (pendingDelete = null)"
       @confirm="onDeleteConfirmed"
+    />
+    <ConfirmDialog
+      :open="pendingApproveTeam !== null"
+      :danger="false"
+      :message="pendingApproveTeam ? `להוסיף את ${pendingApproveTeam.name} לאתר? ${userLabel(pendingApproveTeam)} יהפוך/תהפוך למנהל/ת הקבוצה: יוכל/תוכל לערוך את דף הקבוצה ולאשר שחקנים.` : ''"
+      @update:open="(value) => !value && (pendingApproveTeam = null)"
+      @confirm="onApproveTeamConfirmed"
     />
     <ConfirmDialog
       :open="pendingReject !== null"

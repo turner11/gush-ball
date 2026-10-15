@@ -125,7 +125,7 @@ describe('MembershipRequests', () => {
     expect(wrapper.find('.badge-muted').text()).toBe('3')
   })
 
-  it('approving a team request POSTs approve and removes the row', async () => {
+  it('approving a team request confirms that the requester becomes admin, then POSTs approve', async () => {
     mockFetch({
       'GET /api/memberships': () => jsonRes([]),
       'GET /api/team-requests': () => jsonRes(TEAM_REQUESTS),
@@ -133,6 +133,10 @@ describe('MembershipRequests', () => {
     })
     const wrapper = await mountQueue()
     await wrapper.find('button[aria-label="אישור הבקשה של Ron"]').trigger('click')
+    await flushPromises()
+    expect(calls).not.toContain('POST /api/team-requests/8/approve')
+    expect(body().text()).toContain('Ron יהפוך/תהפוך למנהל/ת הקבוצה')
+    await body().find('[role="alertdialog"] button.btn-primary').trigger('click')
     await flushPromises()
     expect(calls).toContain('POST /api/team-requests/8/approve')
     expect(wrapper.text()).not.toContain('קבוצה חדשה · ליגת א')

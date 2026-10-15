@@ -81,7 +81,7 @@ async function submitRequest() {
     await checkSession() // fresh team_requests and admin flags
   } catch (err) {
     if (err.status === 401) await toLogin(t)
-    else requestError.value = err.status === 409 ? err.message : 'שגיאה בשליחת הבקשה, נסו שוב'
+    else requestError.value = [403, 409].includes(err.status) ? err.message : 'שגיאה בשליחת הבקשה, נסו שוב'
   } finally {
     busy.value = false
   }
