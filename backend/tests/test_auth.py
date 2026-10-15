@@ -778,3 +778,17 @@ def test_last_full_admin_cannot_delete_own_account(seeded: TestClient, db_sessio
     db_session.add(AdminUser(username="second", password_hash="x", is_full_admin=True))
     db_session.commit()
     assert seeded.delete("/auth/me").status_code == 204
+
+
+def test_session_tags_sentry_user_with_id_only(
+    admin_client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    users: list[dict] = []
+    monkeypatch.setattr("app.deps.sentry_sdk.set_user", users.append)
+    admin_id = db_session.scalar(select(AdminUser.id).where(AdminUser.username == "admin"))
+    assert admin_client.get("/auth/me").status_code == 200
+    assert users == [{"id": admin_id}]
+    users.clear()
+    admin_client.cookies.clear()
+    assert admin_client.get("/auth/me").status_code == 401
+    assert users == []

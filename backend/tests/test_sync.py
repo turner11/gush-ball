@@ -227,3 +227,30 @@ def test_team_admin_sync_status_shows_own_failed_run(
 
     assert body["failed"] is True
     assert body["errors"] == ["boom"]
+
+
+def test_sync_all_runs_in_one_scrape_transaction(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    import sentry_sdk
+
+    seen: dict[str, Any] = {}
+
+    def _stub(kind: str):
+        def _fake(db: Any, errors: Any = None, **kw: Any) -> int:
+            seen[kind] = sentry_sdk.get_current_span()
+            return 0
+
+        return _fake
+
+    monkeypatch.setattr(scrape, "sync_all_standings", _stub("standings"))
+    monkeypatch.setattr(scrape, "sync_all_games", _stub("games"))
+    monkeypatch.setattr(scrape, "sync_all_players", _stub("players"))
+    scrape.sync_all(db_session)
+    transactions = {span.containing_transaction for span in seen.values()}
+    assert len(transactions) == 1
+    (transaction,) = transactions
+    assert (transaction.op, transaction.name) == ("scrape", "sync_all")
+    assert {kind: span.op for kind, span in seen.items()} == {
+        "standings": "scrape.standings",
+        "games": "scrape.games",
+        "players": "scrape.players",
+    }

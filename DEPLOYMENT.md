@@ -148,6 +148,7 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional, enable "Sign in with Google" (see 4.1). |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Required for password reset and password sign-up (STARTTLS, port defaults to 587). Without `SMTP_HOST` both return 503; links are never logged in prod. |
 | `SENTRY_DSN` | Optional, backend error reporting (see §10). Runtime. |
+| `SENTRY_TRACES_SAMPLE_RATE` | Optional, share of public read requests traced (default 0.1). Writes and scrapes are always traced. Lower it if Sentry's span usage nears the plan quota. |
 | `VITE_SENTRY_DSN` | Optional, frontend error reporting (see §10). Must be available at **build** time. |
 | `ENABLE_DOCS` | **Leave unset** in prod (keeps `/api/docs` and `/api/openapi.json` off). |
 
@@ -279,7 +280,7 @@ URLs in them come from `PUBLIC_URL`.
 
 Docs: [Sentry pricing](https://sentry.io/pricing/) · [FastAPI](https://docs.sentry.io/platforms/python/integrations/fastapi/) ·
 [Vue](https://docs.sentry.io/platforms/javascript/guides/vue/). Without the DSNs the site runs normally and sends nothing.
-The code sends no request bodies, cookies, component props or local variables, and no log breadcrumbs.
+The code sends no request bodies, cookies, component props or local variables, and no log breadcrumbs. Traces carry the user id only (no name or email) and no query strings.
 
 1. Sign up at [sentry.io/signup](https://sentry.io/signup/) and pick the **Developer** (free) plan. *Why:* it covers a
    small site. *Verify:* [pricing](https://sentry.io/pricing/) shows the current event quota.
@@ -310,10 +311,14 @@ The code sends no request bodies, cookies, component props or local variables, a
    deployed commit sha, and the alert email arrives.
 10. Verify the frontend: log in as an admin and open `https://<domain>/admin/sentry-test`. You see the "משהו השתבש" page.
     *Verify:* the error appears under `gush-ball-frontend`. If not, look for a CSP error in DevTools → Console.
-11. Verify privacy: open one event. *Verify:* it has no email address, `Cookie` header or request body.
+11. Verify tracing: as an admin press "סנכרון עכשיו". *Why:* every scrape run is one trace, so this proves tracing and the
+    user id work end to end. *Verify:* in `gush-ball-backend` → *Explore → Traces* a `scrape` transaction `sync_all`
+    appears, with child spans per kind, httpx spans to ibasketball.co.il, and `user.id` set. Watch usage under
+    [Stats → Usage](https://sentry.io/orgredirect/organizations/:orgslug/stats/).
+12. Verify privacy: open one event. *Verify:* it has no email address, `Cookie` header or request body.
 
 The nightly scrape (§5) needs no extra step: Coolify scheduled tasks run in the backend container and inherit
-`SENTRY_DSN`, and a failing team is reported as an error event.
+`SENTRY_DSN`, and a failing team is reported as an error event, and each run is also one `sync_all` trace.
 
 ## Troubleshooting
 

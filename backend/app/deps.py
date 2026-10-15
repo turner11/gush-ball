@@ -1,6 +1,7 @@
 import logging
 from typing import Annotated, Literal
 
+import sentry_sdk
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import Select, exists, or_, select
 from sqlalchemy.orm import Session
@@ -35,6 +36,7 @@ def optional_user(request: Request, db: DbSession) -> AdminUser | None:
     ):
         return None
     db.info["audit_actor"] = (user.id, user.username)  # read by the audit_log after_flush listener
+    sentry_sdk.set_user({"id": user.id})  # id only: username can be a Google display name (PII)
     return user
 
 
