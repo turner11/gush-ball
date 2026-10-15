@@ -280,7 +280,7 @@ URLs in them come from `PUBLIC_URL`.
 
 Docs: [Sentry pricing](https://sentry.io/pricing/) · [FastAPI](https://docs.sentry.io/platforms/python/integrations/fastapi/) ·
 [Vue](https://docs.sentry.io/platforms/javascript/guides/vue/). Without the DSNs the site runs normally and sends nothing.
-The code sends no request bodies, cookies, component props or local variables, and no log breadcrumbs. Traces carry the user id only (no name or email) and no query strings.
+The code sends no request bodies, cookies, component props or local variables, and no log breadcrumbs. Traces carry the user id only (no name or email) and no incoming query strings.
 
 1. Sign up at [sentry.io/signup](https://sentry.io/signup/) and pick the **Developer** (free) plan. *Why:* it covers a
    small site. *Verify:* [pricing](https://sentry.io/pricing/) shows the current event quota.
@@ -311,14 +311,15 @@ The code sends no request bodies, cookies, component props or local variables, a
    deployed commit sha, and the alert email arrives.
 10. Verify the frontend: log in as an admin and open `https://<domain>/admin/sentry-test`. You see the "משהו השתבש" page.
     *Verify:* the error appears under `gush-ball-frontend`. If not, look for a CSP error in DevTools → Console.
-11. Verify tracing: as an admin press "סנכרון עכשיו". *Why:* every scrape run is one trace, so this proves tracing and the
-    user id work end to end. *Verify:* in `gush-ball-backend` → *Explore → Traces* a `scrape` transaction `sync_all`
-    appears, with child spans per kind, httpx spans to ibasketball.co.il, and `user.id` set. Watch usage under
+11. Verify tracing: as an admin press "סנכרון עכשיו". *Why:* every scrape kind is its own trace (each gets Sentry's
+    1,000-span limit, which one whole run would exceed), so this proves tracing and the user id work end to end.
+    *Verify:* in `gush-ball-backend` → *Explore → Traces* three `scrape` transactions appear, named `standings`, `games`
+    and `players`, each with its SQL spans and httpx spans to ibasketball.co.il, and `user.id` set. Watch usage under
     [Stats → Usage](https://sentry.io/orgredirect/organizations/:orgslug/stats/).
 12. Verify privacy: open one event. *Verify:* it has no email address, `Cookie` header or request body.
 
 The nightly scrape (§5) needs no extra step: Coolify scheduled tasks run in the backend container and inherit
-`SENTRY_DSN`, and a failing team is reported as an error event, and each run is also one `sync_all` trace.
+`SENTRY_DSN`; a failing team is reported as an error event, and each run is also three `scrape` traces (one per kind).
 
 ## Troubleshooting
 

@@ -7,7 +7,6 @@ import logging
 from collections.abc import Collection
 from typing import Any
 
-import sentry_sdk
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
@@ -24,7 +23,7 @@ KINDS = ("standings", "games", "players")
 def _run_kind(kind: str, kinds: Collection[str], sync: Any, *args: Any, **kwargs: Any) -> Any:
     if kind not in kinds:
         return None
-    with sentry_sdk.start_span(op=f"scrape.{kind}", name=kind):
+    with trace_scrape(kind):  # own transaction per kind: each gets its own 1000-span budget
         return sync(*args, **kwargs)
 
 
@@ -37,10 +36,9 @@ def sync_all(
     # sync_all_standings logs and skips per-team failures, so games always run.
     _sp_team_id.cache_clear()
     errors: list[str] = []
-    with trace_scrape("sync_all"):
-        standings = _run_kind("standings", kinds, sync_all_standings, db, errors, team_ids=team_ids)
-        games = _run_kind("games", kinds, sync_all_games, db, errors, team_ids=team_ids, auto_accept=auto_accept)
-        players = _run_kind("players", kinds, sync_all_players, db, errors, team_ids=team_ids)
+    standings = _run_kind("standings", kinds, sync_all_standings, db, errors, team_ids=team_ids)
+    games = _run_kind("games", kinds, sync_all_games, db, errors, team_ids=team_ids, auto_accept=auto_accept)
+    players = _run_kind("players", kinds, sync_all_players, db, errors, team_ids=team_ids)
     log.info(
         "Sync finished: %s standings rows, %s games, %s players, %d errors",
         standings, games, players, len(errors),

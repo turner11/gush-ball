@@ -229,7 +229,7 @@ def test_team_admin_sync_status_shows_own_failed_run(
     assert body["errors"] == ["boom"]
 
 
-def test_sync_all_runs_in_one_scrape_transaction(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_all_runs_each_kind_in_its_own_scrape_transaction(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     import sentry_sdk
 
     seen: dict[str, Any] = {}
@@ -245,12 +245,10 @@ def test_sync_all_runs_in_one_scrape_transaction(db_session: Session, monkeypatc
     monkeypatch.setattr(scrape, "sync_all_games", _stub("games"))
     monkeypatch.setattr(scrape, "sync_all_players", _stub("players"))
     scrape.sync_all(db_session)
-    transactions = {span.containing_transaction for span in seen.values()}
-    assert len(transactions) == 1
-    (transaction,) = transactions
-    assert (transaction.op, transaction.name) == ("scrape", "sync_all")
-    assert {kind: span.op for kind, span in seen.items()} == {
-        "standings": "scrape.standings",
-        "games": "scrape.games",
-        "players": "scrape.players",
+    transactions = {kind: span.containing_transaction for kind, span in seen.items()}
+    assert len({id(t) for t in transactions.values()}) == 3  # own 1000-span budget per kind
+    assert {kind: (t.op, t.name) for kind, t in transactions.items()} == {
+        "standings": ("scrape", "standings"),
+        "games": ("scrape", "games"),
+        "players": ("scrape", "players"),
     }
