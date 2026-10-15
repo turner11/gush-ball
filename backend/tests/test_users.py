@@ -30,7 +30,7 @@ def test_full_admin_lists_users_with_memberships(admin_client: TestClient, db_se
     rows = admin_client.get("/users").json()
 
     assert [r["username"] for r in rows] == ["admin", "bob", "zed"]
-    assert all(set(r) == {"id", "username", "email", "memberships"} for r in rows)
+    assert all(set(r) == {"id", "username", "display_name", "email", "memberships"} for r in rows)
     by_name = {r["username"]: r for r in rows}
     assert by_name["zed"]["email"] == "zed@example.com"
     assert by_name["zed"]["memberships"] == [{"team_id": own_team.id, "team_name": "Own", "club": None, "role": "pending"}]

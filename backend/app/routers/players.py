@@ -65,12 +65,14 @@ class PlayerOut(BaseModel):
 class LinkableUserOut(BaseModel):
     id: int
     username: str
+    display_name: str
 
 
 class PlayerLinkOut(BaseModel):
     player_id: int
     user_id: int
     username: str
+    display_name: str
 
 
 def _covering_grant(team: Team) -> ColumnElement[bool]:
@@ -133,20 +135,22 @@ def list_linkable_users(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin
     """Accounts that may be linked to a player of this team. No emails."""
     team = get_team_or_404(db, team_id)
     rows = db.execute(
-        select(AdminUser.id, AdminUser.username).where(_covering_grant(team)).order_by(AdminUser.username)
+        select(AdminUser.id, AdminUser.username, AdminUser.display_name)
+        .where(_covering_grant(team))
+        .order_by(AdminUser.username)
     )
-    return [LinkableUserOut(id=i, username=u) for i, u in rows]
+    return [LinkableUserOut(id=i, username=u, display_name=d) for i, u, d in rows]
 
 
 @router.get("/teams/{team_id}/players/links", response_model=list[PlayerLinkOut])
 def list_player_links(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> list[PlayerLinkOut]:
     """Which roster rows are linked to which account; admin-only so the public roster never reveals it."""
     rows = db.execute(
-        select(Player.id, AdminUser.id, AdminUser.username)
+        select(Player.id, AdminUser.id, AdminUser.username, AdminUser.display_name)
         .join(AdminUser, Player.user_id == AdminUser.id)
         .where(Player.team_id == team_id, Player.deleted_at.is_(None))
     )
-    return [PlayerLinkOut(player_id=p, user_id=u, username=n) for p, u, n in rows]
+    return [PlayerLinkOut(player_id=p, user_id=u, username=n, display_name=d) for p, u, n, d in rows]
 
 
 @router.patch("/teams/{team_id}/players/{player_id}", response_model=PlayerOut)

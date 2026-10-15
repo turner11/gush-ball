@@ -680,3 +680,101 @@ def test_session_cookie_secure_when_public_url_is_https(monkeypatch: pytest.Monk
         assert session.kwargs["https_only"] is True
     finally:
         app.main.app = original
+
+
+# ---- my account: display name, password, delete (#322) ----
+
+
+def test_password_signup_display_name_defaults_to_username(client: TestClient, verify_sent) -> None:
+    assert _pw_signup(client).json()["display_name"] == "dana"
+
+
+def test_google_signup_display_name_is_google_name(client: TestClient, db_session: Session, google) -> None:
+    _signup(client, google, email="a@example.com", name="Dana Cohen")
+    _signup(client, google, email="b@example.com", name="Dana Cohen")
+    _signup(client, google, email="c@example.com")
+    rows = list(db_session.execute(select(AdminUser.username, AdminUser.display_name).order_by(AdminUser.id)))
+    assert rows == [("Dana Cohen", "Dana Cohen"), ("Dana Cohen 2", "Dana Cohen"), ("שחקן", "שחקן")]
+
+
+def test_google_signup_display_name_falls_back_for_at_sign_or_zero_width(
+    client: TestClient, db_session: Session, google
+) -> None:
+    _signup(client, google, email="a@example.com", name="dana@example.com")
+    _signup(client, google, email="b@example.com", name="\u200b")
+    rows = list(db_session.execute(select(AdminUser.username, AdminUser.display_name).order_by(AdminUser.id)))
+    assert rows == [("שחקן", "שחקן"), ("שחקן 2", "שחקן 2")]
+
+
+def test_update_own_display_name(seeded: TestClient) -> None:
+    assert seeded.patch("/auth/me", json={"display_name": "x"}).status_code == 401
+    seeded.post("/auth/login", json=GOOD)
+    r = seeded.patch("/auth/me", json={"display_name": "  Dana C  "})
+    assert r.status_code == 200 and r.json()["display_name"] == "Dana C"
+    me = seeded.get("/auth/me").json()
+    assert me["display_name"] == "Dana C" and me["username"] == "admin"
+    for bad in ("   ", "\u200b\u200d \ufeff", "x" * 65):
+        assert seeded.patch("/auth/me", json={"display_name": bad}).status_code == 422
+
+
+def test_change_password_wrong_current_is_rejected(seeded: TestClient) -> None:
+    seeded.post("/auth/login", json=GOOD)
+    r = seeded.post("/auth/change-password", json={"current_password": "nope", "new_password": "newpassword1"})
+    assert r.status_code == 400
+    assert seeded.post("/auth/login", json=GOOD).status_code == 200
+
+
+def test_change_password_logs_out_other_sessions_keeps_this_one(seeded: TestClient) -> None:
+    seeded.post("/auth/login", json=GOOD)
+    stolen = dict(seeded.cookies)
+    r = seeded.post("/auth/change-password", json={"current_password": "password123", "new_password": "newpassword1"})
+    assert r.status_code == 200
+    assert seeded.get("/auth/me").status_code == 200
+    with TestClient(seeded.app, cookies=stolen) as other:
+        assert other.get("/auth/me").status_code == 401
+    seeded.post("/auth/logout")
+    assert seeded.post("/auth/login", json=GOOD).status_code == 401
+    assert seeded.post("/auth/login", json={"username": "admin", "password": "newpassword1"}).status_code == 200
+
+
+def test_change_password_rejects_short_new_password(seeded: TestClient) -> None:
+    seeded.post("/auth/login", json=GOOD)
+    r = seeded.post("/auth/change-password", json={"current_password": "password123", "new_password": "short"})
+    assert r.status_code == 422
+
+
+def test_change_password_wrong_current_is_throttled(seeded: TestClient) -> None:
+    seeded.post("/auth/login", json=GOOD)
+    body = {"current_password": "nope", "new_password": "newpassword1"}
+    codes = [seeded.post("/auth/change-password", json=body).status_code for _ in range(6)]
+    assert codes == [400] * 5 + [429]
+
+
+def test_delete_own_account_removes_user_and_memberships(
+    client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    from app.models import Player
+
+    user = AdminUser(username="pl", password_hash=hash_password("password123"))
+    db_session.add(user)
+    db_session.flush()
+    db_session.add(Membership(user_id=user.id, team_id=own_team.id, role="member"))
+    player = Player(team_id=own_team.id, name="P", user_id=user.id)
+    db_session.add(player)
+    db_session.commit()
+    client.post("/auth/login", json={"username": "pl", "password": "password123"})
+    assert client.delete("/auth/me").status_code == 204
+    assert client.get("/auth/me").status_code == 401
+    db_session.expire_all()
+    assert db_session.scalar(select(func.count(AdminUser.id))) == 0
+    assert db_session.scalar(select(func.count(Membership.id))) == 0
+    assert db_session.get(Player, player.id) is not None
+
+
+def test_last_full_admin_cannot_delete_own_account(seeded: TestClient, db_session: Session) -> None:
+    seeded.post("/auth/login", json=GOOD)
+    assert seeded.delete("/auth/me").status_code == 409
+    assert db_session.scalar(select(func.count(AdminUser.id))) == 1
+    db_session.add(AdminUser(username="second", password_hash="x", is_full_admin=True))
+    db_session.commit()
+    assert seeded.delete("/auth/me").status_code == 204

@@ -39,7 +39,7 @@ def test_full_admin_creates_lists_and_deletes_team_admin(
     created = admin_client.post(url, json=NEW)
     assert created.status_code == 201
     body = created.json()
-    assert set(body) == {"id", "username", "email", "club"}
+    assert set(body) == {"id", "username", "display_name", "email", "club"}
     assert body["username"] == "coach"
 
     row = db_session.scalar(select(AdminUser).where(AdminUser.username == "coach"))
@@ -324,7 +324,7 @@ def test_list_assignable_users(admin_client: TestClient, db_session: Session, ow
     db_session.commit()
     response = admin_client.get("/teams/assignable-users")  # static route must not be shadowed by /{team_id}
     assert response.status_code == 200
-    assert response.json() == [{"id": clubby.id, "username": "member", "team_ids": [other_team.id]}]
+    assert response.json() == [{"id": clubby.id, "username": "member", "display_name": "member", "team_ids": [other_team.id]}]
 
 
 def test_assignable_users_only_approved_accounts(

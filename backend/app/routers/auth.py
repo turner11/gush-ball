@@ -8,14 +8,14 @@ import ssl
 import threading
 import time
 from email.message import EmailMessage
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from itsdangerous import BadSignature, URLSafeTimedSerializer
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,7 @@ from app.deps import (
     admin_clubs,
     admin_team_ids,
     can_view_stats,
+    check_not_last_full_admin,
     client_ip,
     is_admin,
 )
@@ -54,6 +55,33 @@ class SignupRequest(BaseModel):
     username: Username
     email: Email
     password: str = Field(min_length=8, max_length=128)
+
+
+_ZERO_WIDTH = dict.fromkeys(map(ord, "\u200b\u200c\u200d\ufeff"))
+
+
+def _clean_name(name: str | None) -> str:
+    """Zero-width characters dropped, whitespace collapsed: a name made only of them becomes empty."""
+    return " ".join((name or "").translate(_ZERO_WIDTH).split())
+
+
+def _non_empty(value: str) -> str:
+    if not value:
+        raise ValueError("display_name is empty after removing zero-width characters")
+    return value
+
+
+class UpdateMeRequest(BaseModel):
+    display_name: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=64),
+        AfterValidator(lambda v: _non_empty(_clean_name(v))),
+    ]
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class VerifyEmailRequest(BaseModel):
@@ -101,6 +129,7 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
     memberships = db.scalars(select(Membership).where(Membership.user_id == user.id).order_by(Membership.id))
     out: dict[str, Any] = {
         "username": user.username,
+        "display_name": user.display_name,
         "is_admin": admin,
         "can_view_stats": can_view_stats(db, user),
         # ponytail: the lone team only drives the UI's single-team shortcuts; team_ids is the real scope
@@ -150,6 +179,39 @@ def logout(request: Request, user: OptionalUser, db: DbSession) -> dict[str, boo
 @router.get("/me")
 def me(user: RequireUser, db: DbSession) -> dict[str, Any]:
     return _session_user(db, user)
+
+
+@router.patch("/me")
+def update_me(payload: UpdateMeRequest, user: RequireUser, db: DbSession) -> dict[str, Any]:
+    user.display_name = payload.display_name
+    db.commit()
+    return _session_user(db, user)
+
+
+@router.post("/change-password")
+def change_password(payload: ChangePasswordRequest, request: Request, user: RequireUser, db: DbSession) -> dict[str, bool]:
+    _reserve_attempt([f"pw-change:{user.id}"])  # a stolen cookie must not brute-force the current password
+    if not verify_password(payload.current_password, user.password_hash):
+        # 400, not 401: apiFetch treats 401 as "logged out"
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "הסיסמה הנוכחית שגויה")
+    with _lock:
+        _attempts.pop(f"pw-change:{user.id}", None)
+    user.password_hash = hash_password(payload.new_password)
+    user.session_version += 1  # revokes every other session
+    db.commit()
+    _start_session(request, user)  # this browser stays signed in
+    log.info("password changed user_id=%s ip=%s", user.id, client_ip(request))
+    return {"ok": True}
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_me(request: Request, user: RequireUser, db: DbSession) -> None:
+    check_not_last_full_admin(db, user)
+    user_id = user.id
+    db.delete(user)  # memberships cascade; players.user_id is SET NULL by the FK
+    db.commit()
+    request.session.clear()
+    log.info("account deleted user_id=%s ip=%s", user_id, client_ip(request))
 
 
 # ---- password reset ----
@@ -364,11 +426,12 @@ def google_login(request: Request, popup: bool = False) -> RedirectResponse:
 
 _FALLBACK_USERNAME = "שחקן"
 _USERNAME_MAX = 70
+_DISPLAY_NAME_MAX = 64  # same cap as PATCH /auth/me
 
 
 def _signup_username(db: Session, name: str | None) -> str:
     """The Google display name, never the email: admins see usernames. Numeric suffix when taken."""
-    base = " ".join((name or "").split())[:_USERNAME_MAX].rstrip()
+    base = _clean_name(name)[:_USERNAME_MAX].rstrip()
     if not base or "@" in base:  # "@" in a username would make password login look it up as an email
         base = _FALLBACK_USERNAME
     candidate, n = base, 1
@@ -396,8 +459,16 @@ def google_callback(
     email, name = identity
     user = db.scalar(select(AdminUser).where(AdminUser.email == email))
     if user is None:  # signup: no memberships, not a full admin, unusable password (a reset link can set one)
+        username = _signup_username(db, name)
+        # Same "@" rule as the username (an email-shaped name leaks the address); a duplicate name stays shared.
+        display_name = _clean_name(name)[:_DISPLAY_NAME_MAX].rstrip()
+        if not display_name or "@" in display_name:
+            display_name = username
         user = AdminUser(
-            username=_signup_username(db, name), email=email, password_hash=hash_password(secrets.token_urlsafe(32))
+            username=username,
+            display_name=display_name,
+            email=email,
+            password_hash=hash_password(secrets.token_urlsafe(32)),
         )
         db.add(user)
         db.commit()

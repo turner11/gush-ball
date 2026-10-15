@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 import { fullAdmin } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
+import { userLabel } from '../lib/format'
 import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps({
@@ -118,7 +119,7 @@ async function onDeleteConfirmed() {
     <ul v-if="admins.length" class="divide-y divide-line">
       <li v-for="admin in admins" :key="`${admin.id}-${scopeOf(admin)}`" class="flex items-center justify-between gap-2 py-2">
         <span class="min-w-0">
-          <span class="block truncate" dir="ltr">{{ admin.username }}</span>
+          <span class="block truncate" dir="auto">{{ userLabel(admin) }}</span>
           <span v-if="admin.email" class="block truncate text-sm text-muted" dir="ltr">{{ admin.email }}</span>
           <span v-if="admin.club" class="badge-muted">מנהל מועדון</span>
         </span>
@@ -161,7 +162,7 @@ async function onDeleteConfirmed() {
             <option v-if="usersState === 'loading'" value="">טוען…</option>
             <template v-else>
               <option value="" disabled>בחירת משתמש</option>
-              <option v-for="u in candidates" :key="u.id" :value="u.id">{{ u.username }}</option>
+              <option v-for="u in candidates" :key="u.id" :value="u.id">{{ userLabel(u) }}</option>
             </template>
           </select>
         </div>

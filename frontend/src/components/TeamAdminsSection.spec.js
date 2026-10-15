@@ -1,8 +1,8 @@
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const ADMINS = [{ id: 7, username: 'coach', email: 'c@x.com', club: null }]
-const USERS = [{ id: 5, username: 'newbie', team_ids: [] }]
+const ADMINS = [{ id: 7, username: 'coach', display_name: 'coach', email: 'c@x.com', club: null }]
+const USERS = [{ id: 5, username: 'newbie', display_name: 'newbie', team_ids: [] }]
 
 // ConfirmDialog renders through a portal teleported to document.body.
 const body = () => new DOMWrapper(document.body)
@@ -118,7 +118,7 @@ describe('TeamAdminsSection', () => {
       'GET /api/teams/1/admins': () => jsonRes([]),
       'POST /api/teams/1/admins': (options) => {
         postBody = JSON.parse(options.body)
-        return jsonRes({ id: 9, username: 'boss', club: 'Gush' }, 201)
+        return jsonRes({ id: 9, username: 'boss', display_name: 'boss', club: 'Gush' }, 201)
       },
     })
     const plain = await mountSection()
@@ -138,7 +138,7 @@ describe('TeamAdminsSection', () => {
 
   it('badges club admins', async () => {
     mockFetch({
-      'GET /api/teams/1/admins': () => jsonRes([...ADMINS, { id: 8, username: 'boss', email: null, club: 'Gush' }]),
+      'GET /api/teams/1/admins': () => jsonRes([...ADMINS, { id: 8, username: 'boss', display_name: 'boss', email: null, club: 'Gush' }]),
     })
     const wrapper = await mountSection({ club: 'Gush' })
     expect(wrapper.findAll('.badge-muted')).toHaveLength(1)
@@ -151,7 +151,7 @@ describe('TeamAdminsSection', () => {
     mockFetch({
       'GET /api/teams/1/admins': () => {
         gets += 1
-        return jsonRes(gets === 1 ? [] : [{ id: 5, username: 'newbie', email: null, club: null }])
+        return jsonRes(gets === 1 ? [] : [{ id: 5, username: 'newbie', display_name: 'newbie', email: null, club: null }])
       },
       'GET /api/teams/assignable-users': () => jsonRes(USERS),
       'PUT /api/teams/1/admins/5': (options) => {
@@ -172,7 +172,7 @@ describe('TeamAdminsSection', () => {
 
   it('club admin sees assign but not create, and no club scope', async () => {
     mockFetch({
-      'GET /api/teams/1/admins': () => jsonRes([{ id: 8, username: 'boss', email: null, club: 'Gush' }]),
+      'GET /api/teams/1/admins': () => jsonRes([{ id: 8, username: 'boss', display_name: 'boss', email: null, club: 'Gush' }]),
       'GET /api/teams/assignable-users': () => jsonRes(USERS),
     })
     const wrapper = await mountSection({ club: 'Gush' }, { is_admin: true, team_ids: [1], clubs: ['Gush'] })
@@ -186,7 +186,7 @@ describe('TeamAdminsSection', () => {
 
   it('remove sends scope and keeps account wording', async () => {
     mockFetch({
-      'GET /api/teams/1/admins': () => jsonRes([{ id: 8, username: 'boss', email: null, club: 'Gush' }]),
+      'GET /api/teams/1/admins': () => jsonRes([{ id: 8, username: 'boss', display_name: 'boss', email: null, club: 'Gush' }]),
       'DELETE /api/teams/1/admins/8?scope=club': () => ({ ok: true, status: 204 }),
     })
     const wrapper = await mountSection({ club: 'Gush' })
@@ -216,7 +216,7 @@ describe('TeamAdminsSection', () => {
 
   it('keeps the scope radios when no users are left to assign', async () => {
     mockFetch({
-      'GET /api/teams/1/admins': () => jsonRes([{ id: 5, username: 'newbie', email: null, club: null }]),
+      'GET /api/teams/1/admins': () => jsonRes([{ id: 5, username: 'newbie', display_name: 'newbie', email: null, club: null }]),
       'GET /api/teams/assignable-users': () => jsonRes(USERS),
     })
     const wrapper = await mountSection({ club: 'Gush' })

@@ -407,7 +407,7 @@ def test_linkable_users_scoped_to_team(
     usernames = {r["username"] for r in rows}
     assert {"team_member", "club_member"} <= usernames
     assert not {"pending", "elsewhere"} & usernames
-    assert all(set(r) == {"id", "username"} for r in rows)
+    assert all(set(r) == {"id", "username", "display_name"} for r in rows)
     assert team_admin_client.get(f"/teams/{other_team.id}/players/linkable-users").status_code == 403
 
 

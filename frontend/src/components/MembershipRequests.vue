@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
+import { userLabel } from '../lib/format'
 import ConfirmDialog from './ConfirmDialog.vue'
 
 const rows = ref(null) // null = loading; pending requests and approved members
@@ -41,14 +42,14 @@ async function act(request, call, message, onSuccess) {
 }
 
 const approve = (request) =>
-  act(request, () => apiFetch(`/memberships/${request.id}/approve`, { method: 'POST' }), `הבקשה של ${request.username} אושרה`, () => {
+  act(request, () => apiFetch(`/memberships/${request.id}/approve`, { method: 'POST' }), `הבקשה של ${userLabel(request)} אושרה`, () => {
     request.role = 'member'
   })
 
 function onDeleteConfirmed() {
   const row = pendingDelete.value
   pendingDelete.value = null
-  const message = row.role === 'pending' ? `הבקשה של ${row.username} נדחתה` : `${row.username} הוסר/ה`
+  const message = row.role === 'pending' ? `הבקשה של ${userLabel(row)} נדחתה` : `${userLabel(row)} הוסר/ה`
   return act(row, () => apiFetch(`/memberships/${row.id}`, { method: 'DELETE' }), message, () => {
     rows.value = rows.value.filter((r) => r.id !== row.id)
   })
@@ -57,7 +58,7 @@ function onDeleteConfirmed() {
 const confirmMessage = computed(() => {
   const row = pendingDelete.value
   if (!row) return ''
-  return row.role === 'pending' ? `לדחות את הבקשה של ${row.username}?` : `להסיר את ${row.username} מ${scopeLabel(row)}?`
+  return row.role === 'pending' ? `לדחות את הבקשה של ${userLabel(row)}?` : `להסיר את ${userLabel(row)} מ${scopeLabel(row)}?`
 })
 </script>
 
@@ -80,7 +81,7 @@ const confirmMessage = computed(() => {
     <ul v-else class="divide-y divide-line">
       <li v-for="request in requests" :key="request.id" class="space-y-2 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
         <div class="min-w-0">
-          <p class="truncate font-bold" dir="auto">{{ request.username }}</p>
+          <p class="truncate font-bold" dir="auto">{{ userLabel(request) }}</p>
           <p v-if="request.email_hint" class="truncate text-sm text-muted" dir="ltr">{{ request.email_hint }}</p>
           <span v-else class="badge badge-loss">אימייל לא מאומת</span>
           <p class="text-sm text-muted">
@@ -92,14 +93,14 @@ const confirmMessage = computed(() => {
             type="button"
             class="btn-primary"
             :disabled="busyId === request.id"
-            :aria-label="`אישור הבקשה של ${request.username}`"
+            :aria-label="`אישור הבקשה של ${userLabel(request)}`"
             @click="approve(request)"
           >אישור</button>
           <button
             type="button"
             class="btn-danger-ghost"
             :disabled="busyId === request.id"
-            :aria-label="`דחיית הבקשה של ${request.username}`"
+            :aria-label="`דחיית הבקשה של ${userLabel(request)}`"
             @click="pendingDelete = request"
           >דחייה</button>
         </div>
@@ -115,14 +116,14 @@ const confirmMessage = computed(() => {
       <ul v-else class="divide-y divide-line">
         <li v-for="member in members" :key="member.id" class="space-y-2 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
           <div class="min-w-0">
-            <p class="truncate font-bold" dir="auto">{{ member.username }}</p>
+            <p class="truncate font-bold" dir="auto">{{ userLabel(member) }}</p>
             <p class="text-sm text-muted">{{ scopeLabel(member) }}</p>
           </div>
           <button
             type="button"
             class="btn-danger-ghost w-full sm:w-auto"
             :disabled="busyId === member.id"
-            :aria-label="`הסרת ${member.username}`"
+            :aria-label="`הסרת ${userLabel(member)}`"
             @click="pendingDelete = member"
           >הסרה</button>
         </li>

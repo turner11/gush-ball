@@ -32,6 +32,7 @@ const router = createRouter({
     { path: '/:slug/club', name: 'club-week', component: () => import('../views/ClubWeekView.vue'), meta: { title: 'השבוע במועדון', description: (team) => `משחקים ותוצאות השבוע בכל קבוצות המועדון של ${team}.` } },
     { path: '/:slug/stats', name: 'stats', component: () => import('../views/StatsView.vue'), meta: { title: 'סטטיסטיקה', description: (team) => `סטטיסטיקת חמישיות של ${team}.`, noindex: true } },
     { path: '/teams', name: 'teams', component: () => import('../views/TeamsView.vue'), meta: { title: 'קבוצות', description: () => 'כל הקבוצות של המועדון: בחרו קבוצה למשחקים, לטבלה ולשחקנים.' } },
+    { path: '/account', name: 'account', component: () => import('../views/AccountView.vue'), meta: { title: 'החשבון שלי', requiresUser: true, noindex: true } },
     { path: '/join', name: 'join', component: () => import('../views/JoinView.vue'), meta: { title: 'הצטרפות', requiresUser: true, noindex: true } },
     { path: '/:slug', name: 'team-home', component: () => import('../views/HomeView.vue'), meta: { description: homeDescription } },
     { path: '/admin/login', name: 'admin-login', component: () => import('../views/LoginView.vue'), meta: { title: 'כניסה' } },

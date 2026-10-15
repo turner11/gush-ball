@@ -100,6 +100,7 @@ def test_queue_shows_masked_email_and_flags_unverified(
     first, second = response.json()
     assert first["email_hint"] == "s***@example.com"
     assert second["email_hint"] is None
+    assert second["display_name"] == "noemail"
     assert "secret" not in response.text
 
 

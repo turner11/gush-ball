@@ -8,6 +8,7 @@ import AppIcon from '../components/AppIcon.vue'
 import ImageUpload from '../components/ImageUpload.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { apiFetch } from '../lib/api'
+import { userLabel } from '../lib/format'
 import { matchesQuery } from '../lib/search'
 
 const teams = ref([])
@@ -44,7 +45,7 @@ async function loadLinks(teamId) {
   ])
   if (teamId !== selectedTeamId.value) return
   linkableUsers.value = users
-  links.value = Object.fromEntries(rows.map((r) => [r.player_id, r.username]))
+  links.value = Object.fromEntries(rows.map((r) => [r.player_id, userLabel(r)]))
   linkedUserIds.value = Object.fromEntries(rows.map((r) => [r.player_id, r.user_id]))
 }
 
@@ -307,7 +308,7 @@ async function deleteImage(player, image) {
             <option v-if="form.user_id !== '' && !(linkableUsers ?? []).some((u) => u.id === form.user_id)" :value="form.user_id">
               משתמש מקושר (#{{ form.user_id }})
             </option>
-            <option v-for="u in linkableUsers ?? []" :key="u.id" :value="u.id">{{ u.username }}</option>
+            <option v-for="u in linkableUsers ?? []" :key="u.id" :value="u.id">{{ userLabel(u) }}</option>
           </select>
         </div>
 

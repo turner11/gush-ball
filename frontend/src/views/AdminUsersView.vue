@@ -5,6 +5,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { fullAdmin, useAuth } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
+import { userLabel } from '../lib/format'
 import { matchesQuery } from '../lib/search'
 
 const ROLE_LABELS = { pending: 'ממתין', member: 'חבר', admin: 'מנהל' }
@@ -19,7 +20,7 @@ const pendingDelete = ref(null)
 
 const shownUsers = computed(() =>
   users.value.filter((u) =>
-    matchesQuery(query.value, [u.username, u.email, ...u.memberships.flatMap((m) => [m.team_name, m.club])]),
+    matchesQuery(query.value, [u.username, u.display_name, u.email, ...u.memberships.flatMap((m) => [m.team_name, m.club])]),
   ),
 )
 const badge = (m) => `${m.team_name ?? m.club} · ${ROLE_LABELS[m.role]}`
@@ -72,13 +73,13 @@ onMounted(() => {
       <SearchInput v-if="users.length" id="admin-user-search" ref="searchInput" v-model="query" label="חיפוש משתמש" />
       <ul v-if="shownUsers.length" class="card divide-y divide-line p-0">
         <li v-for="u in shownUsers" :key="u.id" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
-          <span class="font-semibold">{{ u.username }}</span>
+          <span class="font-semibold" dir="auto">{{ userLabel(u) }}</span>
           <span class="text-sm text-muted" :dir="u.email ? 'ltr' : undefined">{{ u.email ?? 'ללא אימייל' }}</span>
           <button
             v-if="u.username !== user?.username"
             type="button"
             class="btn-danger-ghost ms-auto"
-            :aria-label="`מחיקת ${u.username}`"
+            :aria-label="`מחיקת ${userLabel(u)}`"
             @click="pendingDelete = u"
           >
             מחיקה
@@ -100,7 +101,7 @@ onMounted(() => {
 
     <ConfirmDialog
       :open="pendingDelete !== null"
-      :message="`למחוק את החשבון &quot;${pendingDelete?.username}&quot;? החשבון וכל החברויות שלו יימחקו לצמיתות.`"
+      :message="`למחוק את החשבון &quot;${pendingDelete ? userLabel(pendingDelete) : ''}&quot;? החשבון וכל החברויות שלו יימחקו לצמיתות.`"
       @update:open="(value) => !value && (pendingDelete = null)"
       @confirm="onDeleteConfirmed"
     />

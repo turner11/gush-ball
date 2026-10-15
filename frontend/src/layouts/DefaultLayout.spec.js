@@ -54,6 +54,7 @@ describe('DefaultLayout', () => {
         { path: '/teams', name: 'teams', component: { template: '<div/>' } },
         { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
         { path: '/join', name: 'join', component: { template: '<div/>' } },
+        { path: '/account', name: 'account', component: { template: '<div/>' } },
         { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
         { path: '/:slug/roster', name: 'roster', component: { template: '<div/>' } },
         { path: '/:slug/media', name: 'media', component: { template: '<div/>' } },
@@ -303,7 +304,7 @@ describe('DefaultLayout', () => {
   })
 
   it('nav, tab bar and ניהול links carry the team slug', async () => {
-    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin', is_admin: true }) })
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin', display_name: 'admin', is_admin: true }) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
@@ -590,7 +591,7 @@ describe('DefaultLayout', () => {
   })
 
   it('shows a management link and logout when logged in', async () => {
-    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin', is_admin: true }) })
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin', display_name: 'admin', is_admin: true }) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
@@ -598,7 +599,8 @@ describe('DefaultLayout', () => {
 
     const header = wrapper.find('header')
     expect(header.find('a[href="/team_a/admin"]').text()).toBe('ניהול')
-    expect(header.find('a[aria-label="החשבון שלי"]').exists()).toBe(false)
+    expect(header.find('a[href="/account"]').text()).toBe('admin')
+    expect(header.find('a[href="/account"]').classes()).toContain('max-sm:hidden')
     expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(true)
     expect(header.find('a[href="/admin/login"]').exists()).toBe(false)
   })
@@ -606,7 +608,7 @@ describe('DefaultLayout', () => {
   it('hides ניהול for a non-admin but shows logout', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
-      'GET /api/auth/me': () => jsonRes({ username: 'player', is_admin: false, team_ids: [] }),
+      'GET /api/auth/me': () => jsonRes({ username: 'player', display_name: 'Dana C', is_admin: false, team_ids: [] }),
     })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -616,7 +618,10 @@ describe('DefaultLayout', () => {
     const header = wrapper.find('header')
     expect(header.find('a[href="/team_a/admin"]').exists()).toBe(false)
     expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(true)
-    expect(header.find('a[aria-label="החשבון שלי"]').attributes('href')).toBe('/join')
+    const account = header.find('a[href="/account"]')
+    expect(account.exists()).toBe(true)
+    expect(account.text()).toBe('Dana C')
+    expect(account.classes()).not.toContain('max-sm:hidden')
   })
 
   it('logout posts /auth/logout, swaps to the login link and stays on the page', async () => {

@@ -119,6 +119,7 @@ class AdminCreate(BaseModel):
 class AdminOut(BaseModel):
     id: int
     username: str
+    display_name: str
     email: str | None
     club: str | None  # set for a club-scope grant
 
@@ -130,6 +131,7 @@ class AssignIn(BaseModel):
 class AssignableUserOut(BaseModel):
     id: int
     username: str
+    display_name: str
     team_ids: list[int]  # teams they admin directly
 
 
@@ -224,7 +226,7 @@ def list_assignable_users(admin: RequireAnyAdmin, db: DbSession) -> list[Assigna
     if not (admin.is_full_admin or admin_clubs(db, admin)):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to manage admins")
     users = db.execute(
-        select(AdminUser.id, AdminUser.username)
+        select(AdminUser.id, AdminUser.username, AdminUser.display_name)
         .where(AdminUser.is_full_admin.is_(False), _HAS_APPROVED_GRANT)
         .order_by(AdminUser.username)
     ).all()
@@ -233,7 +235,7 @@ def list_assignable_users(admin: RequireAnyAdmin, db: DbSession) -> list[Assigna
         select(Membership.user_id, Membership.team_id).where(Membership.role == "admin", Membership.team_id.is_not(None))
     ):
         direct.setdefault(user_id, []).append(team_id)
-    return [AssignableUserOut(id=i, username=u, team_ids=direct.get(i, [])) for i, u in users]
+    return [AssignableUserOut(id=i, username=u, display_name=d, team_ids=direct.get(i, [])) for i, u, d in users]
 
 
 @router.get("/{team_id}", response_model=TeamOut)
@@ -273,12 +275,12 @@ def list_team_admins(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> lis
     # Guarded: `club == None` would match every team-scope row (club IS NULL).
     scope = Membership.team_id == team.id if team.club is None else or_(Membership.team_id == team.id, Membership.club == team.club)
     rows = db.execute(
-        select(AdminUser.id, AdminUser.username, AdminUser.email, Membership.club)
+        select(AdminUser.id, AdminUser.username, AdminUser.display_name, AdminUser.email, Membership.club)
         .join(Membership, Membership.user_id == AdminUser.id)
         .where(Membership.role == "admin", scope)
         .order_by(AdminUser.id)
     )
-    return [AdminOut(id=i, username=u, email=e, club=c) for i, u, e, c in rows]
+    return [AdminOut(id=i, username=u, display_name=d, email=e, club=c) for i, u, d, e, c in rows]
 
 
 @router.post("/{team_id}/admins", status_code=status.HTTP_201_CREATED, response_model=AdminOut)
@@ -296,7 +298,7 @@ def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmi
     user.memberships.append(Membership(team_id=team_id if club is None else None, club=club, role="admin"))
     db.add(user)
     db.commit()
-    return AdminOut(id=user.id, username=user.username, email=user.email, club=club)
+    return AdminOut(id=user.id, username=user.username, display_name=user.display_name, email=user.email, club=club)
 
 
 def _grant_filter(user_id: int, team: Team, scope: str):

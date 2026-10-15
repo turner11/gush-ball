@@ -6,9 +6,9 @@ const failRes = { ok: false, status: 500, statusText: 'x', json: async () => ({}
 const body = () => new DOMWrapper(document.body) // ConfirmDialog teleports to body
 
 const ROWS = [
-  { id: 3, username: 'Dana Cohen', role: 'pending', email_hint: 'd***@gmail.com', team_id: 1, team_name: 'קבוצה א', club: null },
-  { id: 4, username: 'Noa', role: 'pending', email_hint: null, team_id: null, team_name: null, club: 'Gush' },
-  { id: 5, username: 'Yael', role: 'member', email_hint: null, team_id: 1, team_name: 'קבוצה א', club: null },
+  { id: 3, username: 'Dana Cohen', display_name: 'Dana Cohen', role: 'pending', email_hint: 'd***@gmail.com', team_id: 1, team_name: 'קבוצה א', club: null },
+  { id: 4, username: 'Noa', display_name: 'Noa', role: 'pending', email_hint: null, team_id: null, team_name: null, club: 'Gush' },
+  { id: 5, username: 'Yael', display_name: 'Yael', role: 'member', email_hint: null, team_id: 1, team_name: 'קבוצה א', club: null },
 ]
 
 let calls
