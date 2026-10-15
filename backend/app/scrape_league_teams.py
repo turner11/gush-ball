@@ -1,6 +1,7 @@
 """On-demand, cached list of a league's teams from ibasketball's SportsPress API (#350)."""
 
 import html
+import logging
 import time
 
 import httpx
@@ -10,8 +11,9 @@ from sqlalchemy.orm import Session
 
 from app.models import Team, TeamRequest
 from app.scrape_club import _team_code
-from app.scrape_games import BASE
+from app.scrape_games import BASE, ibasketball_url_or_none
 
+log = logging.getLogger(__name__)
 TTL = 24 * 60 * 60
 _cache: dict[int, tuple[float, list[dict]]] = {}
 
@@ -36,12 +38,16 @@ def _raw_teams(league_ibasketball_id: int) -> list[dict]:
         return cached[1]
     rows = []
     for t in _fetch(league_ibasketball_id):
+        url = ibasketball_url_or_none(t["link"])
+        if url is None:
+            log.warning("Skipping team %r with non-ibasketball link %r", t["title"]["rendered"], t["link"])
+            continue
         media = t.get("_embedded", {}).get("wp:featuredmedia") or []
         rows.append(
             {
                 "name": html.unescape(t["title"]["rendered"]),
                 "logo_url": http_url_or_none(media[0]["source_url"]) if media else None,
-                "ibasketball_team_url": t["link"],
+                "ibasketball_team_url": url,
             }
         )
     rows.sort(key=lambda r: r["name"])

@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models import League
-from app.scrape_games import BASE, _get
+from app.scrape_games import BASE, _get, ibasketball_url_or_none
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +44,15 @@ def sync_leagues(db: Session, errors: list[str] | None = None) -> int:
         roots = _get_all("/sportspress/v2/leagues", parent=0, _fields=FIELDS)
         root_id, year = _current_season_root(roots)
         children = _get_all("/sportspress/v2/leagues", parent=root_id, _fields=FIELDS)
-        leagues = [c for c in children if c["count"] > 0]
+        leagues = []
+        for child in children:
+            if child["count"] <= 0:
+                continue
+            url = ibasketball_url_or_none(child["link"])
+            if url is None:
+                log.warning("Skipping league %s with non-ibasketball link %r", child["id"], child["link"])
+                continue
+            leagues.append({**child, "link": url})
         if not leagues:
             raise ValueError(f"season {year} (root {root_id}) has no non-empty leagues")
         existing = {lg.ibasketball_id: lg for lg in db.scalars(select(League))}
