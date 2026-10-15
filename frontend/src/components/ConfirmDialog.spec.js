@@ -53,4 +53,13 @@ describe('ConfirmDialog', () => {
     expect(wrapper.emitted('update:open')[0]).toEqual([false])
     expect(wrapper.emitted('confirm')).toBeUndefined()
   })
+
+  it('danger=false renders the confirm button as primary, not danger', async () => {
+    mount(ConfirmDialog, { props: { open: true, message: 'לבקש?', danger: false }, attachTo: document.body })
+    await flushPromises()
+
+    const confirmButton = body().findAll('button').find((b) => b.text() === 'אישור')
+    expect(confirmButton.classes()).toContain('btn-primary')
+    expect(confirmButton.classes()).not.toContain('btn-danger')
+  })
 })

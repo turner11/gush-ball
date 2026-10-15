@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const jsonRes = (data, status = 200) => ({ ok: true, status, json: async () => structuredClone(data) })
 const failRes = { ok: false, status: 500, statusText: 'x', json: async () => ({}) }
+const TEAM_REQUESTS = [
+  {
+    id: 8, name: 'קבוצה חדשה', logo_url: null, ibasketball_team_url: 'https://ibasketball.co.il/team/8-x/', league_name: 'ליגת א',
+    club: 'Gush', username: 'Ron', display_name: 'Ron', email_hint: 'r***@gmail.com',
+  },
+]
 const body = () => new DOMWrapper(document.body) // ConfirmDialog teleports to body
 
 const ROWS = [
@@ -17,7 +23,7 @@ function mockFetch(handlers) {
   global.fetch = vi.fn((url, options = {}) => {
     const key = `${options.method || 'GET'} ${url}`
     calls.push(key)
-    const handler = handlers[key]
+    const handler = { 'GET /api/team-requests': () => jsonRes([]), ...handlers }[key]
     if (!handler) return Promise.reject(new Error(`Unhandled fetch: ${key}`))
     return Promise.resolve(handler())
   })
@@ -107,6 +113,47 @@ describe('MembershipRequests', () => {
     await flushPromises()
     expect(calls).toContain('DELETE /api/memberships/4')
     expect(wrapper.text()).not.toContain('מועדון: Gush')
+  })
+
+  it('lists team requests with the league and a link, and counts them', async () => {
+    mockFetch({ 'GET /api/memberships': () => jsonRes(ROWS), 'GET /api/team-requests': () => jsonRes(TEAM_REQUESTS) })
+    const wrapper = await mountQueue()
+    const row = wrapper.findAll('li')[0]
+    expect(row.text()).toContain('Ron')
+    expect(row.text()).toContain('קבוצה חדשה · ליגת א')
+    expect(row.find('a').attributes('href')).toBe('https://ibasketball.co.il/team/8-x/')
+    expect(wrapper.find('.badge-muted').text()).toBe('3')
+  })
+
+  it('approving a team request POSTs approve and removes the row', async () => {
+    mockFetch({
+      'GET /api/memberships': () => jsonRes([]),
+      'GET /api/team-requests': () => jsonRes(TEAM_REQUESTS),
+      'POST /api/team-requests/8/approve': () => jsonRes(null, 204),
+    })
+    const wrapper = await mountQueue()
+    await wrapper.find('button[aria-label="אישור הבקשה של Ron"]').trigger('click')
+    await flushPromises()
+    expect(calls).toContain('POST /api/team-requests/8/approve')
+    expect(wrapper.text()).not.toContain('קבוצה חדשה · ליגת א')
+    expect(wrapper.find('[role="status"]').text()).toBe('הקבוצה קבוצה חדשה נוספה וRon מנהל/ת אותה')
+  })
+
+  it('rejecting a team request confirms, then POSTs reject', async () => {
+    mockFetch({
+      'GET /api/memberships': () => jsonRes([]),
+      'GET /api/team-requests': () => jsonRes(TEAM_REQUESTS),
+      'POST /api/team-requests/8/reject': () => jsonRes(null, 204),
+    })
+    const wrapper = await mountQueue()
+    await wrapper.find('button[aria-label="דחיית הבקשה של Ron"]').trigger('click')
+    await flushPromises()
+    expect(calls).not.toContain('POST /api/team-requests/8/reject')
+    expect(body().text()).toContain('לדחות את הבקשה של Ron לקבוצה קבוצה חדשה?')
+    await body().find('button.btn-danger').trigger('click')
+    await flushPromises()
+    expect(calls).toContain('POST /api/team-requests/8/reject')
+    expect(wrapper.text()).toContain('אין בקשות ממתינות')
   })
 
   it('shows an error with retry when loading fails, and retry reloads', async () => {

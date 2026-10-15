@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-async function mountSignup(response) {
+async function mountSignup(response, path = '/admin/signup') {
   global.fetch = vi.fn(() => Promise.resolve(response))
   const router = createRouter({
     history: createWebHistory(),
@@ -10,9 +10,10 @@ async function mountSignup(response) {
       { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
       { path: '/admin/signup', name: 'admin-signup', component: { template: '<div/>' } },
       { path: '/join', name: 'join', component: { template: '<div/>' } },
+      { path: '/teams/:id', component: { template: '<div/>' } },
     ],
   })
-  router.push('/admin/signup')
+  router.push(path)
   await router.isReady()
   const { default: SignupView } = await import('./SignupView.vue')
   return mount(SignupView, { global: { plugins: [router] } })
@@ -49,6 +50,14 @@ describe('SignupView', () => {
     expect(JSON.parse(opts.body)).toEqual({ username: 'dana', email: 'd@x.com', password: 'password123' })
     expect(wrapper.find('[role="status"]').text()).toContain('d@x.com')
     expect(wrapper.find('a[href="/join"]').exists()).toBe(true)
+  })
+
+  it('the done link goes back to next when given', async () => {
+    const wrapper = await mountSignup(ok, '/admin/signup?next=/teams/10')
+    await fill(wrapper)
+    const link = wrapper.find('a[href="/teams/10"]')
+    expect(link.text()).toBe('המשך')
+    expect(wrapper.find('a[href="/join"]').exists()).toBe(false)
   })
 
   it('409 shows the server message on the username field', async () => {

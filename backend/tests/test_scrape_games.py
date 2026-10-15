@@ -1148,3 +1148,23 @@ def test_sync_leaves_league_url_when_current_league_is_not_unique(
 ) -> None:
     team = _roll(db_session, monkeypatch, team_leagues=(NEW_LEAGUE_ID, 120130), league_ids=league_ids)
     assert (team.ibasketball_league_url, team.league_url_suggestion) == (OLD_LEAGUE, None)
+
+
+def test_team_page_club_resolves_club_and_survives_fetch_error(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Resp:
+        text = CLUB_HTML
+
+        def raise_for_status(self) -> None:
+            pass
+
+    monkeypatch.setattr(scrape_games.httpx, "get", lambda url, **kw: Resp())
+    assert scrape_games.team_page_club(db_session, "https://ibasketball.co.il/team/1-x/") == CLUB_NAME
+    assert db_session.query(Club).one().ibasketball_url == CLUB_URL
+
+    def boom(url: str, **kw: object) -> None:
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(scrape_games.httpx, "get", boom)
+    assert scrape_games.team_page_club(db_session, "https://ibasketball.co.il/team/1-x/") is None
