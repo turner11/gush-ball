@@ -38,7 +38,7 @@ const tabItems = computed(() => [
 
 const teams = ref([])
 const { user, checked, checkSession, logout } = useAuth()
-const { selectedTeamId, ensureDefault } = useSelectedTeam()
+const { selectedTeamId, markTeamsLoaded } = useSelectedTeam()
 
 // Scoped to this layout's root so admin pages stay neutral; unset vars fall back in style.css.
 const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value))
@@ -82,10 +82,10 @@ onMounted(async () => {
   if (!checked.value) checkSession() // not awaited: don't delay the teams fetch
   try {
     teams.value = await apiFetch('/teams')
-    ensureDefault(teams.value)
+    markTeamsLoaded(teams.value)
   } catch {
     // leave teams empty — the switcher simply doesn't render
-    ensureDefault([]) // still marks the list as loaded so Home shows the welcome
+    markTeamsLoaded([]) // still marks the list as loaded so Home shows the welcome
   }
 })
 </script>

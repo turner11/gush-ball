@@ -110,7 +110,7 @@ describe('HomeView', () => {
 
     // First-time visitor: no welcome until /teams has actually loaded.
     expect(wrapper.text()).not.toContain('אין קבוצות במערכת עדיין')
-    useSelectedTeam().ensureDefault([])
+    useSelectedTeam().markTeamsLoaded([])
     await flushPromises()
 
     expect(wrapper.text()).toContain('אין קבוצות במערכת עדיין')

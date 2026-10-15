@@ -42,6 +42,7 @@ describe('DefaultLayout', () => {
     document.head.appendChild(icon)
     vi.resetModules()
     localStorage.clear()
+    localStorage.setItem('gush-ball:selected-team-id', '1') // the old implicit default the tests below rely on
     window.history.replaceState({}, '', '/') // jsdom keeps the URL between tests
     router = createRouter({
       history: createWebHistory(),
@@ -207,15 +208,17 @@ describe('DefaultLayout', () => {
     expect(router.currentRoute.value.path).toBe('/team_b')
   })
 
-  it('bare / redirects to the first team when nothing is remembered', async () => {
+  it('a first-time visitor on a slug-less page gets no team', async () => {
+    localStorage.clear()
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
 
-    mount(DefaultLayout, { global: { plugins: [router] } })
-    await router.push('/')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/teams')
     await flushPromises()
 
-    expect(router.currentRoute.value.path).toBe('/team_a')
+    expect(wrapper.find('header').classes()).not.toContain('bg-team')
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBeNull()
   })
 
   it('unknown slug redirects to the remembered/first team', async () => {

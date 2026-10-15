@@ -110,7 +110,22 @@ describe('router auth guard', () => {
     expect(router.resolve('/admin/standings').name).toBe('admin-standings')
     expect(router.resolve('/admin/teams').name).toBe('admin-teams')
     expect(router.resolve('/teams').name).toBe('teams')
+    const league = router.resolve('/teams/123')
+    expect([league.name, league.params.leagueId]).toEqual(['league-teams', '123'])
     expect(router.resolve('/admin/teams/batch').name).toBe('admin-teams-batch-edit')
+  })
+
+  it('bare / with nothing remembered goes to /teams', async () => {
+    const { default: router } = await import('./index.js')
+    await router.push('/')
+    expect(router.currentRoute.value.name).toBe('teams')
+  })
+
+  it('bare / with a remembered team stays on home', async () => {
+    localStorage.setItem('gush-ball:selected-team-id', '2')
+    const { default: router } = await import('./index.js')
+    await router.push('/')
+    expect(router.currentRoute.value.name).toBe('home')
   })
 
   it('legacy bare /stats?game=5 redirects to the remembered team, keeping the page and query', async () => {
@@ -164,7 +179,7 @@ describe('router auth guard', () => {
     for (const r of publicRoutes) {
       expect(typeof r.meta.description, r.name).toBe('function')
       // player pages and the teams index are not about the remembered team, so no team name there
-      if (!['player', 'teams'].includes(r.name)) expect(r.meta.description('קבוצה'), r.name).toContain('קבוצה')
+      if (!['player', 'teams', 'league-teams'].includes(r.name)) expect(r.meta.description('קבוצה'), r.name).toContain('קבוצה')
     }
     expect(router.getRoutes().find((r) => r.name === 'not-found').meta.noindex).toBe(true)
     expect(router.getRoutes().find((r) => r.name === 'stats').meta.noindex).toBe(true)
