@@ -386,6 +386,28 @@ def test_linked_user_manages_own_images_only(
     assert client.post(f"/players/{other.id}/images", json={"url": "https://x.test/a.png"}).status_code == 403
 
 
+def test_linked_user_loses_self_edit_after_leaving(
+    client: TestClient, db_session: Session, own_team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "object_storage_public_url", "https://x.test")
+    membership = Membership(team_id=own_team.id, role="member")
+    user = _login_user(client, db_session, "me", membership)
+    mine = _player(db_session, own_team, user=user)
+    image_id = client.post(f"/players/{mine.id}/images", json={"url": "https://x.test/a.png"}).json()["id"]
+    assert client.delete(f"/memberships/mine/{membership.id}").status_code == 204
+    assert client.patch(f"/teams/{own_team.id}/players/{mine.id}", json={"name": "New"}).status_code == 403
+    assert client.post(f"/players/{mine.id}/images", json={"url": "https://x.test/b.png"}).status_code == 403
+    assert client.delete(f"/players/{mine.id}/images/{image_id}").status_code == 403
+    assert client.get("/auth/me").json()["player_ids"] == []
+
+
+def test_club_member_self_edits_linked_player(client: TestClient, db_session: Session, sibling_team: Team) -> None:
+    user = _login_user(client, db_session, "me", Membership(club="Gush", role="member"))
+    mine = _player(db_session, sibling_team, user=user)
+    response = client.patch(f"/teams/{sibling_team.id}/players/{mine.id}", json={"name": "New"})
+    assert response.status_code == 200
+
+
 def test_linked_user_cannot_delete_or_restore(client: TestClient, db_session: Session, own_team: Team) -> None:
     user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
     player = _player(db_session, own_team, user=user)
