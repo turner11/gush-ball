@@ -10,15 +10,20 @@ const loadFailed = ref(false)
 const busyId = ref(null)
 const actionError = ref('')
 const status = ref('')
+const teamRequests = ref([]) // pending requests to add a new team (#351)
 const pendingDelete = ref(null) // the row awaiting confirmation
+const pendingReject = ref(null) // the team request awaiting rejection
 const requests = computed(() => rows.value?.filter((r) => r.role === 'pending'))
 const members = computed(() => rows.value?.filter((r) => r.role === 'member'))
+const pendingCount = computed(() => (requests.value?.length ?? 0) + teamRequests.value.length)
 const scopeLabel = (row) => (row.club ? `מועדון: ${row.club}` : `קבוצה: ${row.team_name}`)
 
 async function load() {
   loadFailed.value = false
   try {
-    rows.value = await apiFetch('/memberships')
+    const [memberships, teams] = await Promise.all([apiFetch('/memberships'), apiFetch('/team-requests')])
+    rows.value = memberships
+    teamRequests.value = teams
   } catch {
     loadFailed.value = true
   }
@@ -55,6 +60,26 @@ function onDeleteConfirmed() {
   })
 }
 
+const approveTeam = (request) =>
+  act(
+    request,
+    () => apiFetch(`/team-requests/${request.id}/approve`, { method: 'POST' }),
+    `הקבוצה ${request.name} נוספה ו${userLabel(request)} מנהל/ת אותה`,
+    () => dropTeamRequest(request),
+  )
+
+function onRejectConfirmed() {
+  const row = pendingReject.value
+  pendingReject.value = null
+  return act(row, () => apiFetch(`/team-requests/${row.id}/reject`, { method: 'POST' }), `הבקשה של ${userLabel(row)} נדחתה`, () =>
+    dropTeamRequest(row),
+  )
+}
+
+const dropTeamRequest = (row) => {
+  teamRequests.value = teamRequests.value.filter((r) => r.id !== row.id)
+}
+
 const confirmMessage = computed(() => {
   const row = pendingDelete.value
   if (!row) return ''
@@ -66,7 +91,7 @@ const confirmMessage = computed(() => {
   <section class="card space-y-3" aria-labelledby="membership-requests-title">
     <div class="flex items-center gap-2">
       <h2 id="membership-requests-title" class="section-title">בקשות הצטרפות</h2>
-      <span v-if="requests?.length" class="badge-muted">{{ requests.length }}</span>
+      <span v-if="pendingCount" class="badge-muted">{{ pendingCount }}</span>
     </div>
 
     <div v-if="rows === null && !loadFailed" class="space-y-2" aria-busy="true">
@@ -77,8 +102,33 @@ const confirmMessage = computed(() => {
       <p class="error-text" role="alert">שגיאה בטעינת הבקשות</p>
       <button type="button" class="btn-secondary" @click="load">נסו שוב</button>
     </div>
-    <p v-else-if="!requests.length" class="empty-state">אין בקשות ממתינות</p>
+    <p v-else-if="!pendingCount" class="empty-state">אין בקשות ממתינות</p>
     <ul v-else class="divide-y divide-line">
+      <li v-for="request in teamRequests" :key="`team-${request.id}`" class="space-y-2 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
+        <div class="min-w-0">
+          <p class="truncate font-bold" dir="auto">{{ userLabel(request) }}</p>
+          <p v-if="request.email_hint" class="truncate text-sm text-muted" dir="ltr">{{ request.email_hint }}</p>
+          <span v-else class="badge badge-loss">אימייל לא מאומת</span>
+          <p class="text-sm text-muted" dir="auto">קבוצה חדשה: {{ request.name }}<template v-if="request.league_name"> · {{ request.league_name }}</template></p>
+          <a :href="request.ibasketball_team_url" target="_blank" rel="noopener" class="section-link">לדף הקבוצה באיגוד</a>
+        </div>
+        <div class="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+          <button
+            type="button"
+            class="btn-primary"
+            :disabled="busyId === request.id"
+            :aria-label="`אישור הבקשה של ${userLabel(request)}`"
+            @click="approveTeam(request)"
+          >אישור</button>
+          <button
+            type="button"
+            class="btn-danger-ghost"
+            :disabled="busyId === request.id"
+            :aria-label="`דחיית הבקשה של ${userLabel(request)}`"
+            @click="pendingReject = request"
+          >דחייה</button>
+        </div>
+      </li>
       <li v-for="request in requests" :key="request.id" class="space-y-2 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
         <div class="min-w-0">
           <p class="truncate font-bold" dir="auto">{{ userLabel(request) }}</p>
@@ -138,6 +188,12 @@ const confirmMessage = computed(() => {
       :message="confirmMessage"
       @update:open="(value) => !value && (pendingDelete = null)"
       @confirm="onDeleteConfirmed"
+    />
+    <ConfirmDialog
+      :open="pendingReject !== null"
+      :message="pendingReject ? `לדחות את הבקשה של ${userLabel(pendingReject)} לקבוצה ${pendingReject.name}?` : ''"
+      @update:open="(value) => !value && (pendingReject = null)"
+      @confirm="onRejectConfirmed"
     />
   </section>
 </template>

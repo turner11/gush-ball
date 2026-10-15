@@ -46,7 +46,7 @@ class MemberRowOut(BaseModel):  # masked email only: the full address stays priv
     club: str | None
 
 
-def _mask_email(email: str | None) -> str | None:
+def mask_email(email: str | None) -> str | None:
     if email is None:
         return None
     local, _, domain = email.partition("@")
@@ -82,7 +82,7 @@ def list_managed(admin: RequireAnyAdmin, db: DbSession) -> list[MemberRowOut]:
     if scope is not None:  # club requests are excluded by construction: their team_id is NULL
         query = query.where(Membership.team_id.in_(scope))
     return [
-        MemberRowOut(id=i, role=r, username=u, display_name=d, email_hint=_mask_email(e), team_id=t, team_name=n, club=c)
+        MemberRowOut(id=i, role=r, username=u, display_name=d, email_hint=mask_email(e), team_id=t, team_name=n, club=c)
         for i, r, u, d, e, t, n, c in db.execute(query)
     ]
 

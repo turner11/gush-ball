@@ -156,19 +156,38 @@ def _club_needs_scrape(db: Session, team: Team) -> bool:
     return club is None or club.ibasketball_url is None
 
 
-def _fill_team_club(db: Session, team: Team, name: str, url: str) -> None:
-    """Fill-only: assigns a club to a clubless team and fills a missing club url.
-    Never moves a team, renames a club or takes a url another club already owns."""
+def _club_link(page: BeautifulSoup) -> tuple[str, str] | None:
+    """(name, url) of the club a team page links to; None if absent or not an http(s) url."""
+    link = page.select_one("div.data-club a[href]")
+    url = http_url_or_none(link["href"]) if link is not None else None
+    return None if url is None else (link.get_text(strip=True), url)
+
+
+def _page_club(db: Session, current: str | None, name: str, url: str) -> str | None:
+    """The club name for a team page's club link. Fill-only: keeps the team's `current` club, fills a missing club
+    url, and never renames a club or takes a url another club already owns (None, with a warning)."""
     by_url = db.scalar(select(Club).where(Club.ibasketball_url == url))
-    club = get_or_create_club(db, team.club) if team.club else by_url or get_or_create_club(db, name[:120])
+    club = get_or_create_club(db, current) if current else by_url or get_or_create_club(db, name[:120])
     if club.ibasketball_url is None and by_url is None:
         club.ibasketball_url = url
     if club.ibasketball_url != url:
-        log.warning(
-            "Team %s: club %r has url %s, page says %s (%r); not changing", team.slug, club.name, club.ibasketball_url, url, name
-        )
-        return
-    team.club = club.name
+        log.warning("Club %r has url %s, page says %s (%r); not changing", club.name, club.ibasketball_url, url, name)
+        return None
+    return club.name
+
+
+def team_page_club(db: Session, team_url: str) -> str | None:
+    """Club name from one team page (#351); None if it has no club link or the fetch fails (a request without a
+    club goes to a full admin)."""
+    try:
+        # ponytail: not `_get`, which sleeps CRAWL_DELAY and a user is waiting; the per-user pending cap bounds this
+        resp = httpx.get(team_url, timeout=15)
+        resp.raise_for_status()
+    except httpx.HTTPError:
+        log.warning("Could not fetch team page %s", team_url, exc_info=True)
+        return None
+    link = _club_link(BeautifulSoup(resp.text, "html.parser"))
+    return None if link is None else _page_club(db, None, *link)
 
 
 def _roll_league(db: Session, team: Team, league_ids: list[int]) -> None:
@@ -250,10 +269,9 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
         if page is not None:
             if team.home_court_address is None:
                 team.home_court_address = _venue(page)
-            link = page.select_one("div.data-club a[href]")
-            club_url = http_url_or_none(link["href"]) if link is not None else None
-            if club_url is not None:
-                _fill_team_club(db, team, link.get_text(strip=True), club_url)
+            link = _club_link(page)
+            if link is not None:
+                team.club = _page_club(db, team.club, *link) or team.club
 
     # ponytail: single page (100); follow X-WP-TotalPages if a team ever exceeds it
     events = _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)

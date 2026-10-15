@@ -24,6 +24,15 @@ export function ownTeams(teams) {
   )
 }
 
+// Internal paths only: blocks open redirects through `?next=`. One leading slash (not // or /\), no control
+// characters or backslashes (browsers drop tabs/newlines and read \ as /), and it must resolve to our own origin.
+export const safeNext = (value) =>
+  typeof value === 'string' &&
+  /^\/(?![\\/])[^\u0000-\u001f\u007f\\]*$/.test(value) &&
+  new URL(value, location.origin).origin === location.origin
+    ? value
+    : null
+
 export function useAuth() {
   async function checkSession() {
     try {

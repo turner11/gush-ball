@@ -106,6 +106,22 @@ describe('AccountView', () => {
     expect(called('GET /api/auth/me')).toHaveLength(1)
   })
 
+  it('shows team requests with their status badges', async () => {
+    mockFetch()
+    const team_requests = [
+      { id: 3, name: 'ממתינה', status: 'pending' },
+      { id: 2, name: 'אושרה', status: 'approved' },
+      { id: 1, name: 'נדחתה', status: 'rejected' },
+    ]
+    const { wrapper } = await mountAccount({ ...ME, memberships: [], team_requests })
+    const rows = wrapper.findAll('li')
+    expect(rows[0].text()).toContain('בקשה להוספת ממתינה')
+    expect(rows[0].find('.badge-muted').text()).toBe('ממתין לאישור')
+    expect(rows[1].find('.badge-win').text()).toBe('אושרה')
+    expect(rows[2].find('.badge-loss').text()).toBe('נדחתה')
+    expect(wrapper.text()).not.toContain('אין חברויות עדיין')
+  })
+
   it('an admin row has no leave button', async () => {
     mockFetch()
     const { wrapper } = await mountAccount({ ...ME, memberships: [{ id: 6, team_id: 1, club: null, role: 'admin' }] })
