@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app import scrape_club
-from app.models import Club
+from app.models import Club, Team
 from app.routers import teams as teams_router
 
 
@@ -242,3 +242,31 @@ def test_setting_team_club_creates_club_row(admin_client: TestClient, db_session
     set_club("Second")
 
     assert [c.name for c in db_session.query(Club).all()] == ["New"]
+
+
+def test_patch_changing_league_url_marks_it_overridden(admin_client: TestClient, db_session: Session) -> None:
+    team_id = _create_team(admin_client, "L", ibasketball_league_url="https://ibasketball.co.il/league/a/")["id"]
+
+    admin_client.patch(
+        f"/teams/{team_id}", json={"ibasketball_league_url": "https://ibasketball.co.il/league/a/", "logo_url": "https://x.test/l.png"}
+    )
+    assert db_session.get(Team, team_id).league_url_overridden is False
+
+    admin_client.patch(f"/teams/{team_id}", json={"ibasketball_league_url": "https://ibasketball.co.il/league/b/"})
+    db_session.expire_all()
+    assert db_session.get(Team, team_id).league_url_overridden is True
+
+
+def test_patch_accepting_league_suggestion_clears_override(admin_client: TestClient, db_session: Session) -> None:
+    new = "https://ibasketball.co.il/league/b/"
+    team_id = _create_team(admin_client, "L", ibasketball_league_url="https://ibasketball.co.il/league/a/")["id"]
+    team = db_session.get(Team, team_id)
+    team.league_url_overridden, team.league_url_suggestion = True, new
+    db_session.commit()
+
+    assert admin_client.patch(f"/teams/{team_id}", json={"ibasketball_league_url": new}).status_code == 200
+
+    db_session.expire_all()
+    team = db_session.get(Team, team_id)
+    assert (team.league_url_overridden, team.league_url_suggestion) == (False, None)
+    assert admin_client.get(f"/teams/{team_id}").json()["league_url_suggestion"] is None

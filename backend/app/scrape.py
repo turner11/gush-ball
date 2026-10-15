@@ -1,4 +1,4 @@
-"""Runs the scrapers, standings then games then players then leagues, one after the other so they never overlap and both
+"""Runs the scrapers, leagues then games then players then standings, one after the other so they never overlap and both
 respect ibasketball.co.il's crawl delay. Shared by the admin "sync now" button (#17) and the
 nightly cron:  python -m app.scrape
 """
@@ -11,14 +11,14 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.monitoring import init_sentry, trace_scrape
-from app.scrape_games import _sp_team_id, sync_all_games, sync_all_players
+from app.scrape_games import _sp_team, sync_all_games, sync_all_players
 from app.scrape_leagues import sync_leagues
 from app.scrape_standings import sync_all_standings
 
 log = logging.getLogger(__name__)
 
 
-KINDS = ("standings", "games", "players", "leagues")
+KINDS = ("leagues", "games", "players", "standings")
 
 
 def _run_kind(kind: str, kinds: Collection[str], sync: Any, *args: Any, **kwargs: Any) -> Any:
@@ -34,14 +34,14 @@ def sync_all(
     kinds: Collection[str] = KINDS,
     auto_accept: bool = False,
 ) -> dict[str, Any]:
-    # sync_all_standings logs and skips per-team failures, so games always run.
-    _sp_team_id.cache_clear()
+    # Leagues first so the games step's season rollover (#352) sees them; standings last, scraping the moved url.
+    _sp_team.cache_clear()
     errors: list[str] = []
-    standings = _run_kind("standings", kinds, sync_all_standings, db, errors, team_ids=team_ids)
-    games = _run_kind("games", kinds, sync_all_games, db, errors, team_ids=team_ids, auto_accept=auto_accept)
-    players = _run_kind("players", kinds, sync_all_players, db, errors, team_ids=team_ids)
     # Leagues are global, so a team- or club-scoped sync must not refresh them.
     leagues = _run_kind("leagues", kinds, sync_leagues, db, errors) if team_ids is None else None
+    games = _run_kind("games", kinds, sync_all_games, db, errors, team_ids=team_ids, auto_accept=auto_accept)
+    players = _run_kind("players", kinds, sync_all_players, db, errors, team_ids=team_ids)
+    standings = _run_kind("standings", kinds, sync_all_standings, db, errors, team_ids=team_ids)
     log.info(
         "Sync finished: %s standings rows, %s games, %s players, %s leagues, %d errors",
         standings, games, players, leagues, len(errors),

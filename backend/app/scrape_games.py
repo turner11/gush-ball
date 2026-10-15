@@ -27,6 +27,7 @@ from app.models import (
     Club,
     Game,
     GameStatus,
+    League,
     Opponent,
     Player,
     PlayerImage,
@@ -170,6 +171,27 @@ def _fill_team_club(db: Session, team: Team, name: str, url: str) -> None:
     team.club = club.name
 
 
+def _roll_league(db: Session, team: Team, league_ids: list[int]) -> None:
+    """Season rollover (#352): moves a stale league URL to the team's one current-season league;
+    an admin-overridden URL gets a suggestion instead."""
+    leagues = list(db.scalars(select(League)))
+    if team.ibasketball_league_url in {league.url for league in leagues}:
+        team.league_url_suggestion = None  # already current, even if the admin chose it
+        return
+    candidates = [league.url for league in leagues if league.ibasketball_id in league_ids]
+    if len(candidates) != 1:
+        team.league_url_suggestion = None
+        log.info("Team %s: %d current-season league candidates, not moving", team.slug, len(candidates))
+        return
+    if team.league_url_overridden:
+        team.league_url_suggestion = candidates[0]
+        log.info("Team %s: suggesting league %s (url is admin-set)", team.slug, candidates[0])
+        return
+    log.info("Team %s: league %s -> %s", team.slug, team.ibasketball_league_url, candidates[0])
+    team.ibasketball_league_url = candidates[0]
+    team.league_url_suggestion = None
+
+
 def _resolve_opponent(db: Session, data: dict[str, Any]) -> Opponent:
     name = html.unescape(data["title"]["rendered"])
     opponent = get_or_create_opponent(db, name)
@@ -185,12 +207,12 @@ def _resolve_opponent(db: Session, data: dict[str, Any]) -> Opponent:
 
 # ponytail: per-run cache (sync_all clears it); the league re-publishes posts under new ids, so don't keep it longer
 @functools.cache
-def _sp_team_id(team_url: str) -> int:
+def _sp_team(team_url: str) -> dict[str, Any]:
     slug = team_url.rstrip("/").rsplit("/", 1)[-1]
     teams = _get_json("/sportspress/v2/teams", slug=slug)
     if not teams:
         raise ValueError(f"No SportsPress team found for slug {slug!r}")
-    return teams[0]["id"]
+    return teams[0]
 
 
 def _fetch_opponents(events: list[dict[str, Any]], sp_id: int) -> dict[int, dict[str, Any]]:
@@ -219,7 +241,9 @@ def _fetch_opponents(events: list[dict[str, Any]], sp_id: int) -> dict[int, dict
 
 
 def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
-    sp_id = _sp_team_id(team.ibasketball_team_url)
+    sp_team = _sp_team(team.ibasketball_team_url)
+    sp_id = sp_team["id"]
+    _roll_league(db, team, sp_team.get("leagues", []))
     # Fill-only: an admin-entered address, club name or club url is never clobbered. One page fetch serves all.
     if team.home_court_address is None or _club_needs_scrape(db, team):
         page = _fetch_team_page(team.ibasketball_team_url)
@@ -399,7 +423,7 @@ def sync_team_players(db: Session, team: Team) -> int:
     live row) and re-keys its source_url, so a re-published player link creates no duplicate.
     A soft-deleted twin's href moves to the live same-name player.
     """
-    sp_id = _sp_team_id(team.ibasketball_team_url)
+    sp_id = _sp_team(team.ibasketball_team_url)["id"]
     page = BeautifulSoup(
         _get_html(action="ibba", template="players", id=sp_id, type="sp_team"), "html.parser"
     )

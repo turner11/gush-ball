@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -41,6 +41,10 @@ class Team(Base):
     # Source URLs on ibasketball.co.il, used by the Phase 2 scraper.
     ibasketball_team_url: Mapped[str | None] = mapped_column(String(500), default=None)
     ibasketball_league_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    # An admin's own league URL is never overwritten by the scraper; the current-season league it would
+    # have set waits in league_url_suggestion (#352).
+    league_url_overridden: Mapped[bool] = mapped_column(default=False, server_default=false())
+    league_url_suggestion: Mapped[str | None] = mapped_column(String(500), default=None)
 
     players: Mapped[list["Player"]] = relationship(back_populates="team", cascade="all, delete-orphan")
     links: Mapped[list["TeamLink"]] = relationship(back_populates="team", cascade="all, delete-orphan")
