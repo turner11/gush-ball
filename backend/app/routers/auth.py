@@ -31,7 +31,7 @@ from app.deps import (
     client_ip,
     is_admin,
 )
-from app.models import AdminUser, Membership, Player
+from app.models import AdminUser, Membership, Player, TeamRequest
 from app.security import Email, Username, hash_password, password_fingerprint, verify_password
 
 log = logging.getLogger(__name__)
@@ -140,6 +140,10 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
             db.scalars(select(Player.id).where(Player.user_id == user.id, Player.deleted_at.is_(None)).order_by(Player.id))
         ),
         "memberships": [{"id": m.id, "team_id": m.team_id, "club": m.club, "role": m.role} for m in memberships],
+        "team_requests": [
+            {"id": r.id, "name": r.name, "status": r.status}
+            for r in db.scalars(select(TeamRequest).where(TeamRequest.user_id == user.id).order_by(TeamRequest.id.desc()))
+        ],
     }
     if admin:  # the live-stats links are admin-only, so fans and players never receive them
         out |= {"stats_app_url": settings.stats_url, "stats_template_url": settings.stats_template_url}

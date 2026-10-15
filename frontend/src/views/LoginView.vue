@@ -2,7 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { useAuth } from '../composables/useAuth'
+import { safeNext, useAuth } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
 
 // Bound (not a static src) so the SFC compiler serves it from public/ as-is.
@@ -15,8 +15,7 @@ const submitting = ref(false)
 const { user, error, login, checkSession } = useAuth()
 const router = useRouter()
 const route = useRoute()
-// Internal paths only (a single leading slash, not // or /\): blocks open redirects.
-const next = typeof route.query.next === 'string' && /^\/(?![\\/])/.test(route.query.next) ? route.query.next : null
+const next = safeNext(route.query.next)
 // Back to `next` if given, else admins land on the admin home and everyone else (a signed-up player) on the join page.
 const landing = () => next ?? (user.value?.is_admin ? { name: 'admin-home' } : { name: 'join' })
 
@@ -116,7 +115,7 @@ async function onSubmit() {
 
     <div class="flex flex-wrap justify-between gap-x-4">
       <RouterLink :to="{ name: 'admin-reset-password' }" class="section-link">שכחתי סיסמה</RouterLink>
-      <RouterLink :to="{ name: 'admin-signup' }" class="section-link">אין לך חשבון? הרשמה</RouterLink>
+      <RouterLink :to="{ name: 'admin-signup', query: next ? { next } : {} }" class="section-link">אין לך חשבון? הרשמה</RouterLink>
     </div>
 
     <!-- Opens a popup; the href is the full-page fallback when popups are blocked. -->

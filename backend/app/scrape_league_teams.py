@@ -8,7 +8,7 @@ from bbstats import http_url_or_none
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Team
+from app.models import Team, TeamRequest
 from app.scrape_club import _team_code
 from app.scrape_games import BASE
 
@@ -50,13 +50,22 @@ def _raw_teams(league_ibasketball_id: int) -> list[dict]:
 
 
 def league_teams(db: Session, league_ibasketball_id: int) -> list[dict]:
-    """The league's teams, each with `team_id` of our matching team (by IBBA code, never name) or None."""
+    """The league's teams, each with `team_id` of our matching team (by IBBA code, never name) or None, and
+    `requested` when a team request for it is pending (#351)."""
     ours = {
         _team_code(url): team_id
         for team_id, url in db.execute(select(Team.id, Team.ibasketball_team_url))
         if url and _team_code(url)
     }
+    pending = {
+        _team_code(url)
+        for url in db.scalars(select(TeamRequest.ibasketball_team_url).where(TeamRequest.status == "pending"))
+    }
     return [
-        {**row, "team_id": ours.get(_team_code(row["ibasketball_team_url"]))}
+        {
+            **row,
+            "team_id": ours.get(_team_code(row["ibasketball_team_url"])),
+            "requested": _team_code(row["ibasketball_team_url"]) in pending,
+        }
         for row in _raw_teams(league_ibasketball_id)
     ]

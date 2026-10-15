@@ -1,12 +1,14 @@
 <script setup>
 import { ref } from 'vue'
+import { useRoute } from 'vue-router'
 
-import { useAuth } from '../composables/useAuth'
+import { safeNext, useAuth } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
 
 const LOGO_URL = '/logo.jpg'
 
 const { user } = useAuth()
+const next = safeNext(useRoute().query.next) // where the visitor was headed before signing up
 
 const username = ref('')
 const email = ref('')
@@ -52,7 +54,7 @@ async function onSubmit() {
         <p role="status">
           נרשמת! שלחנו קישור לאימות אל <span dir="ltr">{{ email }}</span> (תקף לשעה).
         </p>
-        <RouterLink :to="{ name: 'join' }" class="btn-primary w-full">המשך לבקשת הצטרפות</RouterLink>
+        <RouterLink :to="next ?? { name: 'join' }" class="btn-primary w-full">{{ next ? 'המשך' : 'המשך לבקשת הצטרפות' }}</RouterLink>
       </template>
 
       <template v-else>

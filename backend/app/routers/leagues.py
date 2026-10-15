@@ -26,6 +26,7 @@ class LeagueTeamOut(BaseModel):
     logo_url: str | None
     ibasketball_team_url: str
     team_id: int | None
+    requested: bool
 
 
 class LeagueTeamsOut(BaseModel):

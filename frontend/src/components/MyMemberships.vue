@@ -13,6 +13,7 @@ const props = defineProps({
 const { user, checkSession } = useAuth()
 
 const memberships = computed(() => user.value?.memberships ?? [])
+const teamRequests = computed(() => user.value?.team_requests ?? [])
 const teamName = (id) => props.teams?.find((t) => t.id === id)?.name ?? '…'
 const rowName = (m) => (m.club ? `מועדון ${m.club}` : teamName(m.team_id))
 
@@ -20,6 +21,11 @@ const BADGES = {
   pending: { text: 'ממתין לאישור', cls: 'badge-muted' },
   member: { text: 'חבר', cls: 'badge-win' },
   admin: { text: 'מנהל', cls: 'badge-win' },
+}
+const REQUEST_BADGES = {
+  pending: BADGES.pending,
+  approved: { text: 'אושרה', cls: 'badge-win' },
+  rejected: { text: 'נדחתה', cls: 'badge-loss' },
 }
 const LEAVE_LABEL = { pending: 'ביטול בקשה', member: 'עזיבה' }
 
@@ -46,7 +52,7 @@ async function onLeaveConfirmed() {
 <template>
   <div class="card space-y-3">
     <h2 class="section-title">{{ title }}</h2>
-    <ul v-if="memberships.length" class="divide-y divide-line">
+    <ul v-if="memberships.length || teamRequests.length" class="divide-y divide-line">
       <li v-for="m in memberships" :key="m.id" class="py-2">
         <div class="flex items-center justify-between gap-2">
           <span class="min-w-0 truncate font-bold" dir="auto">{{ rowName(m) }}</span>
@@ -68,6 +74,13 @@ async function onLeaveConfirmed() {
         <p v-if="m.role === 'pending'" class="text-sm text-muted">
           {{ m.club ? 'מנהל האתר יאשר את הבקשה' : 'מנהל הקבוצה יאשר את הבקשה' }}
         </p>
+      </li>
+      <li v-for="r in teamRequests" :key="`team-${r.id}`" class="py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="min-w-0 truncate font-bold" dir="auto">בקשה להוספת {{ r.name }}</span>
+          <span :class="REQUEST_BADGES[r.status].cls">{{ REQUEST_BADGES[r.status].text }}</span>
+        </div>
+        <p v-if="r.status === 'pending'" class="text-sm text-muted">מנהל יאשר את הבקשה</p>
       </li>
     </ul>
     <p v-else class="empty-state">

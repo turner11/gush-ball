@@ -21,6 +21,7 @@ from app.routers import (
     seo,
     standings,
     sync,
+    team_requests,
     teams,
     uploads,
     users,
@@ -61,6 +62,7 @@ app.include_router(players.router)
 app.include_router(seo.router)
 app.include_router(standings.router)
 app.include_router(sync.router)
+app.include_router(team_requests.router)
 app.include_router(teams.router)
 app.include_router(uploads.router)
 app.include_router(users.router)

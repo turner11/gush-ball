@@ -9,6 +9,7 @@ from app.models.opponent import Opponent, get_or_create_opponent
 from app.models.player import Player, PlayerImage
 from app.models.standing_row import StandingRow
 from app.models.team import Team
+from app.models.team_request import TeamRequest
 from app.models.user import AdminUser
 
 __all__ = [
@@ -28,6 +29,7 @@ __all__ = [
     "TeamImage",
     "TeamLink",
     "TeamPost",
+    "TeamRequest",
     "TeamVideo",
     "get_or_create_club",
     "get_or_create_opponent",

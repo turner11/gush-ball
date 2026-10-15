@@ -8,11 +8,14 @@ backend runs a single uvicorn worker (see backend/Dockerfile), and `sync_now` be
 as one atomic step on the single event loop. That's what makes the module-level boolean a
 correct overlap guard rather than just a lazy one: a plain `def` endpoint would run in
 Starlette's threadpool executor, where two near-simultaneous requests could both pass the
-`if _running` check before either sets it. See the issue #17 plan for the full rationale.
+`if _running` check before either sets it. See the issue #17 plan for the full rationale. `start_sync` is also
+called from plain `def` endpoints (an approved team request, #351), so its check-and-set takes a lock.
 """
 
 import logging
+import threading
 import time
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -27,6 +30,7 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/sync", tags=["sync"])
 
 _running = False
+_start_lock = threading.Lock()
 # ponytail: in-memory last-run result, lost on restart; persist if history is ever wanted.
 _last: dict[str, Any] | None = None
 
@@ -80,13 +84,25 @@ def _run_sync(team_ids: list[int] | None, kinds: set[str], auto_accept: bool) ->
         _running = False
 
 
+def start_sync(
+    background_tasks: BackgroundTasks, team_ids: list[int] | None, kinds: Iterable[str] = KINDS, auto_accept: bool = True
+) -> bool:
+    """Queues a background sync; False (nothing queued) when a run is already going."""
+    global _running
+    with _start_lock:
+        if _running:
+            return False
+        _running = True
+    background_tasks.add_task(_run_sync, team_ids, set(kinds), auto_accept)
+    return True
+
+
 @router.post("/now", response_model=SyncOut, status_code=status.HTTP_202_ACCEPTED)
 # ponytail: the overlap guard and last-run status stay global across teams (status is hidden from
 # admins whose scope doesn't cover the run); make them per-team if that hurts.
 async def sync_now(
     admin: RequireAnyAdmin, db: DbSession, background_tasks: BackgroundTasks, payload: SyncIn | None = None
 ) -> SyncOut:
-    global _running
     payload = payload or SyncIn()
     team_ids = payload.team_ids
     scope = admin_team_ids(db, admin)
@@ -95,11 +111,8 @@ async def sync_now(
         denied = sorted(set(team_ids) - set(scope))
         if denied:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"Not allowed for team(s) {denied}")
-    if _running:
+    if not start_sync(background_tasks, team_ids, payload.kinds, payload.auto_accept):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Sync already running")
-
-    _running = True
-    background_tasks.add_task(_run_sync, team_ids, payload.kinds, payload.auto_accept)
     return SyncOut(status="started")
 
 

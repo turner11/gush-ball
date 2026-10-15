@@ -18,5 +18,6 @@ defineProps({
   >
     <img :src="logoUrl || '/logo.jpg'" alt="" class="size-16 rounded-xl bg-white object-contain p-1 sm:size-20" />
     <span class="line-clamp-2 font-bold text-ink">{{ name }}</span>
+    <slot />
   </component>
 </template>

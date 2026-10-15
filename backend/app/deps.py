@@ -117,6 +117,11 @@ def check_admin_grant(db: Session, admin: AdminUser, team: Team, scope: Literal[
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to manage admins for this team")
 
 
+def can_approve_team_request(db: Session, user: AdminUser, club: str | None) -> bool:
+    """Full admin always; a club admin for a team of their club (#351). Team admins never."""
+    return user.is_full_admin or (club is not None and club in admin_clubs(db, user))
+
+
 def check_membership_scope(db: Session, admin: AdminUser, row: Membership) -> None:
     """Who may approve a request or remove a request/member: a team's by whoever may write that team, a club's by a full admin only."""
     if row.team_id is not None:

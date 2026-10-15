@@ -198,13 +198,18 @@ async def club_preview_status(_admin_id: RequireAdmin) -> ClubPreviewStatusOut:
     return ClubPreviewStatusOut(running=_preview_running, **(_preview_last or {}))
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=TeamOut)
-def create_team(payload: TeamCreate, _admin_id: RequireAdmin, db: DbSession) -> Team:
-    data = _stringify_urls(payload.model_dump(exclude_none=True))
+def new_team(db: Session, data: dict) -> Team:
+    """The one creation path: club import (POST /teams) and an approved team request. Adds, never commits."""
     if data.get("club"):
         get_or_create_club(db, data["club"])  # teams.club is an FK to clubs.name
-    team = Team(**data, slug=_unique_slug(db, _slugify(payload.name)))
+    team = Team(**data, slug=_unique_slug(db, _slugify(data["name"])))
     db.add(team)
+    return team
+
+
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=TeamOut)
+def create_team(payload: TeamCreate, _admin_id: RequireAdmin, db: DbSession) -> Team:
+    team = new_team(db, _stringify_urls(payload.model_dump(exclude_none=True)))
     db.commit()
     db.refresh(team)
     return team
