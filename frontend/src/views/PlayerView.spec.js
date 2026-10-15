@@ -76,6 +76,27 @@ describe('PlayerView', () => {
     expect(ld.image).toBe('/a.jpg')
   })
 
+  it('ignores a stale load when the user navigates to another player mid-load', async () => {
+    const base = okFetch()
+    let release
+    let held = 0
+    const gate = new Promise((r) => (release = r))
+    const player4 = { ...PLAYER, id: 4, name: 'דני לוי' }
+    global.fetch = vi.fn((url) => {
+      if (url === '/api/players/4') return Promise.resolve({ ok: true, status: 200, json: async () => player4 })
+      if (url === '/api/teams/1/videos' && !held++) return gate.then(() => base(url)) // holds only player 3's load open
+      return base(url)
+    })
+    const wrapper = await mountAt('/players/3')
+    await wrapper.vm.$router.push('/players/4')
+    await flushPromises() // player 4 finished first
+    release()
+    await flushPromises()
+
+    expect(document.title).toContain('דני לוי')
+    expect(JSON.parse(document.head.querySelector('script[data-page]').textContent).name).toBe('דני לוי')
+  })
+
   it('shows only the videos the player is tagged in', async () => {
     global.fetch = okFetch()
     const text = (await mountAt('/players/3')).text()

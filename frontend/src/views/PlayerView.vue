@@ -54,6 +54,7 @@ watch(
         apiFetch(`/teams/${p.team_id}/images`),
         apiFetch(`/teams/${p.team_id}/videos`),
       ])
+      if (id !== route.params.id) return // navigated away mid-load: don't clobber the new page's title/JSON-LD
       taggedImages.value = taggedNewestFirst(teamImages, p.id)
       taggedVideos.value = taggedNewestFirst(teamVideos, p.id)
       player.value = p
@@ -63,6 +64,7 @@ watch(
     } catch (e) {
       player.value = null
       setJsonLd(null)
+      document.title = pageTitle('שחקן')
       error.value = e.status === 404 ? 'השחקן לא נמצא.' : 'שגיאה בטעינת השחקן, נסה שוב'
     } finally {
       loading.value = false
