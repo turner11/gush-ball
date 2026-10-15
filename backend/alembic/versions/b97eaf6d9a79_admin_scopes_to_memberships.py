@@ -5,7 +5,6 @@ Revises: 1d8046c06869
 Create Date: 2026-10-13 16:55:23.986818
 
 """
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -21,13 +20,9 @@ depends_on: str | Sequence[str] | None = None
 
 def _migrate_scopes(conn) -> None:
     """Old scope columns -> explicit rights. Preserves every existing right and adds none."""
+    conn.execute(sa.text("UPDATE admin_users SET is_full_admin = (team_id IS NULL AND club IS NULL)"))
     conn.execute(
-        sa.text("UPDATE admin_users SET is_full_admin = (team_id IS NULL AND club IS NULL)")
-    )
-    conn.execute(
-        sa.text(
-            "INSERT INTO memberships (user_id, team_id, role) SELECT id, team_id, 'admin' FROM admin_users WHERE team_id IS NOT NULL"
-        )
+        sa.text("INSERT INTO memberships (user_id, team_id, role) SELECT id, team_id, 'admin' FROM admin_users WHERE team_id IS NOT NULL")
     )
     # team_id wins over club, as in the old admin_team_ids
     conn.execute(
@@ -56,8 +51,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_memberships_user_id"), "memberships", ["user_id"])
     op.add_column(
-        "admin_users",
-        sa.Column("is_full_admin", sa.Boolean(), server_default=sa.false(), nullable=False),
+        "admin_users", sa.Column("is_full_admin", sa.Boolean(), server_default=sa.false(), nullable=False)
     )
     _migrate_scopes(op.get_bind())
     op.drop_constraint("fk_admin_users_team_id_teams", "admin_users", type_="foreignkey")
@@ -67,6 +61,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # The old schema holds one scope per user and reads NULL as full admin: a naive downgrade would promote members.
-    raise NotImplementedError(
-        "one-way migration: memberships cannot be folded back into admin_users.team_id/club"
-    )
+    raise NotImplementedError("one-way migration: memberships cannot be folded back into admin_users.team_id/club")

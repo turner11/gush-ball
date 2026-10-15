@@ -47,11 +47,8 @@ def _game(db: Session, team: Team, **extra: object) -> Game:
     db.add(opponent)
     db.flush()
     game = Game(
-        team=team,
-        opponent=opponent,
-        scheduled_at=datetime(2026, 1, 1, 18, 0, tzinfo=UTC),
-        status=GameStatus.SCHEDULED,
-        **extra,
+        team=team, opponent=opponent, scheduled_at=datetime(2026, 1, 1, 18, 0, tzinfo=UTC),
+        status=GameStatus.SCHEDULED, **extra,
     )
     db.add(game)
     db.commit()
@@ -85,13 +82,7 @@ def _game_create(c, db):
 def _game_patch(c, db):
     t = _team(db)
     g = _game(db, t)
-    return (
-        lambda: c.patch(f"/teams/{t.id}/games/{g.id}", json={"team_score": 90}),
-        "update",
-        "game",
-        g.id,
-        t.id,
-    )
+    return lambda: c.patch(f"/teams/{t.id}/games/{g.id}", json={"team_score": 90}), "update", "game", g.id, t.id
 
 
 def _game_approve(c, db):
@@ -103,25 +94,13 @@ def _game_approve(c, db):
 def _game_accept(c, db):
     t = _team(db)
     g = _game(db, t, scrape_suggestion={"team_score": 90}, scrape_suggestion_dismissed=False)
-    return (
-        lambda: c.post(f"/teams/{t.id}/games/{g.id}/suggestion/accept"),
-        "update",
-        "game",
-        g.id,
-        t.id,
-    )
+    return lambda: c.post(f"/teams/{t.id}/games/{g.id}/suggestion/accept"), "update", "game", g.id, t.id
 
 
 def _game_reject(c, db):
     t = _team(db)
     g = _game(db, t, scrape_suggestion={"team_score": 90}, scrape_suggestion_dismissed=False)
-    return (
-        lambda: c.post(f"/teams/{t.id}/games/{g.id}/suggestion/reject"),
-        "update",
-        "game",
-        g.id,
-        t.id,
-    )
+    return lambda: c.post(f"/teams/{t.id}/games/{g.id}/suggestion/reject"), "update", "game", g.id, t.id
 
 
 def _game_delete(c, db):
@@ -132,25 +111,13 @@ def _game_delete(c, db):
 
 def _player_create(c, db):
     t = _team(db)
-    return (
-        lambda: c.post(f"/teams/{t.id}/players", json={"name": "Dana"}),
-        "create",
-        "player",
-        None,
-        t.id,
-    )
+    return lambda: c.post(f"/teams/{t.id}/players", json={"name": "Dana"}), "create", "player", None, t.id
 
 
 def _player_patch(c, db):
     t = _team(db)
     p = _player(db, t)
-    return (
-        lambda: c.patch(f"/teams/{t.id}/players/{p.id}", json={"jersey_number": 7}),
-        "update",
-        "player",
-        p.id,
-        t.id,
-    )
+    return lambda: c.patch(f"/teams/{t.id}/players/{p.id}", json={"jersey_number": 7}), "update", "player", p.id, t.id
 
 
 def _player_soft_delete(c, db):
@@ -169,13 +136,7 @@ def _image_add(c, db):
     t = _team(db)
     p = _player(db, t)
     body = {"url": "https://example.com/d.jpg"}
-    return (
-        lambda: c.post(f"/players/{p.id}/images", json=body),
-        "create",
-        "player_image",
-        None,
-        t.id,
-    )
+    return lambda: c.post(f"/players/{p.id}/images", json=body), "create", "player_image", None, t.id
 
 
 def _image_delete(c, db):
@@ -184,13 +145,7 @@ def _image_delete(c, db):
     img = PlayerImage(player_id=p.id, url="https://example.com/d.jpg")
     db.add(img)
     db.commit()
-    return (
-        lambda: c.delete(f"/players/{p.id}/images/{img.id}"),
-        "delete",
-        "player_image",
-        img.id,
-        t.id,
-    )
+    return lambda: c.delete(f"/players/{p.id}/images/{img.id}"), "delete", "player_image", img.id, t.id
 
 
 def _link(db, t):
@@ -209,13 +164,7 @@ def _link_create(c, db):
 def _link_patch(c, db):
     t = _team(db)
     link = _link(db, t)
-    return (
-        lambda: c.patch(f"/teams/{t.id}/links/{link.id}", json={"label": "M"}),
-        "update",
-        "link",
-        link.id,
-        t.id,
-    )
+    return lambda: c.patch(f"/teams/{t.id}/links/{link.id}", json={"label": "M"}), "update", "link", link.id, t.id
 
 
 def _link_delete(c, db):
@@ -224,17 +173,8 @@ def _link_delete(c, db):
     return lambda: c.delete(f"/teams/{t.id}/links/{link.id}"), "delete", "link", link.id, t.id
 
 
-_STANDING = {
-    "league_name": "L",
-    "team_name": "A",
-    "rank": 1,
-    "played": 1,
-    "won": 1,
-    "lost": 0,
-    "points_for": 80,
-    "points_against": 70,
-    "points": 2,
-}
+_STANDING = {"league_name": "L", "team_name": "A", "rank": 1, "played": 1, "won": 1, "lost": 0,
+             "points_for": 80, "points_against": 70, "points": 2}
 
 
 def _standing_create(c, db):
@@ -274,13 +214,7 @@ def _membership(db, t, role):
 
 def _member_join(c, db):
     t = _team(db)
-    return (
-        lambda: c.post("/memberships", json={"team_id": t.id}),
-        "create",
-        "membership",
-        None,
-        t.id,
-    )
+    return lambda: c.post("/memberships", json={"team_id": t.id}), "create", "membership", None, t.id
 
 
 def _member_approve(c, db):
@@ -319,54 +253,23 @@ def _admin_revoke(c, db):
 def _admin_create(c, db):
     t = _team(db)
     body = {"username": "newadmin", "password": "password123"}
-    new_membership_id = lambda r: db.scalar(
-        select(Membership.id).where(Membership.user_id == r.json()["id"])
-    )
-    return (
-        lambda: c.post(f"/teams/{t.id}/admins", json=body),
-        "create",
-        "membership",
-        new_membership_id,
-        t.id,
-    )
+    new_membership_id = lambda r: db.scalar(select(Membership.id).where(Membership.user_id == r.json()["id"]))
+    return lambda: c.post(f"/teams/{t.id}/admins", json=body), "create", "membership", new_membership_id, t.id
 
 
 CASES: list[Case] = [
-    _game_create,
-    _game_patch,
-    _game_approve,
-    _game_accept,
-    _game_reject,
-    _game_delete,
-    _player_create,
-    _player_patch,
-    _player_soft_delete,
-    _player_restore,
-    _image_add,
-    _image_delete,
-    _link_create,
-    _link_patch,
-    _link_delete,
-    _standing_create,
-    _standing_patch,
-    _standing_delete,
-    _team_create,
-    _team_patch,
-    _team_delete,
-    _member_join,
-    _member_approve,
-    _member_remove,
-    _member_leave,
-    _admin_assign,
-    _admin_revoke,
-    _admin_create,
+    _game_create, _game_patch, _game_approve, _game_accept, _game_reject, _game_delete,
+    _player_create, _player_patch, _player_soft_delete, _player_restore, _image_add, _image_delete,
+    _link_create, _link_patch, _link_delete,
+    _standing_create, _standing_patch, _standing_delete,
+    _team_create, _team_patch, _team_delete,
+    _member_join, _member_approve, _member_remove, _member_leave,
+    _admin_assign, _admin_revoke, _admin_create,
 ]
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda f: f.__name__.lstrip("_"))
-def test_request_write_emits_one_row(
-    case: Case, admin_client: TestClient, db_session: Session
-) -> None:
+def test_request_write_emits_one_row(case: Case, admin_client: TestClient, db_session: Session) -> None:
     send, action, entity_type, entity_id, team_id = case(admin_client, db_session)
     before = len(_rows(db_session))
 
@@ -396,19 +299,12 @@ def test_update_logs_only_changed_fields(admin_client: TestClient, db_session: S
     admin_client.patch(f"/teams/{t.id}/games/{g.id}", json={"team_score": 90})
 
     # an admin edit of a scraped-style game also flips the override flag; nothing else changes
-    assert _rows(db_session)[before].changes == {
-        "team_score": [None, 90],
-        "is_manually_overridden": [False, True],
-    }
+    assert _rows(db_session)[before].changes == {"team_score": [None, 90], "is_manually_overridden": [False, True]}
 
 
-def test_scraper_writes_are_unattributed(
-    db_session: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_scraper_writes_are_unattributed(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(scrape_standings, "_get_html", lambda url: FIXTURE_HTML)
-    scrape_standings.sync_team_standings(
-        db_session, _make_standings_team(db_session, slug="standings-team")
-    )
+    scrape_standings.sync_team_standings(db_session, _make_standings_team(db_session, slug="standings-team"))
     monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
     monkeypatch.setattr(scrape_games, "_get_page", lambda url: "")
     scrape_games.sync_team_games(db_session, _make_game_scrape_team(db_session))
@@ -418,9 +314,7 @@ def test_scraper_writes_are_unattributed(
     assert all(r.user_id is None and r.username is None for r in rows)
 
 
-def test_unchanged_rescrape_adds_no_rows(
-    db_session: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unchanged_rescrape_adds_no_rows(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(scrape_standings, "_get_html", lambda url: FIXTURE_HTML)
     team = _make_standings_team(db_session)
     scrape_standings.sync_team_standings(db_session, team)
@@ -437,9 +331,7 @@ def test_audited_models_hold_no_secrets(db_session: Session) -> None:
 
     assert AdminUser not in _AUDITED
     for model in _AUDITED:
-        assert not {"password_hash", "email", "session_version"} & set(
-            model.__table__.columns.keys()
-        )
+        assert not {"password_hash", "email", "session_version"} & set(model.__table__.columns.keys())
     # Game.stats_url is an admin-only sheet URL: never copied into a diff.
     game = _game(db_session, _team(db_session), stats_url="https://example.com/sheet")
     assert "stats_url" not in str(_rows(db_session)[-1].changes)
@@ -447,9 +339,7 @@ def test_audited_models_hold_no_secrets(db_session: Session) -> None:
     db_session.commit()
     db_session.delete(game)
     db_session.commit()
-    assert all(
-        "stats_url" not in r.changes and "has_stats" not in r.changes for r in _rows(db_session)
-    )
+    assert all("stats_url" not in r.changes and "has_stats" not in r.changes for r in _rows(db_session))
 
 
 def test_create_and_delete_rows_hold_the_values(db_session: Session) -> None:
@@ -472,17 +362,8 @@ def test_audit_log_full_admin_only(team_admin_client: TestClient) -> None:
 def test_audit_log_filters(admin_client: TestClient, db_session: Session) -> None:
     AuditLog = _audit_model()
     for team_id, etype, eid in [(1, "game", 10), (1, "player", 11), (2, "game", 12)]:
-        db_session.add(
-            AuditLog(
-                user_id=None,
-                username="x",
-                action="update",
-                entity_type=etype,
-                entity_id=eid,
-                team_id=team_id,
-                changes={},
-            )
-        )
+        db_session.add(AuditLog(user_id=None, username="x", action="update", entity_type=etype,
+                                entity_id=eid, team_id=team_id, changes={}))
     db_session.commit()
 
     def ids(**params: object) -> list[int]:
@@ -496,17 +377,8 @@ def test_audit_log_filters(admin_client: TestClient, db_session: Session) -> Non
 
 
 def test_deleted_user_keeps_username(admin_client: TestClient, db_session: Session) -> None:
-    db_session.add(
-        _audit_model()(
-            user_id=None,
-            username="gone",
-            action="update",
-            entity_type="game",
-            entity_id=1,
-            team_id=None,
-            changes={},
-        )
-    )
+    db_session.add(_audit_model()(user_id=None, username="gone", action="update", entity_type="game",
+                                  entity_id=1, team_id=None, changes={}))
     db_session.commit()
 
     row = admin_client.get("/audit-log").json()[0]

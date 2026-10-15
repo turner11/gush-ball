@@ -344,21 +344,11 @@ def test_soft_deleted_player_id_still_accepted(
 
 @pytest.mark.parametrize(
     ("segment", "model_class", "field"),
-    [
-        ("links", TeamLink, "label"),
-        ("videos", TeamVideo, "title"),
-        ("posts", TeamPost, "title"),
-        ("posts", TeamPost, "body"),
-    ],
+    [("links", TeamLink, "label"), ("videos", TeamVideo, "title"), ("posts", TeamPost, "title"), ("posts", TeamPost, "body")],
     ids=["links-label", "videos-title", "posts-title", "posts-body"],
 )
 def test_patch_null_required_text_rejected(
-    admin_client: TestClient,
-    db_session: Session,
-    team: Team,
-    segment: str,
-    model_class: type,
-    field: str,
+    admin_client: TestClient, db_session: Session, team: Team, segment: str, model_class: type, field: str
 ) -> None:
     payload = next(r[2] for r in RESOURCES if r[0] == segment)
     item_id = admin_client.post(f"/teams/{team.id}/{segment}", json=payload).json()["id"]

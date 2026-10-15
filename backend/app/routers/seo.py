@@ -30,12 +30,7 @@ def sitemap(db: DbSession) -> Response:
     for team in db.scalars(select(Team).order_by(Team.id)):
         slug = _url_slug(team)
         paths += [slug, *(f"{slug}/{page}" for page in TEAM_PAGES)]
-    paths += [
-        f"players/{pid}"
-        for pid in db.scalars(
-            select(Player.id).where(Player.deleted_at.is_(None)).order_by(Player.id)
-        )
-    ]
+    paths += [f"players/{pid}" for pid in db.scalars(select(Player.id).where(Player.deleted_at.is_(None)).order_by(Player.id))]
     urls = "".join(f"<url><loc>{escape(f'{base}/{path}')}</loc></url>" for path in paths)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return Response(xml, media_type="application/xml")
@@ -56,9 +51,7 @@ def _team_for_slug(db: DbSession, slug: str) -> Team | None:
     # mirrors useTeamFromRoute: url slug first, then numeric id
     teams = list(db.scalars(select(Team).order_by(Team.id)))
     slug = slug.lower()
-    return next((t for t in teams if _url_slug(t) == slug), None) or next(
-        (t for t in teams if str(t.id) == slug), None
-    )
+    return next((t for t in teams if _url_slug(t) == slug), None) or next((t for t in teams if str(t.id) == slug), None)
 
 
 def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
@@ -68,21 +61,9 @@ def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
         player = db.get(Player, int(parts[1])) if parts[1].isdigit() else None
         if player is None or player.deleted_at is not None:
             return None
-        photo = db.scalar(
-            select(PlayerImage.url)
-            .where(PlayerImage.player_id == player.id)
-            .order_by(PlayerImage.id)
-        )
-        return (
-            f"{player.name} · {player.team.name}",
-            f"פרופיל שחקן של {player.team.name}.",
-            photo or player.team.logo_url,
-        )
-    team = (
-        _team_for_slug(db, parts[0])
-        if parts and parts[0] not in ("admin", "join", "teams", "players")
-        else None
-    )
+        photo = db.scalar(select(PlayerImage.url).where(PlayerImage.player_id == player.id).order_by(PlayerImage.id))
+        return f"{player.name} · {player.team.name}", f"פרופיל שחקן של {player.team.name}.", photo or player.team.logo_url
+    team = _team_for_slug(db, parts[0]) if parts and parts[0] not in ("admin", "join", "teams", "players") else None
     if team is None:
         return None
     if len(parts) == 1:
@@ -95,16 +76,8 @@ def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
         if game is None or game.team_id != team.id:
             return None
         opponent = db.get(Opponent, game.opponent_id)
-        scored = (
-            game.status == GameStatus.FINAL
-            and game.team_score is not None
-            and game.opponent_score is not None
-        )
-        description = (
-            f"{team.name} {game.team_score} – {game.opponent_score} {opponent.name}"
-            if scored
-            else _GAME_DESCRIPTION.format(team=team.name)
-        )
+        scored = game.status == GameStatus.FINAL and game.team_score is not None and game.opponent_score is not None
+        description = f"{team.name} {game.team_score} – {game.opponent_score} {opponent.name}" if scored else _GAME_DESCRIPTION.format(team=team.name)
         return f"{team.name} נגד {opponent.name}", description, team.logo_url
     return None
 

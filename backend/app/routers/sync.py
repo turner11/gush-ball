@@ -37,9 +37,7 @@ _last: dict[str, Any] | None = None
 
 class SyncIn(BaseModel):
     team_ids: list[int] | None = Field(None, min_length=1)  # None = all teams
-    kinds: set[Literal["standings", "games", "players"]] = Field(
-        default_factory=lambda: set(KINDS), min_length=1
-    )
+    kinds: set[Literal["standings", "games", "players"]] = Field(default_factory=lambda: set(KINDS), min_length=1)
     auto_accept: bool = True
 
 
@@ -87,10 +85,7 @@ def _run_sync(team_ids: list[int] | None, kinds: set[str], auto_accept: bool) ->
 
 
 def start_sync(
-    background_tasks: BackgroundTasks,
-    team_ids: list[int] | None,
-    kinds: Iterable[str] = KINDS,
-    auto_accept: bool = True,
+    background_tasks: BackgroundTasks, team_ids: list[int] | None, kinds: Iterable[str] = KINDS, auto_accept: bool = True
 ) -> bool:
     """Queues a background sync; False (nothing queued) when a run is already going."""
     global _running
@@ -106,10 +101,7 @@ def start_sync(
 # ponytail: the overlap guard and last-run status stay global across teams (status is hidden from
 # admins whose scope doesn't cover the run); make them per-team if that hurts.
 async def sync_now(
-    admin: RequireAnyAdmin,
-    db: DbSession,
-    background_tasks: BackgroundTasks,
-    payload: SyncIn | None = None,
+    admin: RequireAnyAdmin, db: DbSession, background_tasks: BackgroundTasks, payload: SyncIn | None = None
 ) -> SyncOut:
     payload = payload or SyncIn()
     team_ids = payload.team_ids
@@ -118,9 +110,7 @@ async def sync_now(
         team_ids = team_ids or scope
         denied = sorted(set(team_ids) - set(scope))
         if denied:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, detail=f"Not allowed for team(s) {denied}"
-            )
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"Not allowed for team(s) {denied}")
     if not start_sync(background_tasks, team_ids, payload.kinds, payload.auto_accept):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Sync already running")
     return SyncOut(status="started")

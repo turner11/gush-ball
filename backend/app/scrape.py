@@ -39,26 +39,14 @@ def sync_all(
     errors: list[str] = []
     # Leagues are global, so a team- or club-scoped sync must not refresh them.
     leagues = _run_kind("leagues", kinds, sync_leagues, db, errors) if team_ids is None else None
-    games = _run_kind(
-        "games", kinds, sync_all_games, db, errors, team_ids=team_ids, auto_accept=auto_accept
-    )
+    games = _run_kind("games", kinds, sync_all_games, db, errors, team_ids=team_ids, auto_accept=auto_accept)
     players = _run_kind("players", kinds, sync_all_players, db, errors, team_ids=team_ids)
     standings = _run_kind("standings", kinds, sync_all_standings, db, errors, team_ids=team_ids)
     log.info(
         "Sync finished: %s standings rows, %s games, %s players, %s leagues, %d errors",
-        standings,
-        games,
-        players,
-        leagues,
-        len(errors),
+        standings, games, players, leagues, len(errors),
     )
-    return {
-        "standings": standings,
-        "games": games,
-        "players": players,
-        "leagues": leagues,
-        "errors": errors,
-    }
+    return {"standings": standings, "games": games, "players": players, "leagues": leagues, "errors": errors}
 
 
 if __name__ == "__main__":

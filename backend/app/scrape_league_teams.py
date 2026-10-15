@@ -59,9 +59,7 @@ def league_teams(db: Session, league_ibasketball_id: int) -> list[dict]:
     }
     pending = {
         _team_code(url)
-        for url in db.scalars(
-            select(TeamRequest.ibasketball_team_url).where(TeamRequest.status == "pending")
-        )
+        for url in db.scalars(select(TeamRequest.ibasketball_team_url).where(TeamRequest.status == "pending"))
     }
     return [
         {

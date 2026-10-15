@@ -32,14 +32,8 @@ def list_audit_log(
     entity_type: str | None = None,
     entity_id: int | None = None,
 ) -> list[AuditLog]:
-    query = (
-        select(AuditLog).order_by(AuditLog.id.desc()).limit(200)
-    )  # ponytail: fixed cap, add a before_id cursor when older rows are needed
-    for column, value in (
-        (AuditLog.team_id, team_id),
-        (AuditLog.entity_type, entity_type),
-        (AuditLog.entity_id, entity_id),
-    ):
+    query = select(AuditLog).order_by(AuditLog.id.desc()).limit(200)  # ponytail: fixed cap, add a before_id cursor when older rows are needed
+    for column, value in ((AuditLog.team_id, team_id), (AuditLog.entity_type, entity_type), (AuditLog.entity_id, entity_id)):
         if value is not None:
             query = query.where(column == value)
     return list(db.scalars(query))

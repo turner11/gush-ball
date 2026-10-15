@@ -130,10 +130,7 @@ def test_sync_upserts_existing_row_by_league_and_team_name(
 
     updated_html = FIXTURE_HTML.replace(
         '<td class="data-w" data-label="ניצ׳">8</td>', '<td class="data-w" data-label="ניצ׳">9</td>'
-    ).replace(
-        '<td class="data-pts" data-label="נק׳">18</td>',
-        '<td class="data-pts" data-label="נק׳">19</td>',
-    )
+    ).replace('<td class="data-pts" data-label="נק׳">18</td>', '<td class="data-pts" data-label="נק׳">19</td>')
     monkeypatch.setattr(scrape_standings, "_get_html", lambda url: updated_html)
 
     scrape_standings.sync_team_standings(db_session, team)
@@ -147,9 +144,7 @@ def test_sync_upserts_existing_row_by_league_and_team_name(
 def test_sync_all_standings_only_processes_teams_with_league_url(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _make_team(
-        db_session, slug="gush-ball-a", league_url="https://ibasketball.co.il/league/2026-1/"
-    )
+    _make_team(db_session, slug="gush-ball-a", league_url="https://ibasketball.co.il/league/2026-1/")
     _make_team(db_session, slug="gush-ball-b", league_url=None)
     calls: list[str] = []
 
@@ -168,12 +163,8 @@ def test_sync_all_standings_only_processes_teams_with_league_url(
 def test_sync_all_standings_filters_by_team_ids(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    one = _make_team(
-        db_session, slug="gush-ball-a", league_url="https://ibasketball.co.il/league/2026-1/"
-    )
-    _make_team(
-        db_session, slug="gush-ball-b", league_url="https://ibasketball.co.il/league/2026-2/"
-    )
+    one = _make_team(db_session, slug="gush-ball-a", league_url="https://ibasketball.co.il/league/2026-1/")
+    _make_team(db_session, slug="gush-ball-b", league_url="https://ibasketball.co.il/league/2026-2/")
     calls: list[str] = []
 
     def fake_get_html(url: str) -> str:
@@ -226,9 +217,7 @@ def test_sync_all_standings_rolls_back_after_db_failure_so_next_team_still_syncs
     team's `db.commit()` raises `PendingRollbackError` instead of syncing.
     """
     good_url = "https://ibasketball.co.il/league/2026-1/"
-    _make_team(
-        db_session, slug="gush-ball-a", league_url="https://ibasketball.co.il/league/broken/"
-    )
+    _make_team(db_session, slug="gush-ball-a", league_url="https://ibasketball.co.il/league/broken/")
     _make_team(db_session, slug="gush-ball-b", league_url=good_url)
 
     monkeypatch.setattr(scrape_standings, "_get_html", lambda url: FIXTURE_HTML)

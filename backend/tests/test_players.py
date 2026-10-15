@@ -177,7 +177,9 @@ def test_player_out_includes_images(admin_client: TestClient, team: Team) -> Non
     player_id = created["id"]
     assert created["images"] == []
 
-    admin_client.post(f"/players/{player_id}/images", json={"url": "https://example.com/dana.jpg"})
+    admin_client.post(
+        f"/players/{player_id}/images", json={"url": "https://example.com/dana.jpg"}
+    )
 
     list_response = admin_client.get(f"/teams/{team.id}/players")
     player = list_response.json()[0]
@@ -228,7 +230,9 @@ def test_get_player_unknown_404(client: TestClient) -> None:
     assert client.get("/players/999999").status_code == 404
 
 
-def test_get_player_soft_deleted_404(client: TestClient, db_session: Session, team: Team) -> None:
+def test_get_player_soft_deleted_404(
+    client: TestClient, db_session: Session, team: Team
+) -> None:
     player = Player(team_id=team.id, name="Gone", deleted_at=datetime.now(UTC))
     db_session.add(player)
     db_session.commit()
@@ -245,9 +249,7 @@ def test_player_image_out_includes_focus_fields(admin_client: TestClient, team: 
     assert (body["focus_x"], body["focus_y"], body["zoom"]) == (None, None, None)
 
 
-def test_patch_player_null_name_rejected(
-    admin_client: TestClient, db_session: Session, team: Team
-) -> None:
+def test_patch_player_null_name_rejected(admin_client: TestClient, db_session: Session, team: Team) -> None:
     player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
 
     response = admin_client.patch(f"/teams/{team.id}/players/{player_id}", json={"name": None})
@@ -271,25 +273,14 @@ def _make_user(db: Session, username: str, *memberships: Membership) -> AdminUse
     return user
 
 
-def _login_user(
-    client: TestClient, db: Session, username: str, *memberships: Membership
-) -> AdminUser:
+def _login_user(client: TestClient, db: Session, username: str, *memberships: Membership) -> AdminUser:
     user = _make_user(db, username, *memberships)
-    assert (
-        client.post(
-            "/auth/login", json={"username": username, "password": "password123"}
-        ).status_code
-        == 200
-    )
+    assert client.post("/auth/login", json={"username": username, "password": "password123"}).status_code == 200
     return user
 
 
-def _player(
-    db: Session, team: Team, name: str = "P", user: AdminUser | None = None, number: int | None = 5
-) -> Player:
-    player = Player(
-        team_id=team.id, name=name, jersey_number=number, user_id=user.id if user else None
-    )
+def _player(db: Session, team: Team, name: str = "P", user: AdminUser | None = None, number: int | None = 5) -> Player:
+    player = Player(team_id=team.id, name=name, jersey_number=number, user_id=user.id if user else None)
     db.add(player)
     db.commit()
     return player
@@ -312,9 +303,7 @@ def test_player_user_fk_is_set_null_and_not_unique(db_session: Session, own_team
     assert db_session.get(Player, player.id) is not None
 
 
-def test_public_player_responses_never_expose_user_id(
-    client: TestClient, db_session: Session, own_team: Team
-) -> None:
+def test_public_player_responses_never_expose_user_id(client: TestClient, db_session: Session, own_team: Team) -> None:
     player = _player(db_session, own_team, user=_make_user(db_session, "u"))
     assert "user_id" not in client.get(f"/players/{player.id}").json()
     assert "user_id" not in client.get(f"/teams/{own_team.id}/players").json()[0]
@@ -340,42 +329,28 @@ def test_link_requires_covering_grant(
     elsewhere = _make_user(db_session, "e", Membership(team_id=other_team.id, role="member"))
     player = _player(db_session, own_team)
     for user in (pending, elsewhere):
-        response = team_admin_client.patch(
-            f"/teams/{own_team.id}/players/{player.id}", json={"user_id": user.id}
-        )
+        response = team_admin_client.patch(f"/teams/{own_team.id}/players/{player.id}", json={"user_id": user.id})
         assert response.status_code == 422
         assert str(user.id) in response.json()["detail"]
 
 
-def test_link_accepts_club_member(
-    club_admin_client: TestClient, db_session: Session, sibling_team: Team
-) -> None:
+def test_link_accepts_club_member(club_admin_client: TestClient, db_session: Session, sibling_team: Team) -> None:
     member = _make_user(db_session, "cm", Membership(club="Gush", role="member"))
     player = _player(db_session, sibling_team)
-    response = club_admin_client.patch(
-        f"/teams/{sibling_team.id}/players/{player.id}", json={"user_id": member.id}
-    )
+    response = club_admin_client.patch(f"/teams/{sibling_team.id}/players/{player.id}", json={"user_id": member.id})
     assert response.status_code == 200
 
 
-def test_link_outside_scope_403(
-    team_admin_client: TestClient, db_session: Session, other_team: Team
-) -> None:
+def test_link_outside_scope_403(team_admin_client: TestClient, db_session: Session, other_team: Team) -> None:
     player = _player(db_session, other_team)
-    response = team_admin_client.patch(
-        f"/teams/{other_team.id}/players/{player.id}", json={"user_id": 1}
-    )
+    response = team_admin_client.patch(f"/teams/{other_team.id}/players/{player.id}", json={"user_id": 1})
     assert response.status_code == 403
 
 
-def test_linked_user_edits_own_name(
-    client: TestClient, db_session: Session, own_team: Team
-) -> None:
+def test_linked_user_edits_own_name(client: TestClient, db_session: Session, own_team: Team) -> None:
     user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
     player = _player(db_session, own_team, user=user)
-    response = client.patch(
-        f"/teams/{own_team.id}/players/{player.id}", json={"name": "New", "name_en": "New EN"}
-    )
+    response = client.patch(f"/teams/{own_team.id}/players/{player.id}", json={"name": "New", "name_en": "New EN"})
     assert response.status_code == 200
     assert response.json()["name"] == "New"
 
@@ -391,16 +366,11 @@ def test_linked_user_cannot_change_admin_fields(
     assert field in response.json()["detail"]
 
 
-def test_linked_user_cannot_edit_other_player(
-    client: TestClient, db_session: Session, own_team: Team
-) -> None:
+def test_linked_user_cannot_edit_other_player(client: TestClient, db_session: Session, own_team: Team) -> None:
     user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
     _player(db_session, own_team, user=user)
     other = _player(db_session, own_team, name="Other")
-    assert (
-        client.patch(f"/teams/{own_team.id}/players/{other.id}", json={"name": "X"}).status_code
-        == 403
-    )
+    assert client.patch(f"/teams/{own_team.id}/players/{other.id}", json={"name": "X"}).status_code == 403
 
 
 def test_linked_user_manages_own_images_only(
@@ -413,15 +383,10 @@ def test_linked_user_manages_own_images_only(
     created = client.post(f"/players/{mine.id}/images", json={"url": "https://x.test/a.png"})
     assert created.status_code == 201
     assert client.delete(f"/players/{mine.id}/images/{created.json()['id']}").status_code == 204
-    assert (
-        client.post(f"/players/{other.id}/images", json={"url": "https://x.test/a.png"}).status_code
-        == 403
-    )
+    assert client.post(f"/players/{other.id}/images", json={"url": "https://x.test/a.png"}).status_code == 403
 
 
-def test_linked_user_cannot_delete_or_restore(
-    client: TestClient, db_session: Session, own_team: Team
-) -> None:
+def test_linked_user_cannot_delete_or_restore(client: TestClient, db_session: Session, own_team: Team) -> None:
     user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
     player = _player(db_session, own_team, user=user)
     url = f"/teams/{own_team.id}/players/{player.id}"
@@ -430,11 +395,7 @@ def test_linked_user_cannot_delete_or_restore(
 
 
 def test_linkable_users_scoped_to_team(
-    team_admin_client: TestClient,
-    db_session: Session,
-    own_team: Team,
-    sibling_team: Team,
-    other_team: Team,
+    team_admin_client: TestClient, db_session: Session, own_team: Team, sibling_team: Team, other_team: Team
 ) -> None:
     _make_user(db_session, "team_member", Membership(team_id=own_team.id, role="member"))
     _make_user(db_session, "club_member", Membership(club="Gush", role="member"))
@@ -447,9 +408,7 @@ def test_linkable_users_scoped_to_team(
     assert {"team_member", "club_member"} <= usernames
     assert not {"pending", "elsewhere"} & usernames
     assert all(set(r) == {"id", "username", "display_name"} for r in rows)
-    assert (
-        team_admin_client.get(f"/teams/{other_team.id}/players/linkable-users").status_code == 403
-    )
+    assert team_admin_client.get(f"/teams/{other_team.id}/players/linkable-users").status_code == 403
 
 
 def test_linkable_users_ignores_club_grants_for_clubless_team(
@@ -461,9 +420,7 @@ def test_linkable_users_ignores_club_grants_for_clubless_team(
     assert "x" not in {r["username"] for r in rows}
 
 
-def test_me_lists_linked_player_ids(
-    client: TestClient, db_session: Session, own_team: Team
-) -> None:
+def test_me_lists_linked_player_ids(client: TestClient, db_session: Session, own_team: Team) -> None:
     user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
     mine = _player(db_session, own_team, user=user)
     gone = _player(db_session, own_team, name="Gone", user=user)
@@ -479,30 +436,13 @@ def test_linked_user_cannot_attach_external_photo_url(
     monkeypatch.setattr(settings, "object_storage_public_url", "https://cdn.test")
     user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
     mine = _player(db_session, own_team, user=user)
-    assert (
-        client.post(
-            f"/players/{mine.id}/images", json={"url": "https://evil.test/a.png"}
-        ).status_code
-        == 422
-    )
-    assert (
-        client.post(
-            f"/players/{mine.id}/images", json={"url": "https://cdn.test.evil.test/a.png"}
-        ).status_code
-        == 422
-    )
-    assert (
-        client.post(
-            f"/players/{mine.id}/images", json={"url": "https://cdn.test/a.png"}
-        ).status_code
-        == 201
-    )
+    assert client.post(f"/players/{mine.id}/images", json={"url": "https://evil.test/a.png"}).status_code == 422
+    assert client.post(f"/players/{mine.id}/images", json={"url": "https://cdn.test.evil.test/a.png"}).status_code == 422
+    assert client.post(f"/players/{mine.id}/images", json={"url": "https://cdn.test/a.png"}).status_code == 201
 
 
 @pytest.mark.parametrize("field", ["name", "name_en"])
-def test_patch_player_name_over_120_chars_is_422(
-    admin_client: TestClient, team: Team, field: str
-) -> None:
+def test_patch_player_name_over_120_chars_is_422(admin_client: TestClient, team: Team, field: str) -> None:
     player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
     response = admin_client.patch(f"/teams/{team.id}/players/{player_id}", json={field: "x" * 121})
     assert response.status_code == 422

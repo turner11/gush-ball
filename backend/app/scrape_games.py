@@ -110,9 +110,7 @@ def _focus(img_w: int, img_h: int, face: tuple[int, int, int, int]) -> tuple[flo
 def _largest_face(gray) -> tuple[int, int, int, int] | None:
     """(x, y, w, h) of the largest face in a grayscale image, or None."""
     m = min(gray.shape)
-    faces = _CASCADE.detectMultiScale(
-        gray, scaleFactor=1.1, minNeighbors=5, minSize=(m // 10, m // 10)
-    )
+    faces = _CASCADE.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(m // 10, m // 10))
     if len(faces) == 0:
         return None
     return tuple(int(v) for v in max(faces, key=lambda f: f[2] * f[3]))
@@ -169,19 +167,11 @@ def _page_club(db: Session, current: str | None, name: str, url: str) -> str | N
     """The club name for a team page's club link. Fill-only: keeps the team's `current` club, fills a missing club
     url, and never renames a club or takes a url another club already owns (None, with a warning)."""
     by_url = db.scalar(select(Club).where(Club.ibasketball_url == url))
-    club = (
-        get_or_create_club(db, current) if current else by_url or get_or_create_club(db, name[:120])
-    )
+    club = get_or_create_club(db, current) if current else by_url or get_or_create_club(db, name[:120])
     if club.ibasketball_url is None and by_url is None:
         club.ibasketball_url = url
     if club.ibasketball_url != url:
-        log.warning(
-            "Club %r has url %s, page says %s (%r); not changing",
-            club.name,
-            club.ibasketball_url,
-            url,
-            name,
-        )
+        log.warning("Club %r has url %s, page says %s (%r); not changing", club.name, club.ibasketball_url, url, name)
         return None
     return club.name
 
@@ -210,9 +200,7 @@ def _roll_league(db: Session, team: Team, league_ids: list[int]) -> None:
     candidates = [league.url for league in leagues if league.ibasketball_id in league_ids]
     if len(candidates) != 1:
         team.league_url_suggestion = None
-        log.info(
-            "Team %s: %d current-season league candidates, not moving", team.slug, len(candidates)
-        )
+        log.info("Team %s: %d current-season league candidates, not moving", team.slug, len(candidates))
         return
     if team.league_url_overridden:
         team.league_url_suggestion = candidates[0]
@@ -226,9 +214,7 @@ def _roll_league(db: Session, team: Team, league_ids: list[int]) -> None:
 def _resolve_opponent(db: Session, data: dict[str, Any]) -> Opponent:
     name = html.unescape(data["title"]["rendered"])
     opponent = get_or_create_opponent(db, name)
-    opponent.source_url = http_url_or_none(
-        data["link"]
-    )  # the link is the source id: newest published link wins
+    opponent.source_url = http_url_or_none(data["link"])  # the link is the source id: newest published link wins
     if opponent.logo_url is None:
         media = data.get("_embedded", {}).get("wp:featuredmedia") or []
         opponent.logo_url = http_url_or_none(media[0]["source_url"]) if media else None
@@ -325,9 +311,7 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
             opponent_score = None
 
         # Per-team lookup: a derby event is one row per club team, and another team's row is never touched.
-        game = db.scalar(
-            select(Game).where(Game.team_id == team.id, Game.source_event_id == event["id"])
-        )
+        game = db.scalar(select(Game).where(Game.team_id == team.id, Game.source_event_id == event["id"]))
 
         if opp_sp_id not in opponents:
             opponents[opp_sp_id] = _resolve_opponent(db, opponent_details[opp_sp_id])

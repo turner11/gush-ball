@@ -29,9 +29,7 @@ class Team(Base):
     background: Mapped[str] = mapped_column(String(500), default="hoop-1", server_default="hoop-1")
 
     # A Club by its unique name; groups teams and keys club-admin scope. A rename cascades.
-    club: Mapped[str | None] = mapped_column(
-        String(120), ForeignKey("clubs.name", onupdate="CASCADE"), default=None
-    )
+    club: Mapped[str | None] = mapped_column(String(120), ForeignKey("clubs.name", onupdate="CASCADE"), default=None)
     home_court_address: Mapped[str | None] = mapped_column(String(300), default=None)
 
     facebook_url: Mapped[str | None] = mapped_column(String(500), default=None)
@@ -48,19 +46,9 @@ class Team(Base):
     league_url_overridden: Mapped[bool] = mapped_column(default=False, server_default=false())
     league_url_suggestion: Mapped[str | None] = mapped_column(String(500), default=None)
 
-    players: Mapped[list["Player"]] = relationship(
-        back_populates="team", cascade="all, delete-orphan"
-    )
-    links: Mapped[list["TeamLink"]] = relationship(
-        back_populates="team", cascade="all, delete-orphan"
-    )
-    videos: Mapped[list["TeamVideo"]] = relationship(
-        back_populates="team", cascade="all, delete-orphan"
-    )
-    images: Mapped[list["TeamImage"]] = relationship(
-        back_populates="team", cascade="all, delete-orphan"
-    )
-    posts: Mapped[list["TeamPost"]] = relationship(
-        back_populates="team", cascade="all, delete-orphan"
-    )
+    players: Mapped[list["Player"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    links: Mapped[list["TeamLink"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    videos: Mapped[list["TeamVideo"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    images: Mapped[list["TeamImage"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    posts: Mapped[list["TeamPost"]] = relationship(back_populates="team", cascade="all, delete-orphan")
     games: Mapped[list["Game"]] = relationship(back_populates="team", cascade="all, delete-orphan")

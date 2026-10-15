@@ -30,9 +30,7 @@ class UserOut(BaseModel):
 def list_users(_admin_id: RequireAdmin, db: DbSession) -> list[UserOut]:
     # ponytail: no server-side search/pagination; add ?q= when the list passes a few hundred
     users = db.execute(
-        select(AdminUser.id, AdminUser.username, AdminUser.display_name, AdminUser.email).order_by(
-            AdminUser.username
-        )
+        select(AdminUser.id, AdminUser.username, AdminUser.display_name, AdminUser.email).order_by(AdminUser.username)
     ).all()
     grants: dict[int, list[UserMembershipOut]] = {}
     rows = db.execute(
@@ -41,12 +39,9 @@ def list_users(_admin_id: RequireAdmin, db: DbSession) -> list[UserOut]:
         .order_by(Membership.id)
     )
     for user_id, team_id, team_name, club, role in rows:
-        grants.setdefault(user_id, []).append(
-            UserMembershipOut(team_id=team_id, team_name=team_name, club=club, role=role)
-        )
+        grants.setdefault(user_id, []).append(UserMembershipOut(team_id=team_id, team_name=team_name, club=club, role=role))
     return [
-        UserOut(id=i, username=u, display_name=d, email=e, memberships=grants.get(i, []))
-        for i, u, d, e in users
+        UserOut(id=i, username=u, display_name=d, email=e, memberships=grants.get(i, [])) for i, u, d, e in users
     ]
 
 

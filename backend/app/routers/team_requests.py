@@ -61,9 +61,7 @@ class TeamRequestOut(BaseModel):
 
 def _on_site(db: DbSession, url: str) -> bool:
     code = scrape_club._team_code(url)
-    urls = db.scalars(
-        select(Team.ibasketball_team_url).where(Team.ibasketball_team_url.is_not(None))
-    )
+    urls = db.scalars(select(Team.ibasketball_team_url).where(Team.ibasketball_team_url.is_not(None)))
     return any(scrape_club._team_code(u) == code for u in urls)
 
 
@@ -72,9 +70,7 @@ def _approve(db: DbSession, row: TeamRequest) -> Team:
     if _on_site(db, row.ibasketball_team_url):
         raise HTTPException(status.HTTP_409_CONFLICT, ON_SITE)
     named = [{"name": row.name}]
-    scrape_club._suggest_names(
-        named, set(db.scalars(select(Team.name)))
-    )  # same " 2" dedupe as the club import
+    scrape_club._suggest_names(named, set(db.scalars(select(Team.name))))  # same " 2" dedupe as the club import
     team = teams.new_team(
         db,
         {
@@ -113,28 +109,16 @@ def request_team(
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "ibasketball unreachable") from None
     # name, logo and url come from the server-side feed, never the body (the url is fetched later: SSRF)
     code = scrape_club._team_code(payload.ibasketball_team_url)
-    entry = next(
-        (r for r in feed if code and scrape_club._team_code(r["ibasketball_team_url"]) == code),
-        None,
-    )
+    entry = next((r for r in feed if code and scrape_club._team_code(r["ibasketball_team_url"]) == code), None)
     if entry is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Team {payload.ibasketball_team_url} not in league {payload.league_id}",
-        )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Team {payload.ibasketball_team_url} not in league {payload.league_id}")
     if entry["team_id"] is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, ON_SITE)
     # ponytail: pre-check for a clean 409; a concurrent double-submit hits the unique index (500), harmless
     if entry["requested"]:
         raise HTTPException(status.HTTP_409_CONFLICT, ALREADY_REQUESTED)
-    pending = db.scalars(
-        select(TeamRequest.id).where(
-            TeamRequest.user_id == user.id, TeamRequest.status == "pending"
-        )
-    )
-    if (
-        not user.is_full_admin and len(pending.all()) >= MAX_PENDING
-    ):  # before the fetch: the cap is what bounds it
+    pending = db.scalars(select(TeamRequest.id).where(TeamRequest.user_id == user.id, TeamRequest.status == "pending"))
+    if not user.is_full_admin and len(pending.all()) >= MAX_PENDING:  # before the fetch: the cap is what bounds it
         raise HTTPException(status.HTTP_409_CONFLICT, TOO_MANY)
     club = scrape_games.team_page_club(db, entry["ibasketball_team_url"])
     auto = can_approve_team_request(db, user, club)
@@ -192,9 +176,7 @@ def _pending_in_scope(db: DbSession, admin: AdminUser, request_id: int) -> TeamR
 
 
 @router.post("/{request_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
-def approve(
-    request_id: int, admin: RequireAnyAdmin, db: DbSession, background_tasks: BackgroundTasks
-) -> Response:
+def approve(request_id: int, admin: RequireAnyAdmin, db: DbSession, background_tasks: BackgroundTasks) -> Response:
     team = _approve(db, _pending_in_scope(db, admin, request_id))
     db.commit()
     _start_sync(background_tasks, team)

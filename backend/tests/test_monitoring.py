@@ -15,13 +15,7 @@ def test_init_sentry_is_noop_without_dsn(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_init_sentry_sends_no_pii(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        monitoring,
-        "settings",
-        SimpleNamespace(
-            sentry_dsn="https://k@o1.ingest.sentry.io/2", sentry_traces_sample_rate=0.1
-        ),
-    )
+    monkeypatch.setattr(monitoring, "settings", SimpleNamespace(sentry_dsn="https://k@o1.ingest.sentry.io/2", sentry_traces_sample_rate=0.1))
     calls: list[dict] = []
     monkeypatch.setattr(monitoring.sentry_sdk, "init", lambda **kw: calls.append(kw))
     monitoring.init_sentry()
@@ -37,11 +31,7 @@ def test_init_sentry_sends_no_pii(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_init_sentry_enables_tracing_without_leaking(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        monitoring,
-        "settings",
-        SimpleNamespace(
-            sentry_dsn="https://k@o1.ingest.sentry.io/2", sentry_traces_sample_rate=0.1
-        ),
+        monitoring, "settings", SimpleNamespace(sentry_dsn="https://k@o1.ingest.sentry.io/2", sentry_traces_sample_rate=0.1)
     )
     calls: list[dict] = []
     monkeypatch.setattr(monitoring.sentry_sdk, "init", lambda **kw: calls.append(kw))

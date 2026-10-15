@@ -56,10 +56,7 @@ RequireUser = Annotated[AdminUser, Depends(current_user)]
 def is_admin(db: Session, user: AdminUser) -> bool:
     if user.is_full_admin:
         return True
-    return (
-        db.scalar(select(exists().where(Membership.user_id == user.id, Membership.role == "admin")))
-        is True
-    )
+    return db.scalar(select(exists().where(Membership.user_id == user.id, Membership.role == "admin"))) is True
 
 
 def current_admin(request: Request, user: RequireUser, db: DbSession) -> AdminUser:
@@ -107,23 +104,17 @@ def can_write_team(db: Session, user: AdminUser | None, team_id: int) -> bool:
 
 def check_team_scope(db: Session, admin: AdminUser, team_id: int) -> None:
     if not can_write_team(db, admin, team_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
 
 
-def check_admin_grant(
-    db: Session, admin: AdminUser, team: Team, scope: Literal["team", "club"]
-) -> None:
+def check_admin_grant(db: Session, admin: AdminUser, team: Team, scope: Literal["team", "club"]) -> None:
     """Who may grant or revoke admin on `team`: a full admin always; a club admin only team-scope grants on
     teams of their own club. Never club grants, never outside the club."""
     if admin.is_full_admin:
         return
     if scope == "team" and team.club is not None and team.club in admin_clubs(db, admin):
         return
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to manage admins for this team"
-    )
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to manage admins for this team")
 
 
 def can_approve_team_request(db: Session, user: AdminUser, club: str | None) -> bool:
@@ -136,10 +127,7 @@ def check_membership_scope(db: Session, admin: AdminUser, row: Membership) -> No
     if row.team_id is not None:
         check_team_scope(db, admin, row.team_id)
     elif not admin.is_full_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only a full admin can manage club memberships",
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only a full admin can manage club memberships")
 
 
 SELF_EDITABLE_PLAYER_FIELDS = {"name", "name_en"}
@@ -153,14 +141,11 @@ def check_player_self_or_team_admin(
     if can_write_team(db, user, player.team_id):
         return
     if player.user_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
     blocked = sorted(set(fields) - SELF_EDITABLE_PLAYER_FIELDS)
     if blocked:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Only an admin can change: {', '.join(blocked)}",
+            status_code=status.HTTP_403_FORBIDDEN, detail=f"Only an admin can change: {', '.join(blocked)}"
         )
 
 
@@ -178,9 +163,7 @@ def check_not_last_full_admin(db: Session, user: AdminUser) -> None:
     """409 when `user` is the only full admin left. Locks the full-admin rows so two concurrent deletes can't both pass."""
     if not user.is_full_admin:
         return
-    full_admin_ids = db.scalars(
-        select(AdminUser.id).where(AdminUser.is_full_admin.is_(True)).with_for_update()
-    ).all()
+    full_admin_ids = db.scalars(select(AdminUser.id).where(AdminUser.is_full_admin.is_(True)).with_for_update()).all()
     if len(full_admin_ids) <= 1:
         raise HTTPException(status.HTTP_409_CONFLICT, "לא ניתן למחוק את המנהל הראשי האחרון")
 
@@ -215,9 +198,7 @@ RequireUploader = Annotated[AdminUser, Depends(require_uploader)]
 
 def require_stats_viewer(user: RequireUser, db: DbSession) -> AdminUser:
     if not can_view_stats(db, user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Stats are for approved members"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Stats are for approved members")
     return user
 
 

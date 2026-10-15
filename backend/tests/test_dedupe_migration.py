@@ -7,9 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Game, LineupSnapshot, Opponent, Player, PlayerImage, Team, TeamVideo
 
-_path = next(
-    (Path(__file__).resolve().parents[1] / "alembic" / "versions").glob("f5ecfce52374_*.py")
-)
+_path = next((Path(__file__).resolve().parents[1] / "alembic" / "versions").glob("f5ecfce52374_*.py"))
 _spec = importlib.util.spec_from_file_location("dedupe_migration", _path)
 migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)
@@ -22,13 +20,7 @@ def _games(db: Session, team: Team) -> tuple[Game, Game]:
     db.add(opp)
     db.flush()
     twins = [
-        Game(
-            team_id=team.id,
-            opponent_id=opp.id,
-            scheduled_at=datetime(2026, 1, 1, 20, tzinfo=UTC),
-            source_event_id=ev,
-            **kw,
-        )
+        Game(team_id=team.id, opponent_id=opp.id, scheduled_at=datetime(2026, 1, 1, 20, tzinfo=UTC), source_event_id=ev, **kw)
         for ev, kw in ((10, {}), (20, {"needs_review": True}))
     ]
     db.add_all(twins)
@@ -50,11 +42,7 @@ def test_game_twins_without_admin_data_keep_published_row_at_newest_event(db_ses
 
 def test_game_twins_keep_the_one_with_stats(db_session, own_team):
     _, new = _games(db_session, own_team)
-    db_session.add(
-        LineupSnapshot(
-            game_id=new.id, players=[1, 2, 3, 4, 5], elapsed=1.0, offense_diff=0, defence_diff=0
-        )
-    )
+    db_session.add(LineupSnapshot(game_id=new.id, players=[1, 2, 3, 4, 5], elapsed=1.0, offense_diff=0, defence_diff=0))
     db_session.commit()
     (kept,) = _run_games(db_session)
     assert (kept.id, kept.source_event_id) == (new.id, 20)

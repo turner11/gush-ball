@@ -15,12 +15,8 @@ class AdminUser(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     # ponytail: defaults to the username at insert so every existing constructor keeps working; users edit it freely.
-    display_name: Mapped[str] = mapped_column(
-        String(80), default=lambda ctx: ctx.get_current_parameters()["username"]
-    )
-    email: Mapped[str | None] = mapped_column(
-        String(254), unique=True, index=True, default=None
-    )  # lowercase
+    display_name: Mapped[str] = mapped_column(String(80), default=lambda ctx: ctx.get_current_parameters()["username"])
+    email: Mapped[str | None] = mapped_column(String(254), unique=True, index=True, default=None)  # lowercase
     password_hash: Mapped[str] = mapped_column(String(255))
     is_full_admin: Mapped[bool] = mapped_column(default=False, server_default=sa.false())
     # Bumped on logout so every session cookie issued before it stops working.

@@ -5,7 +5,6 @@ Revises: bbbd8196241a
 Create Date: 2026-10-14 11:20:41.872821
 
 """
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -13,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a5bfd3c0a188"
-down_revision: str | Sequence[str] | None = "bbbd8196241a"
+revision: str = 'a5bfd3c0a188'
+down_revision: str | Sequence[str] | None = 'bbbd8196241a'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -31,9 +30,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "UPDATE teams SET background = 'hoop-1' WHERE background NOT IN ('hoop-1', 'hoop-2')"
-    )
+    op.execute("UPDATE teams SET background = 'hoop-1' WHERE background NOT IN ('hoop-1', 'hoop-2')")
     op.alter_column(
         "teams",
         "background",

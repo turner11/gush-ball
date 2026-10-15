@@ -23,9 +23,7 @@ class GameStatus(enum.Enum):
 class Game(Base):
     __tablename__ = "games"
     # Per team, not global: a derby (one event, two club teams) is one row per side.
-    __table_args__ = (
-        UniqueConstraint("team_id", "source_event_id", name="uq_games_team_source_event"),
-    )
+    __table_args__ = (UniqueConstraint("team_id", "source_event_id", name="uq_games_team_source_event"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # >=1 snapshot; EXISTS in the same SELECT so game lists stay one query.

@@ -13,9 +13,7 @@ class TeamRequest(Base):
 
     __tablename__ = "team_requests"
     __table_args__ = (
-        CheckConstraint(
-            "status IN ('pending','approved','rejected')", name="ck_team_requests_status"
-        ),
+        CheckConstraint("status IN ('pending','approved','rejected')", name="ck_team_requests_status"),
         # one pending request per ibasketball team; a rejected one frees it
         Index(
             "uq_team_requests_pending_url",
@@ -27,17 +25,11 @@ class TeamRequest(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("admin_users.id", ondelete="CASCADE"), index=True
-    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("admin_users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
     logo_url: Mapped[str | None] = mapped_column(String(500), default=None)
     ibasketball_team_url: Mapped[str] = mapped_column(String(500))
     ibasketball_league_url: Mapped[str] = mapped_column(String(500))
-    club: Mapped[str | None] = mapped_column(
-        String(120), ForeignKey("clubs.name", onupdate="CASCADE"), default=None
-    )
+    club: Mapped[str | None] = mapped_column(String(120), ForeignKey("clubs.name", onupdate="CASCADE"), default=None)
     status: Mapped[str] = mapped_column(String(10), default="pending")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

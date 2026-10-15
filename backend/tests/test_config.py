@@ -10,9 +10,7 @@ def test_settings_requires_session_secret(monkeypatch):
         Settings(_env_file=None)
 
 
-@pytest.mark.parametrize(
-    "secret", ["dev-secret-change-me", "short", "replace-with-a-random-value-of-at-least-32-chars"]
-)
+@pytest.mark.parametrize("secret", ["dev-secret-change-me", "short", "replace-with-a-random-value-of-at-least-32-chars"])
 def test_settings_rejects_short_or_default_secret(monkeypatch, secret):
     monkeypatch.setenv("SESSION_SECRET", secret)
     with pytest.raises(ValidationError):

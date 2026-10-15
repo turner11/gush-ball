@@ -31,31 +31,19 @@ def test_anonymous_cannot_request_or_list(client: TestClient, own_team: Team) ->
     assert client.get("/memberships").status_code == 401
 
 
-def test_join_request_is_always_pending(
-    client: TestClient, db_session: Session, own_team: Team
-) -> None:
+def test_join_request_is_always_pending(client: TestClient, db_session: Session, own_team: Team) -> None:
     _login_user(client, db_session, "player")
-    r = client.post(
-        "/memberships", json={"team_id": own_team.id, "role": "admin", "is_full_admin": True}
-    )
+    r = client.post("/memberships", json={"team_id": own_team.id, "role": "admin", "is_full_admin": True})
     assert r.status_code == 201 and r.json()["role"] == "pending"
     me = client.get("/auth/me").json()
     assert me["is_admin"] is False
     assert [(m["team_id"], m["role"]) for m in me["memberships"]] == [(own_team.id, "pending")]
-    assert (
-        db_session.scalar(select(AdminUser.is_full_admin).where(AdminUser.username == "player"))
-        is False
-    )
+    assert db_session.scalar(select(AdminUser.is_full_admin).where(AdminUser.username == "player")) is False
 
 
-def test_join_requires_exactly_one_existing_scope(
-    client: TestClient, db_session: Session, sibling_team: Team
-) -> None:
+def test_join_requires_exactly_one_existing_scope(client: TestClient, db_session: Session, sibling_team: Team) -> None:
     _login_user(client, db_session, "player")
-    assert (
-        client.post("/memberships", json={"team_id": sibling_team.id, "club": "Gush"}).status_code
-        == 422
-    )
+    assert client.post("/memberships", json={"team_id": sibling_team.id, "club": "Gush"}).status_code == 422
     assert client.post("/memberships", json={}).status_code == 422
     assert client.post("/memberships", json={"team_id": 9999}).status_code == 404
     assert client.post("/memberships", json={"club": "Nope"}).status_code == 404
@@ -66,27 +54,16 @@ def test_duplicate_or_existing_membership_is_409(
     team_admin_client: TestClient, db_session: Session, own_team: Team
 ) -> None:
     client = team_admin_client
-    assert (
-        client.post("/memberships", json={"team_id": own_team.id}).status_code == 409
-    )  # already its admin
+    assert client.post("/memberships", json={"team_id": own_team.id}).status_code == 409  # already its admin
     client.post("/auth/logout")
     _login_user(client, db_session, "player")
     assert client.post("/memberships", json={"team_id": own_team.id}).status_code == 201
     assert client.post("/memberships", json={"team_id": own_team.id}).status_code == 409
-    assert (
-        db_session.scalar(
-            select(func.count(Membership.id)).where(Membership.team_id == own_team.id)
-        )
-        == 2
-    )
+    assert db_session.scalar(select(func.count(Membership.id)).where(Membership.team_id == own_team.id)) == 2
 
 
 def test_list_is_scoped(
-    request: pytest.FixtureRequest,
-    db_session: Session,
-    own_team: Team,
-    sibling_team: Team,
-    other_team: Team,
+    request: pytest.FixtureRequest, db_session: Session, own_team: Team, sibling_team: Team, other_team: Team
 ) -> None:
     _pending(
         db_session,
@@ -96,11 +73,7 @@ def test_list_is_scoped(
         Membership(club="Gush", role="pending"),
         Membership(team_id=own_team.id, role="member"),
     )
-    for fixture, count in {
-        "admin_client": 5,
-        "team_admin_client": 2,
-        "club_admin_client": 3,
-    }.items():
+    for fixture, count in {"admin_client": 5, "team_admin_client": 2, "club_admin_client": 3}.items():
         client = request.getfixturevalue(fixture)
         response = client.get("/memberships")
         assert response.status_code == 200
@@ -135,9 +108,7 @@ def test_team_admin_approves_own_team_request_only(
     team_admin_client: TestClient, db_session: Session, own_team: Team, other_team: Team
 ) -> None:
     mine, theirs = _pending(
-        db_session,
-        Membership(team_id=own_team.id, role="pending"),
-        Membership(team_id=other_team.id, role="pending"),
+        db_session, Membership(team_id=own_team.id, role="pending"), Membership(team_id=other_team.id, role="pending")
     )
     assert team_admin_client.post(f"/memberships/{mine}/approve").status_code == 204
     assert _role(db_session, mine) == "member"
@@ -170,14 +141,9 @@ def test_club_request_needs_full_admin(
     (club,) = _pending(db_session, Membership(club="Gush", role="pending"))
     assert c.post(f"/memberships/{club}/approve").status_code == 403
     c.post("/auth/logout")
-    db_session.add(
-        AdminUser(username="boss", password_hash=hash_password("password123"), is_full_admin=True)
-    )
+    db_session.add(AdminUser(username="boss", password_hash=hash_password("password123"), is_full_admin=True))
     db_session.commit()
-    assert (
-        c.post("/auth/login", json={"username": "boss", "password": "password123"}).status_code
-        == 200
-    )
+    assert c.post("/auth/login", json={"username": "boss", "password": "password123"}).status_code == 200
     assert c.post(f"/memberships/{club}/approve").status_code == 204
     assert _role(db_session, club) == "member"
 
@@ -190,25 +156,14 @@ def test_approve_never_grants_admin(
     _login_user(c, db_session, "player")
     mid = c.post("/memberships", json={"team_id": own_team.id}).json()["id"]
     c.post("/auth/logout")
-    assert (
-        c.post("/auth/login", json={"username": "teamadmin", "password": "password123"}).status_code
-        == 200
-    )
+    assert c.post("/auth/login", json={"username": "teamadmin", "password": "password123"}).status_code == 200
     assert c.post(f"/memberships/{mid}/approve").status_code == 204
     c.post("/auth/logout")
-    assert (
-        c.post("/auth/login", json={"username": "player", "password": "password123"}).status_code
-        == 200
-    )
+    assert c.post("/auth/login", json={"username": "player", "password": "password123"}).status_code == 200
     me = c.get("/auth/me").json()
     assert me["is_admin"] is False and me["team_ids"] == []
     assert [m["role"] for m in me["memberships"]] == ["member"]
-    assert (
-        c.patch(
-            f"/teams/{own_team.id}", json={"facebook_url": "https://facebook.com/x"}
-        ).status_code
-        == 403
-    )
+    assert c.patch(f"/teams/{own_team.id}", json={"facebook_url": "https://facebook.com/x"}).status_code == 403
 
 
 def test_approve_only_pending_and_admin_rows_never_removed(
@@ -216,9 +171,7 @@ def test_approve_only_pending_and_admin_rows_never_removed(
 ) -> None:
     c = team_admin_client
     pending, member = _pending(
-        db_session,
-        Membership(team_id=own_team.id, role="pending"),
-        Membership(team_id=own_team.id, role="member"),
+        db_session, Membership(team_id=own_team.id, role="pending"), Membership(team_id=own_team.id, role="member")
     )
     admin_row = db_session.scalar(select(Membership.id).where(Membership.role == "admin"))
     assert c.post(f"/memberships/{pending}/approve").status_code == 204
@@ -249,20 +202,12 @@ def test_admin_removes_member_in_scope_only(
     c.post("/auth/logout")
     _login_user(c, db_session, "player", Membership(team_id=own_team.id, role="member"))
     assert c.get(f"/teams/{own_team.id}/lineups").status_code == 200
-    player_row = db_session.scalar(
-        select(Membership.id).where(Membership.role == "member", Membership.team_id == own_team.id)
-    )
+    player_row = db_session.scalar(select(Membership.id).where(Membership.role == "member", Membership.team_id == own_team.id))
     c.post("/auth/logout")
-    assert (
-        c.post("/auth/login", json={"username": "teamadmin", "password": "password123"}).status_code
-        == 200
-    )
+    assert c.post("/auth/login", json={"username": "teamadmin", "password": "password123"}).status_code == 200
     assert c.delete(f"/memberships/{player_row}").status_code == 204
     c.post("/auth/logout")
-    assert (
-        c.post("/auth/login", json={"username": "player", "password": "password123"}).status_code
-        == 200
-    )
+    assert c.post("/auth/login", json={"username": "player", "password": "password123"}).status_code == 200
     assert c.get(f"/teams/{own_team.id}/lineups").status_code == 403
     assert c.get("/auth/me").json()["can_view_stats"] is False
 
@@ -301,12 +246,7 @@ def test_reject_deletes_pending_row_and_player_can_ask_again(
     assert client.delete(f"/memberships/{mid}").status_code == 204
     assert _role(db_session, mid) is None
     client.post("/auth/logout")
-    assert (
-        client.post(
-            "/auth/login", json={"username": "player", "password": "password123"}
-        ).status_code
-        == 200
-    )
+    assert client.post("/auth/login", json={"username": "player", "password": "password123"}).status_code == 200
     assert client.post("/memberships", json={"team_id": own_team.id}).status_code == 201
 
 

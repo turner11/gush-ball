@@ -70,9 +70,7 @@ def load_game_stats(
         ) from exc
     except Exception as exc:
         log.exception("stats load failed for game %s (%s)", game_id, url)
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Failed to load stats sheet."
-        ) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Failed to load stats sheet.") from exc
     # Explicit casts: numpy scalars don't serialize to JSON.
     game.lineup_snapshots = [
         LineupSnapshot(

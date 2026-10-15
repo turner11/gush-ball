@@ -24,13 +24,8 @@ def password_fingerprint(password_hash: str) -> str:
 
 
 # no "@": login routes any identifier containing "@" to the email lookup
-Username = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64, pattern=r"^[^@]+$")
-]
+Username = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64, pattern=r"^[^@]+$")]
 # lowercase: login, forgot-password and the Google callback all look emails up lowercase
 Email = Annotated[
-    str,
-    StringConstraints(
-        strip_whitespace=True, to_lower=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$"
-    ),
+    str, StringConstraints(strip_whitespace=True, to_lower=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$")
 ]

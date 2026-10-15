@@ -21,9 +21,7 @@ router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
 club_router = APIRouter(prefix="/games", tags=["games"])
 MAX_CLUB_WINDOW_DAYS = 31
 
-OpponentName = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
-]
+OpponentName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 
 
 class GameCreate(BaseModel):
@@ -55,9 +53,7 @@ def sheet_url(value: str) -> str:
         return f"https://docs.google.com/spreadsheets/d/{v}"
     if re.fullmatch(r"https://docs\.google\.com/spreadsheets/d/[\w-]+(?:[/?#].*)?", v, re.ASCII):
         return v
-    raise HTTPException(
-        status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not a Google Sheet link or sheet ID: {v}"
-    )
+    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not a Google Sheet link or sheet ID: {v}")
 
 
 class OpponentRead(BaseModel):
@@ -145,9 +141,7 @@ def list_games(team_id: int, db: DbSession, user: OptionalUser) -> list[GameRead
 
 
 @club_router.get("", response_model=list[GameRead])
-def list_club_games(
-    db: DbSession, from_: Annotated[date, Query(alias="from")], to: date
-) -> list[GameRead]:
+def list_club_games(db: DbSession, from_: Annotated[date, Query(alias="from")], to: date) -> list[GameRead]:
     """Approved games of every team with from <= day <= to (scheduled_at is naive Israel wall-clock time)."""
     if to < from_ or (to - from_).days > MAX_CLUB_WINDOW_DAYS:
         raise HTTPException(
@@ -179,10 +173,7 @@ def list_pending_review_games(
                 Game.team_id == team_id,
                 or_(
                     Game.needs_review.is_(True),
-                    (
-                        Game.scrape_suggestion.is_not(None)
-                        & Game.scrape_suggestion_dismissed.is_(False)
-                    ),
+                    (Game.scrape_suggestion.is_not(None) & Game.scrape_suggestion_dismissed.is_(False)),
                 ),
             )
         )

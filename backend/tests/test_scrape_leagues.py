@@ -9,18 +9,8 @@ from app import scrape_leagues
 from app.models import League
 
 ROOTS = [
-    {
-        "id": 1,
-        "name": "2025-2026",
-        "link": "https://ibasketball.co.il/league/2025-2026/",
-        "count": 0,
-    },
-    {
-        "id": 2,
-        "name": "2026-2027",
-        "link": "https://ibasketball.co.il/league/2026-2027/",
-        "count": 0,
-    },
+    {"id": 1, "name": "2025-2026", "link": "https://ibasketball.co.il/league/2025-2026/", "count": 0},
+    {"id": 2, "name": "2026-2027", "link": "https://ibasketball.co.il/league/2026-2027/", "count": 0},
     {"id": 3, "name": "19015", "link": "https://ibasketball.co.il/league/19015/", "count": 0},
     {"id": 4, "name": "ליגה", "link": "https://ibasketball.co.il/league/x/", "count": 0},
 ]
@@ -28,14 +18,7 @@ PAGE1 = [
     {"id": 10, "name": "ליגת על", "link": "https://ibasketball.co.il/league/2026-7/", "count": 12},
     {"id": 11, "name": "ריק", "link": "https://ibasketball.co.il/league/2026-8/", "count": 0},
 ]
-PAGE2 = [
-    {
-        "id": 12,
-        "name": "א &#8211; ב",
-        "link": "https://ibasketball.co.il/league/2026-9/",
-        "count": 8,
-    }
-]
+PAGE2 = [{"id": 12, "name": "א &#8211; ב", "link": "https://ibasketball.co.il/league/2026-9/", "count": 8}]
 
 
 def _fake_get(children: dict[int, list[list[dict]]], calls: list[dict]):
@@ -43,9 +26,7 @@ def _fake_get(children: dict[int, list[list[dict]]], calls: list[dict]):
         calls.append(params)
         pages = [ROOTS] if params["parent"] == 0 else children.get(params["parent"], [[]])
         page = params.get("page", 1)
-        return httpx.Response(
-            200, json=pages[page - 1], headers={"X-WP-TotalPages": str(len(pages))}
-        )
+        return httpx.Response(200, json=pages[page - 1], headers={"X-WP-TotalPages": str(len(pages))})
 
     return fake
 

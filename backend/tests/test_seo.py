@@ -49,9 +49,7 @@ def test_sitemap_lists_live_players_only(client, db_session: Session) -> None:
     db_session.add(team)
     db_session.commit()
     live = Player(team_id=team.id, name="חי", jersey_number=1)
-    gone = Player(
-        team_id=team.id, name="נמחק", jersey_number=2, deleted_at=datetime(2026, 1, 1, tzinfo=UTC)
-    )
+    gone = Player(team_id=team.id, name="נמחק", jersey_number=2, deleted_at=datetime(2026, 1, 1, tzinfo=UTC))
     db_session.add_all([live, gone])
     db_session.commit()
 
@@ -94,9 +92,7 @@ def test_og_team_home_and_pages_use_team_name_and_logo(client, db_session: Sessi
     assert '<meta property="og:title" content="אליזור" />' in home
     assert 'property="og:image" content="https://cdn.example/logo.png"' in home
     assert 'property="og:title" content="שחקנים · אליזור"' in _og(client, "/elizur/roster")
-    assert 'property="og:title" content="לוח משחקים · אליזור"' in _og(
-        client, f"/{team.id}/schedule"
-    )
+    assert 'property="og:title" content="לוח משחקים · אליזור"' in _og(client, f"/{team.id}/schedule")
 
 
 def test_og_relative_logo_and_missing_logo_become_absolute(client, db_session: Session) -> None:
@@ -111,17 +107,10 @@ def test_og_player_uses_first_photo_then_team_logo(client, db_session: Session) 
     team = _team(db_session, logo_url="https://cdn.example/logo.png")
     with_photos = Player(team_id=team.id, name="דנה", jersey_number=1)
     bare = Player(team_id=team.id, name="גיל", jersey_number=2)
-    gone = Player(
-        team_id=team.id, name="נמחק", jersey_number=3, deleted_at=datetime(2026, 1, 1, tzinfo=UTC)
-    )
+    gone = Player(team_id=team.id, name="נמחק", jersey_number=3, deleted_at=datetime(2026, 1, 1, tzinfo=UTC))
     db_session.add_all([with_photos, bare, gone])
     db_session.commit()
-    db_session.add_all(
-        [
-            PlayerImage(player_id=with_photos.id, url="https://cdn.example/1.jpg"),
-            PlayerImage(player_id=with_photos.id, url="https://cdn.example/2.jpg"),
-        ]
-    )
+    db_session.add_all([PlayerImage(player_id=with_photos.id, url="https://cdn.example/1.jpg"), PlayerImage(player_id=with_photos.id, url="https://cdn.example/2.jpg")])
     db_session.commit()
 
     body = _og(client, f"/players/{with_photos.id}")
@@ -137,14 +126,7 @@ def test_og_game_title_names_opponent_and_final_score(client, db_session: Sessio
     opponent = Opponent(name="מכבי")
     db_session.add_all([other, opponent])
     db_session.commit()
-    game = Game(
-        team_id=team.id,
-        opponent_id=opponent.id,
-        scheduled_at=datetime(2026, 1, 1, tzinfo=UTC),
-        status=GameStatus.FINAL,
-        team_score=80,
-        opponent_score=70,
-    )
+    game = Game(team_id=team.id, opponent_id=opponent.id, scheduled_at=datetime(2026, 1, 1, tzinfo=UTC), status=GameStatus.FINAL, team_score=80, opponent_score=70)
     db_session.add(game)
     db_session.commit()
 
@@ -154,22 +136,7 @@ def test_og_game_title_names_opponent_and_final_score(client, db_session: Sessio
     assert _og(client, f"/other/games/{game.id}") == ""
 
 
-@pytest.mark.parametrize(
-    "path",
-    [
-        "",
-        "/",
-        "/admin",
-        "/elizur/admin",
-        "/nope",
-        "/elizur/nope",
-        "/players/abc",
-        "/players/999",
-        "/elizur/games/999",
-        "/teams",
-        "/join",
-    ],
-)
+@pytest.mark.parametrize("path", ["", "/", "/admin", "/elizur/admin", "/nope", "/elizur/nope", "/players/abc", "/players/999", "/elizur/games/999", "/teams", "/join"])
 def test_og_unknown_paths_are_empty(client, db_session: Session, path: str) -> None:
     _team(db_session)
     assert _og(client, path) == ""

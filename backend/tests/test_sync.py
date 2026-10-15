@@ -125,11 +125,7 @@ def test_sync_now_defaults_all_kinds_all_teams_auto_accept(
 ) -> None:
     assert admin_client.post("/sync/now", **kwargs).status_code == 202
 
-    assert (stub_scrapers["standings"], stub_scrapers["games"], stub_scrapers["players"]) == (
-        1,
-        1,
-        1,
-    )
+    assert (stub_scrapers["standings"], stub_scrapers["games"], stub_scrapers["players"]) == (1, 1, 1)
     assert stub_scrapers["standings_kw"] == {"team_ids": None}
     assert stub_scrapers["games_kw"] == {"team_ids": None, "auto_accept": True}
     assert stub_scrapers["players_kw"] == {"team_ids": None}
@@ -157,17 +153,11 @@ def test_team_admin_cannot_sync_other_team(
     response = team_admin_client.post("/sync/now", json={"team_ids": [other.id]})
 
     assert response.status_code == 403
-    assert (stub_scrapers["standings"], stub_scrapers["games"], stub_scrapers["players"]) == (
-        0,
-        0,
-        0,
-    )
+    assert (stub_scrapers["standings"], stub_scrapers["games"], stub_scrapers["players"]) == (0, 0, 0)
     assert sync_router._running is False
 
 
-def test_sync_now_rejects_empty_kinds(
-    admin_client: TestClient, stub_scrapers: dict[str, Any]
-) -> None:
+def test_sync_now_rejects_empty_kinds(admin_client: TestClient, stub_scrapers: dict[str, Any]) -> None:
     assert admin_client.post("/sync/now", json={"kinds": []}).status_code == 422
 
 
@@ -247,9 +237,7 @@ def test_team_admin_sync_status_shows_own_failed_run(
     assert body["errors"] == ["boom"]
 
 
-def test_sync_all_runs_each_kind_in_its_own_scrape_transaction(
-    db_session: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_sync_all_runs_each_kind_in_its_own_scrape_transaction(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     import sentry_sdk
 
     seen: dict[str, Any] = {}
@@ -276,9 +264,7 @@ def test_sync_all_runs_each_kind_in_its_own_scrape_transaction(
     }
 
 
-def test_sync_all_refreshes_leagues_only_on_unscoped_run(
-    db_session: Session, stub_scrapers: dict[str, Any]
-) -> None:
+def test_sync_all_refreshes_leagues_only_on_unscoped_run(db_session: Session, stub_scrapers: dict[str, Any]) -> None:
     scrape.sync_all(db_session, team_ids=[1])
     assert stub_scrapers["leagues"] == 0
     scrape.sync_all(db_session)
@@ -289,11 +275,7 @@ def test_sync_all_refreshes_leagues_before_games_and_standings(
     db_session: Session, stub_scrapers: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     order: list[str] = []
-    for kind, attr in [
-        ("leagues", "sync_leagues"),
-        ("games", "sync_all_games"),
-        ("standings", "sync_all_standings"),
-    ]:
+    for kind, attr in [("leagues", "sync_leagues"), ("games", "sync_all_games"), ("standings", "sync_all_standings")]:
         monkeypatch.setattr(scrape, attr, lambda *a, _k=kind, **kw: order.append(_k))
 
     scrape.sync_all(db_session)
