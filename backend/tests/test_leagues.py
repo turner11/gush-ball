@@ -95,13 +95,19 @@ def test_league_teams_cached_for_a_day(
     assert fake_fetch["calls"] == 2
 
 
-def test_league_teams_502_when_ibasketball_fails_and_failure_not_cached(
-    client: TestClient, db_session: Session, fake_fetch: dict
+def test_league_teams_failure_cached_briefly(
+    client: TestClient, db_session: Session, fake_fetch: dict, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _league(db_session)
     fake_fetch["fail"] = True
     assert client.get("/leagues/10/teams").status_code == 502
+    assert client.get("/leagues/10/teams").status_code == 502
+    assert fake_fetch["calls"] == 1
+    now = scrape_league_teams.time.monotonic()
+    monkeypatch.setattr(scrape_league_teams.time, "monotonic", lambda: now + scrape_league_teams.FAIL_TTL + 1)
+    fake_fetch["fail"] = False
     assert client.get("/leagues/10/teams").status_code == 200
+    assert fake_fetch["calls"] == 2
 
 
 def test_league_teams_flags_pending_requests(client: TestClient, db_session: Session, fake_fetch: dict) -> None:

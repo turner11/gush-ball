@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app import storage
 from app.models import AdminUser, Membership, Player, Team
+from app.routers import auth
 from app.routers import uploads as uploads_router
 from app.security import hash_password
 
@@ -145,3 +146,23 @@ def test_upload_allowed_only_for_linked_player_with_grant(
     assert client.post("/auth/login", json={"username": "p", "password": "password123"}).status_code == 200
     response = client.post("/uploads", files={"file": ("a.png", b"x", "image/png")})
     assert response.status_code == expected
+
+
+def test_linked_player_uploads_are_rate_limited_admins_are_not(
+    admin_client: TestClient, db_session: Session, stub_upload_file: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(auth, "_attempts", {})
+    team = Team(name="T", slug="t")
+    user = AdminUser(username="p", password_hash=hash_password("password123"))
+    db_session.add_all([team, user])
+    db_session.flush()
+    db_session.add_all([Player(team_id=team.id, name="P", user_id=user.id), Membership(team_id=team.id, role="member", user_id=user.id)])
+    db_session.commit()
+    upload = {"file": ("a.png", b"x", "image/png")}
+    for _ in range(auth._MAX_ATTEMPTS + 1):
+        assert admin_client.post("/uploads", files=upload).status_code == 201
+    assert admin_client.post("/auth/login", json={"username": "p", "password": "password123"}).status_code == 200
+    for _ in range(auth._MAX_ATTEMPTS):
+        assert admin_client.post("/uploads", files=upload).status_code == 201
+    assert admin_client.post("/uploads", files=upload).status_code == 429

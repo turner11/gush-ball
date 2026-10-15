@@ -112,7 +112,7 @@ def _reserve_attempt(keys: list[str]) -> None:
                 _attempts.pop(key, None)  # never store empty lists (throttled spray would leak)
         if any(len(_attempts.get(key, [])) >= _MAX_ATTEMPTS for key in keys):
             raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many login attempts"
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many attempts"
             )
         for key in keys:
             _attempts.setdefault(key, []).append(now)

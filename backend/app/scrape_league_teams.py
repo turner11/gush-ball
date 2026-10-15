@@ -15,13 +15,16 @@ from app.scrape_games import BASE, ibasketball_url_or_none
 
 log = logging.getLogger(__name__)
 TTL = 24 * 60 * 60
-_cache: dict[int, tuple[float, list[dict]]] = {}
+FAIL_TTL = 60  # a failed fetch is remembered briefly so an ibasketball outage can't tie up every worker thread (#366)
+_cache: dict[int, tuple[float, list[dict] | None]] = {}  # None = recent failure
 
 
 def _fetch(league_ibasketball_id: int) -> list[dict]:
     # ponytail: no crawl delay (user-facing latency), relying on the 1-day cache; bursts of uncached leagues hit
     # ibasketball back-to-back. Route through scrape_games._get_json if that becomes a problem.
     # ponytail: per-process dict, lost on restart, <=1 fetch/league/day; add a lock/shared cache if multiple workers
+    # ponytail: no per-league lock; concurrent hits in the first <=15s of an outage all fetch, then the 60s failure
+    # cache serves them
     # ponytail: one page (per_page=100); a league has far fewer teams
     resp = httpx.get(
         BASE + "/sportspress/v2/teams",
@@ -34,10 +37,17 @@ def _fetch(league_ibasketball_id: int) -> list[dict]:
 
 def _raw_teams(league_ibasketball_id: int) -> list[dict]:
     cached = _cache.get(league_ibasketball_id)
-    if cached and time.monotonic() - cached[0] < TTL:
+    if cached and time.monotonic() - cached[0] < (TTL if cached[1] is not None else FAIL_TTL):
+        if cached[1] is None:
+            raise httpx.HTTPError(f"League {league_ibasketball_id}: ibasketball failed under {FAIL_TTL}s ago, not retrying yet")
         return cached[1]
+    try:
+        fetched = _fetch(league_ibasketball_id)
+    except httpx.HTTPError:
+        _cache[league_ibasketball_id] = (time.monotonic(), None)
+        raise
     rows = []
-    for t in _fetch(league_ibasketball_id):
+    for t in fetched:
         url = ibasketball_url_or_none(t["link"])
         if url is None:
             log.warning("Skipping team %r with non-ibasketball link %r", t["title"]["rendered"], t["link"])

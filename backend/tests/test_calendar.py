@@ -87,6 +87,15 @@ def test_calendar_lines_are_folded_at_75_octets(client: TestClient, db_session: 
     assert f"DESCRIPTION:{text}" in body.replace("\r\n ", "")
 
 
+def test_calendar_text_neutralises_bare_cr(client: TestClient, db_session: Session, own_team: Team) -> None:
+    _game(db_session, own_team, "Opp", datetime(2026, 1, 1, 18, 0), description="a\rBEGIN:VALARM")
+
+    body = _feed(client, own_team).replace("\r\n ", "")
+
+    assert body.count("\r") == body.count("\r\n")
+    assert r"a\nBEGIN:VALARM" in body
+
+
 def test_calendar_unknown_team_404(client: TestClient) -> None:
     response = client.get("/teams/999/calendar.ics")
     assert response.status_code == 404

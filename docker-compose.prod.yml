@@ -4,7 +4,7 @@ x-logging: &logging
 
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     # No container_name: Coolify ignores it and names this db-<resource-id>-<deploy-timestamp>. Scripts match the
     # stable db-<resource-id> prefix (backup.sh, dbsync.sh, pull_prod_db.py).
     restart: unless-stopped

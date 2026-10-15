@@ -17,10 +17,12 @@ db="$(docker ps -qf "name=$match")"
 
 docker exec "$db" pg_dump -U gush_ball -Fc gush_ball > "$f"
 
-docker run --rm -i \
-    -e AWS_ACCESS_KEY_ID="$BACKUP_ACCESS_KEY_ID" \
-    -e AWS_SECRET_ACCESS_KEY="$BACKUP_SECRET_ACCESS_KEY" \
+# Keys go through docker's own env (name-only -e), never argv where `ps` shows them.
+# ponytail: shell script, Dependabot can't see it; bump by hand
+AWS_ACCESS_KEY_ID="$BACKUP_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$BACKUP_SECRET_ACCESS_KEY" docker run --rm -i \
+    -e AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY \
     -e AWS_DEFAULT_REGION=auto \
-    amazon/aws-cli s3 cp - "s3://$BACKUP_BUCKET/gush_ball-$(date +%F).dump" \
+    amazon/aws-cli:2.38.1@sha256:733d5be1015825e4038c6016f3fa9954868ddee1f611b73be795a9cc2e706bfd s3 cp - "s3://$BACKUP_BUCKET/gush_ball-$(date +%F).dump" \
     --endpoint-url "$OBJECT_STORAGE_ENDPOINT_URL" \
     < "$f"

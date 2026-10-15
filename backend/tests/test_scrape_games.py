@@ -1150,7 +1150,7 @@ def test_sync_leaves_league_url_when_current_league_is_not_unique(
     assert (team.ibasketball_league_url, team.league_url_suggestion) == (OLD_LEAGUE, None)
 
 
-def test_team_page_club_resolves_club_and_survives_fetch_error(
+def test_team_page_club_reads_existing_club_never_writes_and_survives_fetch_error(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class Resp:
@@ -1160,14 +1160,29 @@ def test_team_page_club_resolves_club_and_survives_fetch_error(
             pass
 
     monkeypatch.setattr(scrape_games.httpx, "get", lambda url, **kw: Resp())
-    assert scrape_games.team_page_club(db_session, "https://ibasketball.co.il/team/1-x/") == CLUB_NAME
-    assert db_session.query(Club).one().ibasketball_url == CLUB_URL
+    team_url = "https://ibasketball.co.il/team/1-x/"
+    assert scrape_games.team_page_club(db_session, team_url) is None
+    assert db_session.query(Club).count() == 0
+
+    club = Club(name=CLUB_NAME)
+    db_session.add(club)
+    db_session.commit()
+    assert scrape_games.team_page_club(db_session, team_url) == CLUB_NAME
+    assert club.ibasketball_url is None
+
+    club.ibasketball_url = "https://ibasketball.co.il/club/other/"
+    db_session.commit()
+    assert scrape_games.team_page_club(db_session, team_url) is None
+
+    db_session.add(Club(name="Renamed", ibasketball_url=CLUB_URL))
+    db_session.commit()
+    assert scrape_games.team_page_club(db_session, team_url) == "Renamed"
 
     def boom(url: str, **kw: object) -> None:
         raise httpx.ConnectError("down")
 
     monkeypatch.setattr(scrape_games.httpx, "get", boom)
-    assert scrape_games.team_page_club(db_session, "https://ibasketball.co.il/team/1-x/") is None
+    assert scrape_games.team_page_club(db_session, team_url) is None
 
 
 @pytest.mark.parametrize(
