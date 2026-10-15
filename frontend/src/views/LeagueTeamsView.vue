@@ -32,7 +32,7 @@ const empty = computed(() => data.value && !data.value.onSite.length && !data.va
 
 <template>
   <div>
-    <RouterLink :to="{ name: 'teams' }" class="section-link mb-3 inline-block">→ כל הליגות</RouterLink>
+    <RouterLink :to="{ name: 'teams' }" class="section-link mb-3 inline-block">→ חזרה לקבוצות</RouterLink>
 
     <div v-if="errorStatus === 404" class="empty-state">
       <p>הליגה לא נמצאה</p>

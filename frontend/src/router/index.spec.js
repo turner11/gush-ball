@@ -128,6 +128,13 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.name).toBe('home')
   })
 
+  it('legacy bare /schedule with nothing remembered goes to /teams and persists no team', async () => {
+    const { default: router } = await import('./index.js')
+    await router.push('/schedule')
+    expect(router.currentRoute.value.name).toBe('teams')
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBeNull()
+  })
+
   it('legacy bare /stats?game=5 redirects to the remembered team, keeping the page and query', async () => {
     localStorage.setItem('gush-ball:selected-team-id', '2')
     const { default: router } = await import('./index.js')

@@ -208,6 +208,17 @@ describe('DefaultLayout', () => {
     expect(router.currentRoute.value.path).toBe('/team_b')
   })
 
+  it('a failed /api/teams keeps the remembered team', async () => {
+    mockFetch({ 'GET /api/teams': () => ({ ok: false, status: 503, statusText: 'Unavailable', json: async () => ({}) }) })
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/teams')
+    await flushPromises()
+
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBe('1')
+  })
+
   it('a first-time visitor on a slug-less page gets no team', async () => {
     localStorage.clear()
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })

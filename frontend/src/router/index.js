@@ -6,8 +6,8 @@ import { useSelectedTeam } from '../composables/useSelectedTeam'
 const homeDescription = (team) => `האתר של ${team}: משחקים ותוצאות, טבלת הליגה, שחקנים, חדשות ומדיה.`
 const admin = (title) => ({ requiresAuth: true, layout: 'admin', title })
 
-// Pre-#223 bare URLs (shared links) redirect to the remembered team's page; '-' is never a real slug, so the
-// layout's slug resolver then picks the remembered/first team.
+// Pre-#223 bare URLs (shared links) redirect to the remembered team's page, or to the picker when nothing is
+// remembered, so a team the visitor never chose is never persisted.
 const LEGACY_PATHS = [
   ['/schedule', 'schedule'],
   ['/standings', 'standings'],
@@ -53,7 +53,10 @@ const router = createRouter({
     { path: '/admin/teams/import', name: 'admin-teams-import', component: () => import('../views/AdminClubImportView.vue'), meta: admin('ייבוא קבוצות מאגודה') },
     { path: '/admin/teams/batch', name: 'admin-teams-batch-edit', component: () => import('../views/AdminTeamsBatchEditView.vue'), meta: admin('עריכת קבוצות') },
     { path: '/admin/teams/:id', name: 'admin-team-edit', component: () => import('../views/AdminTeamEditView.vue'), meta: admin('עריכת קבוצה') },
-    ...LEGACY_PATHS.map(([path, name]) => ({ path, redirect: () => ({ name, params: { slug: useSelectedTeam().selectedTeamId.value ?? '-' } }) })),
+    ...LEGACY_PATHS.map(([path, name]) => ({ path, redirect: () => {
+      const slug = useSelectedTeam().selectedTeamId.value
+      return slug ? { name, params: { slug } } : { name: 'teams' }
+    } })),
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundView.vue'), meta: { title: 'לא נמצא', noindex: true } },
   ],
 })

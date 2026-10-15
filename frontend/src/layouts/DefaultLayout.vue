@@ -38,7 +38,7 @@ const tabItems = computed(() => [
 
 const teams = ref([])
 const { user, checked, checkSession, logout } = useAuth()
-const { selectedTeamId, markTeamsLoaded } = useSelectedTeam()
+const { selectedTeamId, teamsLoaded, markTeamsLoaded } = useSelectedTeam()
 
 // Scoped to this layout's root so admin pages stay neutral; unset vars fall back in style.css.
 const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value))
@@ -84,8 +84,8 @@ onMounted(async () => {
     teams.value = await apiFetch('/teams')
     markTeamsLoaded(teams.value)
   } catch {
-    // leave teams empty — the switcher simply doesn't render
-    markTeamsLoaded([]) // still marks the list as loaded so Home shows the welcome
+    // leave teams empty — the switcher simply doesn't render; keep the remembered team (a blip isn't "deleted")
+    teamsLoaded.value = true // so Home shows the welcome or the error instead of waiting forever
   }
 })
 </script>

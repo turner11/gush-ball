@@ -54,7 +54,7 @@ def league_teams(db: Session, league_ibasketball_id: int) -> list[dict]:
     ours = {
         _team_code(url): team_id
         for team_id, url in db.execute(select(Team.id, Team.ibasketball_team_url))
-        if url
+        if url and _team_code(url)
     }
     return [
         {**row, "team_id": ours.get(_team_code(row["ibasketball_team_url"]))}
