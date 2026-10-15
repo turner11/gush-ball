@@ -171,6 +171,15 @@ onUnmounted(() => {
         <span class="block font-extrabold">ניהול משתמשים</span>
         <span class="block text-sm text-muted">חשבונות, חיפוש ומחיקה</span>
       </RouterLink>
+      <RouterLink
+        v-if="fullAdmin"
+        :to="{ name: 'admin-audit' }"
+        class="card col-span-2 space-y-2 transition hover:border-team lg:col-span-1"
+      >
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="calendar" /></span>
+        <span class="block font-extrabold">יומן שינויים</span>
+        <span class="block text-sm text-muted">מי שינה מה ומתי</span>
+      </RouterLink>
     </nav>
 
     <MembershipRequests />

@@ -1,3 +1,4 @@
+from app.models.audit_log import AuditLog  # registers the audit listener
 from app.models.club import Club, get_or_create_club
 from app.models.content import TeamImage, TeamLink, TeamPost, TeamVideo
 from app.models.game import Game, GameStatus
@@ -11,6 +12,7 @@ from app.models.user import AdminUser
 
 __all__ = [
     "AdminUser",
+    "AuditLog",
     "Club",
     "Game",
     "GameStatus",

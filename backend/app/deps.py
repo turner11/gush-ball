@@ -34,6 +34,7 @@ def optional_user(request: Request, db: DbSession) -> AdminUser | None:
         or request.session.get("sv") != user.session_version
     ):
         return None
+    db.info["audit_actor"] = (user.id, user.username)  # read by the audit_log after_flush listener
     return user
 
 

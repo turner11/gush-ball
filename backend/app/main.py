@@ -6,6 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.routers import (
+    audit,
     auth,
     calendar,
     clubs,
@@ -47,6 +48,7 @@ app.include_router(auth.router)
 app.include_router(calendar.router)
 app.include_router(clubs.router)
 app.include_router(content.router)
+app.include_router(audit.router)
 app.include_router(games.router)
 app.include_router(games.club_router)
 app.include_router(lineups.router)
