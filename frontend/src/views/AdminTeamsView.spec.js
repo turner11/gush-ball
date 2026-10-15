@@ -176,6 +176,34 @@ describe('AdminTeamsView', () => {
     expect(wrapper.find('a[href="/team_a"]').exists()).toBe(true)
   })
 
+  it('flags a team with a pending league URL suggestion, linking to its edit form', async () => {
+    mockFetch({
+      'GET /api/teams': () =>
+        jsonRes([
+          { id: 1, name: 'קבוצה א', league_url_suggestion: 'https://ibasketball.co.il/league/2026-x/' },
+          { id: 2, name: 'הפועל' },
+        ]),
+    })
+    const router = createRouter({
+      history: createWebHistory(),
+      routes: [
+        { path: '/:p(.*)*', component: { template: '<div/>' } },
+        { path: '/admin/teams/:id', name: 'admin-team-edit', component: { template: '<div/>' } },
+        { path: '/admin/teams/import', name: 'admin-teams-import', component: { template: '<div/>' } },
+        { path: '/admin/teams/batch', name: 'admin-teams-batch-edit', component: { template: '<div/>' } },
+      ],
+    })
+
+    const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
+    const wrapper = mount(AdminTeamsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const badges = wrapper.findAll('.badge-loss')
+    expect(badges).toHaveLength(1)
+    expect(badges[0].text()).toContain('ליגה חדשה זוהתה')
+    expect(wrapper.find('a.badge-loss').attributes('href')).toBe('/admin/teams/1')
+  })
+
   it('shows the club import link to a full admin only', async () => {
     const { useAuth } = await import('../composables/useAuth')
     const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')

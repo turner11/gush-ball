@@ -97,6 +97,11 @@ onMounted(load)
               {{ team.name }}
             </RouterLink>
             <RouterLink :to="'/' + teamSlug(team)" class="text-sm text-muted" dir="ltr">/{{ teamSlug(team) }}</RouterLink>
+            <RouterLink
+              v-if="team.league_url_suggestion"
+              :to="{ name: 'admin-team-edit', params: { id: team.id } }"
+              class="badge-loss"
+            >ליגה חדשה זוהתה</RouterLink>
             <RouterLink :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-ghost ms-auto">עריכה</RouterLink>
             <button v-if="fullAdmin" type="button" class="btn-danger-ghost" @click="confirmDelete(team.id)">מחיקה</button>
           </li>
