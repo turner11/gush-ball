@@ -37,6 +37,7 @@ from app.security import Email, Username, hash_password, password_fingerprint, v
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
 class LoginRequest(BaseModel):
     username: str = Field(max_length=254)  # username or email
     password: str
@@ -126,7 +127,9 @@ def _start_session(request: Request, admin: AdminUser) -> None:
 def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
     admin = is_admin(db, user)
     team_ids = admin_team_ids(db, user) if admin else []
-    memberships = db.scalars(select(Membership).where(Membership.user_id == user.id).order_by(Membership.id))
+    memberships = db.scalars(
+        select(Membership).where(Membership.user_id == user.id).order_by(Membership.id)
+    )
     out: dict[str, Any] = {
         "username": user.username,
         "display_name": user.display_name,
@@ -137,16 +140,29 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
         "team_ids": team_ids,
         "clubs": admin_clubs(db, user),
         "player_ids": list(
-            db.scalars(select(Player.id).where(Player.user_id == user.id, Player.deleted_at.is_(None)).order_by(Player.id))
+            db.scalars(
+                select(Player.id)
+                .where(Player.user_id == user.id, Player.deleted_at.is_(None))
+                .order_by(Player.id)
+            )
         ),
-        "memberships": [{"id": m.id, "team_id": m.team_id, "club": m.club, "role": m.role} for m in memberships],
+        "memberships": [
+            {"id": m.id, "team_id": m.team_id, "club": m.club, "role": m.role} for m in memberships
+        ],
         "team_requests": [
             {"id": r.id, "name": r.name, "status": r.status}
-            for r in db.scalars(select(TeamRequest).where(TeamRequest.user_id == user.id).order_by(TeamRequest.id.desc()))
+            for r in db.scalars(
+                select(TeamRequest)
+                .where(TeamRequest.user_id == user.id)
+                .order_by(TeamRequest.id.desc())
+            )
         ],
     }
     if admin:  # the live-stats links are admin-only, so fans and players never receive them
-        out |= {"stats_app_url": settings.stats_url, "stats_template_url": settings.stats_template_url}
+        out |= {
+            "stats_app_url": settings.stats_url,
+            "stats_template_url": settings.stats_template_url,
+        }
     return out
 
 
@@ -155,7 +171,9 @@ def login(payload: LoginRequest, request: Request, db: DbSession) -> dict[str, A
     ip = client_ip(request)
     ident = payload.username.strip()
     # An "@" means email (stored lowercase), otherwise username: keeps the lookup unambiguous.
-    column, ident = (AdminUser.email, ident.lower()) if "@" in ident else (AdminUser.username, ident)
+    column, ident = (
+        (AdminUser.email, ident.lower()) if "@" in ident else (AdminUser.username, ident)
+    )
     keys = [f"ip:{ip}", f"user:{ident}"]
     _reserve_attempt(keys)
     admin = db.scalar(select(AdminUser).where(column == ident))
@@ -193,8 +211,12 @@ def update_me(payload: UpdateMeRequest, user: RequireUser, db: DbSession) -> dic
 
 
 @router.post("/change-password")
-def change_password(payload: ChangePasswordRequest, request: Request, user: RequireUser, db: DbSession) -> dict[str, bool]:
-    _reserve_attempt([f"pw-change:{user.id}"])  # a stolen cookie must not brute-force the current password
+def change_password(
+    payload: ChangePasswordRequest, request: Request, user: RequireUser, db: DbSession
+) -> dict[str, bool]:
+    _reserve_attempt(
+        [f"pw-change:{user.id}"]
+    )  # a stolen cookie must not brute-force the current password
     if not verify_password(payload.current_password, user.password_hash):
         # 400, not 401: apiFetch treats 401 as "logged out"
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "הסיסמה הנוכחית שגויה")
@@ -280,21 +302,29 @@ def forgot_password(
     if admin is not None:
         token = _reset_tokens.dumps([admin.id, password_fingerprint(admin.password_hash)])
         # Sent after the response so known and unknown emails take the same time.
-        background.add_task(_send_reset_email, email, f"{settings.public_url}/admin/reset-password?token={token}")
+        background.add_task(
+            _send_reset_email, email, f"{settings.public_url}/admin/reset-password?token={token}"
+        )
     log.info("password reset requested ip=%s", ip)
     return {"ok": True}
 
 
 @router.post("/reset-password")
-def reset_password(payload: ResetPasswordRequest, request: Request, db: DbSession) -> dict[str, bool]:
-    invalid = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired link")
+def reset_password(
+    payload: ResetPasswordRequest, request: Request, db: DbSession
+) -> dict[str, bool]:
+    invalid = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired link"
+    )
     try:
         admin_id, fingerprint = _reset_tokens.loads(payload.token, max_age=_RESET_MAX_AGE)
     except (BadSignature, TypeError, ValueError):
         raise invalid from None
     admin = db.get(AdminUser, admin_id)
     # The fingerprint changes with the password: that makes the token single-use.
-    if admin is None or not secrets.compare_digest(str(fingerprint).encode(), password_fingerprint(admin.password_hash).encode()):
+    if admin is None or not secrets.compare_digest(
+        str(fingerprint).encode(), password_fingerprint(admin.password_hash).encode()
+    ):
         raise invalid
     admin.password_hash = hash_password(payload.password)
     db.commit()
@@ -318,19 +348,27 @@ def signup(
     if db.scalar(select(AdminUser.id).where(AdminUser.username == payload.username)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "שם המשתמש כבר קיים")
     # ponytail: a same-instant duplicate username hits the unique index as a 500; catch IntegrityError if it matters
-    user = AdminUser(username=payload.username, email=None, password_hash=hash_password(payload.password))
+    user = AdminUser(
+        username=payload.username, email=None, password_hash=hash_password(payload.password)
+    )
     db.add(user)
     db.commit()
     token = _verify_tokens.dumps([user.id, payload.email])
-    background.add_task(_send_verify_email, payload.email, f"{settings.public_url}/admin/verify-email?token={token}")
+    background.add_task(
+        _send_verify_email, payload.email, f"{settings.public_url}/admin/verify-email?token={token}"
+    )
     log.info("signup (password) user_id=%s ip=%s", user.id, ip)
     _start_session(request, user)
     return _session_user(db, user)
 
 
 @router.post("/verify-email")
-def verify_email(payload: VerifyEmailRequest, request: Request, db: DbSession, user: RequireUser) -> dict[str, bool]:
-    invalid = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired link")
+def verify_email(
+    payload: VerifyEmailRequest, request: Request, db: DbSession, user: RequireUser
+) -> dict[str, bool]:
+    invalid = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired link"
+    )
     try:
         user_id, email = _verify_tokens.loads(payload.token, max_age=_RESET_MAX_AGE)
     except (BadSignature, TypeError, ValueError):
@@ -411,7 +449,9 @@ def google_login(request: Request, popup: bool = False) -> RedirectResponse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     state = secrets.token_urlsafe(32)
     verifier = secrets.token_urlsafe(64)
-    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    )
     request.session["google_oauth"] = {"state": state, "verifier": verifier, "popup": popup}
     query = urlencode(
         {
@@ -425,7 +465,9 @@ def google_login(request: Request, popup: bool = False) -> RedirectResponse:
             "prompt": "select_account",
         }
     )
-    return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{query}", status.HTTP_302_FOUND)
+    return RedirectResponse(
+        f"https://accounts.google.com/o/oauth2/v2/auth?{query}", status.HTTP_302_FOUND
+    )
 
 
 _FALLBACK_USERNAME = "שחקן"
@@ -436,7 +478,9 @@ _DISPLAY_NAME_MAX = 64  # same cap as PATCH /auth/me
 def _signup_username(db: Session, name: str | None) -> str:
     """The Google display name, never the email: admins see usernames. Numeric suffix when taken."""
     base = _clean_name(name)[:_USERNAME_MAX].rstrip()
-    if not base or "@" in base:  # "@" in a username would make password login look it up as an email
+    if (
+        not base or "@" in base
+    ):  # "@" in a username would make password login look it up as an email
         base = _FALLBACK_USERNAME
     candidate, n = base, 1
     while db.scalar(select(AdminUser.id).where(AdminUser.username == candidate)) is not None:
@@ -459,10 +503,14 @@ def google_callback(
     # Fixed redirect targets, no next= parameter: nothing for an open redirect to hang on.
     if identity is None:
         log.warning("google login rejected (bad state or claims) ip=%s", client_ip(request))
-        return RedirectResponse(_GOOGLE_POPUP_FAIL if popup else _GOOGLE_FAIL, status.HTTP_302_FOUND)
+        return RedirectResponse(
+            _GOOGLE_POPUP_FAIL if popup else _GOOGLE_FAIL, status.HTTP_302_FOUND
+        )
     email, name = identity
     user = db.scalar(select(AdminUser).where(AdminUser.email == email))
-    if user is None:  # signup: no memberships, not a full admin, unusable password (a reset link can set one)
+    if (
+        user is None
+    ):  # signup: no memberships, not a full admin, unusable password (a reset link can set one)
         username = _signup_username(db, name)
         # Same "@" rule as the username (an email-shaped name leaks the address); a duplicate name stays shared.
         display_name = _clean_name(name)[:_DISPLAY_NAME_MAX].rstrip()

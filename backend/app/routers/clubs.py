@@ -38,7 +38,9 @@ def update_club(club_id: int, payload: ClubUpdate, _admin_id: RequireAdmin, db: 
     for field, value in updates.items():
         taken = db.scalar(select(Club.id).where(getattr(Club, field) == value, Club.id != club_id))
         if taken is not None:
-            raise HTTPException(status.HTTP_409_CONFLICT, f"Club {field} {value!r} is already used by club {taken}")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, f"Club {field} {value!r} is already used by club {taken}"
+            )
         setattr(club, field, value)
     db.commit()
     return club

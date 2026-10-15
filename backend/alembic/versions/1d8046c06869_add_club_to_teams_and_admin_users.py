@@ -5,6 +5,7 @@ Revises: 2df3a16da449
 Create Date: 2026-10-13 12:19:20.269874
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -12,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '1d8046c06869'
-down_revision: str | Sequence[str] | None = '2df3a16da449'
+revision: str = "1d8046c06869"
+down_revision: str | Sequence[str] | None = "2df3a16da449"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

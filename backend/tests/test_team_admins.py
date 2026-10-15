@@ -10,7 +10,9 @@ NEW = {"username": "coach", "password": "longenough"}
 
 
 def _grants(db: Session, user: AdminUser) -> list[tuple[int | None, str | None, str]]:
-    rows = db.scalars(select(Membership).where(Membership.user_id == user.id).order_by(Membership.id))
+    rows = db.scalars(
+        select(Membership).where(Membership.user_id == user.id).order_by(Membership.id)
+    )
     return [(m.team_id, m.club, m.role) for m in rows]
 
 
@@ -71,13 +73,24 @@ def test_invalid_input_422(admin_client: TestClient, db_session: Session, own_te
     url = f"/teams/{own_team.id}/admins"
     assert admin_client.post(url, json={**NEW, "password": "1234567"}).status_code == 422
     assert admin_client.post(url, json={**NEW, "username": ""}).status_code == 422
-    assert admin_client.post(url, json={**NEW, "username": "coach@club"}).status_code == 422  # login would treat it as an email
-    assert admin_client.post(url, json={**NEW, "username": "x" * 65}).status_code == 422  # login caps at 64
+    assert (
+        admin_client.post(url, json={**NEW, "username": "coach@club"}).status_code == 422
+    )  # login would treat it as an email
+    assert (
+        admin_client.post(url, json={**NEW, "username": "x" * 65}).status_code == 422
+    )  # login caps at 64
     assert db_session.scalar(select(AdminUser).where(AdminUser.username == "coach")) is None
 
 
-def test_username_is_stripped(admin_client: TestClient, db_session: Session, own_team: Team) -> None:
-    assert admin_client.post(f"/teams/{own_team.id}/admins", json={**NEW, "username": " coach "}).status_code == 201
+def test_username_is_stripped(
+    admin_client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    assert (
+        admin_client.post(
+            f"/teams/{own_team.id}/admins", json={**NEW, "username": " coach "}
+        ).status_code
+        == 201
+    )
     assert db_session.scalar(select(AdminUser).where(AdminUser.username == "coach")) is not None
 
 
@@ -116,13 +129,22 @@ def test_anonymous_401(client: TestClient) -> None:
 
 
 def test_remove_admin_keeps_account_and_ends_rights_immediately(
-    admin_client: TestClient, client: TestClient, db_session: Session, own_team: Team, other_team: Team
+    admin_client: TestClient,
+    client: TestClient,
+    db_session: Session,
+    own_team: Team,
+    other_team: Team,
 ) -> None:
     user = _member(db_session, own_team)
     db_session.add(Membership(user_id=user.id, team_id=other_team.id, role="admin"))
     db_session.commit()
     player = TestClient(client.app)
-    assert player.post("/auth/login", json={"username": "member", "password": "password123"}).status_code == 200
+    assert (
+        player.post(
+            "/auth/login", json={"username": "member", "password": "password123"}
+        ).status_code
+        == 200
+    )
     patch = {"facebook_url": "https://facebook.com/x"}
     assert player.patch(f"/teams/{own_team.id}", json=patch).status_code == 200
 
@@ -155,7 +177,11 @@ def test_team_admin_email_is_saved_lowercase_and_unique(
 
 
 def test_full_admin_creates_club_admin(
-    admin_client: TestClient, client: TestClient, db_session: Session, own_team: Team, sibling_team: Team
+    admin_client: TestClient,
+    client: TestClient,
+    db_session: Session,
+    own_team: Team,
+    sibling_team: Team,
 ) -> None:
     created = admin_client.post(f"/teams/{own_team.id}/admins", json={**NEW, "scope": "club"})
     assert created.status_code == 201
@@ -165,7 +191,9 @@ def test_full_admin_creates_club_admin(
 
     sibling_url = f"/teams/{sibling_team.id}/admins"
     assert [a["username"] for a in admin_client.get(sibling_url).json()] == ["coach"]
-    assert admin_client.delete(f"{sibling_url}/{created.json()['id']}?scope=club").status_code == 204
+    assert (
+        admin_client.delete(f"{sibling_url}/{created.json()['id']}?scope=club").status_code == 204
+    )
 
     assert client.post("/auth/login", json=NEW).status_code == 200  # account survived, rights gone
     assert client.get("/auth/me").json()["team_ids"] == []
@@ -196,11 +224,16 @@ def test_assign_adds_without_moving(
     url = f"/teams/{own_team.id}/admins/{member.id}"
     assert admin_client.put(url).status_code == 204
     assert admin_client.put(url).status_code == 204  # idempotent
-    assert _grants(db_session, member) == [(other_team.id, None, "admin"), (own_team.id, None, "admin")]
+    assert _grants(db_session, member) == [
+        (other_team.id, None, "admin"),
+        (own_team.id, None, "admin"),
+    ]
     assert [a["id"] for a in admin_client.get(f"/teams/{own_team.id}/admins").json()] == [member.id]
 
 
-def test_assign_promotes_existing_member_row(admin_client: TestClient, db_session: Session, own_team: Team) -> None:
+def test_assign_promotes_existing_member_row(
+    admin_client: TestClient, db_session: Session, own_team: Team
+) -> None:
     member = _member(db_session, own_team, role="member")
     assert admin_client.put(f"/teams/{own_team.id}/admins/{member.id}").status_code == 204
     assert _grants(db_session, member) == [(own_team.id, None, "admin")]
@@ -212,7 +245,10 @@ def test_assign_club_scope_by_full_admin(
     member = _member(db_session, sibling_team, role="member")
     r = admin_client.put(f"/teams/{own_team.id}/admins/{member.id}", json={"scope": "club"})
     assert r.status_code == 204
-    assert _grants(db_session, member) == [(sibling_team.id, None, "member"), (None, "Gush", "admin")]
+    assert _grants(db_session, member) == [
+        (sibling_team.id, None, "member"),
+        (None, "Gush", "admin"),
+    ]
 
 
 def test_club_admin_assigns_team_admin_in_own_club(
@@ -221,7 +257,9 @@ def test_club_admin_assigns_team_admin_in_own_club(
     member = _member(db_session, sibling_team, role="member")
     assert club_admin_client.put(f"/teams/{sibling_team.id}/admins/{member.id}").status_code == 204
     assert _grants(db_session, member) == [(sibling_team.id, None, "admin")]
-    assert member.id in [a["id"] for a in club_admin_client.get(f"/teams/{sibling_team.id}/admins").json()]
+    assert member.id in [
+        a["id"] for a in club_admin_client.get(f"/teams/{sibling_team.id}/admins").json()
+    ]
 
 
 def test_assign_rejects_unapproved_accounts(
@@ -241,7 +279,9 @@ def test_assign_rejects_unapproved_accounts(
             db_session.add(row)
             before = [(row.team_id, row.club, "pending")]
         db_session.commit()
-        assert club_admin_client.put(f"/teams/{sibling_team.id}/admins/{user.id}").status_code == 404
+        assert (
+            club_admin_client.put(f"/teams/{sibling_team.id}/admins/{user.id}").status_code == 404
+        )
         assert _grants(db_session, user) == before
 
 
@@ -284,7 +324,9 @@ def test_club_admin_can_revoke_team_admin_in_own_club(
     club_admin_client: TestClient, db_session: Session, sibling_team: Team
 ) -> None:
     member = _member(db_session, sibling_team)
-    assert club_admin_client.delete(f"/teams/{sibling_team.id}/admins/{member.id}").status_code == 204
+    assert (
+        club_admin_client.delete(f"/teams/{sibling_team.id}/admins/{member.id}").status_code == 204
+    )
     assert _grants(db_session, member) == []
 
 
@@ -311,20 +353,33 @@ def test_nothing_creates_or_demotes_full_admin(
     assert _grants(db_session, full) == []
 
 
-def test_assign_unknown_team_404(admin_client: TestClient, db_session: Session, other_team: Team) -> None:
+def test_assign_unknown_team_404(
+    admin_client: TestClient, db_session: Session, other_team: Team
+) -> None:
     member = _member(db_session, other_team)
     assert admin_client.put(f"/teams/9999/admins/{member.id}").status_code == 404
 
 
-def test_list_assignable_users(admin_client: TestClient, db_session: Session, own_team: Team, other_team: Team) -> None:
+def test_list_assignable_users(
+    admin_client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
     clubby = _member(db_session)
     db_session.add(Membership(user_id=clubby.id, club="Gush", role="admin"))
     db_session.add(Membership(user_id=clubby.id, team_id=other_team.id, role="admin"))
     db_session.add(Membership(user_id=clubby.id, team_id=own_team.id, role="member"))
     db_session.commit()
-    response = admin_client.get("/teams/assignable-users")  # static route must not be shadowed by /{team_id}
+    response = admin_client.get(
+        "/teams/assignable-users"
+    )  # static route must not be shadowed by /{team_id}
     assert response.status_code == 200
-    assert response.json() == [{"id": clubby.id, "username": "member", "display_name": "member", "team_ids": [other_team.id]}]
+    assert response.json() == [
+        {
+            "id": clubby.id,
+            "username": "member",
+            "display_name": "member",
+            "team_ids": [other_team.id],
+        }
+    ]
 
 
 def test_assignable_users_only_approved_accounts(
@@ -337,7 +392,9 @@ def test_assignable_users_only_approved_accounts(
         if role:
             db_session.add(Membership(user_id=user.id, team_id=own_team.id, role=role))
     db_session.commit()
-    assert [u["username"] for u in admin_client.get("/teams/assignable-users").json()] == ["approved"]
+    assert [u["username"] for u in admin_client.get("/teams/assignable-users").json()] == [
+        "approved"
+    ]
 
 
 def test_assignable_users_open_to_club_admin_only_below_full(

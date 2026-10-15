@@ -140,6 +140,9 @@ def test_upload_allowed_only_for_linked_player(
     if linked:
         db_session.add(Player(team_id=team.id, name="P", user_id=user.id))
     db_session.commit()
-    assert client.post("/auth/login", json={"username": "p", "password": "password123"}).status_code == 200
+    assert (
+        client.post("/auth/login", json={"username": "p", "password": "password123"}).status_code
+        == 200
+    )
     response = client.post("/uploads", files={"file": ("a.png", b"x", "image/png")})
     assert response.status_code == (201 if linked else 403)

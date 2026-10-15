@@ -38,13 +38,21 @@ def _utc(naive_israel: datetime) -> str:
 
 
 def _event_lines(team: Team, game: Game, stamp: str) -> list[str]:
-    home, away = (team.name, game.opponent.name) if game.is_home else (game.opponent.name, team.name)
+    home, away = (
+        (team.name, game.opponent.name) if game.is_home else (game.opponent.name, team.name)
+    )
     address = team.home_court_address if game.is_home else game.opponent.address
     played = game.team_score is not None and game.opponent_score is not None
-    postponed = "נדחה: " if game.status is GameStatus.POSTPONED else ""  # the site shows the same badge
+    postponed = (
+        "נדחה: " if game.status is GameStatus.POSTPONED else ""
+    )  # the site shows the same badge
     notes: list[str] = []
     if played:
-        home_score, away_score = (game.team_score, game.opponent_score) if game.is_home else (game.opponent_score, game.team_score)
+        home_score, away_score = (
+            (game.team_score, game.opponent_score)
+            if game.is_home
+            else (game.opponent_score, game.team_score)
+        )
         notes.append(f"תוצאה: {home_score}–{away_score}")
     if game.description:
         notes.append(game.description)
@@ -70,7 +78,9 @@ def _event_lines(team: Team, game: Game, stamp: str) -> list[str]:
 def team_calendar(team_id: int, db: DbSession) -> Response:
     team = get_team_or_404(db, team_id)
     games = db.scalars(
-        select(Game).where(Game.team_id == team_id, Game.needs_review.is_(False)).order_by(Game.scheduled_at)
+        select(Game)
+        .where(Game.team_id == team_id, Game.needs_review.is_(False))
+        .order_by(Game.scheduled_at)
     )
     stamp = datetime.now(UTC).strftime(_STAMP)
     lines = [

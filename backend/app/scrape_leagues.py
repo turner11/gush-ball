@@ -32,7 +32,9 @@ def _get_all(path: str, **params: Any) -> list[dict]:
 def _current_season_root(roots: list[dict]) -> tuple[int, int]:
     """(root id, start year) of the newest `YYYY-YYYY` root; other roots are junk."""
     # ponytail: switches to next season once it has a non-empty league; the empty guard keeps old rows until then (#352 owns rollover)
-    seasons = [(int(r["name"][:4]), r["id"]) for r in roots if re.fullmatch(r"\d{4}-\d{4}", r["name"])]
+    seasons = [
+        (int(r["name"][:4]), r["id"]) for r in roots if re.fullmatch(r"\d{4}-\d{4}", r["name"])
+    ]
     if not seasons:
         raise ValueError("no YYYY-YYYY season root among leagues")
     year, root_id = max(seasons)

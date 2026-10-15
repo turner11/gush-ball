@@ -5,7 +5,9 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import settings
 
-engine = create_engine(settings.database_url, hide_parameters=True)  # IntegrityError text would carry emails and hashes
+engine = create_engine(
+    settings.database_url, hide_parameters=True
+)  # IntegrityError text would carry emails and hashes
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 

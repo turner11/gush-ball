@@ -21,8 +21,12 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("admin_users.id", ondelete="SET NULL"), default=None)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="SET NULL"), default=None
+    )
     username: Mapped[str | None] = mapped_column(String(80), default=None)
     action: Mapped[str] = mapped_column(String(10))  # create | update | delete
     entity_type: Mapped[str] = mapped_column(String(20))
@@ -73,7 +77,10 @@ def _changes(obj: Any, action: str) -> dict[str, list]:
         # has no history, so its before value is logged as null; no current write path does this.
         histories = {k: state.attrs[k].history for k in keys}
         return {
-            k: [_value(h.deleted[0] if h.deleted else None), _value(h.added[0] if h.added else None)]
+            k: [
+                _value(h.deleted[0] if h.deleted else None),
+                _value(h.added[0] if h.added else None),
+            ]
             for k, h in histories.items()
             if h.has_changes()
         }
@@ -89,7 +96,11 @@ def _write_audit_rows(session: Session, flush_context: Any) -> None:
     # session.info["audit_actor"] there if it ever matters). Only Core inserts below, so this can't recurse.
     user_id, username = session.info.get("audit_actor", (None, None))
     rows = []
-    for action, objs in (("create", session.new), ("update", session.dirty), ("delete", session.deleted)):
+    for action, objs in (
+        ("create", session.new),
+        ("update", session.dirty),
+        ("delete", session.deleted),
+    ):
         for obj in objs:
             entity_type = _AUDITED.get(type(obj))
             if entity_type is None:

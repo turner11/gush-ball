@@ -75,7 +75,9 @@ def _fetch_logos_and_addresses(rows: list[dict]) -> None:
         media = team.get("_embedded", {}).get("wp:featuredmedia") if team else None
         logo = http_url_or_none(media[0]["source_url"]) if media else None
         row["logo_url"] = logo if logo and len(logo) <= LOGO_MAX else None
-        venue = next((venues[v] for v in team.get("venues", []) if v in venues), None) if team else None
+        venue = (
+            next((venues[v] for v in team.get("venues", []) if v in venues), None) if team else None
+        )
         row["home_court_address"] = venue[:ADDRESS_MAX] if venue else None
 
 

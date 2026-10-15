@@ -22,6 +22,7 @@ router = APIRouter(tags=["players"])
 
 PlayerName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 
+
 class PlayerCreate(BaseModel):
     name: str
     name_en: str | None = None
@@ -33,7 +34,9 @@ class PlayerUpdate(BaseModel):
     name: PlayerName = None
     name_en: PlayerName | None = None
     jersey_number: int | None = None
-    user_id: int | None = None  # the linked account; omitted = unchanged, null = unlink (team admins only)
+    user_id: int | None = (
+        None  # the linked account; omitted = unchanged, null = unlink (team admins only)
+    )
 
 
 class PlayerImageCreate(BaseModel):
@@ -131,7 +134,9 @@ def list_players(team_id: int, db: DbSession) -> list[Player]:
 
 # before the /{player_id} routes
 @router.get("/teams/{team_id}/players/linkable-users", response_model=list[LinkableUserOut])
-def list_linkable_users(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> list[LinkableUserOut]:
+def list_linkable_users(
+    team_id: int, db: DbSession, _admin_id: RequireTeamAdmin
+) -> list[LinkableUserOut]:
     """Accounts that may be linked to a player of this team. No emails."""
     team = get_team_or_404(db, team_id)
     rows = db.execute(
@@ -143,14 +148,18 @@ def list_linkable_users(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin
 
 
 @router.get("/teams/{team_id}/players/links", response_model=list[PlayerLinkOut])
-def list_player_links(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> list[PlayerLinkOut]:
+def list_player_links(
+    team_id: int, db: DbSession, _admin_id: RequireTeamAdmin
+) -> list[PlayerLinkOut]:
     """Which roster rows are linked to which account; admin-only so the public roster never reveals it."""
     rows = db.execute(
         select(Player.id, AdminUser.id, AdminUser.username, AdminUser.display_name)
         .join(AdminUser, Player.user_id == AdminUser.id)
         .where(Player.team_id == team_id, Player.deleted_at.is_(None))
     )
-    return [PlayerLinkOut(player_id=p, user_id=u, username=n, display_name=d) for p, u, n, d in rows]
+    return [
+        PlayerLinkOut(player_id=p, user_id=u, username=n, display_name=d) for p, u, n, d in rows
+    ]
 
 
 @router.patch("/teams/{team_id}/players/{player_id}", response_model=PlayerOut)
@@ -164,7 +173,9 @@ def update_player(
     try:
         player = _get_team_player_or_404(db, team_id, player_id)
     except HTTPException:
-        check_team_scope(db, user, team_id)  # outsiders get 403, so a missing id is no existence oracle
+        check_team_scope(
+            db, user, team_id
+        )  # outsiders get 403, so a missing id is no existence oracle
         raise
     updates = payload.model_dump(exclude_unset=True)
     check_player_self_or_team_admin(db, user, player, set(updates))
@@ -179,9 +190,7 @@ def update_player(
 
 
 @router.delete("/teams/{team_id}/players/{player_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_player(
-    team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin
-) -> None:
+def delete_player(team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> None:
     player = _get_team_player_or_404(db, team_id, player_id)
     player.deleted_at = datetime.now(UTC)
     db.commit()
@@ -194,7 +203,9 @@ def list_deleted_players(team_id: int, db: DbSession, _admin_id: RequireTeamAdmi
 
 
 @router.post("/teams/{team_id}/players/{player_id}/restore", response_model=PlayerOut)
-def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> Player:
+def restore_player(
+    team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin
+) -> Player:
     player = _get_team_player_or_404(db, team_id, player_id)
     player.deleted_at = None
     db.commit()
@@ -222,8 +233,12 @@ def add_player_image(
     check_player_self_or_team_admin(db, user, player)
     # a self-editor's photo is public (CSP img-src *), so only our own storage is allowed; admins may paste any URL
     prefix = settings.object_storage_public_url.rstrip("/")
-    if not can_write_team(db, user, player.team_id) and not (prefix and str(payload.url).startswith(prefix + "/")):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Upload the photo instead of linking a URL")
+    if not can_write_team(db, user, player.team_id) and not (
+        prefix and str(payload.url).startswith(prefix + "/")
+    ):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Upload the photo instead of linking a URL"
+        )
     image = PlayerImage(player_id=player_id, url=str(payload.url))
     db.add(image)
     db.commit()
@@ -231,12 +246,8 @@ def add_player_image(
     return image
 
 
-@router.delete(
-    "/players/{player_id}/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT
-)
-def delete_player_image(
-    player_id: int, image_id: int, db: DbSession, user: RequireUser
-) -> None:
+@router.delete("/players/{player_id}/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_player_image(player_id: int, image_id: int, db: DbSession, user: RequireUser) -> None:
     check_player_self_or_team_admin(db, user, _get_player_or_404(db, player_id))
     image = db.get(PlayerImage, image_id)
     if image is None or image.player_id != player_id:

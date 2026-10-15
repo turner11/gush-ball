@@ -59,11 +59,17 @@ def request_to_join(payload: JoinIn, user: RequireUser, db: DbSession) -> Member
         get_team_or_404(db, payload.team_id)
     elif not db.scalar(select(exists().where(Team.club == payload.club))):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Club not found")
-    scope = Membership.team_id == payload.team_id if payload.team_id is not None else Membership.club == payload.club
+    scope = (
+        Membership.team_id == payload.team_id
+        if payload.team_id is not None
+        else Membership.club == payload.club
+    )
     # ponytail: pre-check for a clean 409; a concurrent double-submit hits the unique constraint (500), harmless
     if db.scalar(select(Membership.id).where(Membership.user_id == user.id, scope)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "כבר קיימת בקשה או חברות")
-    row = Membership(user_id=user.id, team_id=payload.team_id, club=payload.club, role="pending")  # never from the body
+    row = Membership(
+        user_id=user.id, team_id=payload.team_id, club=payload.club, role="pending"
+    )  # never from the body
     db.add(row)
     db.commit()
     return row
@@ -72,7 +78,16 @@ def request_to_join(payload: JoinIn, user: RequireUser, db: DbSession) -> Member
 @router.get("", response_model=list[MemberRowOut])
 def list_managed(admin: RequireAnyAdmin, db: DbSession) -> list[MemberRowOut]:
     query = (
-        select(Membership.id, Membership.role, AdminUser.username, AdminUser.display_name, AdminUser.email, Membership.team_id, Team.name, Membership.club)
+        select(
+            Membership.id,
+            Membership.role,
+            AdminUser.username,
+            AdminUser.display_name,
+            AdminUser.email,
+            Membership.team_id,
+            Team.name,
+            Membership.club,
+        )
         .join(AdminUser, AdminUser.id == Membership.user_id)
         .outerjoin(Team, Team.id == Membership.team_id)
         .where(Membership.role.in_(("pending", "member")))
@@ -82,12 +97,23 @@ def list_managed(admin: RequireAnyAdmin, db: DbSession) -> list[MemberRowOut]:
     if scope is not None:  # club requests are excluded by construction: their team_id is NULL
         query = query.where(Membership.team_id.in_(scope))
     return [
-        MemberRowOut(id=i, role=r, username=u, display_name=d, email_hint=mask_email(e), team_id=t, team_name=n, club=c)
+        MemberRowOut(
+            id=i,
+            role=r,
+            username=u,
+            display_name=d,
+            email_hint=mask_email(e),
+            team_id=t,
+            team_name=n,
+            club=c,
+        )
         for i, r, u, d, e, t, n, c in db.execute(query)
     ]
 
 
-def _row_in_scope(db: DbSession, admin: AdminUser, membership_id: int, roles: tuple[str, ...]) -> Membership:
+def _row_in_scope(
+    db: DbSession, admin: AdminUser, membership_id: int, roles: tuple[str, ...]
+) -> Membership:
     row = db.get(Membership, membership_id)
     if row is None or row.role not in roles:  # an admin grant never matches
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Membership {membership_id} not found")
@@ -113,7 +139,9 @@ def remove(membership_id: int, admin: RequireAnyAdmin, db: DbSession) -> Respons
 def leave(membership_id: int, user: RequireUser, db: DbSession) -> Response:
     row = db.scalar(
         select(Membership).where(
-            Membership.id == membership_id, Membership.user_id == user.id, Membership.role.in_(("pending", "member"))
+            Membership.id == membership_id,
+            Membership.user_id == user.id,
+            Membership.role.in_(("pending", "member")),
         )
     )
     if row is None:  # same answer for not yours, an admin grant and missing

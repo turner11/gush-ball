@@ -35,9 +35,7 @@ FINAL_EVENT_AWAY = {
 OPPONENT_DETAIL = {
     "title": {"rendered": "מכבי &#8211; תל אביב"},
     "link": "https://ibasketball.co.il/team/opp/",
-    "_embedded": {
-        "wp:featuredmedia": [{"source_url": "https://ibasketball.co.il/logo.png"}]
-    },
+    "_embedded": {"wp:featuredmedia": [{"source_url": "https://ibasketball.co.il/logo.png"}]},
 }
 
 OPPONENT_NAME_UNESCAPED = "מכבי – תל אביב"
@@ -50,7 +48,9 @@ def _opponent_detail(sp_id: int) -> dict:
         "id": sp_id,
         "title": {"rendered": f"Other {sp_id}"},
         "link": f"https://ibasketball.co.il/team/{sp_id}/",
-        "_embedded": {"wp:featuredmedia": [{"source_url": f"https://ibasketball.co.il/{sp_id}.png"}]},
+        "_embedded": {
+            "wp:featuredmedia": [{"source_url": f"https://ibasketball.co.il/{sp_id}.png"}]
+        },
     }
 
 
@@ -63,7 +63,10 @@ class FakeApi:
     """Path-keyed fake for app.scrape_games._get_json. Records calls, no network/sleep."""
 
     def __init__(
-        self, events: list[dict], known_opponents: tuple[int, ...] = (OPP_SP_ID,), team_leagues: tuple[int, ...] = ()
+        self,
+        events: list[dict],
+        known_opponents: tuple[int, ...] = (OPP_SP_ID,),
+        team_leagues: tuple[int, ...] = (),
     ) -> None:
         self.events = events
         self.team_leagues = team_leagues
@@ -80,6 +83,7 @@ class FakeApi:
         if path == "/sportspress/v2/events":
             return self.events
         raise AssertionError(f"unexpected path {path}")
+
 
 ADDRESS_HTML = (
     '<div class="data-venue"><span>אולם:</span>'
@@ -300,7 +304,9 @@ def test_sync_address_missing_or_fetch_error_still_syncs_games(
     assert team.club is None
 
 
-def test_sync_assigns_scraped_club_to_clubless_team(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_assigns_scraped_club_to_clubless_team(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     team = _make_team(db_session)
     monkeypatch.setattr(scrape_games, "_get_json", FakeApi([]))
 
@@ -310,7 +316,9 @@ def test_sync_assigns_scraped_club_to_clubless_team(db_session: Session, monkeyp
     assert (club.name, club.ibasketball_url, team.club) == (CLUB_NAME, CLUB_URL, CLUB_NAME)
 
 
-def test_sync_fills_url_of_existing_club_keeps_admin_name(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_fills_url_of_existing_club_keeps_admin_name(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     team = _make_team(db_session)
     team.club = "Gush"
     db_session.add(Club(name="Gush"))
@@ -337,7 +345,9 @@ def test_sync_reuses_club_by_url(db_session: Session, monkeypatch: pytest.Monkey
     assert second.club == first.club == CLUB_NAME
 
 
-def test_sync_never_repoints_team_or_steals_url(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_never_repoints_team_or_steals_url(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     team = _make_team(db_session)
     team.club = "Gush"
     db_session.add_all([Club(name="Gush"), Club(name="Other", ibasketball_url=CLUB_URL)])
@@ -421,7 +431,9 @@ def test_resync_skips_manually_overridden_game(
     assert game.scrape_suggestion_dismissed is False
 
 
-def _sync_then_reissue(db_session: Session, monkeypatch: pytest.MonkeyPatch, reissued: dict, **edits) -> tuple[Team, Game]:
+def _sync_then_reissue(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, reissued: dict, **edits
+) -> tuple[Team, Game]:
     team = _make_team(db_session)
     fake = FakeApi([FUTURE_EVENT])
     monkeypatch.setattr(scrape_games, "_get_json", fake)
@@ -489,8 +501,11 @@ def test_sync_derby_gives_each_club_team_its_own_game(
     db_session.add_all([team_b, opp])
     db_session.commit()
     game = Game(
-        team_id=team_b.id, opponent_id=opp.id, is_home=True,
-        scheduled_at=datetime(2026, 10, 28, tzinfo=UTC), status=GameStatus.SCHEDULED,
+        team_id=team_b.id,
+        opponent_id=opp.id,
+        is_home=True,
+        scheduled_at=datetime(2026, 10, 28, tzinfo=UTC),
+        status=GameStatus.SCHEDULED,
         source_event_id=9001,
     )
     db_session.add(game)
@@ -565,7 +580,11 @@ def test_resync_keeps_dismissed_suggestion_until_source_changes(
 def _two_teams(db_session: Session) -> None:
     for slug in ("bad", "good"):
         db_session.add(
-            Team(name=slug, slug=slug, ibasketball_team_url=f"https://ibasketball.co.il/team/1-{slug}/")
+            Team(
+                name=slug,
+                slug=slug,
+                ibasketball_team_url=f"https://ibasketball.co.il/team/1-{slug}/",
+            )
         )
     db_session.commit()
 
@@ -690,9 +709,9 @@ def test_sync_all_games_rolls_back_after_db_failure_so_next_team_still_syncs(
 
 ROSTER_HTML = (
     '<a class="player data-item male" href="/p/1"><img src="a.jpg"/>איתי ורולקר<br />'
-    '<span></span><span>01-02-2000</span></a>'
+    "<span></span><span>01-02-2000</span></a>"
     '<a class="player data-item male" href="/p/2"><img src="b.jpg"/>רן &#8211; לוי<br />'
-    '<span></span><span>03-04-2001</span></a>'
+    "<span></span><span>03-04-2001</span></a>"
 )
 
 
@@ -772,7 +791,9 @@ def test_sync_team_players_rekeys_player_whose_href_changed(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     team = _make_team(db_session)
-    db_session.add(Player(team_id=team.id, name="איתי ורולקר", jersey_number=10, source_url="/old/1"))
+    db_session.add(
+        Player(team_id=team.id, name="איתי ורולקר", jersey_number=10, source_url="/old/1")
+    )
     db_session.commit()
     _fake_roster(monkeypatch, ROSTER_HTML)
 
@@ -915,11 +936,15 @@ def test_sync_team_players_card_without_img_creates_player_without_image(
 
 
 def test_focus_centers_face_in_tall_photo() -> None:
-    assert scrape_games._focus(800, 1732, (120, 570, 520, 520)) == pytest.approx((50.0, 40.56, 1.0), abs=0.01)
+    assert scrape_games._focus(800, 1732, (120, 570, 520, 520)) == pytest.approx(
+        (50.0, 40.56, 1.0), abs=0.01
+    )
 
 
 def test_focus_zooms_small_face_capped_and_clamped_to_edges() -> None:
-    assert scrape_games._focus(800, 800, (300, 300, 100, 100)) == pytest.approx((40.625, 38.75, 3.0))
+    assert scrape_games._focus(800, 800, (300, 300, 100, 100)) == pytest.approx(
+        (40.625, 38.75, 3.0)
+    )
     assert scrape_games._focus(800, 1600, (0, 0, 40, 40)) == (0.0, 0.0, 3.0)
     assert scrape_games._focus(1200, 800, (900, 100, 200, 200)) == pytest.approx((100.0, 0.0, 2.0))
 
@@ -931,7 +956,10 @@ def test_face_focus_without_face_defaults_to_top_center() -> None:
 
 
 def _image_focus(db: Session) -> list[tuple]:
-    return [(i.url, i.focus_x, i.focus_y, i.zoom) for i in db.query(PlayerImage).order_by(PlayerImage.url)]
+    return [
+        (i.url, i.focus_x, i.focus_y, i.zoom)
+        for i in db.query(PlayerImage).order_by(PlayerImage.url)
+    ]
 
 
 def test_sync_team_players_stores_face_focus_once(
@@ -1075,7 +1103,9 @@ def test_sync_drops_non_http_opponent_link_and_logo(
 ) -> None:
     team = _make_team(db_session)
     monkeypatch.setitem(OPPONENT_DETAIL, "link", "javascript:alert(1)")
-    monkeypatch.setitem(OPPONENT_DETAIL, "_embedded", {"wp:featuredmedia": [{"source_url": "javascript:alert(2)"}]})
+    monkeypatch.setitem(
+        OPPONENT_DETAIL, "_embedded", {"wp:featuredmedia": [{"source_url": "javascript:alert(2)"}]}
+    )
     monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FINAL_EVENT_AWAY]))
 
     scrape_games.sync_team_games(db_session, team)
@@ -1086,7 +1116,9 @@ def test_sync_drops_non_http_opponent_link_and_logo(
     assert db_session.query(Game).filter_by(source_event_id=9002).one()
 
 
-def test_sync_ignores_non_http_club_link(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_ignores_non_http_club_link(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     team = _make_team(db_session)
     bad_club = CLUB_HTML.replace(CLUB_URL, "javascript:alert(1)")
     monkeypatch.setattr(scrape_games, "_get_page", lambda url: ADDRESS_HTML + bad_club)
@@ -1103,10 +1135,23 @@ NEW_LEAGUE = "https://ibasketball.co.il/league/2026-300/"
 NEW_LEAGUE_ID = 120129
 
 
-def _roll(db_session: Session, monkeypatch: pytest.MonkeyPatch, *, team_leagues=(119715, NEW_LEAGUE_ID),
-          league_ids=(NEW_LEAGUE_ID,), **team_fields) -> Team:
+def _roll(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    team_leagues=(119715, NEW_LEAGUE_ID),
+    league_ids=(NEW_LEAGUE_ID,),
+    **team_fields,
+) -> Team:
     for i in league_ids:
-        db_session.add(League(ibasketball_id=i, name="ליגה", url=NEW_LEAGUE if i == NEW_LEAGUE_ID else f"{NEW_LEAGUE}{i}/", season=2026))
+        db_session.add(
+            League(
+                ibasketball_id=i,
+                name="ליגה",
+                url=NEW_LEAGUE if i == NEW_LEAGUE_ID else f"{NEW_LEAGUE}{i}/",
+                season=2026,
+            )
+        )
     team = _make_team(db_session)
     for key, value in {"ibasketball_league_url": OLD_LEAGUE, **team_fields}.items():
         setattr(team, key, value)
@@ -1117,7 +1162,9 @@ def _roll(db_session: Session, monkeypatch: pytest.MonkeyPatch, *, team_leagues=
     return team
 
 
-def test_sync_moves_stale_league_url_to_current_season_league(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_moves_stale_league_url_to_current_season_league(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     team = _roll(db_session, monkeypatch)
     assert (team.ibasketball_league_url, team.league_url_suggestion) == (NEW_LEAGUE, None)
 
@@ -1129,24 +1176,36 @@ def test_sync_never_moves_overridden_league_url_and_suggests_instead(
     assert (team.ibasketball_league_url, team.league_url_suggestion) == (OLD_LEAGUE, NEW_LEAGUE)
 
 
-def test_sync_fills_missing_league_url(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_fills_missing_league_url(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     team = _roll(db_session, monkeypatch, ibasketball_league_url=None)
     assert team.ibasketball_league_url == NEW_LEAGUE
 
 
-def test_sync_keeps_current_league_url_and_clears_suggestion(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_keeps_current_league_url_and_clears_suggestion(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     team = _roll(
-        db_session, monkeypatch, team_leagues=(119715,), ibasketball_league_url=NEW_LEAGUE,
-        league_url_overridden=True, league_url_suggestion=OLD_LEAGUE,
+        db_session,
+        monkeypatch,
+        team_leagues=(119715,),
+        ibasketball_league_url=NEW_LEAGUE,
+        league_url_overridden=True,
+        league_url_suggestion=OLD_LEAGUE,
     )
     assert (team.ibasketball_league_url, team.league_url_suggestion) == (NEW_LEAGUE, None)
 
 
-@pytest.mark.parametrize("league_ids", [(), (NEW_LEAGUE_ID, 120130)], ids=["none-filled", "ambiguous"])
+@pytest.mark.parametrize(
+    "league_ids", [(), (NEW_LEAGUE_ID, 120130)], ids=["none-filled", "ambiguous"]
+)
 def test_sync_leaves_league_url_when_current_league_is_not_unique(
     db_session: Session, monkeypatch: pytest.MonkeyPatch, league_ids: tuple[int, ...]
 ) -> None:
-    team = _roll(db_session, monkeypatch, team_leagues=(NEW_LEAGUE_ID, 120130), league_ids=league_ids)
+    team = _roll(
+        db_session, monkeypatch, team_leagues=(NEW_LEAGUE_ID, 120130), league_ids=league_ids
+    )
     assert (team.ibasketball_league_url, team.league_url_suggestion) == (OLD_LEAGUE, None)
 
 
@@ -1160,7 +1219,9 @@ def test_team_page_club_resolves_club_and_survives_fetch_error(
             pass
 
     monkeypatch.setattr(scrape_games.httpx, "get", lambda url, **kw: Resp())
-    assert scrape_games.team_page_club(db_session, "https://ibasketball.co.il/team/1-x/") == CLUB_NAME
+    assert (
+        scrape_games.team_page_club(db_session, "https://ibasketball.co.il/team/1-x/") == CLUB_NAME
+    )
     assert db_session.query(Club).one().ibasketball_url == CLUB_URL
 
     def boom(url: str, **kw: object) -> None:

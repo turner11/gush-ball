@@ -11,7 +11,10 @@ from app.models.team_request import TeamRequest
 
 
 def _sp(title: str, code: int, logo: str | None = None) -> dict:
-    item: dict[str, Any] = {"title": {"rendered": title}, "link": f"https://ibasketball.co.il/team/{code}-x/"}
+    item: dict[str, Any] = {
+        "title": {"rendered": title},
+        "link": f"https://ibasketball.co.il/team/{code}-x/",
+    }
     if logo:
         item["_embedded"] = {"wp:featuredmedia": [{"source_url": logo}]}
     return item
@@ -34,7 +37,14 @@ def fake_fetch(monkeypatch: pytest.MonkeyPatch) -> dict:
 
 
 def _league(db: Session, ibasketball_id: int = 10, name: str = "ליגה") -> None:
-    db.add(League(ibasketball_id=ibasketball_id, name=name, url=f"https://x/{ibasketball_id}/", season=2026))
+    db.add(
+        League(
+            ibasketball_id=ibasketball_id,
+            name=name,
+            url=f"https://x/{ibasketball_id}/",
+            season=2026,
+        )
+    )
     db.commit()
 
 
@@ -75,7 +85,9 @@ def test_league_teams_marks_our_teams_by_ibasketball_code_never_by_name(
     assert "א – ב" in by_name
 
 
-def test_league_teams_404_for_unknown_league_without_fetching(client: TestClient, fake_fetch: dict) -> None:
+def test_league_teams_404_for_unknown_league_without_fetching(
+    client: TestClient, fake_fetch: dict
+) -> None:
     assert client.get("/leagues/999/teams").status_code == 404
     assert fake_fetch["calls"] == 0
 
@@ -90,7 +102,9 @@ def test_league_teams_cached_for_a_day(
     assert client.get("/leagues/10/teams").json()["teams"][0]["team_id"] == team.id
     assert fake_fetch["calls"] == 1
     now = scrape_league_teams.time.monotonic()
-    monkeypatch.setattr(scrape_league_teams.time, "monotonic", lambda: now + scrape_league_teams.TTL + 1)
+    monkeypatch.setattr(
+        scrape_league_teams.time, "monotonic", lambda: now + scrape_league_teams.TTL + 1
+    )
     client.get("/leagues/10/teams")
     assert fake_fetch["calls"] == 2
 
@@ -104,7 +118,9 @@ def test_league_teams_502_when_ibasketball_fails_and_failure_not_cached(
     assert client.get("/leagues/10/teams").status_code == 200
 
 
-def test_league_teams_flags_pending_requests(client: TestClient, db_session: Session, fake_fetch: dict) -> None:
+def test_league_teams_flags_pending_requests(
+    client: TestClient, db_session: Session, fake_fetch: dict
+) -> None:
     _league(db_session)
     fake_fetch["items"] = [_sp("א", 1), _sp("ב", 2)]
     for code, status in ((1, "pending"), (2, "rejected")):

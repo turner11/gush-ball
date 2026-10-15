@@ -10,13 +10,20 @@ from app.security import hash_password
 
 
 def _user(db: Session, username: str, email: str | None = None, full: bool = False) -> AdminUser:
-    user = AdminUser(username=username, email=email, password_hash=hash_password("password123"), is_full_admin=full)
+    user = AdminUser(
+        username=username,
+        email=email,
+        password_hash=hash_password("password123"),
+        is_full_admin=full,
+    )
     db.add(user)
     db.commit()
     return user
 
 
-def test_full_admin_lists_users_with_memberships(admin_client: TestClient, db_session: Session, own_team: Team):
+def test_full_admin_lists_users_with_memberships(
+    admin_client: TestClient, db_session: Session, own_team: Team
+):
     player = _user(db_session, "zed", "zed@example.com")
     boss = _user(db_session, "bob", "bob@example.com")
     db_session.add_all(
@@ -33,8 +40,12 @@ def test_full_admin_lists_users_with_memberships(admin_client: TestClient, db_se
     assert all(set(r) == {"id", "username", "display_name", "email", "memberships"} for r in rows)
     by_name = {r["username"]: r for r in rows}
     assert by_name["zed"]["email"] == "zed@example.com"
-    assert by_name["zed"]["memberships"] == [{"team_id": own_team.id, "team_name": "Own", "club": None, "role": "pending"}]
-    assert by_name["bob"]["memberships"] == [{"team_id": None, "team_name": None, "club": "Gush", "role": "admin"}]
+    assert by_name["zed"]["memberships"] == [
+        {"team_id": own_team.id, "team_name": "Own", "club": None, "role": "pending"}
+    ]
+    assert by_name["bob"]["memberships"] == [
+        {"team_id": None, "team_name": None, "club": "Gush", "role": "admin"}
+    ]
     assert by_name["admin"]["memberships"] == []
 
 
@@ -45,7 +56,9 @@ def test_user_admin_routes_need_full_admin(client: TestClient, request, method: 
     assert getattr(client, method)(path).status_code == 403
 
 
-def test_full_admin_deletes_user_and_their_memberships(admin_client: TestClient, db_session: Session, own_team: Team):
+def test_full_admin_deletes_user_and_their_memberships(
+    admin_client: TestClient, db_session: Session, own_team: Team
+):
     victim = _user(db_session, "victim")
     victim_id = victim.id
     db_session.add(Membership(user_id=victim_id, team_id=own_team.id, role="member"))

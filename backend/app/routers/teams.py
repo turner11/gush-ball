@@ -222,7 +222,9 @@ def list_teams(db: DbSession) -> list[Team]:
 
 # approved only: an impostor self-signup must not be promotable to admin
 _HAS_APPROVED_GRANT = (
-    select(Membership.id).where(Membership.user_id == AdminUser.id, Membership.role.in_(("member", "admin"))).exists()
+    select(Membership.id)
+    .where(Membership.user_id == AdminUser.id, Membership.role.in_(("member", "admin")))
+    .exists()
 )
 
 
@@ -238,10 +240,15 @@ def list_assignable_users(admin: RequireAnyAdmin, db: DbSession) -> list[Assigna
     ).all()
     direct: dict[int, list[int]] = {}
     for user_id, team_id in db.execute(
-        select(Membership.user_id, Membership.team_id).where(Membership.role == "admin", Membership.team_id.is_not(None))
+        select(Membership.user_id, Membership.team_id).where(
+            Membership.role == "admin", Membership.team_id.is_not(None)
+        )
     ):
         direct.setdefault(user_id, []).append(team_id)
-    return [AssignableUserOut(id=i, username=u, display_name=d, team_ids=direct.get(i, [])) for i, u, d in users]
+    return [
+        AssignableUserOut(id=i, username=u, display_name=d, team_ids=direct.get(i, []))
+        for i, u, d in users
+    ]
 
 
 @router.get("/{team_id}", response_model=TeamOut)
@@ -261,7 +268,9 @@ def update_team(team_id: int, payload: TeamUpdate, admin: RequireAnyAdmin, db: D
     if updates.get("club"):
         get_or_create_club(db, updates["club"])  # teams.club is an FK to clubs.name
     league_url = updates.get("ibasketball_league_url", team.ibasketball_league_url)
-    if league_url != team.ibasketball_league_url:  # changed, not merely re-sent: accepting the suggestion clears it
+    if (
+        league_url != team.ibasketball_league_url
+    ):  # changed, not merely re-sent: accepting the suggestion clears it
         team.league_url_overridden = league_url != team.league_url_suggestion
         team.league_url_suggestion = None
     for field, value in updates.items():
@@ -283,9 +292,19 @@ def list_team_admins(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> lis
     team = get_team_or_404(db, team_id)
     check_admin_grant(db, admin, team, "team")
     # Guarded: `club == None` would match every team-scope row (club IS NULL).
-    scope = Membership.team_id == team.id if team.club is None else or_(Membership.team_id == team.id, Membership.club == team.club)
+    scope = (
+        Membership.team_id == team.id
+        if team.club is None
+        else or_(Membership.team_id == team.id, Membership.club == team.club)
+    )
     rows = db.execute(
-        select(AdminUser.id, AdminUser.username, AdminUser.display_name, AdminUser.email, Membership.club)
+        select(
+            AdminUser.id,
+            AdminUser.username,
+            AdminUser.display_name,
+            AdminUser.email,
+            Membership.club,
+        )
         .join(Membership, Membership.user_id == AdminUser.id)
         .where(Membership.role == "admin", scope)
         .order_by(AdminUser.id)
@@ -294,21 +313,38 @@ def list_team_admins(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> lis
 
 
 @router.post("/{team_id}/admins", status_code=status.HTTP_201_CREATED, response_model=AdminOut)
-def create_team_admin(team_id: int, payload: AdminCreate, _admin_id: RequireAdmin, db: DbSession) -> AdminOut:
+def create_team_admin(
+    team_id: int, payload: AdminCreate, _admin_id: RequireAdmin, db: DbSession
+) -> AdminOut:
     team = get_team_or_404(db, team_id)
     if payload.scope == "club" and team.club is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "לקבוצה אין מועדון")
     if db.scalar(select(AdminUser).where(AdminUser.username == payload.username)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "שם המשתמש כבר קיים")
-    if payload.email and db.scalar(select(AdminUser).where(AdminUser.email == payload.email)) is not None:
+    if (
+        payload.email
+        and db.scalar(select(AdminUser).where(AdminUser.email == payload.email)) is not None
+    ):
         raise HTTPException(status.HTTP_409_CONFLICT, "האימייל כבר קיים")
     # ponytail: a same-instant duplicate hits the unique index as a 500; catch IntegrityError if it ever matters
-    user = AdminUser(username=payload.username, email=payload.email, password_hash=hash_password(payload.password))
+    user = AdminUser(
+        username=payload.username,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+    )
     club = team.club if payload.scope == "club" else None
-    user.memberships.append(Membership(team_id=team_id if club is None else None, club=club, role="admin"))
+    user.memberships.append(
+        Membership(team_id=team_id if club is None else None, club=club, role="admin")
+    )
     db.add(user)
     db.commit()
-    return AdminOut(id=user.id, username=user.username, display_name=user.display_name, email=user.email, club=club)
+    return AdminOut(
+        id=user.id,
+        username=user.username,
+        display_name=user.display_name,
+        email=user.email,
+        club=club,
+    )
 
 
 def _grant_filter(user_id: int, team: Team, scope: str):
@@ -319,14 +355,20 @@ def _grant_filter(user_id: int, team: Team, scope: str):
 
 @router.delete("/{team_id}/admins/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_team_admin(
-    team_id: int, user_id: int, admin: RequireAnyAdmin, db: DbSession, scope: Literal["team", "club"] = "team"
+    team_id: int,
+    user_id: int,
+    admin: RequireAnyAdmin,
+    db: DbSession,
+    scope: Literal["team", "club"] = "team",
 ) -> None:
     """Revokes one admin grant. The account and its other grants stay. Full admins have no rows: unreachable."""
     team = get_team_or_404(db, team_id)
     check_admin_grant(db, admin, team, scope)
     if scope == "club" and team.club is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
-    grant = db.scalar(select(Membership).where(*_grant_filter(user_id, team, scope), Membership.role == "admin"))
+    grant = db.scalar(
+        select(Membership).where(*_grant_filter(user_id, team, scope), Membership.role == "admin")
+    )
     if grant is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
     db.delete(grant)
@@ -335,7 +377,11 @@ def delete_team_admin(
 
 @router.put("/{team_id}/admins/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def assign_team_admin(
-    team_id: int, user_id: int, admin: RequireAnyAdmin, db: DbSession, payload: AssignIn | None = None
+    team_id: int,
+    user_id: int,
+    admin: RequireAnyAdmin,
+    db: DbSession,
+    payload: AssignIn | None = None,
 ) -> None:
     """Make an existing account an admin of this team (or its club). Adds a grant; other grants stay."""
     scope = payload.scope if payload else "team"
@@ -345,13 +391,19 @@ def assign_team_admin(
         raise HTTPException(status.HTTP_409_CONFLICT, "לקבוצה אין מועדון")
     # is_full_admin false keeps full admins unreachable: this can never create or demote a full admin.
     user = db.scalar(
-        select(AdminUser).where(AdminUser.id == user_id, AdminUser.is_full_admin.is_(False), _HAS_APPROVED_GRANT)
+        select(AdminUser).where(
+            AdminUser.id == user_id, AdminUser.is_full_admin.is_(False), _HAS_APPROVED_GRANT
+        )
     )
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Admin not found")
     grant = db.scalar(select(Membership).where(*_grant_filter(user_id, team, scope)))
     if grant is None:
-        grant = Membership(user_id=user_id, team_id=team.id if scope == "team" else None, club=team.club if scope == "club" else None)
+        grant = Membership(
+            user_id=user_id,
+            team_id=team.id if scope == "team" else None,
+            club=team.club if scope == "club" else None,
+        )
         db.add(grant)
     grant.role = "admin"
     db.commit()

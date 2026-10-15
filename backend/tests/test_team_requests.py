@@ -51,13 +51,17 @@ def feed(monkeypatch: pytest.MonkeyPatch, db_session: Session) -> dict:
 
 
 def _ask(client: TestClient, code: int = 1, league: int = 10):
-    return client.post("/team-requests", json={"league_id": league, "ibasketball_team_url": URL.format(code)})
+    return client.post(
+        "/team-requests", json={"league_id": league, "ibasketball_team_url": URL.format(code)}
+    )
 
 
 def _requester(client: TestClient, db: Session, name: str, *memberships: Membership) -> None:
     """A signed-in user with a verified email (the only kind that may request a team)."""
     _login_user(client, db, name, *memberships)
-    db.execute(update(AdminUser).where(AdminUser.username == name).values(email=f"{name}@example.com"))
+    db.execute(
+        update(AdminUser).where(AdminUser.username == name).values(email=f"{name}@example.com")
+    )
     db.commit()
 
 
@@ -69,13 +73,19 @@ def test_anonymous_cannot_request(client: TestClient) -> None:
     assert _ask(client).status_code == 401
 
 
-def test_request_is_pending_with_feed_data_and_page_club(client: TestClient, db_session: Session) -> None:
+def test_request_is_pending_with_feed_data_and_page_club(
+    client: TestClient, db_session: Session
+) -> None:
     _requester(client, db_session, "dana")
     res = _ask(client)
     assert res.status_code == 201
     assert res.json()["status"] == "pending"
     row = db_session.execute(select(TeamRequest)).scalar_one()
-    assert (row.name, row.logo_url, row.ibasketball_team_url) == ("א", "https://img/a.png", URL.format(1))
+    assert (row.name, row.logo_url, row.ibasketball_team_url) == (
+        "א",
+        "https://img/a.png",
+        URL.format(1),
+    )
     assert row.ibasketball_league_url == LEAGUE_URL
     assert row.club == "Gush"
     assert db_session.scalar(select(Team.id)) is None
@@ -107,7 +117,9 @@ def test_second_pending_request_for_same_team_is_409_and_allowed_again_after_rej
     assert _ask(client).status_code == 201
 
 
-def test_fourth_pending_request_per_user_is_409(client: TestClient, db_session: Session, feed: dict) -> None:
+def test_fourth_pending_request_per_user_is_409(
+    client: TestClient, db_session: Session, feed: dict
+) -> None:
     _requester(client, db_session, "dana")
     assert [_ask(client, code).status_code for code in (1, 2, 3)] == [201, 201, 201]
     feed["page_fetches"].clear()
@@ -115,7 +127,9 @@ def test_fourth_pending_request_per_user_is_409(client: TestClient, db_session: 
     assert feed["page_fetches"] == []  # at the cap, no team page is fetched
 
 
-def test_inbox_scoped_to_club_admin_and_full_admin(client: TestClient, db_session: Session, feed: dict) -> None:
+def test_inbox_scoped_to_club_admin_and_full_admin(
+    client: TestClient, db_session: Session, feed: dict
+) -> None:
     _requester(client, db_session, "dana")
     _ask(client, 1)
     feed["club"] = None
@@ -126,7 +140,11 @@ def test_inbox_scoped_to_club_admin_and_full_admin(client: TestClient, db_sessio
     _club_admin(client, db_session)
     inbox = client.get("/team-requests").json()
     assert [r["name"] for r in inbox] == ["א"]
-    assert (inbox[0]["username"], inbox[0]["league_name"], inbox[0]["club"]) == ("dana", "ליגה", "Gush")
+    assert (inbox[0]["username"], inbox[0]["league_name"], inbox[0]["club"]) == (
+        "dana",
+        "ליגה",
+        "Gush",
+    )
     _club_admin(client, db_session, "other", "Other")
     assert client.get("/team-requests").json() == []
     team = Team(name="Own", slug="own")
@@ -135,7 +153,9 @@ def test_inbox_scoped_to_club_admin_and_full_admin(client: TestClient, db_sessio
     _login_user(client, db_session, "teamadmin", Membership(team_id=team.id, role="admin"))
     assert client.get("/team-requests").json() == []
     _login_user(client, db_session, "root")
-    db_session.execute(update(AdminUser).where(AdminUser.username == "root").values(is_full_admin=True))
+    db_session.execute(
+        update(AdminUser).where(AdminUser.username == "root").values(is_full_admin=True)
+    )
     db_session.commit()
     assert [r["name"] for r in client.get("/team-requests").json()] == ["א", "ב"]
 
@@ -149,7 +169,12 @@ def test_club_admin_approves_creates_team_grants_admin_and_starts_sync(
     assert client.post(f"/team-requests/{request_id}/approve").status_code == 204
 
     team = db_session.scalar(select(Team))
-    assert (team.name, team.club, team.background, team.logo_url) == ("א", "Gush", "hoop-1", "https://img/a.png")
+    assert (team.name, team.club, team.background, team.logo_url) == (
+        "א",
+        "Gush",
+        "hoop-1",
+        "https://img/a.png",
+    )
     assert team.ibasketball_team_url == URL.format(1)
     assert team.ibasketball_league_url == LEAGUE_URL
     dana = db_session.scalar(select(AdminUser).where(AdminUser.username == "dana"))
@@ -177,13 +202,20 @@ def test_out_of_scope_approve_or_reject_is_403_and_non_pending_is_404(
     assert client.post(f"/team-requests/{request_id}/approve").status_code == 403
 
 
-def test_reject_sets_rejected_and_me_lists_request_statuses(client: TestClient, db_session: Session) -> None:
+def test_reject_sets_rejected_and_me_lists_request_statuses(
+    client: TestClient, db_session: Session
+) -> None:
     _requester(client, db_session, "dana")
     request_id = _ask(client).json()["id"]
-    assert client.get("/auth/me").json()["team_requests"] == [{"id": request_id, "name": "א", "status": "pending"}]
+    assert client.get("/auth/me").json()["team_requests"] == [
+        {"id": request_id, "name": "א", "status": "pending"}
+    ]
     _club_admin(client, db_session)
     client.post(f"/team-requests/{request_id}/reject")
-    assert client.post("/auth/login", json={"username": "dana", "password": "password123"}).status_code == 200
+    assert (
+        client.post("/auth/login", json={"username": "dana", "password": "password123"}).status_code
+        == 200
+    )
     assert client.get("/auth/me").json()["team_requests"][0]["status"] == "rejected"
 
 
@@ -191,9 +223,16 @@ def test_reject_sets_rejected_and_me_lists_request_statuses(client: TestClient, 
 def test_self_approver_request_is_approved_immediately(
     kind: str, client: TestClient, db_session: Session, feed: dict
 ) -> None:
-    _login_user(client, db_session, "dana", *([Membership(club="Gush", role="admin")] if kind == "club" else []))
+    _login_user(
+        client,
+        db_session,
+        "dana",
+        *([Membership(club="Gush", role="admin")] if kind == "club" else []),
+    )
     if kind == "full":
-        db_session.execute(update(AdminUser).where(AdminUser.username == "dana").values(is_full_admin=True))
+        db_session.execute(
+            update(AdminUser).where(AdminUser.username == "dana").values(is_full_admin=True)
+        )
         db_session.commit()
     res = _ask(client)
     assert res.status_code == 201

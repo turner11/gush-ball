@@ -138,7 +138,11 @@ def _add_crud_routes(
 
     @router.patch(path + "/{item_id}", response_model=out_schema)
     def update(
-        team_id: int, item_id: int, payload: update_schema, db: DbSession, _admin_id: RequireTeamAdmin
+        team_id: int,
+        item_id: int,
+        payload: update_schema,
+        db: DbSession,
+        _admin_id: RequireTeamAdmin,
     ):
         item = get_item_or_404(db, team_id, item_id)
         data = payload.model_dump(exclude_unset=True)
