@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App.vue'
 import { useAuth } from './composables/useAuth'
+import { useSelectedTeam } from './composables/useSelectedTeam'
 import router from './router'
 
 describe('App', () => {
@@ -11,6 +12,7 @@ describe('App', () => {
   })
 
   it('renders the nav shell', async () => {
+    useSelectedTeam().selectedTeamId.value = '1' // the nav only shows once a team is chosen
     router.push('/')
     await router.isReady()
 

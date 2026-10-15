@@ -8,6 +8,7 @@ const teamsLoaded = ref(false)
 
 watch(selectedTeamId, (id) => {
   if (id) localStorage.setItem(STORAGE_KEY, id)
+  else localStorage.removeItem(STORAGE_KEY)
 })
 
 // Public URL slug, derived from name_en so it tracks admin edits (no DB column).
@@ -28,16 +29,14 @@ export function clubTeamsOf(teams, team) {
 }
 
 export function useSelectedTeam() {
-  // Call once the real team list has loaded, so first-time visitors land on
-  // the first team in the DB instead of an empty selection.
-  function ensureDefault(teams) {
+  // Call once the real team list has loaded. A remembered team is one the visitor opened;
+  // forget it if it no longer exists. Never invents a default, so first-time visitors can be told apart.
+  function markTeamsLoaded(teams) {
     teamsLoaded.value = true
-    if (teams.length > 0 && !teams.some((t) => String(t.id) === selectedTeamId.value)) {
-      selectedTeamId.value = String(teams[0].id)
-    }
+    if (!teams.some((t) => String(t.id) === selectedTeamId.value)) selectedTeamId.value = null
   }
 
-  return { selectedTeamId, teamsLoaded, ensureDefault }
+  return { selectedTeamId, teamsLoaded, markTeamsLoaded }
 }
 
 // The URL slug picks the team on every route that has one (home, /:slug/schedule, /:slug/admin, …).

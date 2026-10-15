@@ -6,8 +6,8 @@ import { useSelectedTeam } from '../composables/useSelectedTeam'
 const homeDescription = (team) => `האתר של ${team}: משחקים ותוצאות, טבלת הליגה, שחקנים, חדשות ומדיה.`
 const admin = (title) => ({ requiresAuth: true, layout: 'admin', title })
 
-// Pre-#223 bare URLs (shared links) redirect to the remembered team's page; '-' is never a real slug, so the
-// layout's slug resolver then picks the remembered/first team.
+// Pre-#223 bare URLs (shared links) redirect to the remembered team's page, or to the picker when nothing is
+// remembered, so a team the visitor never chose is never persisted.
 const LEGACY_PATHS = [
   ['/schedule', 'schedule'],
   ['/standings', 'standings'],
@@ -22,7 +22,7 @@ const router = createRouter({
   history: createWebHistory(),
   scrollBehavior: (to, from, saved) => saved ?? (to.hash ? { el: to.hash, top: 96 } : { top: 0 }),
   routes: [
-    { path: '/', name: 'home', component: () => import('../views/HomeView.vue'), meta: { description: homeDescription } },
+    { path: '/', name: 'home', component: () => import('../views/HomeView.vue'), beforeEnter: () => (useSelectedTeam().selectedTeamId.value ? true : { name: 'teams' }), meta: { description: homeDescription } },
     { path: '/:slug/schedule', name: 'schedule', component: () => import('../views/ScheduleView.vue'), meta: { title: 'לוח משחקים', description: (team) => `לוח המשחקים והתוצאות של ${team}.` } },
     { path: '/:slug/games/:id', name: 'game', component: () => import('../views/GameView.vue'), meta: { title: 'משחק', description: (team) => `משחק של ${team}: תאריך, מקום ותוצאה.` } },
     { path: '/:slug/standings', name: 'standings', component: () => import('../views/StandingsView.vue'), meta: { title: 'טבלה', description: (team) => `טבלת הליגה והמיקום של ${team}.` } },
@@ -31,7 +31,8 @@ const router = createRouter({
     { path: '/:slug/media', name: 'media', component: () => import('../views/MediaView.vue'), meta: { title: 'מדיה', description: (team) => `תמונות, סרטונים וקישורים של ${team}.` } },
     { path: '/:slug/club', name: 'club-week', component: () => import('../views/ClubWeekView.vue'), meta: { title: 'השבוע במועדון', description: (team) => `משחקים ותוצאות השבוע בכל קבוצות המועדון של ${team}.` } },
     { path: '/:slug/stats', name: 'stats', component: () => import('../views/StatsView.vue'), meta: { title: 'סטטיסטיקה', description: (team) => `סטטיסטיקת חמישיות של ${team}.`, noindex: true } },
-    { path: '/teams', name: 'teams', component: () => import('../views/TeamsView.vue'), meta: { title: 'קבוצות', description: () => 'כל הקבוצות של המועדון: בחרו קבוצה למשחקים, לטבלה ולשחקנים.' } },
+    { path: '/teams', name: 'teams', component: () => import('../views/TeamsView.vue'), meta: { title: 'קבוצות', description: () => 'בחרו ליגה וקבוצה: משחקים, טבלה ושחקנים.' } },
+    { path: '/teams/:leagueId(\\d+)', name: 'league-teams', component: () => import('../views/LeagueTeamsView.vue'), meta: { title: 'ליגה', description: () => 'הקבוצות בליגה: בחרו קבוצה למשחקים, לטבלה ולשחקנים.' } },
     { path: '/account', name: 'account', component: () => import('../views/AccountView.vue'), meta: { title: 'החשבון שלי', requiresUser: true, noindex: true } },
     { path: '/join', name: 'join', component: () => import('../views/JoinView.vue'), meta: { title: 'הצטרפות', requiresUser: true, noindex: true } },
     { path: '/:slug', name: 'team-home', component: () => import('../views/HomeView.vue'), meta: { description: homeDescription } },
@@ -52,7 +53,10 @@ const router = createRouter({
     { path: '/admin/teams/import', name: 'admin-teams-import', component: () => import('../views/AdminClubImportView.vue'), meta: admin('ייבוא קבוצות מאגודה') },
     { path: '/admin/teams/batch', name: 'admin-teams-batch-edit', component: () => import('../views/AdminTeamsBatchEditView.vue'), meta: admin('עריכת קבוצות') },
     { path: '/admin/teams/:id', name: 'admin-team-edit', component: () => import('../views/AdminTeamEditView.vue'), meta: admin('עריכת קבוצה') },
-    ...LEGACY_PATHS.map(([path, name]) => ({ path, redirect: () => ({ name, params: { slug: useSelectedTeam().selectedTeamId.value ?? '-' } }) })),
+    ...LEGACY_PATHS.map(([path, name]) => ({ path, redirect: () => {
+      const slug = useSelectedTeam().selectedTeamId.value
+      return slug ? { name, params: { slug } } : { name: 'teams' }
+    } })),
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundView.vue'), meta: { title: 'לא נמצא', noindex: true } },
   ],
 })

@@ -38,7 +38,7 @@ const tabItems = computed(() => [
 
 const teams = ref([])
 const { user, checked, checkSession, logout } = useAuth()
-const { selectedTeamId, ensureDefault } = useSelectedTeam()
+const { selectedTeamId, teamsLoaded, markTeamsLoaded } = useSelectedTeam()
 
 // Scoped to this layout's root so admin pages stay neutral; unset vars fall back in style.css.
 const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value))
@@ -82,10 +82,10 @@ onMounted(async () => {
   if (!checked.value) checkSession() // not awaited: don't delay the teams fetch
   try {
     teams.value = await apiFetch('/teams')
-    ensureDefault(teams.value)
+    markTeamsLoaded(teams.value)
   } catch {
-    // leave teams empty — the switcher simply doesn't render
-    ensureDefault([]) // still marks the list as loaded so Home shows the welcome
+    // leave teams empty — the switcher simply doesn't render; keep the remembered team (a blip isn't "deleted")
+    teamsLoaded.value = true // so Home shows the welcome or the error instead of waiting forever
   }
 })
 </script>
@@ -134,14 +134,14 @@ onMounted(async () => {
           >
             <AppIcon name="grid" />
           </RouterLink>
-          <nav data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden lg:block">
+          <nav v-if="selectedTeamId" data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden lg:block">
             <ul class="flex gap-6">
               <li v-for="item in navItems" :key="item.label">
                 <RouterLink :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
               </li>
             </ul>
           </nav>
-          <ThemeToggle class="shrink-0 ms-auto lg:ms-0" />
+          <ThemeToggle :class="['shrink-0 ms-auto', { 'lg:ms-0': selectedTeamId }]" />
           <template v-if="checked">
             <template v-if="user">
               <RouterLink v-if="user.is_admin" :to="teamBase + '/admin'" class="nav-link">ניהול</RouterLink>
@@ -197,6 +197,6 @@ onMounted(async () => {
     </main>
 
     <!-- lg, not md: 7 public links crowd the md header (#341) -->
-    <TabBar :items="tabItems" class="lg:hidden" />
+    <TabBar v-if="selectedTeamId" :items="tabItems" class="lg:hidden" />
   </div>
 </template>

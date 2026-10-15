@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { clubTeamsOf, teamSlug, useSelectedTeam } from './useSelectedTeam'
 
@@ -14,19 +15,32 @@ describe('teamSlug', () => {
   })
 })
 
-describe('ensureDefault', () => {
-  it('replaces a selected id that is not in the list', () => {
-    const { selectedTeamId, ensureDefault } = useSelectedTeam()
+describe('markTeamsLoaded', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('forgets a selected id that is not in the list', async () => {
+    const { selectedTeamId, markTeamsLoaded } = useSelectedTeam()
     selectedTeamId.value = '99'
-    ensureDefault([{ id: 2 }])
-    expect(selectedTeamId.value).toBe('2')
+    await nextTick()
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBe('99')
+    markTeamsLoaded([{ id: 2 }])
+    await nextTick()
+    expect(selectedTeamId.value).toBeNull()
+    expect(localStorage.getItem('gush-ball:selected-team-id')).toBeNull()
   })
 
   it('keeps a valid selection', () => {
-    const { selectedTeamId, ensureDefault } = useSelectedTeam()
+    const { selectedTeamId, markTeamsLoaded } = useSelectedTeam()
     selectedTeamId.value = '3'
-    ensureDefault([{ id: 2 }, { id: 3 }])
+    markTeamsLoaded([{ id: 2 }, { id: 3 }])
     expect(selectedTeamId.value).toBe('3')
+  })
+
+  it('never picks a team when nothing is selected', () => {
+    const { selectedTeamId, markTeamsLoaded } = useSelectedTeam()
+    selectedTeamId.value = null
+    markTeamsLoaded([{ id: 2 }])
+    expect(selectedTeamId.value).toBeNull()
   })
 })
 
