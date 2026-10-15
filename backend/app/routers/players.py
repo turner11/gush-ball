@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, HttpUrl, StringConstraints
-from sqlalchemy import ColumnElement, or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -14,9 +14,11 @@ from app.deps import (
     can_write_team,
     check_player_self_or_team_admin,
     check_team_scope,
+    covering_grant,
     get_team_or_404,
+    has_covering_grant,
 )
-from app.models import AdminUser, Membership, Player, PlayerImage, Team
+from app.models import AdminUser, Player, PlayerImage, Team
 
 router = APIRouter(tags=["players"])
 
@@ -75,20 +77,8 @@ class PlayerLinkOut(BaseModel):
     display_name: str
 
 
-def _covering_grant(team: Team) -> ColumnElement[bool]:
-    """True for users holding a member/admin grant on this team or its club (a NULL club never matches, #242)."""
-    scope = Membership.team_id == team.id
-    if team.club is not None:
-        scope = or_(scope, Membership.club == team.club)
-    return (
-        select(Membership.id)
-        .where(Membership.user_id == AdminUser.id, Membership.role.in_(("member", "admin")), scope)
-        .exists()
-    )
-
-
 def _check_linkable(db: Session, team: Team, user_id: int) -> None:
-    if not db.scalar(select(AdminUser.id).where(AdminUser.id == user_id, _covering_grant(team))):
+    if not has_covering_grant(db, user_id, team):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"User {user_id} has no member/admin grant on team {team.id}",
@@ -136,7 +126,7 @@ def list_linkable_users(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin
     team = get_team_or_404(db, team_id)
     rows = db.execute(
         select(AdminUser.id, AdminUser.username, AdminUser.display_name)
-        .where(_covering_grant(team))
+        .where(covering_grant(team))
         .order_by(AdminUser.username)
     )
     return [LinkableUserOut(id=i, username=u, display_name=d) for i, u, d in rows]

@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 import sentry_sdk
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import Select, exists, or_, select
+from sqlalchemy import ColumnElement, Select, exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -130,6 +130,29 @@ def check_membership_scope(db: Session, admin: AdminUser, row: Membership) -> No
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only a full admin can manage club memberships")
 
 
+def covering_grant(team: Team) -> ColumnElement[bool]:
+    """True for users holding a member/admin grant on this team or its club (a NULL club never matches, #242)."""
+    scope = Membership.team_id == team.id
+    if team.club is not None:
+        scope = or_(scope, Membership.club == team.club)
+    return (
+        select(Membership.id)
+        .where(Membership.user_id == AdminUser.id, Membership.role.in_(("member", "admin")), scope)
+        .exists()
+    )
+
+
+def has_covering_grant(db: Session, user_id: int, team: Team) -> bool:
+    return db.scalar(select(AdminUser.id).where(AdminUser.id == user_id, covering_grant(team))) is not None
+
+
+def self_editable_player_ids(db: Session, user: AdminUser) -> list[int]:
+    """Ids of the user's linked players whose team they still hold a member/admin grant on (#365)."""
+    players = db.scalars(select(Player).where(Player.user_id == user.id, Player.deleted_at.is_(None)).order_by(Player.id))
+    # ponytail: one grant query per linked player; a user is linked to one or two rows. Use a correlated join if that grows.
+    return [p.id for p in players if has_covering_grant(db, user.id, p.team)]
+
+
 SELF_EDITABLE_PLAYER_FIELDS = {"name", "name_en"}
 
 
@@ -137,10 +160,11 @@ def check_player_self_or_team_admin(
     db: Session, user: AdminUser, player: Player, fields: frozenset[str] | set[str] = frozenset()
 ) -> None:
     """Whoever may write the player's team may do anything; the linked user only edits `SELF_EDITABLE_PLAYER_FIELDS`
-    (and photos, which pass no fields) of their own row (#329)."""
+    (and photos, which pass no fields) of their own row (#329), and only while they hold a live member/admin
+    grant covering the team (#365)."""
     if can_write_team(db, user, player.team_id):
         return
-    if player.user_id != user.id:
+    if player.user_id != user.id or not has_covering_grant(db, user.id, player.team):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
     blocked = sorted(set(fields) - SELF_EDITABLE_PLAYER_FIELDS)
     if blocked:
@@ -186,9 +210,8 @@ def can_view_stats(db: Session, user: AdminUser) -> bool:
 
 
 def require_uploader(user: RequireUser, db: DbSession) -> AdminUser:
-    """Admins, plus users linked to a roster player (they upload their own photo)."""
-    linked = select(exists().where(Player.user_id == user.id, Player.deleted_at.is_(None)))
-    if not (is_admin(db, user) or db.scalar(linked)):
+    """Admins, plus users linked to a roster player of a team they still hold a grant on (they upload their own photo)."""
+    if not (is_admin(db, user) or self_editable_player_ids(db, user)):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
     return user
 

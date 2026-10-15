@@ -30,8 +30,9 @@ from app.deps import (
     check_not_last_full_admin,
     client_ip,
     is_admin,
+    self_editable_player_ids,
 )
-from app.models import AdminUser, Membership, Player, TeamRequest
+from app.models import AdminUser, Membership, TeamRequest
 from app.security import Email, Username, hash_password, password_fingerprint, verify_password
 
 log = logging.getLogger(__name__)
@@ -136,9 +137,7 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
         "team_id": team_ids[0] if team_ids is not None and len(team_ids) == 1 else None,
         "team_ids": team_ids,
         "clubs": admin_clubs(db, user),
-        "player_ids": list(
-            db.scalars(select(Player.id).where(Player.user_id == user.id, Player.deleted_at.is_(None)).order_by(Player.id))
-        ),
+        "player_ids": self_editable_player_ids(db, user),
         "memberships": [{"id": m.id, "team_id": m.team_id, "club": m.club, "role": m.role} for m in memberships],
         "team_requests": [
             {"id": r.id, "name": r.name, "status": r.status}
