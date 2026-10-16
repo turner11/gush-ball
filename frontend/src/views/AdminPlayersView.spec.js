@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const TEAMS = [{ id: 1, name: 'קבוצה א' }]
-const PLAYERS = [{ id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 7, images: [] }]
+const PLAYERS = [{ id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 7, images: [], videos: [] }]
 
 function mockFetch(handlers) {
   global.fetch = vi.fn((url, options = {}) => {
@@ -94,7 +94,7 @@ describe('AdminPlayersView', () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/players': () =>
-        jsonRes([...PLAYERS, { id: 11, team_id: 1, name: 'דני', name_en: null, jersey_number: 23, images: [] }]),
+        jsonRes([...PLAYERS, { id: 11, team_id: 1, name: 'דני', name_en: null, jersey_number: 23, images: [], videos: [] }]),
     })
 
     const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
@@ -114,7 +114,7 @@ describe('AdminPlayersView', () => {
   it('ignores a late response for a team that is no longer selected', async () => {
     let resolveFirst
     const first = new Promise((r) => (resolveFirst = r))
-    const other = [{ id: 30, team_id: 2, name: 'עמית', name_en: null, jersey_number: 3, images: [] }]
+    const other = [{ id: 30, team_id: 2, name: 'עמית', name_en: null, jersey_number: 3, images: [], videos: [] }]
     global.fetch = vi.fn((url) => {
       if (url === '/api/teams') return Promise.resolve(jsonRes(TEAMS))
       if (url === '/api/teams/1/players') return first
@@ -136,7 +136,7 @@ describe('AdminPlayersView', () => {
   })
 
   it('submitting the add-player form POSTs and the new player appears in the list', async () => {
-    const created = { id: 20, team_id: 1, name: 'דני', name_en: null, jersey_number: 9, images: [] }
+    const created = { id: 20, team_id: 1, name: 'דני', name_en: null, jersey_number: 9, images: [], videos: [] }
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/players': () => jsonRes(PLAYERS),
@@ -188,7 +188,7 @@ describe('AdminPlayersView', () => {
   })
 
   it('clicking edit, changing a field and submitting PATCHes and updates the list', async () => {
-    const updated = { id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 23, images: [] }
+    const updated = { id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 23, images: [], videos: [] }
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/players': () => jsonRes(PLAYERS),
@@ -253,10 +253,10 @@ describe('AdminPlayersView', () => {
   })
 
   it('shows deleted players on demand and restoring moves the player back to the list', async () => {
-    const gone = { id: 11, team_id: 1, name: 'דני', name_en: null, jersey_number: 9, images: [] }
+    const gone = { id: 11, team_id: 1, name: 'דני', name_en: null, jersey_number: 9, images: [], videos: [] }
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
-      'GET /api/teams/1/players': () => jsonRes([{ id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 7, images: [] }]),
+      'GET /api/teams/1/players': () => jsonRes([{ id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 7, images: [], videos: [] }]),
       'GET /api/teams/1/players/deleted': () => jsonRes([gone]),
       'POST /api/teams/1/players/11/restore': () => jsonRes(gone),
     })

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 
 import ImageUpload from './ImageUpload.vue'
+import PlayerVideosEditor from './PlayerVideosEditor.vue'
 import { apiFetch } from '../lib/api'
 
 const props = defineProps({ player: { type: Object, required: true } })
@@ -23,7 +24,7 @@ async function save() {
       method: 'PATCH',
       body: { name: name.value, name_en: nameEn.value || null },
     })
-    emit('saved', { ...updated, images: props.player.images })
+    emit('saved', { ...updated, images: props.player.images, videos: props.player.videos })
   } catch {
     error.value = 'שגיאה בשמירת הפרופיל, נסה שוב'
   } finally {
@@ -75,6 +76,11 @@ async function removeImage(image) {
       </ul>
       <p v-else class="empty-state">אין תמונות עדיין</p>
       <div class="mt-2"><ImageUpload label="העלאת תמונה" @uploaded="addImage" /></div>
+    </div>
+
+    <div>
+      <h2 class="field-label">סרטונים</h2>
+      <PlayerVideosEditor :player="player" @change="(videos) => emit('saved', { ...player, videos })" />
     </div>
 
     <div class="flex gap-2">

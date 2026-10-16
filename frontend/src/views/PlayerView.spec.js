@@ -11,6 +11,7 @@ const PLAYER = {
   name: 'יוסי כהן',
   jersey_number: 7,
   images: [{ id: 1, url: '/a.jpg' }, { id: 2, url: '/b.jpg' }],
+  videos: [],
 }
 
 // Team media: only items tagged with player 3 belong on the page.

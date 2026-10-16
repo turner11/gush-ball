@@ -6,6 +6,7 @@ import { ownTeams } from '../composables/useAuth'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import AppIcon from '../components/AppIcon.vue'
 import ImageUpload from '../components/ImageUpload.vue'
+import PlayerVideosEditor from '../components/PlayerVideosEditor.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { apiFetch } from '../lib/api'
 import { userLabel } from '../lib/format'
@@ -310,6 +311,11 @@ async function deleteImage(player, image) {
             </option>
             <option v-for="u in linkableUsers ?? []" :key="u.id" :value="u.id">{{ userLabel(u) }}</option>
           </select>
+        </div>
+
+        <div v-if="editing">
+          <h3 class="field-label">סרטונים</h3>
+          <PlayerVideosEditor :player="editing" @change="(videos) => (editing.videos = videos)" />
         </div>
 
         <div class="flex gap-2">
