@@ -13,6 +13,7 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import MembershipRequests from '../components/MembershipRequests.vue'
+import SyncFailures from '../components/SyncFailures.vue'
 import SyncStatus from '../components/SyncStatus.vue'
 import { fullAdmin, ownTeams, useAuth } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
@@ -117,6 +118,8 @@ onMounted(async () => {
         <span class="block text-sm text-muted">מי שינה מה ומתי</span>
       </RouterLink>
     </nav>
+
+    <SyncFailures />
 
     <MembershipRequests />
 

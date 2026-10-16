@@ -61,7 +61,7 @@ describe('AdminHomeView', () => {
     })
 
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
-    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true } } })
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
     await flushPromises()
 
     expect(wrapper.text()).toContain('8 שורות טבלה, 12 משחקים')
@@ -72,7 +72,7 @@ describe('AdminHomeView', () => {
   it('renders the join-request queue between the nav cards and the sync card', async () => {
     mockFetch({ 'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }), 'GET /api/teams': () => jsonRes(TEAMS) })
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
-    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true } } })
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
     await flushPromises()
 
     expect(wrapper.find('membership-requests-stub').exists()).toBe(true)
@@ -81,7 +81,7 @@ describe('AdminHomeView', () => {
   it('links to the account page', async () => {
     mockFetch({ 'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }), 'GET /api/teams': () => jsonRes(TEAMS) })
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
-    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true } } })
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
     await flushPromises()
 
     expect(wrapper.find('a[href="/account"]').exists()).toBe(true)
@@ -95,7 +95,7 @@ describe('AdminHomeView', () => {
     })
 
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
-    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true } } })
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
 
     await flushPromises()
     const button = wrapper.findAll('button').find((b) => b.text() === 'סנכרון עכשיו')
@@ -121,7 +121,7 @@ describe('AdminHomeView', () => {
     )
 
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
-    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true } } })
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
 
     await flushPromises()
     const button = wrapper.findAll('button').find((b) => b.text() === 'סנכרון עכשיו')
@@ -135,7 +135,7 @@ describe('AdminHomeView', () => {
   const checkbox = (wrapper, value) =>
     wrapper.findAll('input[type=checkbox]').find((i) => i.element.value === String(value))
   const mountFull = (AdminHomeView) =>
-    mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true } }, attachTo: document.body })
+    mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } }, attachTo: document.body })
   const body = () => new DOMWrapper(document.body)
   const trigger = (wrapper) => wrapper.find('#sync-teams-trigger')
   async function openTeams(wrapper) {
@@ -241,7 +241,7 @@ describe('AdminHomeView', () => {
   it('auto accept is checked by default and hidden when games is unchecked', async () => {
     mockSyncApis()
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
-    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true } } })
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
     await flushPromises()
 
     expect(wrapper.text()).toContain('אישור אוטומטי של משחקים')
@@ -257,7 +257,7 @@ describe('AdminHomeView', () => {
     mockSyncApis()
     ;(await import('../composables/useAuth')).useAuth().user.value = { username: 't', team_id: 1, team_ids: [1] }
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
-    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true } } })
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
     await flushPromises()
 
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams', expect.anything())

@@ -21,11 +21,11 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.db import SessionLocal
-from app.deps import DbSession, RequireAnyAdmin, admin_team_ids
-from app.models import League
+from app.deps import DbSession, RequireAnyAdmin, admin_team_ids, check_team_scope
+from app.models import League, Team
 from app.scrape import KINDS, THIN_KINDS, league_team_ids, sync_all
 
 log = logging.getLogger(__name__)
@@ -56,6 +56,13 @@ class SyncStatusOut(BaseModel):
     players: int | None = None
     errors: list[str] = []
     failed: bool = False
+
+
+class SyncFailureOut(BaseModel):
+    team_id: int
+    team_name: str
+    message: str
+    failed_at: datetime
 
 
 def _run_sync(team_ids: list[int] | None, kinds: set[str], auto_accept: bool) -> None:
@@ -152,3 +159,24 @@ async def sync_status(admin: RequireAnyAdmin, db: DbSession) -> SyncStatusOut:
     ):
         return SyncStatusOut(running=_running)
     return SyncStatusOut(running=_running, **(_last or {}))
+
+
+@router.get("/failures", response_model=list[SyncFailureOut])
+def list_failures(admin: RequireAnyAdmin, db: DbSession) -> list[SyncFailureOut]:
+    """Teams whose latest scrape failed and was not yet dismissed, narrowed to the admin's scope."""
+    query = select(Team).where(Team.sync_error.is_not(None)).order_by(Team.sync_error_at.desc())
+    scope = admin_team_ids(db, admin)
+    if scope is not None:
+        query = query.where(Team.id.in_(scope))
+    return [
+        SyncFailureOut(team_id=t.id, team_name=t.name, message=t.sync_error, failed_at=t.sync_error_at)
+        for t in db.scalars(query)
+    ]
+
+
+@router.delete("/failures/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
+def dismiss_failure(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> None:
+    """Shared dismissal: clears the note for every admin. Idempotent. Core update keeps it out of the audit log."""
+    check_team_scope(db, admin, team_id)
+    db.execute(update(Team).where(Team.id == team_id).values(sync_error=None, sync_error_at=None))
+    db.commit()
