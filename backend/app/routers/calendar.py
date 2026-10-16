@@ -15,7 +15,7 @@ _STAMP = "%Y%m%dT%H%M%SZ"
 
 
 def _text(value: str) -> str:
-    return value.replace("\\", "\\\\").replace(";", r"\;").replace(",", r"\,").replace("\n", r"\n")
+    return value.replace("\r\n", "\n").replace("\r", "\n").replace("\\", "\\\\").replace(";", r"\;").replace(",", r"\,").replace("\n", r"\n")
 
 
 def _fold(line: str) -> str:

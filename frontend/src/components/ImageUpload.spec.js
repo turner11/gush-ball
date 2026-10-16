@@ -54,4 +54,21 @@ describe('ImageUpload', () => {
     expect(wrapper.emitted('uploaded')).toBeUndefined()
     expect(wrapper.text()).toContain('שגיאה בהעלאת הקובץ')
   })
+
+  it('tells the user to try again later on a 429', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      json: async () => {
+        throw new Error('no body')
+      },
+    })
+
+    const { default: ImageUpload } = await import('./ImageUpload.vue')
+    const wrapper = mount(ImageUpload)
+    await pickFile(wrapper)
+
+    expect(wrapper.text()).toContain('יותר מדי ניסיונות, נסו שוב מאוחר יותר')
+  })
 })

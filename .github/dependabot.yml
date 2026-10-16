@@ -16,3 +16,10 @@ updates:
     directories: ["/backend", "/frontend", "/.docker/runner-claude"]
     schedule:
       interval: weekly
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]

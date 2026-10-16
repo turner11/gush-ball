@@ -186,9 +186,17 @@ def _page_club(db: Session, current: str | None, name: str, url: str) -> str | N
     return club.name
 
 
+def _existing_club(db: Session, name: str, url: str) -> str | None:
+    club = db.scalar(select(Club).where(Club.ibasketball_url == url)) or db.scalar(
+        select(Club).where(Club.name == name[:120])
+    )
+    return club.name if club is not None and club.ibasketball_url in (None, url) else None
+
+
 def team_page_club(db: Session, team_url: str) -> str | None:
-    """Club name from one team page (#351); None if it has no club link or the fetch fails (a request without a
-    club goes to a full admin)."""
+    """Name of an existing club the team page links to (by url, else by name with no/same url); never creates or
+    fills a club, since a requester's transaction must not write clubs (#366). None (no club link, unknown club,
+    fetch failure) means a full admin approves, and the first sync creates the club."""
     url = ibasketball_url_or_none(team_url)
     if url is None:
         log.warning("Refusing to fetch non-ibasketball team page %r", team_url)
@@ -201,7 +209,7 @@ def team_page_club(db: Session, team_url: str) -> str | None:
         log.warning("Could not fetch team page %s", team_url, exc_info=True)
         return None
     link = _club_link(BeautifulSoup(resp.text, "html.parser"))
-    return None if link is None else _page_club(db, None, *link)
+    return None if link is None else _existing_club(db, *link)
 
 
 def _roll_league(db: Session, team: Team, league_ids: list[int]) -> None:
