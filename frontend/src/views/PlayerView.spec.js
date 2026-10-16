@@ -23,9 +23,16 @@ const PLAYER = {
   videos: [],
 }
 
+const ROSTER = [
+  { id: 2, name: 'אבי לוי', jersey_number: 4, images: [] },
+  PLAYER,
+  { id: 4, name: 'רון שמש', jersey_number: 9, images: [] },
+]
+
 // Team media: only items tagged with player 3 belong on the page.
 const RESPONSES = {
   '/api/players/3': PLAYER,
+  '/api/teams/1/players': ROSTER,
   '/api/teams/1': { id: 1, name: 'קבוצה א', name_en: 'Team A' },
   '/api/teams/1/images': [
     { id: 10, title: 'אימון', url: '/t1.jpg', player_ids: [3] },
@@ -135,6 +142,38 @@ describe('PlayerView', () => {
       '/t2.jpg',
       '/t1.jpg',
     ])
+  })
+
+  describe('teammate nav (#384)', () => {
+    const NAV = 'nav[aria-label="ניווט בין שחקני הקבוצה"]'
+    const links = async (id) => {
+      const base = okFetch()
+      global.fetch = vi.fn((url) => {
+        const p = ROSTER.find((r) => url === `/api/players/${r.id}`)
+        return p ? Promise.resolve({ ok: true, status: 200, json: async () => ({ ...p, team_id: 1, videos: [] }) }) : base(url)
+      })
+      return (await mountAt(`/players/${id}`)).findAll(`${NAV} a`)
+    }
+
+    it.each([
+      [2, ['/players/3'], 'השחקן הבא'],
+      [3, ['/players/2', '/players/4'], 'השחקן הקודם'],
+      [4, ['/players/3'], 'השחקן הקודם'],
+    ])('player %i links to its neighbours in roster order', async (id, hrefs, firstLabel) => {
+      const a = await links(id)
+
+      expect(a.map((l) => l.attributes('href'))).toEqual(hrefs)
+      expect(a[0].attributes('aria-label')).toMatch(new RegExp('^' + firstLabel))
+    })
+
+    it('is hidden when the team has a single player', async () => {
+      const base = okFetch()
+      global.fetch = vi.fn((url) =>
+        url === '/api/teams/1/players' ? Promise.resolve({ ok: true, status: 200, json: async () => [PLAYER] }) : base(url),
+      )
+
+      expect((await mountAt('/players/3')).find(NAV).exists()).toBe(false)
+    })
   })
 
   describe('photo lightbox (#383)', () => {
