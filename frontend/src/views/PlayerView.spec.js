@@ -73,6 +73,16 @@ describe('PlayerView', () => {
     expect(avatar.attributes('style')).toBeUndefined()
   })
 
+  it('shows personal videos before tagged team videos', async () => {
+    withPlayer({ videos: [{ id: 20, title: 'הדגשים שלי', url: 'https://youtu.be/dQw4w9WgXcQ' }] })
+    const text = (await mountAt('/players/3')).text()
+
+    expect(text).toContain('הדגשים שלי')
+    expect(text).toContain('הסל המנצח')
+    expect(text).not.toContain('לא שלו')
+    expect(text.indexOf('הדגשים שלי')).toBeLessThan(text.indexOf('הסל המנצח'))
+  })
+
   it('shows the jersey number large, outside the heading, and omits it when unset', async () => {
     global.fetch = okFetch()
     const withNumber = await mountAt('/players/3')
