@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -13,28 +13,13 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import MembershipRequests from '../components/MembershipRequests.vue'
+import SyncStatus from '../components/SyncStatus.vue'
 import { fullAdmin, ownTeams, useAuth } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
-import { apiFetch } from '../lib/api'
-import { formatDuration } from '../lib/format'
-
-const POLL_MS = 3000
 
 // The slug (when present) scopes the players/games links to one team.
 const route = useRoute()
 const base = computed(() => (route.params.slug ? '/' + route.params.slug : ''))
-
-const submitting = ref(false)
-const running = ref(false)
-const result = ref(null)
-const error = ref(null)
-let timer = null
-let unmounted = false
-
-function stopPolling() {
-  clearInterval(timer)
-  timer = null
-}
 
 const { user } = useAuth()
 const pickTeams = computed(() => !user.value?.team_id) // full and club admins both choose teams
@@ -50,18 +35,6 @@ const teamsApi = useTeams()
 const teams = ref(null) // null = loading
 const teamIds = ref([])
 
-const resultText = computed(() =>
-  [
-    result.value?.standings != null && `${result.value.standings} שורות טבלה`,
-    result.value?.games != null && `${result.value.games} משחקים`,
-    result.value?.players != null && `${result.value.players} שחקנים`,
-  ]
-    .filter(Boolean)
-    .join(', '),
-)
-const elapsedText = computed(() =>
-  typeof result.value?.elapsed_seconds === 'number' ? formatDuration(result.value.elapsed_seconds) : '',
-)
 const allTeamsSelected = computed(() => teamIds.value.length === (teams.value?.length ?? 0))
 const selectAllState = computed(() =>
   allTeamsSelected.value ? true : teamIds.value.length ? 'indeterminate' : false,
@@ -81,60 +54,20 @@ const teamsSummary = computed(() => {
 })
 const ITEM_CLASS =
   'flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-3 text-sm data-[highlighted]:bg-sunken'
+const syncBody = computed(() => ({
+  kinds: kinds.value,
+  auto_accept: autoAccept.value,
+  ...(pickTeams.value && { team_ids: teamIds.value }),
+}))
 const cannotSync = computed(
-  () => submitting.value || running.value || !kinds.value.length || (pickTeams.value && !teamIds.value.length),
+  () => !kinds.value.length || (pickTeams.value && !teamIds.value.length),
 )
 
-async function refreshStatus() {
-  try {
-    const s = await apiFetch('/sync/status')
-    if (unmounted) return
-    running.value = s.running
-    if (s.finished_at) result.value = s
-    if (s.running) {
-      timer ??= setInterval(refreshStatus, POLL_MS)
-    } else {
-      stopPolling()
-    }
-  } catch (err) {
-    stopPolling()
-    running.value = false
-    error.value = err.message
-  }
-}
-
-async function onSyncNow() {
-  submitting.value = true
-  result.value = null
-  error.value = null
-  try {
-    await apiFetch('/sync/now', {
-      method: 'POST',
-      body: {
-        kinds: kinds.value,
-        auto_accept: autoAccept.value,
-        ...(pickTeams.value && { team_ids: teamIds.value }),
-      },
-    })
-    running.value = true
-    timer ??= setInterval(refreshStatus, POLL_MS)
-  } catch (err) {
-    error.value = err.message
-  } finally {
-    submitting.value = false
-  }
-}
-
 onMounted(async () => {
-  refreshStatus()
   if (!pickTeams.value) return
   const all = (await teamsApi.list()) ?? []
   teams.value = ownTeams(all).filter((t) => t.ibasketball_team_url || t.ibasketball_league_url)
   teamIds.value = teams.value.map((t) => t.id)
-})
-onUnmounted(() => {
-  unmounted = true
-  stopPolling()
 })
 </script>
 
@@ -264,22 +197,11 @@ onUnmounted(() => {
         <p v-if="teamsApi.error.value" class="error-text" role="alert">{{ teamsApi.error.value }}</p>
       </div>
       <p v-else class="text-sm text-muted">הסנכרון יתבצע לקבוצה שלך בלבד</p>
-      <button type="button" :disabled="cannotSync" class="btn-primary" @click="onSyncNow">
-        סנכרון עכשיו
-      </button>
-      <p v-if="running" class="text-sm text-muted">
-        הסנכרון רץ… זה עלול לקחת כמה דקות.
-      </p>
-      <div v-else-if="result" class="text-sm text-muted">
-        <p v-if="result.failed" class="error-text">הסנכרון נכשל.</p>
-        <p v-else>
-          הסנכרון הסתיים<template v-if="elapsedText"> תוך {{ elapsedText }}</template>: {{ resultText }}.
-        </p>
-        <ul v-if="result.errors.length" class="error-text list-disc ps-5">
-          <li v-for="e in result.errors" :key="e">{{ e }}</li>
-        </ul>
-      </div>
-      <p v-if="error" class="error-text" role="alert">{{ error }}</p>
+      <SyncStatus v-slot="{ start, busy }">
+        <button type="button" :disabled="busy || cannotSync" class="btn-primary" @click="start('/sync/now', syncBody)">
+          סנכרון עכשיו
+        </button>
+      </SyncStatus>
     </div>
   </section>
 </template>

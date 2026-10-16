@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -7,8 +7,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app import scrape
-from app.models import Team
+from app.models import Game, GameStatus, League, Opponent, Team
 from app.routers import sync as sync_router
+from app.scrape import ISRAEL
+from tests import test_scrape_games as tsg
 
 
 @pytest.fixture()
@@ -281,3 +283,135 @@ def test_sync_all_refreshes_leagues_before_games_and_standings(
     scrape.sync_all(db_session)
 
     assert order == ["leagues", "games", "standings"]
+
+
+TEAM_URL = "https://ibasketball.co.il/team/1/"
+LEAGUE_URL = "https://ibasketball.co.il/league/77/"
+
+
+def _evening(day_offset: int = 0, hour: int = 21) -> datetime:
+    """Israel wall time `hour`:00 on today+offset (aware, like `now` in sync_tonight)."""
+    today = datetime.now(ISRAEL).replace(hour=hour, minute=0, second=0, microsecond=0)
+    return today + timedelta(days=day_offset)
+
+
+def _game(db: Session, team: Team, at: datetime, **kw: Any) -> Game:
+    opponent = Opponent(name="Opp", logo_url="https://x/logo.png")
+    db.add(opponent)
+    db.flush()
+    game = Game(team_id=team.id, opponent_id=opponent.id, scheduled_at=at.replace(tzinfo=None), **kw)
+    db.add(game)
+    db.commit()
+    return game
+
+
+@pytest.fixture()
+def tonight_teams(db_session: Session) -> dict[str, Team]:
+    teams = {
+        k: Team(name=k, slug=k, ibasketball_team_url=None if k == "D" else f"{TEAM_URL}{k}")
+        for k in "ABCDE"
+    }
+    db_session.add_all(teams.values())
+    db_session.commit()
+    _game(db_session, teams["A"], _evening(hour=20))
+    _game(db_session, teams["B"], _evening(), status=GameStatus.FINAL, team_score=80, opponent_score=70)
+    _game(db_session, teams["C"], _evening(-1))
+    _game(db_session, teams["D"], _evening())
+    _game(db_session, teams["E"], _evening(1))
+    return teams
+
+
+def test_tonight_team_ids_selects_only_todays_unscored_games(
+    db_session: Session, tonight_teams: dict[str, Team]
+) -> None:
+    assert scrape.tonight_team_ids(db_session, scrape.tonight_day(_evening())) == [tonight_teams["A"].id]
+
+
+def test_tonight_team_ids_midnight_run_covers_day_that_ended(
+    db_session: Session, tonight_teams: dict[str, Team]
+) -> None:
+    midnight = _evening(1, hour=0)
+    assert scrape.tonight_team_ids(db_session, scrape.tonight_day(midnight)) == [tonight_teams["A"].id]
+
+
+def test_sync_tonight_makes_no_requests_without_games(db_session: Session, stub_scrapers: dict[str, Any]) -> None:
+    assert scrape.sync_tonight(db_session, _evening()) is None
+    assert [stub_scrapers[k] for k in ("games", "standings", "players", "leagues")] == [0, 0, 0, 0]
+
+
+def test_sync_tonight_runs_only_games_and_standings(
+    db_session: Session, stub_scrapers: dict[str, Any], tonight_teams: dict[str, Team]
+) -> None:
+    scrape.sync_tonight(db_session, _evening())
+
+    a = tonight_teams["A"].id
+    assert stub_scrapers["games_kw"]["team_ids"] == [a]
+    assert stub_scrapers["standings_kw"]["team_ids"] == [a]
+    assert stub_scrapers["players"] == 0
+    assert stub_scrapers["leagues"] == 0
+
+
+def test_thin_run_routes_overridden_score_to_review(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    now = _evening()
+    team = Team(name="T", slug="t", ibasketball_team_url=TEAM_URL)
+    db_session.add(team)
+    db_session.commit()
+    game = _game(db_session, team, now, source_event_id=9001, is_scraped=True, is_manually_overridden=True)
+    event = {**tsg.FUTURE_EVENT, "date": now.strftime("%Y-%m-%dT%H:%M:%S"), "status": "publish", "main_results": [90, 88]}
+    monkeypatch.setattr(tsg.scrape_games, "_get_json", tsg.FakeApi([event]))
+    monkeypatch.setattr(tsg.scrape_games, "_get_page", lambda url: "")
+    monkeypatch.setattr(scrape, "sync_all_standings", lambda db, errors=None, **kw: 0)
+
+    scrape.sync_tonight(db_session, now)
+
+    db_session.refresh(game)
+    assert (game.scrape_suggestion["team_score"], game.scrape_suggestion["opponent_score"]) == (90, 88)
+    assert game.team_score is None
+    assert db_session.get(Opponent, game.opponent_id).logo_url == "https://x/logo.png"
+
+
+def test_sync_league_runs_thin_for_teams_in_league(
+    admin_client: TestClient, db_session: Session, stub_scrapers: dict[str, Any], own_team: Team, other_team: Team
+) -> None:
+    db_session.add(League(ibasketball_id=77, name="L", url=LEAGUE_URL, season=2026))
+    own_team.ibasketball_team_url, own_team.ibasketball_league_url = TEAM_URL, LEAGUE_URL
+    other_team.ibasketball_team_url, other_team.ibasketball_league_url = TEAM_URL + "2", LEAGUE_URL + "other"
+    db_session.commit()
+
+    assert admin_client.post("/sync/league/77").status_code == 202
+
+    assert stub_scrapers["games_kw"] == {"team_ids": [own_team.id], "auto_accept": True}
+    assert stub_scrapers["standings_kw"] == {"team_ids": [own_team.id]}
+    assert stub_scrapers["players"] == 0
+    assert stub_scrapers["leagues"] == 0
+
+
+def test_team_admin_cannot_sync_other_clubs_league(
+    team_admin_client: TestClient, db_session: Session, stub_scrapers: dict[str, Any], other_team: Team
+) -> None:
+    db_session.add(League(ibasketball_id=77, name="L", url=LEAGUE_URL, season=2026))
+    other_team.ibasketball_team_url, other_team.ibasketball_league_url = TEAM_URL, LEAGUE_URL
+    db_session.commit()
+
+    response = team_admin_client.post("/sync/league/77")
+
+    assert response.status_code == 403
+    assert "77" in response.json()["detail"]
+    assert stub_scrapers["games"] == 0
+    assert sync_router._running is False
+
+
+def test_sync_league_returns_409_when_already_running(
+    admin_client: TestClient, db_session: Session, own_team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_session.add(League(ibasketball_id=77, name="L", url=LEAGUE_URL, season=2026))
+    own_team.ibasketball_team_url, own_team.ibasketball_league_url = TEAM_URL, LEAGUE_URL
+    db_session.commit()
+    monkeypatch.setattr(sync_router, "_running", True)
+
+    response = admin_client.post("/sync/league/77")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Sync already running"

@@ -4,7 +4,8 @@ import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
-import { fullAdmin, useAuth } from '../composables/useAuth'
+import SyncStatus from '../components/SyncStatus.vue'
+import { fullAdmin, ownTeams, useAuth } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { apiFetch } from '../lib/api'
 import { teamRows } from '../lib/standings'
@@ -80,7 +81,26 @@ async function loadRows() {
   }
 }
 
-onMounted(loadRows)
+// Fail-soft: without these the league sync button is just hidden.
+const syncLeagues = ref([])
+const syncTeams = ref([])
+async function loadSyncTargets() {
+  try {
+    ;[syncLeagues.value, syncTeams.value] = await Promise.all([apiFetch('/leagues'), apiFetch('/teams')])
+  } catch {
+    syncLeagues.value = syncTeams.value = []
+  }
+}
+// The selected league, if an in-scope team with a scrape url belongs to it (the url also tells duplicate names apart).
+const syncLeague = computed(() => {
+  const urls = new Set(ownTeams(syncTeams.value).filter((t) => t.ibasketball_team_url).map((t) => t.ibasketball_league_url))
+  return syncLeagues.value.find((l) => l.name === selectedLeague.value && urls.has(l.url)) ?? null
+})
+
+onMounted(() => {
+  loadRows()
+  loadSyncTargets()
+})
 
 function resetForm() {
   editing.value = null
@@ -148,6 +168,12 @@ async function onDelete(row) {
         </select>
       </div>
     </div>
+
+    <SyncStatus v-if="syncLeague" v-slot="{ start, busy }" @finished="loadRows">
+      <button type="button" class="btn-secondary w-full sm:w-auto" :disabled="busy" @click="start(`/sync/league/${syncLeague.ibasketball_id}`)">
+        סנכרן תוצאות וטבלה
+      </button>
+    </SyncStatus>
 
     <div v-if="loading" class="space-y-3" aria-busy="true">
       <div class="skeleton h-10 w-64" />

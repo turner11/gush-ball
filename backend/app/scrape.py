@@ -1,15 +1,21 @@
 """Runs the scrapers, leagues then games then players then standings, one after the other so they never overlap and both
 respect ibasketball.co.il's crawl delay. Shared by the admin "sync now" button (#17) and the
 nightly cron:  python -m app.scrape
+Evening thin run (games + standings, only teams with an unscored game today):  python -m app.scrape --thin
 """
 
 import logging
+import sys
 from collections.abc import Collection
+from datetime import date, datetime, time, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.models import Game, GameStatus, Team
 from app.monitoring import init_sentry, trace_scrape
 from app.scrape_games import _sp_team, sync_all_games, sync_all_players
 from app.scrape_leagues import sync_leagues
@@ -19,6 +25,8 @@ log = logging.getLogger(__name__)
 
 
 KINDS = ("leagues", "games", "players", "standings")
+THIN_KINDS = ("games", "standings")
+ISRAEL = ZoneInfo("Asia/Jerusalem")
 
 
 def _run_kind(kind: str, kinds: Collection[str], sync: Any, *args: Any, **kwargs: Any) -> Any:
@@ -49,8 +57,50 @@ def sync_all(
     return {"standings": standings, "games": games, "players": players, "leagues": leagues, "errors": errors}
 
 
+def tonight_day(now: datetime | None = None) -> date:
+    """The Israel day the thin run covers; -1h so the 00:00 run covers the day that just ended."""
+    return ((now or datetime.now(ISRAEL)) - timedelta(hours=1)).date()
+
+
+def tonight_team_ids(db: Session, day: date) -> list[int]:
+    """Scrapable teams with an unscored scheduled game on `day` (Israel time)."""
+    start = datetime.combine(day, time.min)  # scheduled_at is a naive Israel wall time
+    stmt = (
+        select(Game.team_id)
+        .join(Team, Team.id == Game.team_id)
+        .where(
+            Game.status == GameStatus.SCHEDULED,
+            Game.team_score.is_(None),
+            Game.scheduled_at >= start,
+            Game.scheduled_at < start + timedelta(days=1),
+            Team.ibasketball_team_url.is_not(None),
+        )
+        .distinct()
+    )
+    return list(db.scalars(stmt))
+
+
+def league_team_ids(db: Session, league_url: str) -> list[int]:
+    return list(
+        db.scalars(
+            select(Team.id).where(Team.ibasketball_league_url == league_url, Team.ibasketball_team_url.is_not(None))
+        )
+    )
+
+
+def sync_tonight(db: Session, now: datetime | None = None) -> dict[str, Any] | None:
+    """Thin evening run: scores and tables for teams whose game today has no score yet."""
+    day = tonight_day(now)
+    team_ids = tonight_team_ids(db, day)
+    if not team_ids:
+        log.info("Thin sync: no unscored games on %s, nothing to do", day)
+        return None
+    log.info("Thin sync: %d team(s) with unscored games on %s", len(team_ids), day)
+    return sync_all(db, team_ids, THIN_KINDS)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     init_sentry()
     with SessionLocal() as db:
-        print(sync_all(db))
+        print(sync_tonight(db) if "--thin" in sys.argv[1:] else sync_all(db))

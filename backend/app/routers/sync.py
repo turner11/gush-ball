@@ -21,10 +21,12 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.deps import DbSession, RequireAnyAdmin, admin_team_ids
-from app.scrape import KINDS, sync_all
+from app.models import League
+from app.scrape import KINDS, THIN_KINDS, league_team_ids, sync_all
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/sync", tags=["sync"])
@@ -112,6 +114,29 @@ async def sync_now(
         if denied:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"Not allowed for team(s) {denied}")
     if not start_sync(background_tasks, team_ids, payload.kinds, payload.auto_accept):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Sync already running")
+    return SyncOut(status="started")
+
+
+@router.post("/league/{league_id}", response_model=SyncOut, status_code=status.HTTP_202_ACCEPTED)
+async def sync_league(
+    league_id: int, admin: RequireAnyAdmin, db: DbSession, background_tasks: BackgroundTasks
+) -> SyncOut:
+    """Thin run (games + standings) for one league's teams, narrowed to the admin's scope."""
+    league = db.scalar(select(League).where(League.ibasketball_id == league_id))
+    if league is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"League {league_id} not found")
+    team_ids = league_team_ids(db, league.url)
+    scope = admin_team_ids(db, admin)
+    if scope is not None:
+        team_ids = [t for t in team_ids if t in scope]
+    if not team_ids and scope is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"Not allowed for league {league_id}")
+    if not team_ids:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail=f"League {league_id} has no teams with an ibasketball team url"
+        )
+    if not start_sync(background_tasks, team_ids, THIN_KINDS, auto_accept=True):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Sync already running")
     return SyncOut(status="started")
 
