@@ -32,7 +32,7 @@ from app.deps import (
     is_admin,
     self_editable_player_ids,
 )
-from app.models import AdminUser, FavoriteTeam, Membership, TeamRequest
+from app.models import AdminUser, FavoriteTeam, Membership, Player, TeamRequest
 from app.security import Email, Username, hash_password, password_fingerprint, verify_password
 
 log = logging.getLogger(__name__)
@@ -128,6 +128,7 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
     admin = is_admin(db, user)
     team_ids = admin_team_ids(db, user) if admin else []
     memberships = db.scalars(select(Membership).where(Membership.user_id == user.id).order_by(Membership.id))
+    player_ids = self_editable_player_ids(db, user)
     out: dict[str, Any] = {
         "username": user.username,
         "display_name": user.display_name,
@@ -137,7 +138,8 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
         "team_id": team_ids[0] if team_ids is not None and len(team_ids) == 1 else None,
         "team_ids": team_ids,
         "clubs": admin_clubs(db, user),
-        "player_ids": self_editable_player_ids(db, user),
+        "player_ids": player_ids,
+        "player_team_ids": sorted(set(db.scalars(select(Player.team_id).where(Player.id.in_(player_ids))))),
         "favorite_team_ids": list(
             db.scalars(select(FavoriteTeam.team_id).where(FavoriteTeam.user_id == user.id).order_by(FavoriteTeam.team_id))
         ),
