@@ -203,6 +203,44 @@ def test_sync_maps_final_score_to_our_side(
     assert game.is_home is False
 
 
+def test_sync_treats_future_status_event_with_results_as_final(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(
+        scrape_games, "_get_json", FakeApi([{**FUTURE_EVENT, "main_results": [52, 83]}])
+    )
+
+    scrape_games.sync_team_games(db_session, team)
+
+    game = db_session.query(Game).filter_by(source_event_id=9001).one()
+    assert game.status == GameStatus.FINAL
+    assert game.team_score == 52
+    assert game.opponent_score == 83
+
+
+def test_sync_coerces_string_results_to_int(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    event = {**FUTURE_EVENT, "status": "publish", "main_results": ["90", "88"]}
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([event]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    game = db_session.query(Game).filter_by(source_event_id=9001).one()
+    assert (game.team_score, game.opponent_score) == (90, 88)
+
+
+def test_sync_bad_score_error_names_event(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _make_team(db_session)
+    event = {**FUTURE_EVENT, "status": "publish", "main_results": ["W", "88"]}
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([event]))
+
+    with pytest.raises(ValueError, match="event 9001"):
+        scrape_games.sync_team_games(db_session, team)
+
+
 def test_sync_sets_opponent_name_logo_and_source_url(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
