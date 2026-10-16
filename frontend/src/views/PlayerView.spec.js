@@ -80,6 +80,21 @@ describe('PlayerView', () => {
     expect(wrapper.text()).toContain('גיל 18')
   })
 
+  it('shows only "גיל: מתחת 16" for a minor', async () => {
+    withPlayer({ minor: true, birth_date: null, age: null })
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.text()).toContain('גיל: מתחת 16')
+    expect(wrapper.text()).not.toContain('תאריך לידה')
+  })
+
+  it('admin viewing a minor still sees only "מתחת 16"', async () => {
+    withPlayer({ minor: true, birth_date: '2014-03-12', age: 12 })
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.text()).toContain('מתחת 16')
+    expect(wrapper.text()).not.toContain('12.03.2014')
+    expect(wrapper.text()).not.toContain('גיל 12')
+  })
+
   it('renders nothing about birth date when null', async () => {
     withPlayer({})
     const wrapper = await mountAt('/players/3')

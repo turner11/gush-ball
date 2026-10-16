@@ -151,7 +151,8 @@ watch(
           </p>
           <h1 class="page-title">{{ player.name }}</h1>
           <p v-if="player.name_en" class="text-lg font-semibold text-muted"><bdi lang="en">{{ player.name_en }}</bdi></p>
-          <p v-if="player.birth_date" class="text-muted">
+          <p v-if="player.minor" class="text-muted">גיל: מתחת 16</p>
+          <p v-else-if="player.birth_date" class="text-muted">
             תאריך לידה: <time :datetime="player.birth_date">{{ player.birth_date.split('-').reverse().join('.') }}</time> · גיל {{ player.age }}
           </p>
           <RouterLink :to="'/' + teamSlug(team)" class="section-link">

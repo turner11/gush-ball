@@ -550,6 +550,7 @@ def test_public_payload_hides_dob_under_16(client: TestClient, db_session: Sessi
     for body in (client.get(f"/players/{player.id}").json(), client.get(f"/teams/{team.id}/players").json()[0]):
         assert body["birth_date"] is None
         assert body["age"] is None
+        assert body["minor"] is True
 
 
 def test_public_payload_shows_dob_16_plus(client: TestClient, db_session: Session, team: Team) -> None:
@@ -559,15 +560,26 @@ def test_public_payload_shows_dob_16_plus(client: TestClient, db_session: Sessio
     body = client.get(f"/players/{player.id}").json()
     assert body["birth_date"] == "2000-01-01"
     assert body["age"] == age_on(date(2000, 1, 1), datetime.now(ISRAEL).date())
+    assert body["minor"] is False
+
+
+def test_player_without_birth_date_is_not_minor(client: TestClient, db_session: Session, team: Team) -> None:
+    body = client.get(f"/players/{_player(db_session, team).id}").json()
+    assert body["minor"] is False
+    assert body["age"] is None
 
 
 def test_in_scope_admin_sees_under_16_dob(team_admin_client: TestClient, db_session: Session, own_team: Team) -> None:
     player = _born(10, db_session, own_team)
     expected = player.birth_date.isoformat()
-    assert team_admin_client.get(f"/players/{player.id}").json()["birth_date"] == expected
-    assert team_admin_client.get(f"/teams/{own_team.id}/players").json()[0]["birth_date"] == expected
     patched = team_admin_client.patch(f"/teams/{own_team.id}/players/{player.id}", json={"jersey_number": 9})
-    assert patched.json()["birth_date"] == expected
+    for body in (
+        team_admin_client.get(f"/players/{player.id}").json(),
+        team_admin_client.get(f"/teams/{own_team.id}/players").json()[0],
+        patched.json(),
+    ):
+        assert body["birth_date"] == expected
+        assert body["minor"] is True
 
 
 def test_out_of_scope_admin_does_not_see_under_16_dob(
