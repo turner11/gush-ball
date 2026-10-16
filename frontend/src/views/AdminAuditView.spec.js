@@ -148,6 +148,21 @@ describe('AdminAuditView', () => {
     expect(wrapper.find('[data-testid="load-more"]').exists()).toBe(false)
   })
 
+  it('hides load more while a filter change is loading', async () => {
+    let n = 0
+    let release
+    mockFetch(() => (n++ === 0 ? jsonRes(manyRows(300, 101)) : new Promise((r) => (release = () => r(jsonRes(manyRows(300, 101)))))))
+    const wrapper = await mountView()
+    expect(wrapper.find('[data-testid="load-more"]').exists()).toBe(true)
+
+    await wrapper.find('#audit-team').setValue('5')
+    expect(wrapper.find('[data-testid="load-more"]').exists()).toBe(false)
+
+    release()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="load-more"]').exists()).toBe(true)
+  })
+
   it('load more failure keeps loaded rows and shows an inline alert', async () => {
     let n = 0
     mockFetch(() => (n++ === 0 ? jsonRes(manyRows(300, 101)) : { ok: false, status: 500, json: async () => ({ detail: 'boom' }) }))

@@ -227,7 +227,7 @@ onMounted(async () => {
             </li>
           </ul>
         </component>
-        <div v-if="hasMore" class="flex flex-col items-center gap-2">
+        <div v-if="hasMore && !loading" class="flex flex-col items-center gap-2">
           <p v-if="moreError" class="error-text" role="alert">{{ moreError }}</p>
           <button
             type="button"
