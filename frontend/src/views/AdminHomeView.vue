@@ -159,7 +159,7 @@ onMounted(async () => {
               aria-labelledby="sync-teams-label"
               align="start"
               :side-offset="4"
-              class="menu-content max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto"
+              class="menu-content min-w-[var(--reka-dropdown-menu-trigger-width)] max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto"
             >
               <DropdownMenuCheckboxItem
                 :model-value="selectAllState"
