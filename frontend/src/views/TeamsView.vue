@@ -5,6 +5,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import SearchInput from '../components/SearchInput.vue'
 import TeamCard from '../components/TeamCard.vue'
+import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { matchesQuery } from '../lib/search'
@@ -52,13 +53,20 @@ const teamsByLeague = computed(() => {
   }
   return byKey
 })
+const { sortTeams, sortLeagues } = useFavorites()
 const leagueRows = computed(() =>
-  leagues.value.map((league) => ({ league, count: teamsByLeague.value.get(leagueKey(league.url))?.length ?? 0 })),
+  sortLeagues(
+    leagues.value.map((league) => {
+      const teams = teamsByLeague.value.get(leagueKey(league.url)) ?? []
+      return { league, teams, count: teams.length }
+    }),
+    (row) => row.teams,
+  ),
 )
 const ourLeagues = computed(() => leagueRows.value.filter((r) => r.count))
 const otherTeams = computed(() => {
   const known = new Set(leagues.value.map((l) => leagueKey(l.url)))
-  return (teams.value ?? []).filter((t) => !known.has(leagueKey(t.ibasketball_league_url)))
+  return sortTeams((teams.value ?? []).filter((t) => !known.has(leagueKey(t.ibasketball_league_url))))
 })
 const filteredRows = computed(() => leagueRows.value.filter((r) => matchesQuery(query.value, [r.league.name])))
 
@@ -137,7 +145,7 @@ function clearSearch() {
       <section v-if="otherTeams.length">
         <h2 v-if="ourLeagues.length" class="section-title">קבוצות נוספות</h2>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <TeamCard v-for="team in otherTeams" :key="team.id" :name="team.name" :logo-url="team.logo_url" :to="'/' + teamSlug(team)" :current="String(team.id) === selectedTeamId" />
+          <TeamCard v-for="team in otherTeams" :key="team.id" :team-id="team.id" :name="team.name" :logo-url="team.logo_url" :to="'/' + teamSlug(team)" :current="String(team.id) === selectedTeamId" />
         </div>
       </section>
     </div>

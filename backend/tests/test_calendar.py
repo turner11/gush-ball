@@ -99,7 +99,7 @@ def test_calendar_text_neutralises_bare_cr(client: TestClient, db_session: Sessi
 def test_calendar_unknown_team_404(client: TestClient) -> None:
     response = client.get("/teams/999/calendar.ics")
     assert response.status_code == 404
-    assert response.json() == {"detail": "Team not found"}  # proves get_team_or_404 ran, not just an unmatched path
+    assert response.json() == {"detail": "Team 999 not found"}  # proves get_team_or_404 ran, not just an unmatched path
 
 
 def test_calendar_postponed_game_summary_is_prefixed(client: TestClient, db_session: Session, own_team: Team) -> None:

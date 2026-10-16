@@ -5,6 +5,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import TeamCard from '../components/TeamCard.vue'
 import { useAuth } from '../composables/useAuth'
+import { useFavorites } from '../composables/useFavorites'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 
@@ -87,6 +88,8 @@ async function submitRequest() {
   }
 }
 
+const { sortTeams } = useFavorites()
+const onSiteTeams = computed(() => sortTeams(data.value?.onSite ?? []))
 const empty = computed(() => data.value && !data.value.onSite.length && !data.value.notOnSite.length)
 </script>
 
@@ -117,7 +120,7 @@ const empty = computed(() => data.value && !data.value.onSite.length && !data.va
         <section v-if="data.onSite.length">
           <h2 v-if="data.notOnSite.length" class="section-title">קבוצות באתר</h2>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            <TeamCard v-for="team in data.onSite" :key="team.id" :name="team.name" :logo-url="team.logo_url" :to="'/' + teamSlug(team)" />
+            <TeamCard v-for="team in onSiteTeams" :key="team.id" :team-id="team.id" :name="team.name" :logo-url="team.logo_url" :to="'/' + teamSlug(team)" />
           </div>
         </section>
         <section v-if="data.notOnSite.length">
