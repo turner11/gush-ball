@@ -26,19 +26,21 @@ onMounted(loadTeams)
 const memberships = computed(() => user.value?.memberships ?? [])
 
 // Teams and clubs the player has no row for yet.
-const { sortTeams } = useFavorites()
+const { sortTeams, sortGroups } = useFavorites()
 const teamOptions = computed(() =>
   sortTeams(
     (teams.value ?? [])
-      .filter((t) => !memberships.value.some((m) => m.team_id === t.id))
-      .sort((a, b) => a.name.localeCompare(b.name, 'he')),
+      .filter((t) => !memberships.value.some((m) => m.team_id === t.id)),
   ).map((t) => ({ value: t.id, label: t.club ? `${t.name} · ${t.club}` : t.name })),
 )
 const clubOptions = computed(() =>
-  [...new Set((teams.value ?? []).map((t) => t.club).filter(Boolean))]
-    .filter((club) => !memberships.value.some((m) => m.club === club))
-    .sort((a, b) => a.localeCompare(b, 'he'))
-    .map((club) => ({ value: club, label: club })),
+  sortGroups(
+    [...new Set((teams.value ?? []).map((t) => t.club).filter(Boolean))].filter(
+      (club) => !memberships.value.some((m) => m.club === club),
+    ),
+    (club) => (teams.value ?? []).filter((t) => t.club === club),
+    (club) => club,
+  ).map((club) => ({ value: club, label: club })),
 )
 const hasClubs = computed(() => (teams.value ?? []).some((t) => t.club))
 const options = computed(() => (kind.value === 'club' ? clubOptions.value : teamOptions.value))

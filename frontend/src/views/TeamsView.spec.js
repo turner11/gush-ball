@@ -61,7 +61,7 @@ describe('TeamsView', () => {
     )
     const wrapper = await mountView()
 
-    expect(hrefs(wrapper)).toEqual(['/teams/10', '/teams/11'])
+    expect(hrefs(wrapper)).toEqual(['/teams/11', '/teams/10']) // alphabetical by league name
     const text = wrapper.text()
     expect(text).toContain('2 קבוצות באתר')
     expect(text).toContain('קבוצה אחת באתר')
@@ -83,7 +83,7 @@ describe('TeamsView', () => {
     await button(wrapper, 'כל הליגות').trigger('click')
     await flushPromises()
     expect(button(wrapper, 'כל הליגות').attributes('aria-pressed')).toBe('true')
-    expect(hrefs(wrapper)).toEqual(['/teams/10', '/teams/11', '/teams/12'])
+    expect(hrefs(wrapper)).toEqual(['/teams/12', '/teams/11', '/teams/10'])
 
     const search = wrapper.find('input[type="search"]')
     await search.setValue('נערים')

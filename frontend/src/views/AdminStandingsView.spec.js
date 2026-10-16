@@ -280,6 +280,30 @@ describe('AdminStandingsView', () => {
     expect(wrapper.text()).toContain('הסנכרון רץ')
   })
 
+  it('fetches /teams once per load', async () => {
+    mockFetch(syncMocks(LEAGUE_URL))
+    await mountView()
+    expect(global.fetch.mock.calls.filter(([u]) => String(u) === '/api/teams')).toHaveLength(1)
+  })
+
+  it('defaults to the league ranked first by affinity, not the alphabetical first', async () => {
+    const { useAuth } = await import('../composables/useAuth.js')
+    useAuth().user.value = { username: 'u', favorite_team_ids: [3] }
+    mockFetch({
+      'GET /api/standings': () => jsonRes(MULTI),
+      // /teams lands after /standings, as it can in production
+      'GET /api/teams': () =>
+        new Promise((r) =>
+          setTimeout(() => r(jsonRes([{ id: 3, name: 'קבוצה ג', ibasketball_team_url: 'https://x.il/team/c/' }])), 20),
+        ),
+      'GET /api/leagues': () => jsonRes([]),
+    })
+    const wrapper = await mountView()
+    await new Promise((r) => setTimeout(r, 40))
+    await flushPromises()
+    expect(wrapper.find('#league-select').element.value).toBe('ליגה ב')
+  })
+
   it('team admin sees no league sync button outside their scope', async () => {
     const { useAuth } = await import('../composables/useAuth.js')
     useAuth().user.value = { username: 't', team_id: 1, team_ids: [2] }

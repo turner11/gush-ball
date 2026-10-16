@@ -53,14 +53,15 @@ const teamsByLeague = computed(() => {
   }
   return byKey
 })
-const { sortTeams, sortLeagues } = useFavorites()
+const { sortTeams, sortGroups } = useFavorites()
 const leagueRows = computed(() =>
-  sortLeagues(
+  sortGroups(
     leagues.value.map((league) => {
       const teams = teamsByLeague.value.get(leagueKey(league.url)) ?? []
       return { league, teams, count: teams.length }
     }),
     (row) => row.teams,
+    (row) => row.league.name,
   ),
 )
 const ourLeagues = computed(() => leagueRows.value.filter((r) => r.count))

@@ -47,13 +47,18 @@ watch(selectedLeague, (league) => {
 const error = ref(null)
 const pendingDelete = ref(null)
 
-const { favoriteIds, sortLeagues } = useFavorites()
-const allTeams = ref([]) // only fetched for users with favourites, to put their leagues first
+const { sortGroups } = useFavorites()
+const teams = ref([]) // fetched once in loadRows, so the default league is ranked before it is picked; also puts the leagues holding the user's teams first
 const leagues = computed(() => {
   const visible = readOnly.value && team.value ? teamRows(rows.value, team.value) : rows.value
   const names = [...new Set(visible.map((r) => r.league_name))]
-  return sortLeagues(names, (name) =>
-    allTeams.value.filter((t) => teamRows(rows.value.filter((r) => r.league_name === name), t).length),
+  return sortGroups(
+    names,
+    (name) => {
+      const inLeague = rows.value.filter((r) => r.league_name === name)
+      return teams.value.filter((t) => teamRows(inLeague, t).length)
+    },
+    (name) => name,
   )
 })
 const leagueRows = computed(() => rows.value.filter((r) => r.league_name === selectedLeague.value))
@@ -69,10 +74,10 @@ watch(
 
 async function loadRows() {
   try {
-    ;[rows.value, team.value, allTeams.value] = await Promise.all([
+    ;[rows.value, team.value, teams.value] = await Promise.all([
       apiFetch('/standings'),
       user.value?.team_id ? apiFetch(`/teams/${user.value.team_id}`) : null,
-      favoriteIds.value.size ? apiFetch('/teams').catch(() => []) : [], // a failure only loses the sort
+      apiFetch('/teams').catch(() => []), // fail-soft: only the sort and the sync button need it
     ])
   } catch {
     loadError.value = 'שגיאה בטעינת הטבלה, נסה שוב'
@@ -83,17 +88,16 @@ async function loadRows() {
 
 // Fail-soft: without these the league sync button is just hidden.
 const syncLeagues = ref([])
-const syncTeams = ref([])
 async function loadSyncTargets() {
   try {
-    ;[syncLeagues.value, syncTeams.value] = await Promise.all([apiFetch('/leagues'), apiFetch('/teams')])
+    syncLeagues.value = await apiFetch('/leagues')
   } catch {
-    syncLeagues.value = syncTeams.value = []
+    syncLeagues.value = []
   }
 }
 // The selected league, if an in-scope team with a scrape url belongs to it (the url also tells duplicate names apart).
 const syncLeague = computed(() => {
-  const urls = new Set(ownTeams(syncTeams.value).filter((t) => t.ibasketball_team_url).map((t) => t.ibasketball_league_url))
+  const urls = new Set(ownTeams(teams.value).filter((t) => t.ibasketball_team_url).map((t) => t.ibasketball_league_url))
   return syncLeagues.value.find((l) => l.name === selectedLeague.value && urls.has(l.url)) ?? null
 })
 
