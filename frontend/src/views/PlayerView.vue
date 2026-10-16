@@ -2,6 +2,8 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
+import AppIcon from '../components/AppIcon.vue'
+import PlayerCard from '../components/PlayerCard.vue'
 import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { useAuth } from '../composables/useAuth'
@@ -50,6 +52,42 @@ const images = computed(() => [
   ...taggedImages.value.map((i) => ({ key: `t${i.id}`, url: i.url, alt: i.title })),
 ])
 
+// API order, the same unsorted order RosterView renders: deliberately not re-sorted.
+const teammates = ref([])
+const neighbours = computed(() => {
+  const i = teammates.value.findIndex((t) => t.id === player.value?.id)
+  return i === -1 ? {} : { prev: teammates.value[i - 1], next: teammates.value[i + 1] }
+})
+
+const lightbox = ref(null)
+const openIndex = ref(null)
+const current = computed(() => (openIndex.value == null ? null : images.value[openIndex.value]))
+let opener = null // the thumbnail that opened the dialog, refocused on close
+
+function openPhoto(index, event) {
+  opener = event.currentTarget
+  openIndex.value = index
+  lightbox.value.showModal()
+}
+
+function step(delta) {
+  const n = images.value.length
+  openIndex.value = (openIndex.value + delta + n) % n
+}
+
+function onLightboxKey(e) {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+  const rtl = document.documentElement.dir === 'rtl'
+  step((e.key === 'ArrowLeft') === rtl ? 1 : -1)
+  e.preventDefault()
+}
+
+// Fires for Esc, the close button and dialog.close() alike. Explicit focus: Safari never focuses a clicked button.
+function onLightboxClose() {
+  openIndex.value = null
+  opener?.focus()
+}
+
 watch(
   () => route.params.id,
   async (id) => {
@@ -57,14 +95,16 @@ watch(
     error.value = ''
     try {
       const p = await apiFetch(`/players/${id}`)
-      const [t, teamImages, teamVideos] = await Promise.all([
+      const [t, teamImages, teamVideos, teamPlayers] = await Promise.all([
         apiFetch(`/teams/${p.team_id}`),
         apiFetch(`/teams/${p.team_id}/images`),
         apiFetch(`/teams/${p.team_id}/videos`),
+        apiFetch(`/teams/${p.team_id}/players`),
       ])
       if (id !== route.params.id) return // navigated away mid-load: don't clobber the new page's title/JSON-LD
       taggedImages.value = taggedNewestFirst(teamImages, p.id)
       taggedVideos.value = taggedNewestFirst(teamVideos, p.id)
+      teammates.value = teamPlayers
       player.value = p
       team.value = t
       document.title = pageTitle(`${p.name} · ${t.name}`, p.name_en)
@@ -135,18 +175,78 @@ watch(
         </div>
       </header>
       <PlayerProfileForm v-if="isMine && editing" :player="player" @saved="onSaved" @cancel="closeEditor" />
-      <ul v-if="images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-        <li v-for="image in images" :key="image.key" class="card overflow-hidden">
-          <img :src="image.url" :alt="image.alt" loading="lazy" class="aspect-square w-full object-cover object-top" />
-        </li>
-      </ul>
-      <p v-else class="empty-state">אין תמונות עדיין.</p>
-      <section v-if="videos.length" class="space-y-2">
+      <template v-if="images.length">
+        <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          <li v-for="(image, index) in images" :key="image.key">
+            <button
+              type="button"
+              class="card block w-full cursor-zoom-in overflow-hidden"
+              :aria-label="`הגדלת תמונה: ${image.alt}`"
+              @click="openPhoto(index, $event)"
+            >
+              <img :src="image.url" :alt="image.alt" loading="lazy" class="aspect-square w-full object-cover object-top" />
+            </button>
+          </li>
+        </ul>
+        <dialog
+          ref="lightbox"
+          aria-label="תמונה בגודל מלא"
+          class="fixed inset-0 m-0 size-full max-h-none max-w-none border-0 bg-transparent p-0 text-white backdrop:bg-black/90"
+          @close="onLightboxClose"
+          @keydown="onLightboxKey"
+        >
+          <button type="button" class="btn-icon absolute end-2 top-2 z-10 bg-black/50" aria-label="סגירה" @click="lightbox.close()">
+            <AppIcon name="close" />
+          </button>
+          <img v-if="current" :src="current.url" :alt="current.alt" class="size-full object-contain p-4 sm:p-12" />
+          <template v-if="images.length > 1">
+            <button type="button" class="btn-icon absolute start-2 top-1/2 z-10 -translate-y-1/2 bg-black/50" aria-label="התמונה הקודמת" @click="step(-1)">
+              <AppIcon name="chevron" class="size-5 ltr:rotate-90 rtl:-rotate-90" />
+            </button>
+            <button type="button" class="btn-icon absolute end-2 top-1/2 z-10 -translate-y-1/2 bg-black/50" aria-label="התמונה הבאה" @click="step(1)">
+              <AppIcon name="chevron" class="size-5 ltr:-rotate-90 rtl:rotate-90" />
+            </button>
+            <p class="absolute inset-x-0 bottom-3 text-center text-sm font-semibold tabular-nums" aria-live="polite">
+              {{ openIndex + 1 }} / {{ images.length }}
+            </p>
+          </template>
+        </dialog>
+      </template>
+      <div v-else-if="isMine" class="empty-state space-y-3">
+        <p>עדיין אין תמונות בפרופיל שלך.</p>
+        <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת תמונות</button>
+      </div>
+      <p v-else class="text-sm text-muted">אין תמונות עדיין.</p>
+      <section v-if="videos.length || isMine" class="space-y-2">
         <h2 class="section-title">סרטונים</h2>
-        <ul class="grid gap-6 sm:grid-cols-2">
+        <ul v-if="videos.length" class="grid gap-6 sm:grid-cols-2">
           <li v-for="video in videos" :key="video.key"><VideoCard :video="video" /></li>
         </ul>
+        <div v-else class="empty-state space-y-3">
+          <p>עדיין אין סרטונים בפרופיל שלך.</p>
+          <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת סרטון</button>
+        </div>
       </section>
+      <nav v-if="neighbours.prev || neighbours.next" aria-label="ניווט בין שחקני הקבוצה" class="card flex items-center justify-between gap-4">
+        <RouterLink
+          v-if="neighbours.prev"
+          :to="`/players/${neighbours.prev.id}`"
+          :aria-label="`השחקן הקודם: ${neighbours.prev.name}`"
+          class="flex min-h-11 items-center gap-3 rounded-xl p-2 transition-colors hover:bg-sunken"
+        >
+          <span class="eyebrow" aria-hidden="true">→ הקודם</span>
+          <div class="w-20"><PlayerCard :player="neighbours.prev" compact /></div>
+        </RouterLink>
+        <RouterLink
+          v-if="neighbours.next"
+          :to="`/players/${neighbours.next.id}`"
+          :aria-label="`השחקן הבא: ${neighbours.next.name}`"
+          class="ms-auto flex min-h-11 items-center gap-3 rounded-xl p-2 transition-colors hover:bg-sunken"
+        >
+          <div class="w-20"><PlayerCard :player="neighbours.next" compact /></div>
+          <span class="eyebrow" aria-hidden="true">הבא ←</span>
+        </RouterLink>
+      </nav>
     </template>
     <p v-else class="empty-state">{{ error }}</p>
   </section>

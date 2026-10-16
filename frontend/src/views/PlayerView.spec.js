@@ -5,6 +5,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAuth } from '../composables/useAuth'
 import PlayerView from './PlayerView.vue'
 
+// jsdom has no showModal()/close(); mimic the browser, which fires `close` after Esc or close().
+HTMLDialogElement.prototype.showModal ??= function () {
+  this.setAttribute('open', '')
+}
+HTMLDialogElement.prototype.close ??= function () {
+  this.removeAttribute('open')
+  this.dispatchEvent(new Event('close'))
+}
+
 const PLAYER = {
   id: 3,
   team_id: 1,
@@ -14,9 +23,16 @@ const PLAYER = {
   videos: [],
 }
 
+const ROSTER = [
+  { id: 2, name: 'אבי לוי', jersey_number: 4, images: [] },
+  PLAYER,
+  { id: 4, name: 'רון שמש', jersey_number: 9, images: [] },
+]
+
 // Team media: only items tagged with player 3 belong on the page.
 const RESPONSES = {
   '/api/players/3': PLAYER,
+  '/api/teams/1/players': ROSTER,
   '/api/teams/1': { id: 1, name: 'קבוצה א', name_en: 'Team A' },
   '/api/teams/1/images': [
     { id: 10, title: 'אימון', url: '/t1.jpg', player_ids: [3] },
@@ -31,7 +47,7 @@ const RESPONSES = {
 const okFetch = () =>
   vi.fn((url) => Promise.resolve({ ok: true, status: 200, json: async () => RESPONSES[url] }))
 
-async function mountAt(path) {
+async function mountAt(path, options = {}) {
   const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -42,7 +58,7 @@ async function mountAt(path) {
   })
   router.push(path)
   await router.isReady()
-  const wrapper = mount(PlayerView, { global: { plugins: [router] } })
+  const wrapper = mount(PlayerView, { global: { plugins: [router] }, ...options })
   await flushPromises()
   return wrapper
 }
@@ -128,6 +144,91 @@ describe('PlayerView', () => {
     ])
   })
 
+  describe('teammate nav (#384)', () => {
+    const NAV = 'nav[aria-label="ניווט בין שחקני הקבוצה"]'
+    const links = async (id) => {
+      const base = okFetch()
+      global.fetch = vi.fn((url) => {
+        const p = ROSTER.find((r) => url === `/api/players/${r.id}`)
+        return p ? Promise.resolve({ ok: true, status: 200, json: async () => ({ ...p, team_id: 1, videos: [] }) }) : base(url)
+      })
+      return (await mountAt(`/players/${id}`)).findAll(`${NAV} a`)
+    }
+
+    it.each([
+      [2, ['/players/3'], 'השחקן הבא'],
+      [3, ['/players/2', '/players/4'], 'השחקן הקודם'],
+      [4, ['/players/3'], 'השחקן הקודם'],
+    ])('player %i links to its neighbours in roster order', async (id, hrefs, firstLabel) => {
+      const a = await links(id)
+
+      expect(a.map((l) => l.attributes('href'))).toEqual(hrefs)
+      expect(a[0].attributes('aria-label')).toMatch(new RegExp('^' + firstLabel))
+    })
+
+    it('is hidden when the team has a single player', async () => {
+      const base = okFetch()
+      global.fetch = vi.fn((url) =>
+        url === '/api/teams/1/players' ? Promise.resolve({ ok: true, status: 200, json: async () => [PLAYER] }) : base(url),
+      )
+
+      expect((await mountAt('/players/3')).find(NAV).exists()).toBe(false)
+    })
+  })
+
+  describe('photo lightbox (#383)', () => {
+    let wrapper
+    afterEach(() => {
+      wrapper?.unmount()
+      document.documentElement.dir = ''
+    })
+    const open = async (index) => {
+      global.fetch = okFetch()
+      wrapper = await mountAt('/players/3', { attachTo: document.body })
+      const thumb = wrapper.findAll('ul button')[index]
+      await thumb.trigger('click')
+      return thumb
+    }
+    const shown = () => wrapper.find('dialog img').attributes('src')
+
+    it('clicking a photo opens it full-size in a modal dialog', async () => {
+      await open(1)
+
+      expect(wrapper.find('dialog').element.open).toBe(true)
+      expect(shown()).toBe('/b.jpg')
+      expect(wrapper.find('dialog img').classes()).toContain('object-contain')
+      expect(wrapper.findAll('ul button')[0].attributes('aria-label')).toContain('יוסי כהן')
+    })
+
+    it('next/prev cycle through all photos and wrap', async () => {
+      await open(3)
+      expect(shown()).toBe('/t1.jpg')
+      await wrapper.find('[aria-label="התמונה הבאה"]').trigger('click')
+      expect(shown()).toBe('/a.jpg')
+      await wrapper.find('[aria-label="התמונה הקודמת"]').trigger('click')
+      expect(shown()).toBe('/t1.jpg')
+    })
+
+    it('arrow keys are direction-aware (RTL: ArrowLeft = next)', async () => {
+      document.documentElement.dir = 'rtl'
+      await open(0)
+      await wrapper.find('dialog').trigger('keydown', { key: 'ArrowLeft' })
+      expect(shown()).toBe('/b.jpg')
+      await wrapper.find('dialog').trigger('keydown', { key: 'ArrowRight' })
+      expect(shown()).toBe('/a.jpg')
+    })
+
+    it('Esc (native close) clears the lightbox and returns focus to the clicked thumbnail', async () => {
+      const thumb = await open(1)
+      wrapper.find('dialog').element.close()
+      await flushPromises()
+
+      expect(wrapper.find('dialog img').exists()).toBe(false)
+      expect(wrapper.find('dialog').element.open).toBe(false)
+      expect(document.activeElement).toBe(thumb.element)
+    })
+  })
+
   it('shows the English name, sets the title and Person JSON-LD', async () => {
     const fetchMock = okFetch()
     global.fetch = vi.fn((url) => (url === '/api/players/3' ? Promise.resolve({ ok: true, status: 200, json: async () => ({ ...PLAYER, name_en: 'Yossi Cohen' }) }) : fetchMock(url)))
@@ -194,10 +295,12 @@ describe('PlayerView', () => {
   })
 
   describe('self-edit (#329)', () => {
-    const signIn = async (me) => {
+    const signIn = async (me, overrides = {}) => {
       const fetchMock = okFetch()
       global.fetch = vi.fn((url, options) =>
-        url === '/api/auth/me'
+        url in overrides
+          ? Promise.resolve({ ok: true, status: 200, json: async () => overrides[url] })
+          : url === '/api/auth/me'
           ? me
             ? Promise.resolve({ ok: true, status: 200, json: async () => me })
             : Promise.resolve({ ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({}) })
@@ -213,6 +316,32 @@ describe('PlayerView', () => {
       expect((await mountAt('/players/3')).text()).not.toContain('עריכת הפרופיל שלי')
       await signIn(null)
       expect((await mountAt('/players/3')).text()).not.toContain('עריכת הפרופיל שלי')
+    })
+
+    // Empty needs the player's own media and the tagged team media gone.
+    const EMPTY = { '/api/players/3': { ...PLAYER, images: [], videos: [] }, '/api/teams/1/images': [], '/api/teams/1/videos': [] }
+    const buttonNamed = (wrapper, text) => wrapper.findAll('button').find((b) => b.text() === text)
+
+    it("the owner's empty photos and videos prompt opens the editor (#385)", async () => {
+      await signIn({ username: 'a', player_ids: [3] }, EMPTY)
+      const wrapper = await mountAt('/players/3')
+      expect(buttonNamed(wrapper, 'הוספת סרטון')).toBeTruthy()
+      await buttonNamed(wrapper, 'הוספת תמונות').trigger('click')
+      expect(wrapper.find('#profile-form').exists()).toBe(true)
+      expect(buttonNamed(wrapper, 'עריכת הפרופיל שלי').attributes('aria-expanded')).toBe('true')
+      expect(buttonNamed(wrapper, 'הוספת תמונות')).toBeUndefined()
+    })
+
+    it('visitors get a muted line, no upload prompt (#385)', async () => {
+      for (const me of [{ username: 'a', player_ids: [4] }, null]) {
+        await signIn(me, EMPTY)
+        const wrapper = await mountAt('/players/3')
+        expect(wrapper.text()).toContain('אין תמונות עדיין')
+        expect(buttonNamed(wrapper, 'הוספת תמונות')).toBeUndefined()
+        expect(buttonNamed(wrapper, 'הוספת סרטון')).toBeUndefined()
+        expect(wrapper.find('.empty-state').exists()).toBe(false)
+        expect(wrapper.text()).not.toContain('סרטונים')
+      }
     })
 
     it('saving sends only the name fields and updates the heading', async () => {
