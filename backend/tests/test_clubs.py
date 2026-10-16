@@ -27,6 +27,17 @@ def test_full_admin_lists_and_edits_club(admin_client: TestClient, db_session: S
     assert admin_client.get("/clubs").json() == [response.json()]
 
 
+def test_club_patch_null_clears_only_that_field(admin_client: TestClient, db_session: Session) -> None:
+    club = Club(name="Gush", name_en="Gush", ibasketball_url=URL)
+    db_session.add(club)
+    db_session.commit()
+
+    response = admin_client.patch(f"/clubs/{club.id}", json={"ibasketball_url": None})
+
+    assert response.status_code == 200
+    assert response.json() == {"id": club.id, "name": "Gush", "name_en": "Gush", "ibasketball_url": None}
+
+
 @pytest.mark.parametrize(
     ("body", "code"),
     [
