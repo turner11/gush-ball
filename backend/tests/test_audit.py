@@ -376,6 +376,42 @@ def test_audit_log_filters(admin_client: TestClient, db_session: Session) -> Non
     assert ids(entity_id=11) == [11]
 
 
+def test_audit_log_before_id_pages_with_filters(admin_client: TestClient, db_session: Session) -> None:
+    AuditLog = _audit_model()
+    for team_id, eid in [(1, 10), (2, 11), (1, 12), (1, 13)]:
+        db_session.add(AuditLog(user_id=None, username="x", action="update", entity_type="game",
+                                entity_id=eid, team_id=team_id, changes={}))
+    db_session.commit()
+
+    def page(**params: object) -> list[dict]:
+        body = admin_client.get("/audit-log", params=params).json()
+        return [r for r in body if r["username"] == "x"]
+
+    everything = page()
+    assert [r["entity_id"] for r in page(before_id=everything[0]["id"])] == [12, 11, 10]
+
+    walked = []
+    cursor = None
+    for _ in range(3):
+        params = {"team_id": 1, "limit": 1} | ({"before_id": cursor} if cursor else {})
+        (row,) = page(**params)
+        walked.append(row["entity_id"])
+        cursor = row["id"]
+    assert walked == [13, 12, 10]
+    assert page(team_id=1, limit=1, before_id=cursor) == []
+
+
+def test_audit_log_limit_is_clamped(admin_client: TestClient, db_session: Session) -> None:
+    AuditLog = _audit_model()
+    db_session.add_all(AuditLog(user_id=None, username="x", action="update", entity_type="game",
+                                entity_id=i, team_id=None, changes={}) for i in range(501))
+    db_session.commit()
+
+    assert len(admin_client.get("/audit-log", params={"limit": 10000}).json()) == 500
+    assert len(admin_client.get("/audit-log", params={"limit": 0}).json()) == 1
+    assert len(admin_client.get("/audit-log").json()) == 200
+
+
 def test_deleted_user_keeps_username(admin_client: TestClient, db_session: Session) -> None:
     db_session.add(_audit_model()(user_id=None, username="gone", action="update", entity_type="game",
                                   entity_id=1, team_id=None, changes={}))
