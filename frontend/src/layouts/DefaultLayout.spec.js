@@ -106,6 +106,18 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('header a[href="/teams"]').attributes('aria-label')).toBe('כל הקבוצות')
   })
 
+  it('teams icon stays visible on desktop when no team is selected', async () => {
+    localStorage.removeItem('gush-ball:selected-team-id')
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/teams')
+    await flushPromises()
+
+    expect(wrapper.find('header a[href="/teams"]').classes()).not.toContain('lg:hidden')
+  })
+
   it('canonical is origin + path, query dropped', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 

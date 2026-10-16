@@ -53,8 +53,6 @@ const teamsSummary = computed(() => {
   if (teamIds.value.length === 1) return teams.value.find((t) => t.id === teamIds.value[0]).name
   return `${teamIds.value.length} מתוך ${teams.value.length} קבוצות`
 })
-const ITEM_CLASS =
-  'flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-3 text-sm data-[highlighted]:bg-sunken'
 const syncBody = computed(() => ({
   kinds: kinds.value,
   auto_accept: autoAccept.value,
@@ -161,11 +159,11 @@ onMounted(async () => {
               aria-labelledby="sync-teams-label"
               align="start"
               :side-offset="4"
-              class="z-50 max-h-[var(--reka-dropdown-menu-content-available-height)] min-w-[var(--reka-dropdown-menu-trigger-width)] overflow-y-auto rounded-xl border border-line bg-raised p-1 shadow-card"
+              class="menu-content max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto"
             >
               <DropdownMenuCheckboxItem
                 :model-value="selectAllState"
-                :class="ITEM_CLASS"
+                class="menu-item"
                 @update:model-value="toggleAllTeams"
                 @select.prevent
               >
@@ -181,7 +179,7 @@ onMounted(async () => {
                 v-for="t in teams"
                 :key="t.id"
                 :model-value="teamIds.includes(t.id)"
-                :class="ITEM_CLASS"
+                class="menu-item"
                 @update:model-value="(on) => toggleTeam(t.id, on)"
                 @select.prevent
               >

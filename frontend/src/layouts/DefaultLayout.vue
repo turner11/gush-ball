@@ -141,14 +141,16 @@ onMounted(async () => {
             rel="noopener noreferrer"
             :aria-label="selectedTeam.home_court_address"
             :title="selectedTeam.home_court_address"
-            class="btn-icon lg:hidden"
+            class="btn-icon"
+            :class="{ 'lg:hidden': selectedTeamId }"
             ><AppIcon name="pin"
           /></a>
           <RouterLink
             :to="{ name: 'teams' }"
             aria-label="כל הקבוצות"
             title="כל הקבוצות"
-            class="btn-icon lg:hidden"
+            class="btn-icon"
+            :class="{ 'lg:hidden': selectedTeamId }"
           >
             <AppIcon name="grid" />
           </RouterLink>
@@ -176,7 +178,13 @@ onMounted(async () => {
                         >דף הקבוצה באיגוד</a>
                       </DropdownMenuItem>
                       <DropdownMenuItem v-if="mapsUrl" as-child>
-                        <a :href="mapsUrl" target="_blank" rel="noopener noreferrer" class="menu-item">מגרש הבית</a>
+                        <a
+                          :href="mapsUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="מגרש הבית (נפתח בלשונית חדשה)"
+                          class="menu-item"
+                        >מגרש הבית</a>
                       </DropdownMenuItem>
                       <DropdownMenuItem as-child>
                         <RouterLink :to="{ name: 'teams' }" class="menu-item">כל הקבוצות</RouterLink>
