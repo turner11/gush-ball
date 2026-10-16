@@ -1,7 +1,8 @@
 import re
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Annotated
 from urllib.parse import parse_qs
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import (
@@ -9,8 +10,10 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     HttpUrl,
+    PastDate,
     StringConstraints,
     UrlConstraints,
+    computed_field,
 )
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.deps import (
     DbSession,
+    OptionalUser,
     RequireTeamAdmin,
     RequireUser,
     can_write_team,
@@ -56,10 +60,19 @@ YouTubeUrl = Annotated[HttpUrl, UrlConstraints(max_length=500), AfterValidator(_
 VideoTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
 
+ISRAEL = ZoneInfo("Asia/Jerusalem")
+ADULT_DOB_AGE = 16  # a younger player's birth date is visible to their team's writers only
+
+
+def age_on(birth: date, today: date) -> int:
+    return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+
+
 class PlayerCreate(BaseModel):
     name: str
     name_en: str | None = None
     jersey_number: int | None = None
+    birth_date: PastDate | None = None
 
 
 class PlayerUpdate(BaseModel):
@@ -67,6 +80,7 @@ class PlayerUpdate(BaseModel):
     name: PlayerName = None
     name_en: PlayerName | None = None
     jersey_number: int | None = None
+    birth_date: PastDate | None = None
     user_id: int | None = None  # the linked account; omitted = unchanged, null = unlink (team admins only)
 
 
@@ -109,8 +123,21 @@ class PlayerOut(BaseModel):
     name: str
     name_en: str | None
     jersey_number: int | None
+    birth_date: date | None
     images: list[PlayerImageOut]
     videos: list[PlayerVideoOut]
+
+    @computed_field
+    @property
+    def age(self) -> int | None:
+        return age_on(self.birth_date, datetime.now(ISRAEL).date()) if self.birth_date else None
+
+
+def _public_player(player: Player, show_birth_date: bool) -> PlayerOut:
+    out = PlayerOut.model_validate(player)
+    if not show_birth_date and out.age is not None and out.age < ADULT_DOB_AGE:
+        out.birth_date = None  # the computed age follows
+    return out
 
 
 class LinkableUserOut(BaseModel):
@@ -163,9 +190,10 @@ def create_player(
 
 
 @router.get("/teams/{team_id}/players", response_model=list[PlayerOut])
-def list_players(team_id: int, db: DbSession) -> list[Player]:
+def list_players(team_id: int, db: DbSession, user: OptionalUser) -> list[PlayerOut]:
     team = get_team_or_404(db, team_id)
-    return [p for p in team.players if p.deleted_at is None]
+    show = can_write_team(db, user, team_id)
+    return [_public_player(p, show) for p in team.players if p.deleted_at is None]
 
 
 # before the /{player_id} routes
@@ -199,7 +227,7 @@ def update_player(
     payload: PlayerUpdate,
     db: DbSession,
     user: RequireUser,
-) -> Player:
+) -> PlayerOut:
     try:
         player = _get_team_player_or_404(db, team_id, player_id)
     except HTTPException:
@@ -214,7 +242,7 @@ def update_player(
         setattr(player, field, value)
     db.commit()
     db.refresh(player)
-    return player
+    return _public_player(player, can_write_team(db, user, team_id))
 
 
 @router.delete("/teams/{team_id}/players/{player_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -242,8 +270,11 @@ def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: Requi
 
 
 @router.get("/players/{player_id}", response_model=PlayerOut)
-def get_player(player_id: int, db: DbSession) -> Player:
-    return _get_player_or_404(db, player_id)
+def get_player(player_id: int, db: DbSession, user: OptionalUser) -> PlayerOut:
+    player = _get_player_or_404(db, player_id)
+    if player.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
+    return _public_player(player, can_write_team(db, user, player.team_id))
 
 
 @router.post(

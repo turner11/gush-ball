@@ -22,7 +22,7 @@ const shownPlayers = computed(() =>
 )
 const deletedPlayers = ref(null) // null = hidden
 const editing = ref(null)
-const form = ref({ name: '', name_en: '', jersey_number: '', user_id: '' })
+const form = ref({ name: '', name_en: '', jersey_number: '', birth_date: '', user_id: '' })
 const linkableUsers = ref([]) // null = failed to load
 const links = ref({}) // player id -> linked username
 const linkedUserIds = ref({}) // player id -> linked user id
@@ -79,7 +79,7 @@ watch(selectedTeamId, loadPlayers)
 
 function resetForm() {
   editing.value = null
-  form.value = { name: '', name_en: '', jersey_number: '', user_id: '' }
+  form.value = { name: '', name_en: '', jersey_number: '', birth_date: '', user_id: '' }
 }
 
 const formEl = ref(null)
@@ -91,6 +91,7 @@ function startEdit(player) {
     name: player.name,
     name_en: player.name_en ?? '',
     jersey_number: player.jersey_number ?? '',
+    birth_date: player.birth_date ?? '',
     user_id: linkedUserIds.value[player.id] ?? '',
   }
 }
@@ -100,6 +101,7 @@ async function onSubmit() {
     name: form.value.name,
     name_en: form.value.name_en || null,
     jersey_number: form.value.jersey_number === '' ? null : Number(form.value.jersey_number),
+    birth_date: form.value.birth_date || null,
   }
 
   error.value = null
@@ -300,6 +302,11 @@ async function deleteImage(player, image) {
         <div>
           <label for="player-jersey-number" class="field-label">מספר חולצה</label>
           <input id="player-jersey-number" v-model="form.jersey_number" type="number" class="field-input" />
+        </div>
+
+        <div>
+          <label for="player-birth-date" class="field-label">תאריך לידה</label>
+          <input id="player-birth-date" v-model="form.birth_date" type="date" class="field-input" />
         </div>
 
         <div v-if="editing">

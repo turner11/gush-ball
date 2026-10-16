@@ -1202,3 +1202,119 @@ def test_team_page_club_refuses_non_ibasketball_url(
 
     monkeypatch.setattr(scrape_games.httpx, "get", never)
     assert scrape_games.team_page_club(db_session, bad) is None
+
+
+# Captured from an ibasketball player page on 2026-10-16; trimmed to div.info, date anonymised.
+PLAYER_PAGE_WITH_DOB = (
+    '<div class="info"><div class="data-teams">x</div><div class="data-birthdate"><span>תאריך לידה:</span>\n'
+    '23-01-2008</div><div class="data-age"><span>גיל:</span>\n18</div></div>'
+)
+PLAYER_PAGE_NO_DOB = '<div class="info"></div>'
+
+
+def test_parse_birth_date_empty_div_is_none() -> None:
+    assert scrape_games.parse_birth_date('<div class="data-birthdate"></div>') is None
+DOB_ROSTER = (
+    '<a class="player" href="https://ibasketball.co.il/player/{slug}/">'
+    '{name}</a>'
+)
+
+
+def _fake_player_pages(monkeypatch: pytest.MonkeyPatch, pages: dict[str, str | Exception]) -> list[str]:
+    calls: list[str] = []
+
+    def fake(url: str) -> str:
+        calls.append(url)
+        page = pages[url]
+        if isinstance(page, Exception):
+            raise page
+        return page
+
+    monkeypatch.setattr(scrape_games, "_get_page", fake)
+    return calls
+
+
+def _roster_of(*slugs: str) -> str:
+    return "".join(DOB_ROSTER.format(slug=s, name=f"שחקן {s}") for s in slugs)
+
+
+def _url(slug: str) -> str:
+    return f"https://ibasketball.co.il/player/{slug}/"
+
+
+def test_parse_birth_date_reads_real_player_page_markup() -> None:
+    from datetime import date
+
+    assert scrape_games.parse_birth_date(PLAYER_PAGE_WITH_DOB) == date(2008, 1, 23)
+    assert scrape_games.parse_birth_date(PLAYER_PAGE_NO_DOB) is None
+
+
+def test_sync_team_players_fills_birth_date_once(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import date
+
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, _roster_of("x-1"))
+    calls = _fake_player_pages(monkeypatch, {_url("x-1"): PLAYER_PAGE_WITH_DOB})
+
+    scrape_games.sync_team_players(db_session, team)
+    assert db_session.query(Player).one().birth_date == date(2008, 1, 23)
+    assert len(calls) == 1
+
+    scrape_games.sync_team_players(db_session, team)
+    assert len(calls) == 1
+
+
+def test_sync_team_players_never_overwrites_existing_birth_date(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from datetime import date
+
+    team = _make_team(db_session)
+    db_session.add(Player(team_id=team.id, name="שחקן x-1", source_url=_url("x-1"), birth_date=date(2001, 2, 3)))
+    db_session.commit()
+    _fake_roster(monkeypatch, _roster_of("x-1"))
+    calls = _fake_player_pages(monkeypatch, {})
+
+    scrape_games.sync_team_players(db_session, team)
+
+    assert calls == []
+    assert db_session.query(Player).one().birth_date == date(2001, 2, 3)
+
+
+def test_sync_team_players_page_without_dob_is_not_refetched(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, _roster_of("x-1"))
+    calls = _fake_player_pages(monkeypatch, {_url("x-1"): PLAYER_PAGE_NO_DOB})
+
+    scrape_games.sync_team_players(db_session, team)
+    scrape_games.sync_team_players(db_session, team)
+
+    assert db_session.query(Player).one().birth_date is None
+    assert len(calls) == 1
+
+
+def test_sync_team_players_bad_dob_page_is_logged_and_skipped(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    from datetime import date
+
+    team = _make_team(db_session)
+    _fake_roster(monkeypatch, _roster_of("a-1", "b-2", "c-3"))
+    bad_date = PLAYER_PAGE_WITH_DOB.replace("23-01-2008", "99-99-2008")
+    _fake_player_pages(
+        monkeypatch,
+        {
+            _url("a-1"): httpx.ConnectError("boom"),
+            _url("b-2"): PLAYER_PAGE_WITH_DOB,
+            _url("c-3"): bad_date,
+        },
+    )
+
+    scrape_games.sync_team_players(db_session, team)
+
+    dobs = {p.source_url: p.birth_date for p in db_session.query(Player)}
+    assert dobs == {_url("a-1"): None, _url("b-2"): date(2008, 1, 23), _url("c-3"): None}
+    assert _url("a-1") in caplog.text
+    assert _url("c-3") in caplog.text

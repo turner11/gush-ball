@@ -111,6 +111,9 @@ watch(
           </p>
           <h1 class="page-title">{{ player.name }}</h1>
           <p v-if="player.name_en" class="text-lg font-semibold text-muted"><bdi lang="en">{{ player.name_en }}</bdi></p>
+          <p v-if="player.birth_date" class="text-muted">
+            תאריך לידה: <time :datetime="player.birth_date">{{ player.birth_date.split('-').reverse().join('.') }}</time> · גיל {{ player.age }}
+          </p>
           <RouterLink :to="'/' + teamSlug(team)" class="section-link">
             <img :src="team.logo_url || '/logo.jpg'" alt="" class="size-8 rounded-lg bg-white object-contain p-0.5" />
             {{ team.name }}
