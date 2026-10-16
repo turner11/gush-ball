@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
+import { DEFAULT_PLAYER_PHOTO, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
+
 // `player` may be undefined (jersey not on the roster); `jersey` is then shown as #N.
 const props = defineProps({
   player: { type: Object, default: null },
@@ -36,19 +38,6 @@ function stopSlideshow() {
   hovered.value = false
 }
 onBeforeUnmount(stopSlideshow)
-
-// Backend-detected face focus (CSS %) + zoom, for the circle and the hover slide; without it the photo stays top-anchored.
-function focusStyle(img) {
-  if (img?.focus_x == null) return undefined
-  const at = `${img.focus_x}% ${img.focus_y}%`
-  return { objectPosition: at, transformOrigin: at, transform: `scale(${img.zoom})` }
-}
-
-const DEFAULT = '/default-player.png'
-// Dead/blocked hotlink -> default; the endsWith guard stops a loop if the default itself fails.
-function onImgError(e) {
-  if (!e.target.src.endsWith(DEFAULT)) e.target.src = DEFAULT
-}
 </script>
 
 <template>
@@ -66,12 +55,12 @@ function onImgError(e) {
         class="overflow-hidden rounded-full ring-sunken"
       >
         <img
-          :src="images[0]?.url || '/default-player.png'"
+          :src="images[0]?.url || DEFAULT_PLAYER_PHOTO"
           :alt="player?.name ?? ''"
           loading="lazy"
           :style="focusStyle(images[0])"
           class="size-full object-cover object-top"
-          @error="onImgError"
+          @error="onPlayerImgError"
         />
       </div>
       <p
@@ -91,7 +80,7 @@ function onImgError(e) {
         data-testid="slide"
         :style="focusStyle(images[index])"
         class="absolute inset-0 size-full object-cover object-top"
-        @error="onImgError"
+        @error="onPlayerImgError"
       />
     </Transition>
     <p v-if="player" :class="compact ? 'mt-2.5 line-clamp-2 text-[11px]' : 'mt-3 text-sm'" class="font-bold leading-tight">{{ player.name }}</p>

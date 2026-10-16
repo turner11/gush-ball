@@ -36,6 +36,7 @@ async function mountAt(path) {
     routes: [
       { path: '/players/:id', component: PlayerView },
       { path: '/:slug/roster', name: 'roster', component: { template: '<div/>' } },
+      { path: '/:slug', name: 'team-home', component: { template: '<div/>' } },
     ],
   })
   router.push(path)
@@ -45,8 +46,50 @@ async function mountAt(path) {
   return wrapper
 }
 
+const withPlayer = (overrides) => {
+  const base = okFetch()
+  global.fetch = vi.fn((url) =>
+    url === '/api/players/3' ? Promise.resolve({ ok: true, status: 200, json: async () => ({ ...PLAYER, ...overrides }) }) : base(url),
+  )
+}
+
 describe('PlayerView', () => {
   afterEach(() => vi.restoreAllMocks())
+
+  it("hero avatar shows the player's first own photo with its face focus", async () => {
+    withPlayer({ images: [{ id: 1, url: '/a.jpg', focus_x: 50, focus_y: 40.5, zoom: 1.5 }] })
+    const avatar = (await mountAt('/players/3')).find('[data-testid="player-avatar"]')
+
+    expect(avatar.attributes('src')).toBe('/a.jpg')
+    expect(avatar.attributes('style')).toContain('object-position: 50% 40.5%')
+    expect(avatar.attributes('style')).toContain('transform: scale(1.5)')
+  })
+
+  it('hero avatar falls back to the default photo when the player has none', async () => {
+    withPlayer({ images: [] })
+    const avatar = (await mountAt('/players/3')).find('[data-testid="player-avatar"]')
+
+    expect(avatar.attributes('src')).toBe('/default-player.png')
+    expect(avatar.attributes('style')).toBeUndefined()
+  })
+
+  it('shows the jersey number large, outside the heading, and omits it when unset', async () => {
+    global.fetch = okFetch()
+    const withNumber = await mountAt('/players/3')
+    expect(withNumber.find('header').text()).toContain('#7')
+    expect(withNumber.find('h1').text()).not.toContain('#')
+
+    withPlayer({ jersey_number: null })
+    expect((await mountAt('/players/3')).find('header').text()).not.toContain('#')
+  })
+
+  it('links the team name and logo to the team hub', async () => {
+    global.fetch = okFetch()
+    const link = (await mountAt('/players/3')).findAll('a').find((a) => a.text() === 'קבוצה א')
+
+    expect(link.attributes('href')).toBe('/team_a')
+    expect(link.find('img').attributes('src')).toBe('/logo.jpg')
+  })
 
   it("shows the player's own images, then team images they're tagged in (newest first)", async () => {
     global.fetch = okFetch()
