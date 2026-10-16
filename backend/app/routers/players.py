@@ -1,8 +1,17 @@
+import re
 from datetime import UTC, datetime
 from typing import Annotated
+from urllib.parse import parse_qs
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, ConfigDict, HttpUrl, StringConstraints
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    HttpUrl,
+    StringConstraints,
+    UrlConstraints,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,11 +27,34 @@ from app.deps import (
     get_team_or_404,
     has_covering_grant,
 )
-from app.models import AdminUser, Player, PlayerImage, Team
+from app.models import AdminUser, Player, PlayerImage, PlayerVideo, Team
 
 router = APIRouter(tags=["players"])
 
 PlayerName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+
+_YOUTUBE_HOSTS = {"youtu.be", "youtube.com", "www.youtube.com", "m.youtube.com"}
+_YOUTUBE_ID = re.compile(r"[A-Za-z0-9_-]{11}")
+
+
+def _require_youtube(url: HttpUrl) -> HttpUrl:
+    # Shown embedded on a public page: exact host set (not endswith) and an id that VideoCard.vue can embed.
+    if url.host == "youtu.be":
+        video_id = (url.path or "").lstrip("/")
+    elif url.host in _YOUTUBE_HOSTS and url.path == "/watch":
+        video_id = parse_qs(url.query or "").get("v", [""])[0]
+    elif url.host in _YOUTUBE_HOSTS and (m := re.fullmatch(r"/(?:shorts|embed)/([^/]+)", url.path or "")):
+        video_id = m.group(1)
+    else:
+        video_id = ""
+    if not _YOUTUBE_ID.fullmatch(video_id):
+        raise ValueError(f"not a YouTube video URL: {url}")
+    return url
+
+
+YouTubeUrl = Annotated[HttpUrl, UrlConstraints(max_length=500), AfterValidator(_require_youtube)]
+VideoTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+
 
 class PlayerCreate(BaseModel):
     name: str
@@ -53,6 +85,22 @@ class PlayerImageOut(BaseModel):
     zoom: float | None
 
 
+class PlayerVideoCreate(BaseModel):
+    title: VideoTitle
+    title_en: VideoTitle | None = None
+    url: YouTubeUrl
+
+
+class PlayerVideoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    player_id: int
+    title: str
+    title_en: str | None
+    url: str
+
+
 class PlayerOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -62,6 +110,7 @@ class PlayerOut(BaseModel):
     name_en: str | None
     jersey_number: int | None
     images: list[PlayerImageOut]
+    videos: list[PlayerVideoOut]
 
 
 class LinkableUserOut(BaseModel):
@@ -94,7 +143,7 @@ def _get_team_player_or_404(db: Session, team_id: int, player_id: int) -> Player
 
 def _get_player_or_404(db: Session, player_id: int) -> Player:
     player = db.get(Player, player_id)
-    if player is None:
+    if player is None or player.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
     return player
 
@@ -194,10 +243,7 @@ def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: Requi
 
 @router.get("/players/{player_id}", response_model=PlayerOut)
 def get_player(player_id: int, db: DbSession) -> Player:
-    player = _get_player_or_404(db, player_id)
-    if player.deleted_at is not None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
-    return player
+    return _get_player_or_404(db, player_id)
 
 
 @router.post(
@@ -232,4 +278,34 @@ def delete_player_image(
     if image is None or image.player_id != player_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
     db.delete(image)
+    db.commit()
+
+
+@router.post(
+    "/players/{player_id}/videos",
+    response_model=PlayerVideoOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_player_video(
+    player_id: int, payload: PlayerVideoCreate, db: DbSession, user: RequireUser
+) -> PlayerVideo:
+    check_player_self_or_team_admin(db, user, _get_player_or_404(db, player_id))
+    video = PlayerVideo(player_id=player_id, title=payload.title, title_en=payload.title_en, url=str(payload.url))
+    db.add(video)
+    db.commit()
+    db.refresh(video)
+    return video
+
+
+@router.delete(
+    "/players/{player_id}/videos/{video_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_player_video(
+    player_id: int, video_id: int, db: DbSession, user: RequireUser
+) -> None:
+    check_player_self_or_team_admin(db, user, _get_player_or_404(db, player_id))
+    video = db.get(PlayerVideo, video_id)
+    if video is None or video.player_id != player_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
+    db.delete(video)
     db.commit()

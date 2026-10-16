@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.main import app
-from app.models import AdminUser, Membership, Player, PlayerImage, Team
+from app.models import AdminUser, Membership, Player, PlayerImage, PlayerVideo, Team
 from app.security import hash_password
 
 # `client` and `admin_client` are the same TestClient instance under the hood (admin_client just
@@ -373,6 +373,59 @@ def test_linked_user_cannot_edit_other_player(client: TestClient, db_session: Se
     assert client.patch(f"/teams/{own_team.id}/players/{other.id}", json={"name": "X"}).status_code == 403
 
 
+VIDEO = {"title": "Highlights", "url": "https://youtu.be/dQw4w9WgXcQ"}
+
+
+def test_linked_user_manages_own_videos_only(client: TestClient, db_session: Session, own_team: Team) -> None:
+    user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
+    mine = _player(db_session, own_team, user=user)
+    other = _player(db_session, own_team, name="Other")
+    created = client.post(f"/players/{mine.id}/videos", json=VIDEO)
+    assert created.status_code == 201
+    assert created.json()["title"] == "Highlights"
+    assert created.json()["url"] == VIDEO["url"]
+    assert [v["id"] for v in client.get(f"/players/{mine.id}").json()["videos"]] == [created.json()["id"]]
+    assert client.post(f"/players/{other.id}/videos", json=VIDEO).status_code == 403
+    teammate_video = PlayerVideo(player_id=other.id, title="T", url=VIDEO["url"])
+    db_session.add(teammate_video)
+    db_session.commit()
+    assert client.delete(f"/players/{mine.id}/videos/{teammate_video.id}").status_code == 404
+    assert client.delete(f"/players/{mine.id}/videos/{created.json()['id']}").status_code == 204
+
+
+@pytest.mark.parametrize(
+    ("url", "status_code"),
+    [
+        ("https://youtube.com/watch?v=dQw4w9WgXcQ", 201),
+        ("https://www.youtube.com/watch?v=dQw4w9WgXcQ", 201),
+        ("https://m.youtube.com/watch?v=dQw4w9WgXcQ", 201),
+        ("https://youtu.be/dQw4w9WgXcQ", 201),
+        ("https://youtube.com/shorts/dQw4w9WgXcQ", 201),
+        ("https://evil.test/watch?v=dQw4w9WgXcQ", 422),
+        ("https://youtube.com.evil.test/watch?v=dQw4w9WgXcQ", 422),
+        ("https://notyoutube.com/watch?v=dQw4w9WgXcQ", 422),
+        ("https://www.youtube.com/channel/abc", 422),
+        ("https://www.youtube.com/watch?v=short", 422),
+        ("not a url", 422),
+    ],
+)
+def test_player_video_url_must_be_youtube(admin_client: TestClient, team: Team, url: str, status_code: int) -> None:
+    player = admin_client.post(f"/teams/{team.id}/players", json={"name": "P"}).json()
+    response = admin_client.post(f"/players/{player['id']}/videos", json={"title": "V", "url": url})
+    assert response.status_code == status_code, response.text
+
+
+def test_player_videos_404_for_deleted_player(admin_client: TestClient, db_session: Session, team: Team) -> None:
+    player = Player(team_id=team.id, name="Gone", deleted_at=datetime.now(UTC))
+    db_session.add(player)
+    db_session.commit()
+    video = PlayerVideo(player_id=player.id, title="V", url=VIDEO["url"])
+    db_session.add(video)
+    db_session.commit()
+    assert admin_client.post(f"/players/{player.id}/videos", json=VIDEO).status_code == 404
+    assert admin_client.delete(f"/players/{player.id}/videos/{video.id}").status_code == 404
+
+
 def test_linked_user_manages_own_images_only(
     client: TestClient, db_session: Session, own_team: Team, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -394,10 +447,13 @@ def test_linked_user_loses_self_edit_after_leaving(
     user = _login_user(client, db_session, "me", membership)
     mine = _player(db_session, own_team, user=user)
     image_id = client.post(f"/players/{mine.id}/images", json={"url": "https://x.test/a.png"}).json()["id"]
+    video_id = client.post(f"/players/{mine.id}/videos", json=VIDEO).json()["id"]
     assert client.delete(f"/memberships/mine/{membership.id}").status_code == 204
     assert client.patch(f"/teams/{own_team.id}/players/{mine.id}", json={"name": "New"}).status_code == 403
     assert client.post(f"/players/{mine.id}/images", json={"url": "https://x.test/b.png"}).status_code == 403
     assert client.delete(f"/players/{mine.id}/images/{image_id}").status_code == 403
+    assert client.post(f"/players/{mine.id}/videos", json=VIDEO).status_code == 403
+    assert client.delete(f"/players/{mine.id}/videos/{video_id}").status_code == 403
     assert client.get("/auth/me").json()["player_ids"] == []
 
 

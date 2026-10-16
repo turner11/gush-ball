@@ -10,6 +10,7 @@ const TYPE_LABELS = {
   game: 'משחק',
   player: 'שחקן',
   player_image: 'תמונת שחקן',
+  player_video: 'סרטון שחקן',
   link: 'קישור',
   video: 'וידאו',
   image: 'תמונה',

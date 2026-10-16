@@ -33,6 +33,11 @@ const error = ref('')
 const avatar = computed(() => player.value?.images?.[0])
 const taggedImages = ref([])
 const taggedVideos = ref([])
+// Personal videos first; the key prefix keeps personal and team ids apart.
+const videos = computed(() => [
+  ...(player.value?.videos ?? []).map((v) => ({ ...v, key: 'p' + v.id })),
+  ...taggedVideos.value.map((v) => ({ ...v, key: 't' + v.id })),
+])
 
 // ponytail: tags live on the team's media (#131), so fetch the team's lists and filter here;
 // move the filter server-side if a team's media grows large. Highest id = newest, as in MediaView.
@@ -133,10 +138,10 @@ watch(
         </li>
       </ul>
       <p v-else class="empty-state">אין תמונות עדיין.</p>
-      <section v-if="taggedVideos.length" class="space-y-2">
+      <section v-if="videos.length" class="space-y-2">
         <h2 class="section-title">סרטונים</h2>
         <ul class="grid gap-6 sm:grid-cols-2">
-          <li v-for="video in taggedVideos" :key="video.id"><VideoCard :video="video" /></li>
+          <li v-for="video in videos" :key="video.key"><VideoCard :video="video" /></li>
         </ul>
       </section>
     </template>

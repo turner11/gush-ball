@@ -24,6 +24,9 @@ class Player(Base):
 
     team: Mapped["Team"] = relationship(back_populates="players")
     images: Mapped[list["PlayerImage"]] = relationship(back_populates="player", cascade="all, delete-orphan")
+    videos: Mapped[list["PlayerVideo"]] = relationship(
+        back_populates="player", cascade="all, delete-orphan", order_by="PlayerVideo.id"
+    )
 
 
 class PlayerImage(Base):
@@ -38,3 +41,17 @@ class PlayerImage(Base):
     zoom: Mapped[float | None] = mapped_column(default=None)
 
     player: Mapped["Player"] = relationship(back_populates="images")
+
+
+class PlayerVideo(Base):
+    """A YouTube link the player (or a team admin) attached to the player's own page."""
+
+    __tablename__ = "player_videos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
+    title: Mapped[str] = mapped_column(String(200))
+    title_en: Mapped[str | None] = mapped_column(String(200), default=None)
+    url: Mapped[str] = mapped_column(String(500))
+
+    player: Mapped["Player"] = relationship(back_populates="videos")

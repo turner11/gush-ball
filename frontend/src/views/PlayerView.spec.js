@@ -11,6 +11,7 @@ const PLAYER = {
   name: 'יוסי כהן',
   jersey_number: 7,
   images: [{ id: 1, url: '/a.jpg' }, { id: 2, url: '/b.jpg' }],
+  videos: [],
 }
 
 // Team media: only items tagged with player 3 belong on the page.
@@ -71,6 +72,16 @@ describe('PlayerView', () => {
 
     expect(avatar.attributes('src')).toBe('/default-player.png')
     expect(avatar.attributes('style')).toBeUndefined()
+  })
+
+  it('shows personal videos before tagged team videos', async () => {
+    withPlayer({ videos: [{ id: 20, title: 'הדגשים שלי', url: 'https://youtu.be/dQw4w9WgXcQ' }] })
+    const text = (await mountAt('/players/3')).text()
+
+    expect(text).toContain('הדגשים שלי')
+    expect(text).toContain('הסל המנצח')
+    expect(text).not.toContain('לא שלו')
+    expect(text.indexOf('הדגשים שלי')).toBeLessThan(text.indexOf('הסל המנצח'))
   })
 
   it('shows the jersey number large, outside the heading, and omits it when unset', async () => {

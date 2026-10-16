@@ -139,6 +139,13 @@ def _image_add(c, db):
     return lambda: c.post(f"/players/{p.id}/images", json=body), "create", "player_image", None, t.id
 
 
+def _player_video_add(c, db):
+    t = _team(db)
+    p = _player(db, t)
+    body = {"title": "V", "url": "https://youtu.be/dQw4w9WgXcQ"}
+    return lambda: c.post(f"/players/{p.id}/videos", json=body), "create", "player_video", None, t.id
+
+
 def _image_delete(c, db):
     t = _team(db)
     p = _player(db, t)
@@ -259,7 +266,7 @@ def _admin_create(c, db):
 
 CASES: list[Case] = [
     _game_create, _game_patch, _game_approve, _game_accept, _game_reject, _game_delete,
-    _player_create, _player_patch, _player_soft_delete, _player_restore, _image_add, _image_delete,
+    _player_create, _player_patch, _player_soft_delete, _player_restore, _image_add, _image_delete, _player_video_add,
     _link_create, _link_patch, _link_delete,
     _standing_create, _standing_patch, _standing_delete,
     _team_create, _team_patch, _team_delete,

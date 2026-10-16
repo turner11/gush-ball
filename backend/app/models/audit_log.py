@@ -9,7 +9,7 @@ from app.db import Base
 from app.models.content import TeamImage, TeamLink, TeamPost, TeamVideo
 from app.models.game import Game
 from app.models.membership import Membership
-from app.models.player import Player, PlayerImage
+from app.models.player import Player, PlayerImage, PlayerVideo
 from app.models.standing_row import StandingRow
 from app.models.team import Team
 
@@ -36,6 +36,7 @@ _AUDITED: dict[type, str] = {
     Game: "game",
     Player: "player",
     PlayerImage: "player_image",
+    PlayerVideo: "player_video",
     TeamLink: "link",
     TeamVideo: "video",
     TeamImage: "image",
@@ -52,7 +53,7 @@ _SKIPPED_KEYS = {"id", "stats_url", "has_stats"}
 def _team_id(session: Session, obj: Any) -> int | None:
     if isinstance(obj, Team):
         return obj.id
-    if isinstance(obj, PlayerImage):
+    if isinstance(obj, (PlayerImage, PlayerVideo)):
         player = session.get(Player, obj.player_id)
         return player.team_id if player else None
     return getattr(obj, "team_id", None)
