@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import Game, GameStatus, Opponent, Player, PlayerImage, Team
+from app.models import Club, Game, GameStatus, Opponent, Player, PlayerImage, Team
 from app.routers.seo import _title, _url_slug
 
 NS = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -42,6 +42,18 @@ def test_sitemap_lists_team_homes_by_url_slug(client, db_session: Session) -> No
     locs = _locs(client)
     assert "https://example.org/elizur_gush_etzion" in locs
     assert f"https://example.org/{unnamed.id}" in locs
+
+
+def test_sitemap_lists_clubs_with_teams_by_slug(client, db_session: Session) -> None:
+    db_session.add_all([Club(name="אליצור", name_en="Elizur Club"), Club(name="בלי שם"), Club(name="ריק", name_en="Empty")])
+    db_session.add_all([Team(name="א", slug="a", club="אליצור"), Team(name="ב", slug="b", club="בלי שם")])
+    db_session.commit()
+    nameless = db_session.query(Club).filter_by(name="בלי שם").one()
+
+    locs = _locs(client)
+    assert "https://example.org/clubs/elizur_club" in locs
+    assert f"https://example.org/clubs/{nameless.id}" in locs
+    assert "https://example.org/clubs/empty" not in locs
 
 
 def test_sitemap_lists_live_players_only(client, db_session: Session) -> None:
@@ -138,7 +150,18 @@ def test_og_game_title_names_opponent_and_final_score(client, db_session: Sessio
     assert _og(client, f"/other/games/{game.id}") == ""
 
 
-@pytest.mark.parametrize("path", ["", "/", "/admin", "/elizur/admin", "/nope", "/elizur/nope", "/players/abc", "/players/999", "/elizur/games/999", "/teams", "/join"])
+def test_og_club_page_title_lists_teams(client, db_session: Session) -> None:
+    db_session.add(Club(name="אליצור", name_en="Elizur Club"))
+    db_session.add_all([Team(name="בוגרים", slug="a", club="אליצור"), Team(name="נוער", slug="b", club="אליצור", logo_url="https://cdn.example/b.png")])
+    db_session.commit()
+
+    body = _og(client, "/clubs/elizur_club")
+    assert 'og:title" content="אליצור · Elizur Club · כדורסל"' in body
+    assert "בוגרים" in body and "נוער" in body
+    assert 'og:image" content="https://cdn.example/b.png"' in body
+
+
+@pytest.mark.parametrize("path", ["", "/", "/admin", "/elizur/admin", "/nope", "/elizur/nope", "/players/abc", "/players/999", "/elizur/games/999", "/teams", "/join", "/clubs/nope", "/clubs"])
 def test_og_unknown_paths_are_empty(client, db_session: Session, path: str) -> None:
     _team(db_session)
     assert _og(client, path) == ""

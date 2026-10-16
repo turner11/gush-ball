@@ -34,7 +34,7 @@ export function pageTitle(base, nameEn) {
 }
 
 // Only fields the team home page already shows, so the markup matches visible content.
-export function sportsTeamJsonLd(team, url) {
+export function sportsTeamJsonLd(team, url, club) {
   const sameAs = [team.facebook_url, team.instagram_url, team.youtube_url, team.tiktok_url, team.twitter_url].filter(Boolean)
   return {
     '@context': 'https://schema.org',
@@ -43,6 +43,7 @@ export function sportsTeamJsonLd(team, url) {
     ...(team.name_en && { alternateName: team.name_en }),
     sport: 'Basketball',
     url,
+    ...(club && { memberOf: { '@type': 'SportsOrganization', name: club.name, url: club.url } }),
     ...(team.logo_url && { logo: team.logo_url }),
     ...(sameAs.length && { sameAs }),
     ...(team.home_court_address && { location: { '@type': 'Place', address: team.home_court_address } }),
@@ -59,5 +60,19 @@ export function playerJsonLd(player, team, url, teamUrl) {
     ...(player.name_en && { alternateName: player.name_en }),
     memberOf: { '@type': 'SportsTeam', name: team.name, url: teamUrl },
     ...(player.images[0] && { image: player.images[0].url }),
+  }
+}
+
+// Only fields the club page shows; member lists the team cards on it.
+export function clubJsonLd(club, url, teams) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SportsOrganization',
+    name: club.name,
+    ...(club.name_en && { alternateName: club.name_en }),
+    sport: 'Basketball',
+    url,
+    ...(club.ibasketball_url && { sameAs: [club.ibasketball_url] }),
+    member: teams.map((t) => ({ '@type': 'SportsTeam', name: t.name, url: t.url })),
   }
 }

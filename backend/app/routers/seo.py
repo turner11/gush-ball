@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.deps import DbSession
-from app.models import Game, GameStatus, Opponent, Player, PlayerImage, Team
+from app.models import Club, Game, GameStatus, Opponent, Player, PlayerImage, Team
 
 router = APIRouter(tags=["seo"])
 
@@ -17,10 +17,10 @@ router = APIRouter(tags=["seo"])
 TEAM_PAGES = ("schedule", "standings", "roster", "media")
 
 
-def _url_slug(team: Team) -> str:
-    # ponytail: mirrors frontend teamSlug (useSelectedTeam.js); change both
-    slug = re.sub(r"\s+", "_", re.sub(r"[^a-z0-9_\s]", "", (team.name_en or "").lower()).strip())
-    return slug or str(team.id)
+def _url_slug(item: Team | Club) -> str:
+    # ponytail: team or club; mirrors frontend teamSlug (useSelectedTeam.js); change both
+    slug = re.sub(r"\s+", "_", re.sub(r"[^a-z0-9_\s]", "", (item.name_en or "").lower()).strip())
+    return slug or str(item.id)
 
 
 @router.get("/sitemap.xml")
@@ -30,6 +30,8 @@ def sitemap(db: DbSession) -> Response:
     for team in db.scalars(select(Team).order_by(Team.id)):
         slug = _url_slug(team)
         paths += [slug, *(f"{slug}/{page}" for page in TEAM_PAGES)]
+    clubs_with_teams = select(Club).where(Club.name.in_(select(Team.club))).order_by(Club.id)
+    paths += [f"clubs/{_url_slug(club)}" for club in db.scalars(clubs_with_teams)]
     paths += [f"players/{pid}" for pid in db.scalars(select(Player.id).where(Player.deleted_at.is_(None)).order_by(Player.id))]
     urls = "".join(f"<url><loc>{escape(f'{base}/{path}')}</loc></url>" for path in paths)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
@@ -61,6 +63,11 @@ def _team_for_slug(db: DbSession, slug: str) -> Team | None:
     return next((t for t in teams if _url_slug(t) == slug), None) or next((t for t in teams if str(t.id) == slug), None)
 
 
+def _club_for_slug(db: DbSession, slug: str) -> Club | None:
+    slug = slug.lower()
+    return next((c for c in db.scalars(select(Club).order_by(Club.id)) if _url_slug(c) == slug), None)
+
+
 def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
     """(title, description, image url) for a public page, or None when the path is not covered."""
     parts = [p for p in path.split("/") if p]
@@ -70,7 +77,14 @@ def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
             return None
         photo = db.scalar(select(PlayerImage.url).where(PlayerImage.player_id == player.id).order_by(PlayerImage.id))
         return _title(f"{player.name} · {player.team.name}", player.name_en), f"פרופיל שחקן של {player.team.name}.", photo or player.team.logo_url
-    team = _team_for_slug(db, parts[0]) if parts and parts[0] not in ("admin", "join", "teams", "players") else None
+    if len(parts) == 2 and parts[0] == "clubs":
+        club = _club_for_slug(db, parts[1])
+        if club is None:
+            return None
+        teams = list(db.scalars(select(Team).where(Team.club == club.name).order_by(Team.id)))
+        description = f"הקבוצות של {club.name}: {', '.join(t.name for t in teams)}." if teams else f"מועדון {club.name}."
+        return _title(club.name, club.name_en), description, next((t.logo_url for t in teams if t.logo_url), None)
+    team = _team_for_slug(db, parts[0]) if parts and parts[0] not in ("admin", "join", "teams", "players", "clubs") else None
     if team is None:
         return None
     if len(parts) == 1:

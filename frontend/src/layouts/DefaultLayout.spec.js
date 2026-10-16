@@ -49,7 +49,7 @@ describe('DefaultLayout', () => {
       routes: [
         { path: '/', name: 'home', component: { template: '<div/>' } },
         { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { title: 'לוח', description: (t) => `לוח של ${t}` } },
-        { path: '/:slug/club', name: 'club-week', component: { template: '<div/>' } },
+        { path: '/clubs/:clubSlug', name: 'club', component: { template: '<div/>' } },
         { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' } },
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
         { path: '/teams', name: 'teams', component: { template: '<div/>' } },
@@ -622,11 +622,11 @@ describe('DefaultLayout', () => {
   })
 
   it.each([
-    ['club-mates', [{ club: 'מכבי' }, { club: 'מכבי' }, {}], true],
-    ['no club-mates', [{ club: 'מכבי' }, { club: 'הפועל' }, {}], false],
-  ])('nav and tab bar link מועדון only with %s', async (_n, extras, shown) => {
-    const teams = TEAMS.map((t, i) => ({ ...t, ...extras[i] }))
-    mockFetch({ 'GET /api/teams': () => jsonRes(teams) })
+    ['a club', 'מכבי', true],
+    ['no club', null, false],
+  ])('nav and tab bar link מועדון to the club page for a team with %s', async (_n, club, shown) => {
+    const teams = TEAMS.map((t, i) => (i === 0 ? { ...t, club } : t))
+    mockFetch({ 'GET /api/teams': () => jsonRes(teams), 'GET /api/clubs': () => jsonRes([{ id: 5, name: 'מכבי', name_en: 'Maccabi' }]) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
@@ -635,9 +635,12 @@ describe('DefaultLayout', () => {
 
     for (const id of ['top-nav', 'tab-bar']) {
       const hrefs = wrapper.find(`[data-testid="${id}"]`).findAll('a').map((a) => a.attributes('href'))
-      expect(hrefs.includes('/team_a/club')).toBe(shown)
-      if (shown) expect(hrefs.slice(0, 3)).toEqual(['/team_a', '/team_a/schedule', '/team_a/club'])
+      expect(hrefs.includes('/clubs/maccabi')).toBe(shown)
+      if (shown) expect(hrefs.slice(0, 3)).toEqual(['/team_a', '/team_a/schedule', '/clubs/maccabi'])
     }
+    const ld = JSON.parse(document.head.querySelector('script[data-page]').textContent)
+    if (shown) expect(ld.memberOf.url).toBe(`${location.origin}/clubs/maccabi`)
+    else expect(ld).not.toHaveProperty('memberOf')
   })
 
   it('header omits the map link when the team has no address', async () => {

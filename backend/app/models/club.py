@@ -12,6 +12,7 @@ class Club(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), unique=True)
+    name_en: Mapped[str | None] = mapped_column(String(120), default=None)
     ibasketball_url: Mapped[str | None] = mapped_column(String(500), unique=True, default=None)
 
 

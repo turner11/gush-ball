@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const CLUBS = [
-  { id: 1, name: 'גוש', ibasketball_url: 'https://ibasketball.co.il/club/1/' },
+  { id: 1, name: 'גוש', name_en: null, ibasketball_url: 'https://ibasketball.co.il/club/1/' },
   { id: 2, name: 'אחר', ibasketball_url: null },
 ]
 
@@ -51,8 +51,26 @@ describe('ClubsSection', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(sent).toEqual({ name: 'חדש', ibasketball_url: 'https://ibasketball.co.il/club/1/' })
+    expect(sent).toEqual({ name: 'חדש', name_en: null, ibasketball_url: 'https://ibasketball.co.il/club/1/' })
     expect(wrapper.text()).toContain('נשמר')
+  })
+
+  it('sends the English name', async () => {
+    let sent
+    mockFetch({
+      'GET /api/clubs': () => jsonRes(CLUBS),
+      'PATCH /api/clubs/1': (options) => {
+        sent = JSON.parse(options.body)
+        return jsonRes({ ...CLUBS[0], name_en: 'Maccabi' })
+      },
+    })
+    const wrapper = await mountSection()
+
+    await wrapper.find('#club-name-en-1').setValue('Maccabi')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(sent.name_en).toBe('Maccabi')
   })
 
   it('shows a 409 on its own row only', async () => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { pageTitle, playerJsonLd, setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from './head'
+import { clubJsonLd, pageTitle, playerJsonLd, setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from './head'
 
 afterEach(() => {
   document.head.querySelectorAll('meta[name], link[rel="canonical"], script').forEach((el) => el.remove())
@@ -123,5 +123,37 @@ describe('playerJsonLd', () => {
     const out = playerJsonLd({ name: 'יוסי', name_en: null, images: [] }, team, 'u', 't')
     expect(out).not.toHaveProperty('alternateName')
     expect(out).not.toHaveProperty('image')
+  })
+})
+
+describe('clubJsonLd', () => {
+  const teams = [{ name: 'קבוצה א', url: 'https://x.org/team_a' }]
+
+  it('maps every field the page shows', () => {
+    const club = { name: 'מכבי', name_en: 'Maccabi', ibasketball_url: 'https://ibasketball.co.il/club/5/' }
+    expect(clubJsonLd(club, 'https://x.org/clubs/maccabi', teams)).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'SportsOrganization',
+      name: 'מכבי',
+      alternateName: 'Maccabi',
+      sport: 'Basketball',
+      url: 'https://x.org/clubs/maccabi',
+      sameAs: ['https://ibasketball.co.il/club/5/'],
+      member: [{ '@type': 'SportsTeam', name: 'קבוצה א', url: 'https://x.org/team_a' }],
+    })
+  })
+
+  it('omits alternateName and sameAs when unset', () => {
+    const out = clubJsonLd({ name: 'מכבי', name_en: null, ibasketball_url: null }, 'u', teams)
+    expect(out).not.toHaveProperty('alternateName')
+    expect(out).not.toHaveProperty('sameAs')
+  })
+})
+
+describe('sportsTeamJsonLd memberOf', () => {
+  it('adds the club when given and leaves it out otherwise', () => {
+    const club = { name: 'מכבי', url: 'https://x.org/clubs/maccabi' }
+    expect(sportsTeamJsonLd({ name: 'א' }, 'u', club).memberOf).toEqual({ '@type': 'SportsOrganization', name: 'מכבי', url: club.url })
+    expect(sportsTeamJsonLd({ name: 'א' }, 'u')).not.toHaveProperty('memberOf')
   })
 })

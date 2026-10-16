@@ -7,7 +7,7 @@ import ErrorBoundary from '../components/ErrorBoundary.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { useAuth } from '../composables/useAuth'
-import { clubTeamsOf, teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
+import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { backgroundSrc } from '../lib/backgrounds'
 import { pageTitle, setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from '../lib/head'
@@ -19,7 +19,7 @@ const LOGO_URL = '/logo.jpg'
 const navItems = computed(() => [
   { to: homePath.value, label: 'בית' },
   { to: teamBase.value + '/schedule', label: 'לוח משחקים' },
-  ...(hasClubWeek.value ? [{ to: teamBase.value + '/club', label: 'מועדון' }] : []),
+  ...(clubPath.value ? [{ to: clubPath.value, label: 'מועדון' }] : []),
   { to: teamBase.value + '/standings', label: 'טבלה' },
   { to: teamBase.value + '/roster', label: 'שחקנים' },
   { to: teamBase.value + '/media', label: 'מדיה' },
@@ -29,7 +29,7 @@ const navItems = computed(() => [
 const tabItems = computed(() => [
   { to: homePath.value, label: 'בית', icon: 'home', exact: true },
   { to: teamBase.value + '/schedule', label: 'משחקים', icon: 'calendar' },
-  ...(hasClubWeek.value ? [{ to: teamBase.value + '/club', label: 'מועדון', icon: 'shield' }] : []),
+  ...(clubPath.value ? [{ to: clubPath.value, label: 'מועדון', icon: 'shield' }] : []),
   { to: teamBase.value + '/standings', label: 'טבלה', icon: 'table' },
   { to: teamBase.value + '/roster', label: 'שחקנים', icon: 'users' },
   { to: teamBase.value + '/media', label: 'מדיה', icon: 'media' },
@@ -37,6 +37,7 @@ const tabItems = computed(() => [
 ])
 
 const teams = ref([])
+const clubs = ref([])
 const { user, checked, checkSession, logout } = useAuth()
 const { selectedTeamId, teamsLoaded, markTeamsLoaded } = useSelectedTeam()
 
@@ -46,7 +47,8 @@ const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === sel
 const heroImage = computed(() => `url("${backgroundSrc(selectedTeam.value?.background)}")`)
 const teamBase = computed(() => (selectedTeam.value ? '/' + teamSlug(selectedTeam.value) : ''))
 const homePath = computed(() => teamBase.value || '/')
-const hasClubWeek = computed(() => clubTeamsOf(teams.value, selectedTeam.value).length > 1)
+const club = computed(() => clubs.value.find((c) => c.name === selectedTeam.value?.club))
+const clubPath = computed(() => club.value && '/clubs/' + teamSlug(club.value))
 const teamStyle = computed(() => {
   const team = selectedTeam.value
   const style = {}
@@ -66,21 +68,23 @@ watch(selectedTeam, () => {
   document.querySelector('link[rel="icon"]').href = selectedTeam.value.logo_url || LOGO_URL
 }, { immediate: true })
 // Crawler-facing head: description, canonical (query dropped), noindex on 404, SportsTeam on team home.
-watch([selectedTeam, () => route.path, () => route.name], () => {
+watch([selectedTeam, clubPath, () => route.path, () => route.name], () => {
   const noindex = route.meta.noindex
   setMeta('robots', noindex ? 'noindex' : null)
   setCanonical(noindex ? null : location.origin + route.path)
+  if (route.name === 'club') return // ClubView owns the title, description and JSON-LD
   const team = selectedTeam.value
   if (!team) return
   setMeta('description', route.meta.description?.(team.name))
   if (route.name === 'player') return // PlayerView owns the title and the Person JSON-LD
-  setJsonLd(route.name === 'team-home' ? sportsTeamJsonLd(team, location.origin + homePath.value) : null)
+  setJsonLd(route.name === 'team-home' ? sportsTeamJsonLd(team, location.origin + homePath.value, club.value && { name: club.value.name, url: location.origin + clubPath.value }) : null)
   document.title = pageTitle(route.params.slug && route.meta.title ? `${route.meta.title} · ${team.name}` : team.name, team.name_en)
 }, { immediate: true })
 useTeamFromRoute(teams)
 
 onMounted(async () => {
   if (!checked.value) checkSession() // not awaited: don't delay the teams fetch
+  apiFetch('/clubs').then((c) => (clubs.value = c), () => {}) // only hides the club link on failure
   try {
     teams.value = await apiFetch('/teams')
     markTeamsLoaded(teams.value)

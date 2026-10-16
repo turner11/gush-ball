@@ -180,7 +180,8 @@ describe('router auth guard', () => {
   it('every public route except not-found/login/reset has a description; not-found is noindex', async () => {
     const { default: router } = await import('./index.js')
 
-    const skip = ['not-found', 'admin-login', 'admin-reset-password', 'admin-signup', 'admin-verify-email', 'join', 'account']
+    // club: ClubView sets its own title/description/JSON-LD
+    const skip = ['not-found', 'admin-login', 'admin-reset-password', 'admin-signup', 'admin-verify-email', 'join', 'account', 'club']
     const publicRoutes = router.getRoutes().filter((r) => !r.meta.requiresAuth && !r.redirect && !skip.includes(r.name))
     expect(publicRoutes.length).toBeGreaterThan(0)
     for (const r of publicRoutes) {
@@ -195,5 +196,15 @@ describe('router auth guard', () => {
   it('resolves the public game route', async () => {
     const { default: router } = await import('./index.js')
     expect(router.resolve({ name: 'game', params: { slug: 'x', id: 5 } }).path).toBe('/x/games/5')
+  })
+
+  it('redirects the old /:slug/club URL to the team home', async () => {
+    global.fetch.mockResolvedValue({ ok: false })
+    const { default: router } = await import('./index.js')
+
+    await router.push('/team_a/club')
+
+    expect(router.currentRoute.value.name).toBe('team-home')
+    expect(router.currentRoute.value.params.slug).toBe('team_a')
   })
 })
