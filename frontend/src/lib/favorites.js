@@ -1,8 +1,23 @@
-// Pure sorting for "favourite teams first". Array.sort is stable, so each list keeps its own order after the stars.
-export const favoritesFirst = (teams, ids) => [...teams].sort((a, b) => ids.has(b.id) - ids.has(a.id))
+const byName = new Intl.Collator('he').compare
 
-// Items (leagues) with the most favourite teams first; ties keep the existing order.
-export function byFavoriteCount(items, teamsOf, ids) {
-  const counts = new Map(items.map((item) => [item, teamsOf(item).filter((t) => ids.has(t.id)).length]))
-  return [...items].sort((a, b) => counts.get(b) - counts.get(a))
+const covers = (m, team) => m.team_id === team.id || (!!m.club && m.club === team.club)
+
+// One order for every team, league and club list: how many of its teams the user is a member of, then admin of,
+// then has starred, then by name. An item is a team (default) or a group whose teams `teamsOf` returns.
+// Returns a new array; a null user (anonymous) gives plain alphabetical.
+export function byAffinity(items, user, teamsOf = (t) => [t], nameOf = (t) => t.name) {
+  const memberships = user?.memberships ?? []
+  const favorites = new Set(user?.favorite_team_ids)
+  const countBy = (teams, pred) => teams.filter(pred).length
+  const score = new Map(
+    items.map((item) => {
+      const teams = teamsOf(item)
+      const held = (role) => countBy(teams, (t) => memberships.some((m) => m.role === role && covers(m, t)))
+      return [item, [held('member'), held('admin'), countBy(teams, (t) => favorites.has(t.id))]]
+    }),
+  )
+  return [...items].sort((a, b) => {
+    const [sa, sb] = [score.get(a), score.get(b)]
+    return sb[0] - sa[0] || sb[1] - sa[1] || sb[2] - sa[2] || byName(nameOf(a), nameOf(b))
+  })
 }

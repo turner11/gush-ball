@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
-import { byFavoriteCount, favoritesFirst } from '../lib/favorites'
+import { byAffinity } from '../lib/favorites'
 import { useAuth } from './useAuth'
 
 const { user } = useAuth()
@@ -37,7 +37,7 @@ export function useFavorites() {
     favoriteIds,
     error,
     toggle,
-    sortTeams: (teams) => favoritesFirst(teams, favoriteIds.value),
-    sortLeagues: (items, teamsOf) => byFavoriteCount(items, teamsOf, favoriteIds.value),
+    sortTeams: (teams) => byAffinity(teams, user.value),
+    sortGroups: (items, teamsOf, nameOf) => byAffinity(items, user.value, teamsOf, nameOf),
   }
 }

@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
-import { favoritesFirst } from '../lib/favorites'
+import { byAffinity } from '../lib/favorites'
 
 const user = ref(null)
 const checked = ref(false)
@@ -12,18 +12,11 @@ export const clubAdmin = (club) => !!club && !!user.value?.clubs?.includes(club)
 
 const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
 
-const byName = new Intl.Collator('he').compare
-
 // A team or club admin only sees their own teams in admin pickers (the server enforces the real scope).
-// Also orders: favourites first, then teams the user belongs to, then alphabetical. Returns a new array.
+// Ordered like every team list: member teams, then admin teams, then favourites, then by name. Returns a new array.
 export function ownTeams(teams) {
   const ids = user.value?.team_ids
-  const mine = (user.value?.memberships ?? []).filter((m) => m.role !== 'pending')
-  const isMine = (t) => mine.some((m) => m.team_id === t.id || (m.club && m.club === t.club))
-  const sorted = (ids ? teams.filter((t) => ids.includes(t.id)) : [...teams]).sort(
-    (a, b) => isMine(b) - isMine(a) || byName(a.name, b.name),
-  )
-  return favoritesFirst(sorted, new Set(user.value?.favorite_team_ids))
+  return byAffinity(ids ? teams.filter((t) => ids.includes(t.id)) : teams, user.value)
 }
 
 // Internal paths only: blocks open redirects through `?next=`. One leading slash (not // or /\), no control

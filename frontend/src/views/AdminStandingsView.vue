@@ -47,13 +47,15 @@ watch(selectedLeague, (league) => {
 const error = ref(null)
 const pendingDelete = ref(null)
 
-const { favoriteIds, sortLeagues } = useFavorites()
-const allTeams = ref([]) // only fetched for users with favourites, to put their leagues first
+const { sortGroups } = useFavorites()
+const allTeams = ref([]) // puts the leagues holding the user's teams first
 const leagues = computed(() => {
   const visible = readOnly.value && team.value ? teamRows(rows.value, team.value) : rows.value
   const names = [...new Set(visible.map((r) => r.league_name))]
-  return sortLeagues(names, (name) =>
-    allTeams.value.filter((t) => teamRows(rows.value.filter((r) => r.league_name === name), t).length),
+  return sortGroups(
+    names,
+    (name) => allTeams.value.filter((t) => teamRows(rows.value.filter((r) => r.league_name === name), t).length),
+    (name) => name,
   )
 })
 const leagueRows = computed(() => rows.value.filter((r) => r.league_name === selectedLeague.value))
@@ -72,7 +74,7 @@ async function loadRows() {
     ;[rows.value, team.value, allTeams.value] = await Promise.all([
       apiFetch('/standings'),
       user.value?.team_id ? apiFetch(`/teams/${user.value.team_id}`) : null,
-      favoriteIds.value.size ? apiFetch('/teams').catch(() => []) : [], // a failure only loses the sort
+      apiFetch('/teams').catch(() => []), // a failure only loses the sort
     ])
   } catch {
     loadError.value = 'שגיאה בטעינת הטבלה, נסה שוב'
