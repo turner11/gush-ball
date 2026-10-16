@@ -1,7 +1,7 @@
 """add favorite teams
 
 Revision ID: c22bc8381ffd
-Revises: caa544af2d0f
+Revises: 31a6a2099d04
 Create Date: 2026-10-16 09:42:15.325098
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "c22bc8381ffd"
-down_revision: str | None = "caa544af2d0f"
+down_revision: str | None = "31a6a2099d04"
 branch_labels = None
 depends_on = None
 
