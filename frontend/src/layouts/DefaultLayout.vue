@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
@@ -18,8 +19,8 @@ import { onColor } from '../lib/teamColors'
 // Bound (not a static src) so the SFC compiler serves it from public/ as-is.
 const LOGO_URL = '/logo.jpg'
 
+// "בית" is a dropdown in the template, not a link here.
 const navItems = computed(() => [
-  { to: homePath.value, label: 'בית' },
   { to: teamBase.value + '/schedule', label: 'לוח משחקים' },
   ...(clubPath.value ? [{ to: clubPath.value, label: 'מועדון' }] : []),
   { to: teamBase.value + '/standings', label: 'טבלה' },
@@ -50,6 +51,10 @@ const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === sel
 const heroImage = computed(() => `url("${backgroundSrc(selectedTeam.value?.background)}")`)
 const teamBase = computed(() => (selectedTeam.value ? '/' + teamSlug(selectedTeam.value) : ''))
 const homePath = computed(() => teamBase.value || '/')
+const mapsUrl = computed(() => {
+  const address = selectedTeam.value?.home_court_address
+  return address && 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address)
+})
 const club = computed(() => clubs.value.find((c) => c.name === selectedTeam.value?.club))
 const clubPath = computed(() => club.value && '/clubs/' + teamSlug(club.value))
 const teamStyle = computed(() => {
@@ -109,7 +114,7 @@ onMounted(async () => {
           teamStyle['--team-primary'] ? 'border-b-4 border-team-2 bg-team text-on-team' : 'bg-brand text-white',
         ]"
       >
-        <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6 md:h-16">
+        <div class="mx-auto flex min-h-14 max-w-6xl items-center gap-3 px-4 py-1 sm:px-6 md:min-h-16">
           <RouterLink
             :to="homePath"
             :aria-label="(selectedTeam?.name ?? 'GushBall') + ' — דף הבית'"
@@ -124,31 +129,62 @@ onMounted(async () => {
             />
             <img v-else :src="LOGO_URL" alt="GushBall" class="size-9 shrink-0 rounded md:size-10" />
             <span v-if="selectedTeam" class="flex min-w-0 flex-col leading-tight">
-              <span class="truncate font-extrabold">{{ selectedTeam.name }}</span>
-              <span v-if="selectedTeam.name_en" class="truncate text-xs font-medium"><bdi lang="en">{{ selectedTeam.name_en }}</bdi></span>
+              <span class="text-balance font-extrabold">{{ selectedTeam.name }}</span>
+              <span v-if="selectedTeam.name_en" class="text-balance text-xs font-medium"><bdi lang="en">{{ selectedTeam.name_en }}</bdi></span>
             </span>
           </RouterLink>
           <FavoriteStar v-if="selectedTeam" :team-id="selectedTeam.id" :name="selectedTeam.name" class="max-sm:hidden" />
           <a
-            v-if="selectedTeam?.home_court_address"
-            :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(selectedTeam.home_court_address)"
+            v-if="mapsUrl"
+            :href="mapsUrl"
             target="_blank"
             rel="noopener noreferrer"
             :aria-label="selectedTeam.home_court_address"
             :title="selectedTeam.home_court_address"
-            class="btn-icon"
+            class="btn-icon lg:hidden"
             ><AppIcon name="pin"
           /></a>
           <RouterLink
             :to="{ name: 'teams' }"
             aria-label="כל הקבוצות"
             title="כל הקבוצות"
-            class="btn-icon"
+            class="btn-icon lg:hidden"
           >
             <AppIcon name="grid" />
           </RouterLink>
           <nav v-if="selectedTeamId" data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden lg:block">
             <ul class="flex gap-6">
+              <li>
+                <DropdownMenuRoot>
+                  <DropdownMenuTrigger as-child>
+                    <button type="button" class="nav-link gap-1" :data-current="isHome || undefined">
+                      בית <AppIcon name="chevron" class="size-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuContent align="start" :side-offset="4" class="menu-content">
+                      <DropdownMenuItem as-child>
+                        <RouterLink :to="homePath" class="menu-item">דף הבית</RouterLink>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem v-if="selectedTeam?.ibasketball_team_url" as-child>
+                        <a
+                          :href="selectedTeam.ibasketball_team_url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="דף הקבוצה באיגוד (נפתח בלשונית חדשה)"
+                          class="menu-item"
+                        >דף הקבוצה באיגוד</a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem v-if="mapsUrl" as-child>
+                        <a :href="mapsUrl" target="_blank" rel="noopener noreferrer" class="menu-item">מגרש הבית</a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem as-child>
+                        <RouterLink :to="{ name: 'teams' }" class="menu-item">כל הקבוצות</RouterLink>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuRoot>
+              </li>
               <li v-for="item in navItems" :key="item.label">
                 <RouterLink :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
               </li>
@@ -156,28 +192,34 @@ onMounted(async () => {
           </nav>
           <ThemeToggle :class="['shrink-0 ms-auto', { 'lg:ms-0': selectedTeamId }]" />
           <template v-if="checked">
-            <template v-if="user">
-              <RouterLink v-if="user.is_admin" :to="teamBase + '/admin'" class="nav-link">ניהול</RouterLink>
-              <!-- Admins reach /account from admin home below sm: the 390px header is full. -->
-              <RouterLink
-                :to="{ name: 'account' }"
-                title="החשבון שלי"
-                class="btn-icon sm:w-auto sm:gap-2 sm:px-3"
-                :class="{ 'max-sm:hidden': user.is_admin }"
-              >
-                <AppIcon name="users" />
-                <span class="max-w-32 truncate max-sm:sr-only" dir="auto">{{ user.display_name }}</span>
-              </RouterLink>
-              <button
-                type="button"
-                aria-label="התנתקות"
-                title="התנתקות"
-                class="btn-icon"
-                @click="logout"
-              >
-                <AppIcon name="logout" />
-              </button>
-            </template>
+            <DropdownMenuRoot v-if="user">
+              <DropdownMenuTrigger as-child>
+                <button
+                  type="button"
+                  :aria-label="user.display_name + ' — תפריט חשבון'"
+                  :title="user.display_name"
+                  class="btn-icon"
+                >
+                  <AppIcon name="users" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuContent align="start" :side-offset="4" class="menu-content">
+                  <DropdownMenuLabel class="truncate px-3 py-1.5 text-xs text-muted" dir="auto">{{ user.display_name }}</DropdownMenuLabel>
+                  <DropdownMenuItem v-if="user.is_admin" as-child>
+                    <RouterLink :to="teamBase + '/admin'" class="menu-item">ניהול</RouterLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem as-child>
+                    <RouterLink :to="{ name: 'account' }" class="menu-item">החשבון שלי</RouterLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator class="my-1 h-px bg-line" />
+                  <DropdownMenuItem class="menu-item" @select="logout">
+                    <AppIcon name="logout" />
+                    התנתקות
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenuPortal>
+            </DropdownMenuRoot>
             <RouterLink
               v-else
               :to="{ name: 'admin-login' }"
