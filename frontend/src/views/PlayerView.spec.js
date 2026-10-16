@@ -57,6 +57,19 @@ const withPlayer = (overrides) => {
 describe('PlayerView', () => {
   afterEach(() => vi.restoreAllMocks())
 
+  it('shows birth date and age when present', async () => {
+    withPlayer({ birth_date: '2008-03-12', age: 18 })
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.text()).toContain('12.03.2008')
+    expect(wrapper.text()).toContain('גיל 18')
+  })
+
+  it('renders nothing about birth date when null', async () => {
+    withPlayer({})
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.text()).not.toContain('תאריך לידה')
+  })
+
   it("hero avatar shows the player's first own photo with its face focus", async () => {
     withPlayer({ images: [{ id: 1, url: '/a.jpg', focus_x: 50, focus_y: 40.5, zoom: 1.5 }] })
     const avatar = (await mountAt('/players/3')).find('[data-testid="player-avatar"]')

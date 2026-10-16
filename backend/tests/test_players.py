@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.main import app
 from app.models import AdminUser, Membership, Player, PlayerImage, PlayerVideo, Team
+from app.routers.players import ISRAEL, age_on
 from app.security import hash_password
 
 # `client` and `admin_client` are the same TestClient instance under the hood (admin_client just
@@ -524,3 +525,61 @@ def test_patch_player_name_over_120_chars_is_422(admin_client: TestClient, team:
     player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
     response = admin_client.patch(f"/teams/{team.id}/players/{player_id}", json={field: "x" * 121})
     assert response.status_code == 422
+
+
+def _born(years_ago: int, db: Session, team: Team) -> Player:
+    today = datetime.now(ISRAEL).date()
+    player = _player(db, team)
+    player.birth_date = date(today.year - years_ago, 1, 1)
+    db.commit()
+    return player
+
+
+def test_age_on_boundary() -> None:
+    born = date(2008, 5, 10)
+    assert [age_on(born, date(2024, 5, d)) for d in (9, 10, 11)] == [15, 16, 16]
+    leap = date(2008, 2, 29)
+    assert age_on(leap, date(2024, 2, 28)) == 15
+    assert age_on(leap, date(2024, 2, 29)) == 16
+    assert age_on(leap, date(2025, 2, 28)) == 16
+    assert age_on(leap, date(2025, 3, 1)) == 17
+
+
+def test_public_payload_hides_dob_under_16(client: TestClient, db_session: Session, team: Team) -> None:
+    player = _born(10, db_session, team)
+    for body in (client.get(f"/players/{player.id}").json(), client.get(f"/teams/{team.id}/players").json()[0]):
+        assert body["birth_date"] is None
+        assert body["age"] is None
+
+
+def test_public_payload_shows_dob_16_plus(client: TestClient, db_session: Session, team: Team) -> None:
+    player = _player(db_session, team)
+    player.birth_date = date(2000, 1, 1)
+    db_session.commit()
+    body = client.get(f"/players/{player.id}").json()
+    assert body["birth_date"] == "2000-01-01"
+    assert body["age"] == age_on(date(2000, 1, 1), datetime.now(ISRAEL).date())
+
+
+def test_in_scope_admin_sees_under_16_dob(team_admin_client: TestClient, db_session: Session, own_team: Team) -> None:
+    player = _born(10, db_session, own_team)
+    expected = player.birth_date.isoformat()
+    assert team_admin_client.get(f"/players/{player.id}").json()["birth_date"] == expected
+    assert team_admin_client.get(f"/teams/{own_team.id}/players").json()[0]["birth_date"] == expected
+    patched = team_admin_client.patch(f"/teams/{own_team.id}/players/{player.id}", json={"jersey_number": 9})
+    assert patched.json()["birth_date"] == expected
+
+
+def test_out_of_scope_admin_does_not_see_under_16_dob(
+    team_admin_client: TestClient, db_session: Session, other_team: Team
+) -> None:
+    player = _born(10, db_session, other_team)
+    assert team_admin_client.get(f"/players/{player.id}").json()["birth_date"] is None
+
+
+def test_admin_sets_and_clears_birth_date(admin_client: TestClient, db_session: Session, team: Team) -> None:
+    player = _player(db_session, team)
+    url = f"/teams/{team.id}/players/{player.id}"
+    assert admin_client.patch(url, json={"birth_date": "2008-03-12"}).json()["birth_date"] == "2008-03-12"
+    assert admin_client.patch(url, json={"birth_date": None}).json()["birth_date"] is None
+    assert admin_client.patch(url, json={"birth_date": "2999-01-01"}).status_code == 422

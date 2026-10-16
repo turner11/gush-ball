@@ -202,12 +202,14 @@ describe('AdminPlayersView', () => {
     const editButton = wrapper.findAll('button').find((b) => b.text() === 'ערוך')
     await editButton.trigger('click')
     await wrapper.find('#player-jersey-number').setValue('23')
+    expect(wrapper.find('#player-birth-date').element.value).toBe('')
+    await wrapper.find('#player-birth-date').setValue('2008-03-12')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/teams/1/players/10',
-      expect.objectContaining({ method: 'PATCH' }),
+      expect.objectContaining({ method: 'PATCH', body: expect.stringContaining('"birth_date":"2008-03-12"') }),
     )
     expect(wrapper.text()).toContain('23')
   })
