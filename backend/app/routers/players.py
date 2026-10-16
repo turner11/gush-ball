@@ -124,6 +124,7 @@ class PlayerOut(BaseModel):
     name_en: str | None
     jersey_number: int | None
     birth_date: date | None
+    minor: bool = False  # under ADULT_DOB_AGE; plain field so it survives birth_date being nulled
     images: list[PlayerImageOut]
     videos: list[PlayerVideoOut]
 
@@ -135,7 +136,8 @@ class PlayerOut(BaseModel):
 
 def _public_player(player: Player, show_birth_date: bool) -> PlayerOut:
     out = PlayerOut.model_validate(player)
-    if not show_birth_date and out.age is not None and out.age < ADULT_DOB_AGE:
+    out.minor = out.age is not None and out.age < ADULT_DOB_AGE
+    if out.minor and not show_birth_date:
         out.birth_date = None  # the computed age follows
     return out
 
@@ -180,13 +182,13 @@ def _get_player_or_404(db: Session, player_id: int) -> Player:
 )
 def create_player(
     team_id: int, payload: PlayerCreate, db: DbSession, _admin_id: RequireTeamAdmin
-) -> Player:
+) -> PlayerOut:
     get_team_or_404(db, team_id)
     player = Player(team_id=team_id, **payload.model_dump())
     db.add(player)
     db.commit()
     db.refresh(player)
-    return player
+    return _public_player(player, True)
 
 
 @router.get("/teams/{team_id}/players", response_model=list[PlayerOut])
@@ -255,18 +257,18 @@ def delete_player(
 
 
 @router.get("/teams/{team_id}/players/deleted", response_model=list[PlayerOut])
-def list_deleted_players(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> list[Player]:
+def list_deleted_players(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> list[PlayerOut]:
     team = get_team_or_404(db, team_id)
-    return [p for p in team.players if p.deleted_at is not None]
+    return [_public_player(p, True) for p in team.players if p.deleted_at is not None]
 
 
 @router.post("/teams/{team_id}/players/{player_id}/restore", response_model=PlayerOut)
-def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> Player:
+def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> PlayerOut:
     player = _get_team_player_or_404(db, team_id, player_id)
     player.deleted_at = None
     db.commit()
     db.refresh(player)
-    return player
+    return _public_player(player, True)
 
 
 @router.get("/players/{player_id}", response_model=PlayerOut)
