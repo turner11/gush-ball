@@ -12,6 +12,7 @@ from app.routers import (
     calendar,
     clubs,
     content,
+    favorites,
     games,
     health,
     leagues,
@@ -53,6 +54,7 @@ app.include_router(calendar.router)
 app.include_router(clubs.router)
 app.include_router(content.router)
 app.include_router(audit.router)
+app.include_router(favorites.router)
 app.include_router(games.router)
 app.include_router(games.club_router)
 app.include_router(leagues.router)

@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { fullAdmin, useAuth } from '../composables/useAuth'
+import { useFavorites } from '../composables/useFavorites'
 import { apiFetch } from '../lib/api'
 import { teamRows } from '../lib/standings'
 
@@ -45,9 +46,14 @@ watch(selectedLeague, (league) => {
 const error = ref(null)
 const pendingDelete = ref(null)
 
+const { favoriteIds, sortLeagues } = useFavorites()
+const allTeams = ref([]) // only fetched for users with favourites, to put their leagues first
 const leagues = computed(() => {
   const visible = readOnly.value && team.value ? teamRows(rows.value, team.value) : rows.value
-  return [...new Set(visible.map((r) => r.league_name))]
+  const names = [...new Set(visible.map((r) => r.league_name))]
+  return sortLeagues(names, (name) =>
+    allTeams.value.filter((t) => teamRows(rows.value.filter((r) => r.league_name === name), t).length),
+  )
 })
 const leagueRows = computed(() => rows.value.filter((r) => r.league_name === selectedLeague.value))
 
@@ -62,9 +68,10 @@ watch(
 
 async function loadRows() {
   try {
-    ;[rows.value, team.value] = await Promise.all([
+    ;[rows.value, team.value, allTeams.value] = await Promise.all([
       apiFetch('/standings'),
       user.value?.team_id ? apiFetch(`/teams/${user.value.team_id}`) : null,
+      favoriteIds.value.size ? apiFetch('/teams').catch(() => []) : [], // a failure only loses the sort
     ])
   } catch {
     loadError.value = 'שגיאה בטעינת הטבלה, נסה שוב'

@@ -2,8 +2,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.security import hash_password
 from app.models import AdminUser, FavoriteTeam, Team
+from app.security import hash_password
 
 
 def _login_player(client: TestClient, db_session: Session, username: str) -> None:

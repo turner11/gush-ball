@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import MyMemberships from '../components/MyMemberships.vue'
 import { useAuth } from '../composables/useAuth'
+import { useFavorites } from '../composables/useFavorites'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
 
@@ -25,11 +26,13 @@ onMounted(loadTeams)
 const memberships = computed(() => user.value?.memberships ?? [])
 
 // Teams and clubs the player has no row for yet.
+const { sortTeams } = useFavorites()
 const teamOptions = computed(() =>
-  (teams.value ?? [])
-    .filter((t) => !memberships.value.some((m) => m.team_id === t.id))
-    .sort((a, b) => a.name.localeCompare(b.name, 'he'))
-    .map((t) => ({ value: t.id, label: t.club ? `${t.name} · ${t.club}` : t.name })),
+  sortTeams(
+    (teams.value ?? [])
+      .filter((t) => !memberships.value.some((m) => m.team_id === t.id))
+      .sort((a, b) => a.name.localeCompare(b.name, 'he')),
+  ).map((t) => ({ value: t.id, label: t.club ? `${t.name} · ${t.club}` : t.name })),
 )
 const clubOptions = computed(() =>
   [...new Set((teams.value ?? []).map((t) => t.club).filter(Boolean))]

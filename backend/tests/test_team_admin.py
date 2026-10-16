@@ -20,7 +20,7 @@ def test_team_admin_forbidden_on_every_other_team_write(
     exercised = 0
     # openapi() flattens included routers (app.routes doesn't expose them directly)
     for route_path, operations in app.openapi()["paths"].items():
-        if "{team_id}" not in route_path:
+        if "{team_id}" not in route_path or route_path.startswith("/me/"):  # /me/* is the caller's own, not team-scoped
             continue
         for method in operations.keys() & {"post", "patch", "put", "delete"}:
             path = route_path.replace("{team_id}", str(other_team.id))

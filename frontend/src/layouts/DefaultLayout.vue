@@ -4,9 +4,11 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import ErrorBoundary from '../components/ErrorBoundary.vue'
+import FavoriteStar from '../components/FavoriteStar.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { useAuth } from '../composables/useAuth'
+import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { backgroundSrc } from '../lib/backgrounds'
@@ -39,6 +41,7 @@ const tabItems = computed(() => [
 const teams = ref([])
 const clubs = ref([])
 const { user, checked, checkSession, logout } = useAuth()
+const { error: favError } = useFavorites()
 const { selectedTeamId, teamsLoaded, markTeamsLoaded } = useSelectedTeam()
 
 // Scoped to this layout's root so admin pages stay neutral; unset vars fall back in style.css.
@@ -98,6 +101,7 @@ onMounted(async () => {
 <template>
   <div :style="teamStyle" class="flex min-h-dvh flex-col bg-surface text-ink">
     <a href="#main" class="btn-primary sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50">דלג לתוכן</a>
+    <p v-if="favError" role="alert" class="card error-text fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 mx-auto max-w-sm text-center lg:bottom-6">{{ favError }}</p>
     <div class="sticky top-0 z-40">
       <header
         :class="[
@@ -124,6 +128,7 @@ onMounted(async () => {
               <span v-if="selectedTeam.name_en" class="truncate text-xs font-medium"><bdi lang="en">{{ selectedTeam.name_en }}</bdi></span>
             </span>
           </RouterLink>
+          <FavoriteStar v-if="selectedTeam" :team-id="selectedTeam.id" :name="selectedTeam.name" class="max-sm:hidden" />
           <a
             v-if="selectedTeam?.home_court_address"
             :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(selectedTeam.home_court_address)"

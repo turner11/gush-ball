@@ -231,7 +231,7 @@ RequireStatsViewer = Annotated[AdminUser, Depends(require_stats_viewer)]
 def get_team_or_404(db: Session, team_id: int) -> Team:
     team = db.get(Team, team_id)
     if team is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Team {team_id} not found")
     return team
 
 

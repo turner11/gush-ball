@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
+import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { splitGames } from '../lib/games'
@@ -24,7 +25,9 @@ const games = ref([])
 const teams = ref([])
 const club = ref(null) // null = not found (once loaded)
 
+const { sortTeams } = useFavorites()
 const clubTeams = computed(() => (club.value ? teams.value.filter((t) => t.club === club.value.name) : []))
+const shownTeams = computed(() => sortTeams(clubTeams.value)) // grid only: SEO text must not depend on the viewer
 
 const groups = computed(() => {
   // ponytail: /games returns every club's games, so filter client-side; add a `club` query param if the payload grows.
@@ -97,7 +100,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
         <h2 class="section-title">הקבוצות</h2>
         <p v-if="!clubTeams.length" class="empty-state">אין קבוצות במועדון.</p>
         <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <TeamCard v-for="t in clubTeams" :key="t.id" :name="t.name" :logo-url="t.logo_url" :to="'/' + teamSlug(t)" :current="String(t.id) === selectedTeamId" />
+          <TeamCard v-for="t in shownTeams" :key="t.id" :team-id="t.id" :name="t.name" :logo-url="t.logo_url" :to="'/' + teamSlug(t)" :current="String(t.id) === selectedTeamId" />
         </div>
       </section>
       <section class="space-y-3">
