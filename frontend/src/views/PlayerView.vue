@@ -212,12 +212,20 @@ watch(
           </template>
         </dialog>
       </template>
-      <p v-else class="empty-state">אין תמונות עדיין.</p>
-      <section v-if="videos.length" class="space-y-2">
+      <div v-else-if="isMine" class="empty-state space-y-3">
+        <p>עדיין אין תמונות בפרופיל שלך.</p>
+        <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת תמונות</button>
+      </div>
+      <p v-else class="text-sm text-muted">אין תמונות עדיין.</p>
+      <section v-if="videos.length || isMine" class="space-y-2">
         <h2 class="section-title">סרטונים</h2>
-        <ul class="grid gap-6 sm:grid-cols-2">
+        <ul v-if="videos.length" class="grid gap-6 sm:grid-cols-2">
           <li v-for="video in videos" :key="video.key"><VideoCard :video="video" /></li>
         </ul>
+        <div v-else class="empty-state space-y-3">
+          <p>עדיין אין סרטונים בפרופיל שלך.</p>
+          <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת סרטון</button>
+        </div>
       </section>
       <nav v-if="neighbours.prev || neighbours.next" aria-label="ניווט בין שחקני הקבוצה" class="card flex items-center justify-between gap-4">
         <RouterLink
