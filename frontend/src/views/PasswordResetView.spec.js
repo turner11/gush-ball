@@ -60,4 +60,20 @@ describe('PasswordResetView', () => {
 
     expect(wrapper.find('[role="alert"]').text()).toContain('הקישור אינו תקף')
   })
+
+  it('without a token, a 503 says reset is unavailable', async () => {
+    const wrapper = await mountReset('/admin/reset-password', {
+      ok: false,
+      status: 503,
+      statusText: 'x',
+      json: async () => ({ detail: 'שליחת אימייל אינה מוגדרת' }),
+    })
+    await wrapper.find('input[type="email"]').setValue('a@b.com')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const text = wrapper.find('[role="alert"]').text()
+    expect(text).toContain('אינו זמין')
+    expect(text).not.toContain('נסה שוב')
+  })
 })
