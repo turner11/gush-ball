@@ -256,4 +256,36 @@ describe('AdminStandingsView', () => {
     const wrapper = await mountView()
     expect(wrapper.text()).toContain('שגיאה בטעינת הטבלה, נסה שוב')
   })
+
+  const LEAGUE_URL = 'https://x.il/league/77/'
+  const syncMocks = (teamLeagueUrl) => ({
+    'GET /api/standings': () => jsonRes(ROWS),
+    'GET /api/leagues': () => jsonRes([{ ibasketball_id: 77, name: 'ליגה א', url: LEAGUE_URL }]),
+    'GET /api/teams': () =>
+      jsonRes([{ id: 1, ibasketball_team_url: 'https://x.il/team/1/', ibasketball_league_url: teamLeagueUrl }]),
+    'GET /api/sync/status': () => jsonRes({ running: false }),
+    'POST /api/sync/league/77': () => jsonRes({ status: 'started' }, 202),
+  })
+  const syncButton = (wrapper) => wrapper.findAll('button').find((b) => b.text() === 'סנכרן תוצאות וטבלה')
+
+  it("full admin syncs the selected league's results and table", async () => {
+    mockFetch(syncMocks(LEAGUE_URL))
+    const wrapper = await mountView()
+
+    await syncButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(global.fetch.mock.calls.map(([u, o]) => `${o?.method ?? 'GET'} ${u}`)).toContain('POST /api/sync/league/77')
+    expect(wrapper.text()).toContain('הסנכרון רץ')
+  })
+
+  it('team admin sees no league sync button outside their scope', async () => {
+    const { useAuth } = await import('../composables/useAuth.js')
+    useAuth().user.value = { username: 't', team_id: 1, team_ids: [2] }
+    mockFetch({ ...syncMocks(LEAGUE_URL), 'GET /api/teams/1': () => jsonRes({ id: 1, name: 'x' }) })
+    const wrapper = await mountView()
+
+    expect(syncButton(wrapper)).toBeUndefined()
+    expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/sync/league'))).toBe(false)
+  })
 })
