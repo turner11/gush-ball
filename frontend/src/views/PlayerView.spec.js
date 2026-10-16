@@ -5,6 +5,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAuth } from '../composables/useAuth'
 import PlayerView from './PlayerView.vue'
 
+// jsdom has no showModal()/close(); mimic the browser, which fires `close` after Esc or close().
+HTMLDialogElement.prototype.showModal ??= function () {
+  this.setAttribute('open', '')
+}
+HTMLDialogElement.prototype.close ??= function () {
+  this.removeAttribute('open')
+  this.dispatchEvent(new Event('close'))
+}
+
 const PLAYER = {
   id: 3,
   team_id: 1,
@@ -31,7 +40,7 @@ const RESPONSES = {
 const okFetch = () =>
   vi.fn((url) => Promise.resolve({ ok: true, status: 200, json: async () => RESPONSES[url] }))
 
-async function mountAt(path) {
+async function mountAt(path, options = {}) {
   const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -42,7 +51,7 @@ async function mountAt(path) {
   })
   router.push(path)
   await router.isReady()
-  const wrapper = mount(PlayerView, { global: { plugins: [router] } })
+  const wrapper = mount(PlayerView, { global: { plugins: [router] }, ...options })
   await flushPromises()
   return wrapper
 }
@@ -126,6 +135,59 @@ describe('PlayerView', () => {
       '/t2.jpg',
       '/t1.jpg',
     ])
+  })
+
+  describe('photo lightbox (#383)', () => {
+    let wrapper
+    afterEach(() => {
+      wrapper?.unmount()
+      document.documentElement.dir = ''
+    })
+    const open = async (index) => {
+      global.fetch = okFetch()
+      wrapper = await mountAt('/players/3', { attachTo: document.body })
+      const thumb = wrapper.findAll('ul button')[index]
+      await thumb.trigger('click')
+      return thumb
+    }
+    const shown = () => wrapper.find('dialog img').attributes('src')
+
+    it('clicking a photo opens it full-size in a modal dialog', async () => {
+      await open(1)
+
+      expect(wrapper.find('dialog').element.open).toBe(true)
+      expect(shown()).toBe('/b.jpg')
+      expect(wrapper.find('dialog img').classes()).toContain('object-contain')
+      expect(wrapper.findAll('ul button')[0].attributes('aria-label')).toContain('יוסי כהן')
+    })
+
+    it('next/prev cycle through all photos and wrap', async () => {
+      await open(3)
+      expect(shown()).toBe('/t1.jpg')
+      await wrapper.find('[aria-label="התמונה הבאה"]').trigger('click')
+      expect(shown()).toBe('/a.jpg')
+      await wrapper.find('[aria-label="התמונה הקודמת"]').trigger('click')
+      expect(shown()).toBe('/t1.jpg')
+    })
+
+    it('arrow keys are direction-aware (RTL: ArrowLeft = next)', async () => {
+      document.documentElement.dir = 'rtl'
+      await open(0)
+      await wrapper.find('dialog').trigger('keydown', { key: 'ArrowLeft' })
+      expect(shown()).toBe('/b.jpg')
+      await wrapper.find('dialog').trigger('keydown', { key: 'ArrowRight' })
+      expect(shown()).toBe('/a.jpg')
+    })
+
+    it('Esc (native close) clears the lightbox and returns focus to the clicked thumbnail', async () => {
+      const thumb = await open(1)
+      wrapper.find('dialog').element.close()
+      await flushPromises()
+
+      expect(wrapper.find('dialog img').exists()).toBe(false)
+      expect(wrapper.find('dialog').element.open).toBe(false)
+      expect(document.activeElement).toBe(thumb.element)
+    })
   })
 
   it('shows the English name, sets the title and Person JSON-LD', async () => {
