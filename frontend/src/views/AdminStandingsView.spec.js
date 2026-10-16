@@ -280,6 +280,12 @@ describe('AdminStandingsView', () => {
     expect(wrapper.text()).toContain('הסנכרון רץ')
   })
 
+  it('fetches /teams once per load', async () => {
+    mockFetch(syncMocks(LEAGUE_URL))
+    await mountView()
+    expect(global.fetch.mock.calls.filter(([u]) => String(u) === '/api/teams')).toHaveLength(1)
+  })
+
   it('team admin sees no league sync button outside their scope', async () => {
     const { useAuth } = await import('../composables/useAuth.js')
     useAuth().user.value = { username: 't', team_id: 1, team_ids: [2] }
