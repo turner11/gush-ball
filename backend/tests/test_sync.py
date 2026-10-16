@@ -415,3 +415,68 @@ def test_sync_league_returns_409_when_already_running(
 
     assert response.status_code == 409
     assert response.json()["detail"] == "Sync already running"
+
+
+def _fail(db_session: Session, *teams: Team) -> None:
+    for team in teams:
+        team.sync_error = f"games: {team.slug} broke"
+        team.sync_error_at = datetime.now(UTC)
+    db_session.commit()
+
+
+def test_sync_failures_require_admin(client: TestClient) -> None:
+    assert client.get("/sync/failures").status_code == 401
+    assert client.delete("/sync/failures/1").status_code == 401
+
+
+def test_team_admin_sees_only_own_team_failures(
+    team_admin_client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    _fail(db_session, own_team, other_team)
+
+    body = team_admin_client.get("/sync/failures").json()
+
+    assert [(f["team_id"], f["team_name"], f["message"]) for f in body] == [(own_team.id, "Own", "games: own broke")]
+    assert body[0]["failed_at"]
+
+
+def test_club_admin_sees_club_team_failures(
+    club_admin_client: TestClient, db_session: Session, own_team: Team, sibling_team: Team, other_team: Team
+) -> None:
+    _fail(db_session, own_team, sibling_team, other_team)
+
+    body = club_admin_client.get("/sync/failures").json()
+
+    assert {f["team_id"] for f in body} == {own_team.id, sibling_team.id}
+
+
+def test_full_admin_sees_all_failures(
+    admin_client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    _fail(db_session, own_team, other_team)
+
+    assert {f["team_id"] for f in admin_client.get("/sync/failures").json()} == {own_team.id, other_team.id}
+
+
+def test_dismiss_failure_clears_it_for_everyone(
+    team_admin_client: TestClient, db_session: Session, own_team: Team
+) -> None:
+    _fail(db_session, own_team)
+
+    assert team_admin_client.delete(f"/sync/failures/{own_team.id}").status_code == 204
+
+    assert team_admin_client.get("/sync/failures").json() == []
+    db_session.expire_all()
+    assert own_team.sync_error is None
+    assert own_team.sync_error_at is None
+
+
+def test_dismiss_failure_outside_scope_is_403(
+    team_admin_client: TestClient, db_session: Session, other_team: Team
+) -> None:
+    _fail(db_session, other_team)
+
+    assert team_admin_client.delete(f"/sync/failures/{other_team.id}").status_code == 403
+
+    db_session.expire_all()
+    assert other_team.sync_error is not None

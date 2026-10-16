@@ -726,6 +726,57 @@ def test_sync_all_games_rolls_back_after_db_failure_so_next_team_still_syncs(
     assert db_session.query(Game).count() == 1
 
 
+def test_sync_all_games_records_failure_on_team(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    _two_teams(db_session)
+    _fail_for_bad(monkeypatch, db_session, _raise_value_error)
+
+    scrape_games.sync_all_games(db_session)
+
+    bad, good = (db_session.query(Team).filter_by(slug=s).one() for s in ("bad", "good"))
+    assert bad.sync_error == "games: boom"
+    assert bad.sync_error_at is not None
+    assert good.sync_error is None
+
+
+def test_record_sync_failure_truncates_long_message(db_session: Session) -> None:
+    team = _make_team(db_session)
+
+    scrape_games.record_sync_failure(db_session, team.id, "x" * 5000)
+
+    assert len(db_session.query(Team).one().sync_error) == 500
+
+
+def test_sync_all_players_records_failure_on_team(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    _two_teams(db_session)
+    synced: list[str] = []
+
+    def fake(db: Session, team: Team) -> int:
+        if team.slug == "bad":
+            raise ValueError("boom")
+        synced.append(team.slug)
+        return 1
+
+    monkeypatch.setattr(scrape_games, "sync_team_players", fake)
+    errors: list[str] = []
+
+    scrape_games.sync_all_players(db_session, errors)
+
+    assert db_session.query(Team).filter_by(slug="bad").one().sync_error == "players: boom"
+    assert synced == ["good"]
+    assert errors == ["players bad: boom"]
+
+
+def test_successful_sync_keeps_undismissed_failure(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _make_team(db_session)
+    team.sync_error = "games: old"
+    db_session.commit()
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
+
+    scrape_games.sync_all_games(db_session)
+
+    assert db_session.query(Team).one().sync_error == "games: old"
+
+
 ROSTER_HTML = (
     '<a class="player data-item male" href="/p/1"><img src="a.jpg"/>איתי ורולקר<br />'
     '<span></span><span>01-02-2000</span></a>'

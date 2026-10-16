@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import StandingRow, Team
+from app.scrape_games import record_sync_failure
 
 CRAWL_DELAY = 10
 log = logging.getLogger(__name__)
@@ -116,6 +117,7 @@ def sync_all_standings(
         # session, so reading team.slug afterwards (e.g. in the except block) would itself
         # need a fresh query -- one the still-failed transaction can't run yet.
         slug = team.slug
+        team_id = team.id
         try:
             log.info("Standings sync: fetching %r", slug)
             count = sync_team_standings(db, team)
@@ -129,6 +131,7 @@ def sync_all_standings(
             # still "dirty" -- without this, every later team's db.commit() would raise
             # PendingRollbackError instead of syncing.
             db.rollback()
+            record_sync_failure(db, team_id, f"standings: {exc}")
     return total
 
 

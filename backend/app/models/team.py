@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, false
+from sqlalchemy import DateTime, ForeignKey, String, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -45,6 +46,10 @@ class Team(Base):
     # have set waits in league_url_suggestion (#352).
     league_url_overridden: Mapped[bool] = mapped_column(default=False, server_default=false())
     league_url_suggestion: Mapped[str | None] = mapped_column(String(500), default=None)
+
+    # ponytail: latest scrape failure per team, kept until an admin dismisses it (#403); no history table.
+    sync_error: Mapped[str | None] = mapped_column(Text, default=None)
+    sync_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
     players: Mapped[list["Player"]] = relationship(back_populates="team", cascade="all, delete-orphan")
     links: Mapped[list["TeamLink"]] = relationship(back_populates="team", cascade="all, delete-orphan")

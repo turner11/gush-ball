@@ -8,7 +8,7 @@ import functools
 import html
 import logging
 import time
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -18,7 +18,7 @@ import numpy as np
 from bbstats import http_url_or_none
 from bs4 import BeautifulSoup
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -423,6 +423,15 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
     return count
 
 
+def record_sync_failure(db: Session, team_id: int, message: str) -> None:
+    """Saves the team's latest scrape failure for its admins (#403). Core update: it works after a
+    rollback expired the session and skips the audit hook (no scraper audit rows). The message is
+    capped at 500 chars: a DB error carries KBs of SQL + parameters the card can't show.
+    """
+    db.execute(update(Team).where(Team.id == team_id).values(sync_error=message[:500], sync_error_at=datetime.now(UTC)))
+    db.commit()
+
+
 def sync_all_games(
     db: Session,
     errors: list[str] | None = None,
@@ -445,6 +454,7 @@ def sync_all_games(
         # Captured before the try: after a DB-level failure the session's objects are
         # expired and the failed transaction can't query until rolled back.
         slug = team.slug
+        team_id = team.id
         try:
             log.info("Games sync: fetching %r", slug)
             count = sync_team_games(db, team, auto_accept)
@@ -456,6 +466,7 @@ def sync_all_games(
                 errors.append(f"games {slug}: {exc}")
             # Without this, every later team's db.commit() raises PendingRollbackError.
             db.rollback()
+            record_sync_failure(db, team_id, f"games: {exc}")
     return total
 
 
@@ -588,6 +599,7 @@ def sync_all_players(
     total = 0
     for team in teams:
         slug = team.slug
+        team_id = team.id
         try:
             log.info("Players sync: fetching %r", slug)
             count = sync_team_players(db, team)
@@ -598,6 +610,7 @@ def sync_all_players(
             if errors is not None:
                 errors.append(f"players {slug}: {exc}")
             db.rollback()
+            record_sync_failure(db, team_id, f"players: {exc}")
     return total
 
 
