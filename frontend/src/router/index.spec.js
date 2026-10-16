@@ -196,4 +196,14 @@ describe('router auth guard', () => {
     const { default: router } = await import('./index.js')
     expect(router.resolve({ name: 'game', params: { slug: 'x', id: 5 } }).path).toBe('/x/games/5')
   })
+
+  it('redirects the old /:slug/club URL to the team home', async () => {
+    global.fetch.mockResolvedValue({ ok: false })
+    const { default: router } = await import('./index.js')
+
+    await router.push('/team_a/club')
+
+    expect(router.currentRoute.value.name).toBe('team-home')
+    expect(router.currentRoute.value.params.slug).toBe('team_a')
+  })
 })
