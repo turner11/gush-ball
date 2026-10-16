@@ -169,17 +169,17 @@ async function onDelete(row) {
       </div>
     </div>
 
+    <SyncStatus v-if="syncLeague" v-slot="{ start, busy }" @finished="loadRows">
+      <button type="button" class="btn-secondary w-full sm:w-auto" :disabled="busy" @click="start(`/sync/league/${syncLeague.ibasketball_id}`)">
+        סנכרן תוצאות וטבלה
+      </button>
+    </SyncStatus>
+
     <div v-if="loading" class="space-y-3" aria-busy="true">
       <div class="skeleton h-10 w-64" />
       <div class="skeleton h-64" />
     </div>
     <p v-else-if="loadError" class="error-text" role="alert">{{ loadError }}</p>
-
-    <SyncStatus v-if="!loading && !loadError && syncLeague" v-slot="{ start, busy }" @finished="loadRows">
-      <button type="button" class="btn-secondary w-full sm:w-auto" :disabled="busy" @click="start(`/sync/league/${syncLeague.ibasketball_id}`)">
-        סנכרן תוצאות וטבלה
-      </button>
-    </SyncStatus>
 
     <div v-else :class="['grid gap-6 lg:items-start', { 'lg:grid-cols-[minmax(0,1fr)_22rem]': !readOnly }]">
       <div class="min-w-0">

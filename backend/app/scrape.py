@@ -7,7 +7,7 @@ Evening thin run (games + standings, only teams with an unscored game today):  p
 import logging
 import sys
 from collections.abc import Collection
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -57,10 +57,13 @@ def sync_all(
     return {"standings": standings, "games": games, "players": players, "leagues": leagues, "errors": errors}
 
 
-def tonight_team_ids(db: Session, now: datetime | None = None) -> list[int]:
-    """Scrapable teams with an unscored scheduled game today (Israel time)."""
-    # ponytail: -1h so the 00:00 run covers the day that just ended
-    day = ((now or datetime.now(ISRAEL)) - timedelta(hours=1)).date()
+def tonight_day(now: datetime | None = None) -> date:
+    """The Israel day the thin run covers; -1h so the 00:00 run covers the day that just ended."""
+    return ((now or datetime.now(ISRAEL)) - timedelta(hours=1)).date()
+
+
+def tonight_team_ids(db: Session, day: date) -> list[int]:
+    """Scrapable teams with an unscored scheduled game on `day` (Israel time)."""
     start = datetime.combine(day, time.min)  # scheduled_at is a naive Israel wall time
     stmt = (
         select(Game.team_id)
@@ -87,8 +90,8 @@ def league_team_ids(db: Session, league_url: str) -> list[int]:
 
 def sync_tonight(db: Session, now: datetime | None = None) -> dict[str, Any] | None:
     """Thin evening run: scores and tables for teams whose game today has no score yet."""
-    team_ids = tonight_team_ids(db, now)
-    day = (now or datetime.now(ISRAEL)).date()
+    day = tonight_day(now)
+    team_ids = tonight_team_ids(db, day)
     if not team_ids:
         log.info("Thin sync: no unscored games on %s, nothing to do", day)
         return None

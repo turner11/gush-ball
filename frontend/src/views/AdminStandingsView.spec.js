@@ -272,6 +272,7 @@ describe('AdminStandingsView', () => {
     mockFetch(syncMocks(LEAGUE_URL))
     const wrapper = await mountView()
 
+    expect(wrapper.find('table.data-table').exists()).toBe(true)
     await syncButton(wrapper).trigger('click')
     await flushPromises()
 

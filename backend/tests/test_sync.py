@@ -324,14 +324,14 @@ def tonight_teams(db_session: Session) -> dict[str, Team]:
 def test_tonight_team_ids_selects_only_todays_unscored_games(
     db_session: Session, tonight_teams: dict[str, Team]
 ) -> None:
-    assert scrape.tonight_team_ids(db_session, _evening()) == [tonight_teams["A"].id]
+    assert scrape.tonight_team_ids(db_session, scrape.tonight_day(_evening())) == [tonight_teams["A"].id]
 
 
 def test_tonight_team_ids_midnight_run_covers_day_that_ended(
     db_session: Session, tonight_teams: dict[str, Team]
 ) -> None:
     midnight = _evening(1, hour=0)
-    assert scrape.tonight_team_ids(db_session, midnight) == [tonight_teams["A"].id]
+    assert scrape.tonight_team_ids(db_session, scrape.tonight_day(midnight)) == [tonight_teams["A"].id]
 
 
 def test_sync_tonight_makes_no_requests_without_games(db_session: Session, stub_scrapers: dict[str, Any]) -> None:
