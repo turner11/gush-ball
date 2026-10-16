@@ -8,7 +8,7 @@ import functools
 import html
 import logging
 import time
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -454,8 +454,44 @@ def sync_all_games(
     return total
 
 
+def parse_birth_date(page_html: str) -> date | None:
+    """The DD-MM-YYYY birth date on a player page, None if the source shows none. ValueError if malformed."""
+    cell = BeautifulSoup(page_html, "html.parser").select_one("div.data-birthdate")
+    if cell is None:
+        return None
+    # the first string is the "תאריך לידה:" label
+    return datetime.strptime(list(cell.stripped_strings)[-1], "%d-%m-%Y").date()
+
+
+def _fill_birth_dates(db: Session, team: Team) -> None:
+    # ponytail: one fetch per player ever; UPDATE players SET birth_date_checked=false to re-crawl after a parser fix
+    players = db.scalars(
+        select(Player).where(
+            Player.team_id == team.id,
+            Player.deleted_at.is_(None),
+            Player.birth_date.is_(None),
+            Player.birth_date_checked.is_(False),
+            Player.source_url.is_not(None),
+        )
+    ).all()
+    for player in players:
+        url = ibasketball_url_or_none(player.source_url)
+        if url is None:
+            continue
+        try:
+            page = _get_page(url)
+        except httpx.HTTPError:
+            log.warning("Could not fetch player %d page %s", player.id, url, exc_info=True)
+            continue  # unmarked: retried next sync
+        try:
+            player.birth_date = parse_birth_date(page)
+        except ValueError:
+            log.warning("Unparseable birth date for player %d at %s", player.id, url)
+        player.birth_date_checked = True
+
+
 def sync_team_players(db: Session, team: Team) -> int:
-    """Fill-only: creates missing players, fills a missing image, and fills face focus for every
+    """Fill-only: creates missing players, fills a missing image and birth date, and fills face focus for every
     image of the team's live players. Never overwrites admin edits, never deletes.
 
     Players are matched by the roster card's href (Player.source_url), so renamed or soft-deleted
@@ -510,6 +546,7 @@ def sync_team_players(db: Session, team: Team) -> int:
 
     # every image of the team's live players, not just roster-card matches (admin-added images too)
     db.flush()  # new players' images must be visible to the query
+    _fill_birth_dates(db, team)
     unfocused = db.scalars(
         select(PlayerImage)
         .join(Player)
