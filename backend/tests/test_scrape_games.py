@@ -232,6 +232,15 @@ def test_sync_coerces_string_results_to_int(
     assert (game.team_score, game.opponent_score) == (90, 88)
 
 
+def test_sync_bad_score_error_names_event(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _make_team(db_session)
+    event = {**FUTURE_EVENT, "status": "publish", "main_results": ["W", "88"]}
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([event]))
+
+    with pytest.raises(ValueError, match="event 9001"):
+        scrape_games.sync_team_games(db_session, team)
+
+
 def test_sync_sets_opponent_name_logo_and_source_url(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:

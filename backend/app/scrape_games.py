@@ -326,7 +326,10 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
         is_final = len(main_results) == 2
         if is_final:
             game_status = GameStatus.FINAL
-            home_score, away_score = int(main_results[0]), int(main_results[1])
+            try:
+                home_score, away_score = int(main_results[0]), int(main_results[1])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"event {event['id']}: bad main_results {main_results!r}") from exc
             team_score = home_score if is_home else away_score
             opponent_score = away_score if is_home else home_score
         else:
