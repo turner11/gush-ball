@@ -11,7 +11,7 @@ watch(selectedTeamId, (id) => {
   else localStorage.removeItem(STORAGE_KEY)
 })
 
-// Public URL slug, derived from name_en so it tracks admin edits (no DB column).
+// Public URL slug of a team or club, derived from name_en so it tracks admin edits (no DB column).
 // ponytail: first match wins on duplicate name_en; add uniqueness when it actually happens.
 export function teamSlug(team) {
   const slug = (team.name_en ?? '')
@@ -20,12 +20,6 @@ export function teamSlug(team) {
     .trim()
     .replace(/\s+/g, '_')
   return slug || String(team.id)
-}
-
-// The teams sharing `team`'s club (including itself); [] when the team has no club.
-export function clubTeamsOf(teams, team) {
-  if (!team?.club) return []
-  return teams.filter((t) => t.club === team.club)
 }
 
 export function useSelectedTeam() {
