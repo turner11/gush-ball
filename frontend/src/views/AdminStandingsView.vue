@@ -48,7 +48,7 @@ const error = ref(null)
 const pendingDelete = ref(null)
 
 const { sortGroups } = useFavorites()
-const teams = ref([]) // fetched once in loadSyncTargets; also puts the leagues holding the user's teams first
+const teams = ref([]) // fetched once in loadRows, so the default league is ranked before it is picked; also puts the leagues holding the user's teams first
 const leagues = computed(() => {
   const visible = readOnly.value && team.value ? teamRows(rows.value, team.value) : rows.value
   const names = [...new Set(visible.map((r) => r.league_name))]
@@ -74,9 +74,10 @@ watch(
 
 async function loadRows() {
   try {
-    ;[rows.value, team.value] = await Promise.all([
+    ;[rows.value, team.value, teams.value] = await Promise.all([
       apiFetch('/standings'),
       user.value?.team_id ? apiFetch(`/teams/${user.value.team_id}`) : null,
+      apiFetch('/teams').catch(() => []), // fail-soft: only the sort and the sync button need it
     ])
   } catch {
     loadError.value = 'שגיאה בטעינת הטבלה, נסה שוב'
@@ -89,9 +90,9 @@ async function loadRows() {
 const syncLeagues = ref([])
 async function loadSyncTargets() {
   try {
-    ;[syncLeagues.value, teams.value] = await Promise.all([apiFetch('/leagues'), apiFetch('/teams')])
+    syncLeagues.value = await apiFetch('/leagues')
   } catch {
-    syncLeagues.value = teams.value = []
+    syncLeagues.value = []
   }
 }
 // The selected league, if an in-scope team with a scrape url belongs to it (the url also tells duplicate names apart).
