@@ -103,16 +103,16 @@ describe('useAuth', () => {
     ]
     const copy = [...teams]
 
-    expect(ownTeams(teams).map((t) => t.id)).toEqual([1, 3, 4, 2, 5])
+    expect(ownTeams(teams).map((t) => t.id)).toEqual([3, 1, 4, 2, 5])
     expect(teams).toEqual(copy)
   })
 
-  it("ownTeams puts favourites before the user's own teams", async () => {
+  it("ownTeams puts member teams before favourites", async () => {
     const { useAuth, ownTeams } = await import('./useAuth.js')
     const { user } = useAuth()
     user.value = { username: 'a', team_ids: null, memberships: [{ team_id: 3, role: 'member' }], favorite_team_ids: [5] }
     const teams = [{ id: 2, name: 'ב' }, { id: 3, name: 'ת' }, { id: 5, name: 'ש' }]
-    expect(ownTeams(teams).map((t) => t.id)).toEqual([5, 3, 2])
+    expect(ownTeams(teams).map((t) => t.id)).toEqual([3, 5, 2])
   })
 
   it('clubAdmin is true only for a club the user admins', async () => {
