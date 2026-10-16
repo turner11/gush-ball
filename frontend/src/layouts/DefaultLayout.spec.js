@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -11,6 +11,7 @@ const TEAMS = [
     secondary_color: '#000000',
     logo_url: 'https://cdn.example.com/logo-a.png',
     home_court_address: 'אולם הספורט, תל אביב',
+    ibasketball_team_url: 'https://ibasketball.co.il/team/a/',
   },
   { id: 2, name: 'קבוצה ב', name_en: 'Team B', primary_color: '#1d428a', secondary_color: '#c8102e', background: 'hoop-2' },
   { id: 3, name: 'קבוצה ג', name_en: 'Team C', primary_color: null, secondary_color: null },
@@ -31,6 +32,16 @@ function jsonRes(body, status = 200) {
 }
 
 const unauthorized = { ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({ detail: 'x' }) }
+
+const IBBA = 'https://ibasketball.co.il/team/a/'
+const ADMIN = { 'GET /api/auth/me': () => jsonRes({ username: 'admin', display_name: 'admin', is_admin: true }) }
+
+// Reka menus portal to <body>; open via keyboard (the AdminHomeView.spec pattern).
+async function openMenu(trigger) {
+  await trigger.trigger('keydown', { key: 'Enter' })
+  await flushPromises()
+  return new DOMWrapper(document.body)
+}
 
 describe('DefaultLayout', () => {
   let router
@@ -66,6 +77,7 @@ describe('DefaultLayout', () => {
   })
 
   afterEach(() => {
+    document.body.innerHTML = ''
     document.title = ''
     document.querySelector('link[rel="icon"]')?.remove()
     document.head.querySelectorAll('meta[name], link[rel="canonical"], script[data-page]').forEach((el) => el.remove())
@@ -92,6 +104,18 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     expect(wrapper.find('header a[href="/teams"]').attributes('aria-label')).toBe('כל הקבוצות')
+  })
+
+  it('teams icon stays visible on desktop when no team is selected', async () => {
+    localStorage.removeItem('gush-ball:selected-team-id')
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/teams')
+    await flushPromises()
+
+    expect(wrapper.find('header a[href="/teams"]').classes()).not.toContain('lg:hidden')
   })
 
   it('canonical is origin + path, query dropped', async () => {
@@ -388,8 +412,57 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const nav = wrapper.find('[data-testid="top-nav"]').findAll('a').map((a) => a.attributes('href'))
-    expect(nav).toEqual(['/team_a', '/team_a/schedule', '/team_a/standings', '/team_a/roster', '/team_a/media', '/team_a/stats'])
-    expect(wrapper.find('header a[href="/team_a/admin"]').text()).toBe('ניהול')
+    expect(nav).toEqual(['/team_a/schedule', '/team_a/standings', '/team_a/roster', '/team_a/media', '/team_a/stats'])
+    const body = await openMenu(wrapper.find('button[aria-label$="תפריט חשבון"]'))
+    expect(body.find('[role=menuitem][href="/team_a/admin"]').text()).toBe('ניהול')
+  })
+
+  it('"בית" is a menu button, never inline links; its menu links team home and the IBBA page', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
+    await router.push('/team_a/schedule')
+    await flushPromises()
+
+    const nav = wrapper.find('[data-testid="top-nav"]')
+    const trigger = nav.find('button[aria-haspopup="menu"]')
+    expect(trigger.text()).toContain('בית')
+    expect(nav.find('a[href="/team_a"]').exists()).toBe(false)
+
+    const body = await openMenu(trigger)
+    expect(body.find('[role=menuitem][href="/team_a"]').exists()).toBe(true)
+    const ibba = body.find(`[role=menuitem][href="${IBBA}"]`)
+    expect(ibba.attributes('target')).toBe('_blank')
+    expect(ibba.attributes('rel')).toContain('noopener')
+    expect(body.find('[role=menuitem][href="/teams"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('Home menu omits the IBBA item when the team has no ibasketball URL', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
+    await router.push('/team_c')
+    await flushPromises()
+
+    const body = await openMenu(wrapper.find('[data-testid="top-nav"] button[aria-haspopup="menu"]'))
+    expect(body.find('[role=menuitem][href="/team_c"]').exists()).toBe(true)
+    expect(body.find('[role=menuitem][target="_blank"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('team name is never truncated', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
+    await flushPromises()
+
+    expect(wrapper.find('header a[href="/team_a"] .truncate').exists()).toBe(false)
+    expect(wrapper.find('header > div').classes()).not.toContain('md:h-16')
   })
 
   it('swaps tab bar for top nav at lg, not md: the md header has no room for the links (#341)', async () => {
@@ -636,7 +709,8 @@ describe('DefaultLayout', () => {
     for (const id of ['top-nav', 'tab-bar']) {
       const hrefs = wrapper.find(`[data-testid="${id}"]`).findAll('a').map((a) => a.attributes('href'))
       expect(hrefs.includes('/clubs/maccabi')).toBe(shown)
-      if (shown) expect(hrefs.slice(0, 3)).toEqual(['/team_a', '/team_a/schedule', '/clubs/maccabi'])
+      // top-nav's Home is a menu button, so its first link is the schedule
+      if (shown) expect(hrefs.slice(0, 3)).toEqual(id === 'top-nav' ? ['/team_a/schedule', '/clubs/maccabi', '/team_a/standings'] : ['/team_a', '/team_a/schedule', '/clubs/maccabi'])
     }
     const ld = JSON.parse(document.head.querySelector('script[data-page]').textContent)
     if (shown) expect(ld.memberOf.url).toBe(`${location.origin}/clubs/maccabi`)
@@ -670,38 +744,41 @@ describe('DefaultLayout', () => {
     expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(false)
   })
 
-  it('shows a management link and logout when logged in', async () => {
-    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/auth/me': () => jsonRes({ username: 'admin', display_name: 'admin', is_admin: true }) })
+  it('shows management, account and logout only inside the account menu when logged in', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), ...ADMIN })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
-    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
     await flushPromises()
 
     const header = wrapper.find('header')
-    expect(header.find('a[href="/team_a/admin"]').text()).toBe('ניהול')
-    expect(header.find('a[href="/account"]').text()).toBe('admin')
-    expect(header.find('a[href="/account"]').classes()).toContain('max-sm:hidden')
-    expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(true)
+    expect(header.find('a[href="/team_a/admin"]').exists()).toBe(false)
+    expect(header.find('a[href="/account"]').exists()).toBe(false)
+    expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(false)
     expect(header.find('a[href="/admin/login"]').exists()).toBe(false)
+
+    const body = await openMenu(header.find('button[aria-label="admin — תפריט חשבון"]'))
+    expect(body.find('[role=menuitem][href="/team_a/admin"]').text()).toBe('ניהול')
+    expect(body.find('[role=menuitem][href="/account"]').text()).toBe('החשבון שלי')
+    expect(body.findAll('[role=menuitem]').some((m) => m.text() === 'התנתקות')).toBe(true)
+    wrapper.unmount()
   })
 
-  it('hides ניהול for a non-admin but shows logout', async () => {
+  it('hides ניהול for a non-admin but shows account and logout in the menu', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/auth/me': () => jsonRes({ username: 'player', display_name: 'Dana C', is_admin: false, team_ids: [] }),
     })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
-    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
     await flushPromises()
 
-    const header = wrapper.find('header')
-    expect(header.find('a[href="/team_a/admin"]').exists()).toBe(false)
-    expect(header.find('button[aria-label="התנתקות"]').exists()).toBe(true)
-    const account = header.find('a[href="/account"]')
-    expect(account.exists()).toBe(true)
-    expect(account.text()).toBe('Dana C')
-    expect(account.classes()).not.toContain('max-sm:hidden')
+    const body = await openMenu(wrapper.find('header button[aria-label="Dana C — תפריט חשבון"]'))
+    expect(body.find('[role=menuitem][href="/team_a/admin"]').exists()).toBe(false)
+    expect(body.find('[role=menuitem][href="/account"]').exists()).toBe(true)
+    expect(body.findAll('[role=menuitem]').some((m) => m.text() === 'התנתקות')).toBe(true)
+    wrapper.unmount()
   })
 
   it('logout posts /auth/logout, swaps to the login link and stays on the page', async () => {
@@ -712,10 +789,11 @@ describe('DefaultLayout', () => {
     })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
-    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
     await router.push('/team_a/schedule')
     await flushPromises()
-    await wrapper.find('button[aria-label="התנתקות"]').trigger('click')
+    const body = await openMenu(wrapper.find('header button[aria-label$="תפריט חשבון"]'))
+    await body.findAll('[role=menuitem]').find((m) => m.text() === 'התנתקות').trigger('click')
     await flushPromises()
 
     expect(global.fetch).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({ method: 'POST' }))
