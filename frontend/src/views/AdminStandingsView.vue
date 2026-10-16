@@ -4,7 +4,8 @@ import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
-import { fullAdmin, useAuth } from '../composables/useAuth'
+import SyncStatus from '../components/SyncStatus.vue'
+import { fullAdmin, ownTeams, useAuth } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { apiFetch } from '../lib/api'
 import { teamRows } from '../lib/standings'
@@ -80,7 +81,26 @@ async function loadRows() {
   }
 }
 
-onMounted(loadRows)
+// Fail-soft: without these the league sync button is just hidden.
+const syncLeagues = ref([])
+const syncTeams = ref([])
+async function loadSyncTargets() {
+  try {
+    ;[syncLeagues.value, syncTeams.value] = await Promise.all([apiFetch('/leagues'), apiFetch('/teams')])
+  } catch {
+    syncLeagues.value = syncTeams.value = []
+  }
+}
+// The selected league, if an in-scope team with a scrape url belongs to it (the url also tells duplicate names apart).
+const syncLeague = computed(() => {
+  const urls = new Set(ownTeams(syncTeams.value).filter((t) => t.ibasketball_team_url).map((t) => t.ibasketball_league_url))
+  return syncLeagues.value.find((l) => l.name === selectedLeague.value && urls.has(l.url)) ?? null
+})
+
+onMounted(() => {
+  loadRows()
+  loadSyncTargets()
+})
 
 function resetForm() {
   editing.value = null
@@ -154,6 +174,12 @@ async function onDelete(row) {
       <div class="skeleton h-64" />
     </div>
     <p v-else-if="loadError" class="error-text" role="alert">{{ loadError }}</p>
+
+    <SyncStatus v-if="!loading && !loadError && syncLeague" v-slot="{ start, busy }" @finished="loadRows">
+      <button type="button" class="btn-secondary w-full sm:w-auto" :disabled="busy" @click="start(`/sync/league/${syncLeague.ibasketball_id}`)">
+        סנכרן תוצאות וטבלה
+      </button>
+    </SyncStatus>
 
     <div v-else :class="['grid gap-6 lg:items-start', { 'lg:grid-cols-[minmax(0,1fr)_22rem]': !readOnly }]">
       <div class="min-w-0">

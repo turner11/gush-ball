@@ -12,7 +12,7 @@ Order matters: storage first (you need its values for the env vars), then the do
 | Where | What |
 |---|---|
 | Cloudflare R2 | `gush-ball-media` (public) + `gush-ball-backups` (private), one API token each |
-| Coolify | one Docker Compose resource: env vars, domain, scheduled scrape task, auto-deploy on push to `master` |
+| Coolify | one Docker Compose resource: env vars, domain, scheduled scrape tasks, auto-deploy on push to `master` |
 | GitHub | `master` ruleset requiring CI, push webhook to Coolify (Public Repository source only) |
 | Sentry | two projects (backend, frontend) + new-issue alert email |
 | Hetzner box | `~/gush-ball-backup.env`, `~/backup.sh`, one crontab line (nightly backup) |
@@ -242,6 +242,23 @@ uv run python -m app.scrape
 `app.scrape` runs standings, games, players, then leagues sequentially, respecting ibasketball.co.il's `Crawl-Delay: 10`; a failing team is
 logged and skipped. The admin's "סנכרון עכשיו" button does the same on demand.
 
+### 5.1 Evening scores and tables
+
+A second, thin task refreshes only scores and tables on game nights (otherwise results wait for the 04:00 run).
+
+1. Coolify → *Servers* → the server → *General* → read **Server Timezone**. *Why:* Coolify runs scheduled tasks in the
+   server's timezone and has no per-task timezone ([docs](https://coolify.io/docs/core/automation/scheduled-tasks/overview)).
+   *Verify:* it reads `Asia/Jerusalem`. If it reads UTC, don't change it: the server is shared with another site and the
+   04:00 job would move too. Use the UTC form in step 3. (Not confirmed against the live server: write down here which one it is.)
+2. Open the resource → `backend` service → *Scheduled Tasks* → *Add*. *Why:* the task runs inside the backend container.
+   Name `evening-thin-scrape`, command `uv run python -m app.scrape --thin`, container `backend`.
+3. Frequency: `0 21,22,23,0 * * *` on an Asia/Jerusalem server. On a UTC server use `0 18,19,20,21 * * *` in summer
+   time (IDT, UTC+3, late March to late October) and `0 19,20,21,22 * * *` in winter (IST, UTC+2); re-edit it at each
+   clock change. *Why:* repeated runs retry games that were still unfinished.
+4. Click *Execute now*. *Verify:* the task log shows `Thin sync: no unscored games on YYYY-MM-DD, nothing to do`, or
+   `Thin sync: N team(s) with unscored games on …` followed by `Sync finished: …`.
+5. The admin equivalent for one league: Manage Leagues → **סנכרן תוצאות וטבלה**.
+
 ## 6. Nightly backup
 
 Set up the nightly `pg_dump` to the private R2 backup bucket: [BACKUP.md, section 3](BACKUP.md#3-set-up-the-nightly-backup-to-r2).
@@ -319,7 +336,7 @@ The code sends no request bodies, cookies, component props or local variables, a
 12. Verify privacy: open one event. *Verify:* it has no email address, `Cookie` header or request body.
 
 The nightly scrape (§5) needs no extra step: Coolify scheduled tasks run in the backend container and inherit
-`SENTRY_DSN`; a failing team is reported as an error event, and each run is also three `scrape` traces (one per kind).
+`SENTRY_DSN`; a failing team is reported as an error event, and each run is also three `scrape` traces (one per kind; a thin run gives two, games and standings).
 
 ## Troubleshooting
 

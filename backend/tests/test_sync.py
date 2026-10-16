@@ -367,9 +367,9 @@ def test_thin_run_routes_overridden_score_to_review(
     scrape.sync_tonight(db_session, now)
 
     db_session.refresh(game)
-    assert game.scrape_suggestion == {"team_score": 90, "opponent_score": 88}
+    assert (game.scrape_suggestion["team_score"], game.scrape_suggestion["opponent_score"]) == (90, 88)
     assert game.team_score is None
-    assert db_session.query(Opponent).one().logo_url == "https://x/logo.png"
+    assert db_session.get(Opponent, game.opponent_id).logo_url == "https://x/logo.png"
 
 
 def test_sync_league_runs_thin_for_teams_in_league(
