@@ -457,10 +457,11 @@ def sync_all_games(
 def parse_birth_date(page_html: str) -> date | None:
     """The DD-MM-YYYY birth date on a player page, None if the source shows none. ValueError if malformed."""
     cell = BeautifulSoup(page_html, "html.parser").select_one("div.data-birthdate")
-    if cell is None:
+    strings = list(cell.stripped_strings) if cell else []
+    if not strings:
         return None
     # the first string is the "תאריך לידה:" label
-    return datetime.strptime(list(cell.stripped_strings)[-1], "%d-%m-%Y").date()
+    return datetime.strptime(strings[-1], "%d-%m-%Y").date()
 
 
 def _fill_birth_dates(db: Session, team: Team) -> None:

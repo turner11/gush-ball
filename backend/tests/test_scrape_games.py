@@ -1210,6 +1210,10 @@ PLAYER_PAGE_WITH_DOB = (
     '23-01-2008</div><div class="data-age"><span>גיל:</span>\n18</div></div>'
 )
 PLAYER_PAGE_NO_DOB = '<div class="info"></div>'
+
+
+def test_parse_birth_date_empty_div_is_none() -> None:
+    assert scrape_games.parse_birth_date('<div class="data-birthdate"></div>') is None
 DOB_ROSTER = (
     '<a class="player" href="https://ibasketball.co.il/player/{slug}/">'
     '{name}</a>'
