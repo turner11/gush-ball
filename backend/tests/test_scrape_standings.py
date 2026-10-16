@@ -252,6 +252,8 @@ def test_sync_all_standings_rolls_back_after_db_failure_so_next_team_still_syncs
     assert count == 2
     rows = db_session.query(StandingRow).all()
     assert [r.team_name for r in rows] == ["אליצור קרית אתא לאטי", "מכבי חיפה"]
+    failed = db_session.query(Team).filter_by(slug="gush-ball-a").one()
+    assert failed.sync_error.startswith("standings: ")
 
 
 def test_parse_league_table_drops_non_http_source_url() -> None:
