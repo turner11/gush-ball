@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import PlayerCard from '../components/PlayerCard.vue'
 import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { useAuth } from '../composables/useAuth'
@@ -51,6 +52,13 @@ const images = computed(() => [
   ...taggedImages.value.map((i) => ({ key: `t${i.id}`, url: i.url, alt: i.title })),
 ])
 
+// API order, the same unsorted order RosterView renders: deliberately not re-sorted.
+const teammates = ref([])
+const neighbours = computed(() => {
+  const i = teammates.value.findIndex((t) => t.id === player.value?.id)
+  return i === -1 ? {} : { prev: teammates.value[i - 1], next: teammates.value[i + 1] }
+})
+
 const lightbox = ref(null)
 const openIndex = ref(null)
 const current = computed(() => (openIndex.value == null ? null : images.value[openIndex.value]))
@@ -87,14 +95,16 @@ watch(
     error.value = ''
     try {
       const p = await apiFetch(`/players/${id}`)
-      const [t, teamImages, teamVideos] = await Promise.all([
+      const [t, teamImages, teamVideos, teamPlayers] = await Promise.all([
         apiFetch(`/teams/${p.team_id}`),
         apiFetch(`/teams/${p.team_id}/images`),
         apiFetch(`/teams/${p.team_id}/videos`),
+        apiFetch(`/teams/${p.team_id}/players`),
       ])
       if (id !== route.params.id) return // navigated away mid-load: don't clobber the new page's title/JSON-LD
       taggedImages.value = taggedNewestFirst(teamImages, p.id)
       taggedVideos.value = taggedNewestFirst(teamVideos, p.id)
+      teammates.value = teamPlayers
       player.value = p
       team.value = t
       document.title = pageTitle(`${p.name} · ${t.name}`, p.name_en)
@@ -199,13 +209,41 @@ watch(
           </template>
         </dialog>
       </template>
-      <p v-else class="empty-state">אין תמונות עדיין.</p>
-      <section v-if="videos.length" class="space-y-2">
+      <div v-else-if="isMine" class="empty-state space-y-3">
+        <p>עדיין אין תמונות בפרופיל שלך.</p>
+        <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת תמונות</button>
+      </div>
+      <p v-else class="text-sm text-muted">אין תמונות עדיין.</p>
+      <section v-if="videos.length || isMine" class="space-y-2">
         <h2 class="section-title">סרטונים</h2>
-        <ul class="grid gap-6 sm:grid-cols-2">
+        <ul v-if="videos.length" class="grid gap-6 sm:grid-cols-2">
           <li v-for="video in videos" :key="video.key"><VideoCard :video="video" /></li>
         </ul>
+        <div v-else class="empty-state space-y-3">
+          <p>עדיין אין סרטונים בפרופיל שלך.</p>
+          <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת סרטון</button>
+        </div>
       </section>
+      <nav v-if="neighbours.prev || neighbours.next" aria-label="ניווט בין שחקני הקבוצה" class="card flex items-center justify-between gap-4">
+        <RouterLink
+          v-if="neighbours.prev"
+          :to="`/players/${neighbours.prev.id}`"
+          :aria-label="`השחקן הקודם: ${neighbours.prev.name}`"
+          class="flex min-h-11 items-center gap-3 rounded-xl p-2 transition-colors hover:bg-sunken"
+        >
+          <span class="eyebrow" aria-hidden="true">→ הקודם</span>
+          <div class="w-20"><PlayerCard :player="neighbours.prev" compact /></div>
+        </RouterLink>
+        <RouterLink
+          v-if="neighbours.next"
+          :to="`/players/${neighbours.next.id}`"
+          :aria-label="`השחקן הבא: ${neighbours.next.name}`"
+          class="ms-auto flex min-h-11 items-center gap-3 rounded-xl p-2 transition-colors hover:bg-sunken"
+        >
+          <div class="w-20"><PlayerCard :player="neighbours.next" compact /></div>
+          <span class="eyebrow" aria-hidden="true">הבא ←</span>
+        </RouterLink>
+      </nav>
     </template>
     <p v-else class="empty-state">{{ error }}</p>
   </section>
