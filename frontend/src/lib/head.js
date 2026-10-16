@@ -27,6 +27,12 @@ export const setJsonLd = (data) =>
     data,
   )
 
+// ponytail: mirrors backend _title (routers/seo.py); change both. The English name is dropped first when too long.
+export function pageTitle(base, nameEn) {
+  const full = `${base} · ${nameEn} · כדורסל`
+  return nameEn && full.length <= 60 ? full : `${base} · כדורסל`
+}
+
 // Only fields the team home page already shows, so the markup matches visible content.
 export function sportsTeamJsonLd(team, url) {
   const sameAs = [team.facebook_url, team.instagram_url, team.youtube_url, team.tiktok_url, team.twitter_url].filter(Boolean)
@@ -34,10 +40,24 @@ export function sportsTeamJsonLd(team, url) {
     '@context': 'https://schema.org',
     '@type': 'SportsTeam',
     name: team.name,
+    ...(team.name_en && { alternateName: team.name_en }),
     sport: 'Basketball',
     url,
     ...(team.logo_url && { logo: team.logo_url }),
     ...(sameAs.length && { sameAs }),
     ...(team.home_court_address && { location: { '@type': 'Place', address: team.home_court_address } }),
+  }
+}
+
+// Only fields the player page shows; memberOf is the team named in its roster link.
+export function playerJsonLd(player, team, url, teamUrl) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: player.name,
+    url,
+    ...(player.name_en && { alternateName: player.name_en }),
+    memberOf: { '@type': 'SportsTeam', name: team.name, url: teamUrl },
+    ...(player.images[0] && { image: player.images[0].url }),
   }
 }

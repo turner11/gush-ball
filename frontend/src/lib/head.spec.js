@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from './head'
+import { pageTitle, playerJsonLd, setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from './head'
 
 afterEach(() => {
   document.head.querySelectorAll('meta[name], link[rel="canonical"], script').forEach((el) => el.remove())
@@ -84,5 +84,44 @@ describe('sportsTeamJsonLd', () => {
       sport: 'Basketball',
       url: 'https://x.org/b',
     })
+  })
+})
+
+describe('pageTitle', () => {
+  // same cases as backend test_title_drops_english_name_when_too_long
+  it.each([
+    ['אליזור', 'Elizur', 'אליזור · Elizur · כדורסל'],
+    ['אליזור', null, 'אליזור · כדורסל'],
+    ['אליזור', 'E'.repeat(60), 'אליזור · כדורסל'],
+  ])('%s + %s', (base, nameEn, expected) => {
+    expect(pageTitle(base, nameEn)).toBe(expected)
+  })
+})
+
+describe('sportsTeamJsonLd alternateName', () => {
+  it('adds alternateName when name_en is set', () => {
+    expect(sportsTeamJsonLd({ name: 'א', name_en: 'Team A' }, 'https://x.org/a').alternateName).toBe('Team A')
+  })
+})
+
+describe('playerJsonLd', () => {
+  const team = { name: 'קבוצה א' }
+  it('maps name, alternateName, memberOf and the first image', () => {
+    const player = { name: 'יוסי', name_en: 'Yossi', images: [{ url: '/a.jpg' }, { url: '/b.jpg' }] }
+    expect(playerJsonLd(player, team, 'https://x.org/players/3', 'https://x.org/team_a')).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'Person',
+      name: 'יוסי',
+      url: 'https://x.org/players/3',
+      alternateName: 'Yossi',
+      memberOf: { '@type': 'SportsTeam', name: 'קבוצה א', url: 'https://x.org/team_a' },
+      image: '/a.jpg',
+    })
+  })
+
+  it('omits alternateName and image when unset', () => {
+    const out = playerJsonLd({ name: 'יוסי', name_en: null, images: [] }, team, 'u', 't')
+    expect(out).not.toHaveProperty('alternateName')
+    expect(out).not.toHaveProperty('image')
   })
 })

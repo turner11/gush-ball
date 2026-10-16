@@ -5,7 +5,9 @@ import { RouterLink, useRoute } from 'vue-router'
 import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { useAuth } from '../composables/useAuth'
+import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { pageTitle, playerJsonLd, setJsonLd } from '../lib/head'
 
 const route = useRoute()
 const { user } = useAuth()
@@ -23,6 +25,7 @@ async function closeEditor() {
   editButton.value?.focus()
 }
 const player = ref(null)
+const team = ref(null)
 const loading = ref(true)
 const error = ref('')
 const taggedImages = ref([])
@@ -46,18 +49,26 @@ watch(
     error.value = ''
     try {
       const p = await apiFetch(`/players/${id}`)
-      const [teamImages, teamVideos] = await Promise.all([
+      const [t, teamImages, teamVideos] = await Promise.all([
+        apiFetch(`/teams/${p.team_id}`),
         apiFetch(`/teams/${p.team_id}/images`),
         apiFetch(`/teams/${p.team_id}/videos`),
       ])
+      if (id !== route.params.id) return // navigated away mid-load: don't clobber the new page's title/JSON-LD
       taggedImages.value = taggedNewestFirst(teamImages, p.id)
       taggedVideos.value = taggedNewestFirst(teamVideos, p.id)
       player.value = p
+      team.value = t
+      document.title = pageTitle(`${p.name} · ${t.name}`, p.name_en)
+      setJsonLd(playerJsonLd(p, t, location.origin + route.path, `${location.origin}/${teamSlug(t)}`))
     } catch (e) {
+      if (id !== route.params.id) return
       player.value = null
+      setJsonLd(null)
+      document.title = pageTitle('שחקן')
       error.value = e.status === 404 ? 'השחקן לא נמצא.' : 'שגיאה בטעינת השחקן, נסה שוב'
     } finally {
-      loading.value = false
+      if (id === route.params.id) loading.value = false
     }
   },
   { immediate: true },
@@ -69,7 +80,10 @@ watch(
     <div v-if="loading" class="skeleton h-40" aria-busy="true" />
     <template v-else-if="player">
       <div class="page-header">
-        <h1 class="page-title">{{ player.name }}<template v-if="player.jersey_number != null"> #{{ player.jersey_number }}</template></h1>
+        <div>
+          <h1 class="page-title">{{ player.name }}<template v-if="player.jersey_number != null"> #{{ player.jersey_number }}</template></h1>
+          <p v-if="player.name_en" class="mt-1 text-lg font-semibold text-muted"><bdi lang="en">{{ player.name_en }}</bdi></p>
+        </div>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
           <button
             v-if="isMine"
@@ -82,7 +96,7 @@ watch(
           >
             עריכת הפרופיל שלי
           </button>
-          <RouterLink :to="{ name: 'roster', params: { slug: String(player.team_id) } }" class="section-link">כל השחקנים</RouterLink>
+          <RouterLink :to="{ name: 'roster', params: { slug: String(player.team_id) } }" class="section-link">כל השחקנים של {{ team.name }}</RouterLink>
         </div>
       </div>
       <PlayerProfileForm v-if="isMine && editing" :player="player" @saved="onSaved" @cancel="closeEditor" />
