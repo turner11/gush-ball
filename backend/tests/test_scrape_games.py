@@ -700,6 +700,14 @@ def test_sync_all_games_records_failure_on_team(db_session: Session, monkeypatch
     assert good.sync_error is None
 
 
+def test_record_sync_failure_truncates_long_message(db_session: Session) -> None:
+    team = _make_team(db_session)
+
+    scrape_games.record_sync_failure(db_session, team.id, "x" * 5000)
+
+    assert len(db_session.query(Team).one().sync_error) == 500
+
+
 def test_sync_all_players_records_failure_on_team(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     _two_teams(db_session)
     synced: list[str] = []

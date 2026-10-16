@@ -420,9 +420,10 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
 
 def record_sync_failure(db: Session, team_id: int, message: str) -> None:
     """Saves the team's latest scrape failure for its admins (#403). Core update: it works after a
-    rollback expired the session and skips the audit hook (no scraper audit rows).
+    rollback expired the session and skips the audit hook (no scraper audit rows). The message is
+    capped at 500 chars: a DB error carries KBs of SQL + parameters the card can't show.
     """
-    db.execute(update(Team).where(Team.id == team_id).values(sync_error=message, sync_error_at=datetime.now(UTC)))
+    db.execute(update(Team).where(Team.id == team_id).values(sync_error=message[:500], sync_error_at=datetime.now(UTC)))
     db.commit()
 
 
