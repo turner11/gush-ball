@@ -9,6 +9,8 @@ from app.models import AuditLog
 
 router = APIRouter(prefix="/audit-log", tags=["audit"])
 
+_MAX_LIMIT = 500
+
 
 class AuditLogOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -31,8 +33,12 @@ def list_audit_log(
     team_id: int | None = None,
     entity_type: str | None = None,
     entity_id: int | None = None,
+    before_id: int | None = None,
+    limit: int = 200,
 ) -> list[AuditLog]:
-    query = select(AuditLog).order_by(AuditLog.id.desc()).limit(200)  # ponytail: fixed cap, add a before_id cursor when older rows are needed
+    query = select(AuditLog).order_by(AuditLog.id.desc()).limit(max(1, min(limit, _MAX_LIMIT)))
+    if before_id is not None:
+        query = query.where(AuditLog.id < before_id)
     for column, value in ((AuditLog.team_id, team_id), (AuditLog.entity_type, entity_type), (AuditLog.entity_id, entity_id)):
         if value is not None:
             query = query.where(column == value)

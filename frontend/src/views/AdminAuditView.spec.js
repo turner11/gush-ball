@@ -31,7 +31,7 @@ async function mountView(user = { username: 'admin', is_full_admin: true }, path
   await flushPromises()
   return wrapper
 }
-const summaries = (w) => w.findAll('summary').map((s) => s.text().replace(/\s+/g, ' '))
+const summaries = (w) => w.findAll('summary').map((s) => `${s.find('bdi').text()} ${s.find('.badge-muted').text()}`)
 const manyRows = (from, to) =>
   Array.from({ length: from - to + 1 }, (_, i) => ({ ...ROWS[0], id: from - i, changes: {} }))
 

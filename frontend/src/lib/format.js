@@ -44,3 +44,8 @@ export const signed = (n) => (n > 0 ? `+${n}` : `${n}`)
 
 // Display names aren't unique, so a picker shows the login name too whenever it differs.
 export const userLabel = (u) => (u.display_name === u.username ? u.username : `${u.display_name} (${u.username})`)
+
+const israelDay = new Intl.DateTimeFormat('he-IL', {
+  weekday: 'long', day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'Asia/Jerusalem',
+})
+export const formatIsraelDay = (value) => israelDay.format(new Date(value))
