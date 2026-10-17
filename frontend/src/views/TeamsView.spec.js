@@ -3,12 +3,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const SEG = 'https://ibasketball.co.il/league/'
-const team = (id, name_en, league = null) => ({
+const team = (id, name_en, league = null, club = null) => ({
   id,
   name: `קבוצה ${id}`,
   name_en,
   logo_url: null,
   ibasketball_league_url: league,
+  club,
 })
 const league = (ibasketball_id, name, slug) => ({ ibasketball_id, name, url: `${SEG}${slug}/` })
 
@@ -74,6 +75,36 @@ describe('TeamsView', () => {
 
     expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['ליגות', 'קבוצות נוספות'])
     expect(hrefs(wrapper)).toEqual(['/teams/10', '/b', '/c'])
+  })
+
+  it("כל הליגות ranks the player's league, then liked leagues, above club-only leagues", async () => {
+    mockApi(
+      [
+        team(1, 'A', `${SEG}a/`, 'אליצור'),
+        team(2, 'B', `${SEG}a/`, 'אליצור'),
+        team(5, 'E', `${SEG}a/`, 'אליצור'),
+        team(3, 'C', `${SEG}b/`, 'אליצור'),
+        team(4, 'D', `${SEG}c/`),
+      ],
+      [league(20, 'א', 'a'), league(21, 'ב', 'b'), league(22, 'ג', 'c'), league(23, 'ד', 'd')],
+    )
+    vi.resetModules()
+    const { useAuth } = await import('../composables/useAuth')
+    useAuth().user.value = {
+      username: 'p',
+      is_admin: false,
+      team_ids: [],
+      clubs: [],
+      memberships: [{ id: 1, team_id: null, club: 'אליצור', role: 'member' }],
+      favorite_team_ids: [4],
+      player_ids: [7],
+      player_team_ids: [3],
+    }
+    const wrapper = await mountView()
+
+    await button(wrapper, 'כל הליגות').trigger('click')
+    await flushPromises()
+    expect(hrefs(wrapper)).toEqual(['/teams/21', '/teams/22', '/teams/20', '/teams/23'])
   })
 
   it('כל הליגות lists every league and filters by name', async () => {

@@ -465,6 +465,15 @@ def test_club_member_self_edits_linked_player(client: TestClient, db_session: Se
     assert response.status_code == 200
 
 
+def test_me_lists_linked_player_team_ids(client: TestClient, db_session: Session, sibling_team: Team) -> None:
+    user = _login_user(client, db_session, "me", Membership(club="Gush", role="member"))
+    mine = _player(db_session, sibling_team, user=user)
+    assert client.get("/auth/me").json()["player_team_ids"] == [sibling_team.id]
+    mine.deleted_at = datetime.now(UTC)
+    db_session.commit()
+    assert client.get("/auth/me").json()["player_team_ids"] == []
+
+
 def test_linked_user_cannot_delete_or_restore(client: TestClient, db_session: Session, own_team: Team) -> None:
     user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
     player = _player(db_session, own_team, user=user)

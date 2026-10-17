@@ -90,7 +90,7 @@ describe('useAuth', () => {
       team_ids: null,
       memberships: [
         { team_id: 3, role: 'member' },
-        { club: 'X', role: 'admin' },
+        { team_id: 1, role: 'admin' },
         { team_id: 4, role: 'pending' },
       ],
     }
