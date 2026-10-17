@@ -7,7 +7,7 @@ const ids = (list) => list.map((t) => t.id)
 describe('byAffinity', () => {
   it('ranks member, then admin, then favourite, then name, without mutating', () => {
     const user = {
-      memberships: [{ team_id: 1, role: 'member' }, { club: 'X', role: 'admin' }, { team_id: 5, role: 'pending' }],
+      memberships: [{ team_id: 1, role: 'member' }, { team_id: 2, role: 'admin' }, { team_id: 5, role: 'pending' }],
       favorite_team_ids: [4],
     }
     const teams = [
@@ -36,15 +36,14 @@ describe('byAffinity', () => {
     expect(sorted.map((l) => l.n)).toEqual(['ת', 'ב', 'ד', 'א', 'ג'])
   })
 
-  it('club admin and club member grants do not outrank a liked league', () => {
+  it('a club admin grant does not lift club leagues above a liked league', () => {
     const leagues = [
-      { n: 'א', t: [1, 2, 3] },
-      { n: 'ב', t: [4, 5] },
+      { n: 'א', t: [1, 2] },
+      { n: 'ב', t: [5] },
     ]
     const teamsOf = (l) => l.t.map((id) => ({ id, club: id === 5 ? undefined : 'X' }))
-    const sort = (user) => byAffinity(leagues, user, teamsOf, (l) => l.n).map((l) => l.n)
-    expect(sort({ memberships: [{ club: 'X', role: 'admin' }], favorite_team_ids: [5] })).toEqual(['ב', 'א'])
-    expect(sort({ memberships: [{ club: 'X', role: 'member' }], favorite_team_ids: [5] })).toEqual(['ב', 'א'])
+    const user = { memberships: [{ club: 'X', role: 'admin' }], favorite_team_ids: [5] }
+    expect(byAffinity(leagues, user, teamsOf, (l) => l.n).map((l) => l.n)).toEqual(['ב', 'א'])
   })
 
   it('a linked player team is associated; a club member grant alone is not', () => {
