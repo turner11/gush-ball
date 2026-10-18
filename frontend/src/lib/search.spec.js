@@ -20,7 +20,7 @@ describe('matchRank', () => {
     expect(matchRank(' MAC', ['Maccabi'], [])).toBe(0)
     expect(matchRank('mac', [null, 'Maccabi'], [])).toBe(0)
     expect(matchRank('cab', ['Maccabi'], ['zzz'])).toBe(1)
-    expect(matchRank('lig', ['Maccabi'], [undefined, 'Premier League'])).toBe(2)
+    expect(matchRank('leag', ['Maccabi'], [undefined, 'Premier League'])).toBe(2)
     expect(matchRank('zzz', ['Maccabi'], ['League'])).toBe(null)
     expect(matchRank('abi', ['מכבי', 'Maccabi'], [])).toBe(1)
     expect(matchRank('mac', ['מכבי', 'Maccabi'], [])).toBe(0)
