@@ -1,5 +1,5 @@
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import FilterCombobox from './FilterCombobox.vue'
 
@@ -11,12 +11,15 @@ const body = () => new DOMWrapper(document.body)
 const mountBox = (props = {}) =>
   mount(FilterCombobox, { props: { id: 'f', label: 'ליגה', options: OPTIONS, ...props }, attachTo: document.body })
 async function open(wrapper) {
-  await wrapper.find('#f').trigger('keydown', { key: 'Enter' })
+  await wrapper.find('#f').trigger('click')
   await flushPromises()
 }
 const items = () => body().findAll('[role=option]').map((o) => o.text().trim())
 
 describe('FilterCombobox', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = () => {} // jsdom lacks it; reka scrolls the highlighted item
+  })
   afterEach(() => {
     document.body.innerHTML = ''
   })

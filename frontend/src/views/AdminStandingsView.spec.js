@@ -54,7 +54,7 @@ function errorRes(statusText = 'Server Error') {
   }
 }
 
-const leagueBox = (wrapper) => wrapper.findAllComponents(FilterCombobox).find((c) => c.props('id') === 'league-select')
+const leagueBox = (wrapper) => wrapper.findAllComponents({ name: 'FilterCombobox' }).find((c) => c.props('id') === 'league-select')
 async function pickLeague(wrapper, league) {
   leagueBox(wrapper).vm.$emit('update:modelValue', league)
   await flushPromises()

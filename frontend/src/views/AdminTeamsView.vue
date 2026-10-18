@@ -3,8 +3,10 @@ import { computed, onMounted, ref } from 'vue'
 
 import ClubsSection from '../components/ClubsSection.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import FilterCombobox from '../components/FilterCombobox.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { fullAdmin, ownTeams } from '../composables/useAuth'
+import { useLeagueFilter } from '../composables/useLeagueFilter'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
 import { matchesQuery } from '../lib/search'
@@ -16,9 +18,8 @@ const name = ref('')
 const nameEn = ref('')
 const query = ref('')
 const searchInput = ref(null)
-const shownTeams = computed(() =>
-  ownTeams(teams.value).filter((t) => matchesQuery(query.value, [t.name, t.name_en, t.club])),
-)
+const { leagueId, leagueOptions, teamsInLeague } = useLeagueFilter(computed(() => ownTeams(teams.value)))
+const shownTeams = computed(() => teamsInLeague.value.filter((t) => matchesQuery(query.value, [t.name, t.name_en, t.club])))
 const loading = ref(true)
 const listError = ref(null) // load/delete failures, shown above the list (the form's `error` is for creating)
 const submitting = ref(false)
@@ -90,7 +91,17 @@ onMounted(load)
           <p class="error-text" role="alert">{{ listError }}</p>
           <button type="button" class="btn-secondary ms-auto" @click="load">נסו שוב</button>
         </div>
-        <SearchInput v-if="teams.length" id="admin-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה" />
+        <div v-if="teams.length" class="grid gap-3 sm:items-end" :class="leagueOptions.length > 1 ? 'sm:grid-cols-[16rem_minmax(0,1fr)]' : ''">
+          <FilterCombobox
+            v-if="leagueOptions.length > 1"
+            id="admin-team-league-filter"
+            v-model="leagueId"
+            label="ליגה"
+            all-label="כל הליגות"
+            :options="leagueOptions"
+          />
+          <SearchInput id="admin-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה" />
+        </div>
         <ul v-if="shownTeams.length" class="card divide-y divide-line p-0">
           <li v-for="team in shownTeams" :key="team.id" class="flex flex-wrap items-center gap-3 px-4 py-3">
             <RouterLink :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="font-semibold">

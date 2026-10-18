@@ -1,9 +1,9 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 
 import { ownTeams } from '../composables/useAuth'
-import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
+import { useSelectedTeam } from '../composables/useSelectedTeam'
+import AdminTeamPicker from '../components/AdminTeamPicker.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ImageUpload from '../components/ImageUpload.vue'
 import PlayerVideosEditor from '../components/PlayerVideosEditor.vue'
@@ -30,8 +30,6 @@ const newImageUrl = ref({})
 const error = ref(null)
 
 const { selectedTeamId } = useSelectedTeam()
-const route = useRoute()
-const router = useRouter()
 
 function clearSearch() {
   query.value = ''
@@ -197,17 +195,7 @@ async function deleteImage(player, image) {
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">ניהול שחקנים</h1>
-      <div class="w-full sm:w-64">
-        <label for="team-select" class="field-label">קבוצה</label>
-        <select
-          id="team-select"
-          :value="route.params.slug"
-          class="field-input"
-          @change="router.push({ params: { slug: $event.target.value } })"
-        >
-          <option v-for="team in teams" :key="team.id" :value="teamSlug(team)">{{ team.name }}</option>
-        </select>
-      </div>
+      <AdminTeamPicker :teams="teams" />
     </div>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">

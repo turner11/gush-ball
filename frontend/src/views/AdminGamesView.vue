@@ -1,14 +1,14 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 
+import AdminTeamPicker from '../components/AdminTeamPicker.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import GameRow from '../components/GameRow.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { ownTeams, useAuth } from '../composables/useAuth'
-import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
+import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { byDate, sheetCopyUrl, STATUS_LABELS } from '../lib/games'
@@ -58,8 +58,6 @@ const templateCopyUrl = computed(() => sheetCopyUrl(user.value?.stats_template_u
 const loadButton = ref(null)
 
 const { selectedTeamId } = useSelectedTeam()
-const route = useRoute()
-const router = useRouter()
 
 const query = ref('')
 const searchInput = ref(null)
@@ -289,17 +287,7 @@ async function onDelete(game) {
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">ניהול משחקים</h1>
-      <div class="w-full sm:w-64">
-        <label for="team-select" class="field-label">קבוצה</label>
-        <select
-          id="team-select"
-          :value="route.params.slug"
-          class="field-input"
-          @change="router.push({ params: { slug: $event.target.value } })"
-        >
-          <option v-for="team in teams" :key="team.id" :value="teamSlug(team)">{{ team.name }}</option>
-        </select>
-      </div>
+      <AdminTeamPicker :teams="teams" />
     </div>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
