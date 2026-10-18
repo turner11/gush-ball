@@ -8,6 +8,7 @@ import TeamCard from '../components/TeamCard.vue'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { leagueKey } from '../lib/leagues'
 import { matchesQuery } from '../lib/search'
 
 const route = useRoute()
@@ -38,12 +39,6 @@ async function load() {
   }
 }
 onMounted(load)
-
-// The league slug: last non-empty path segment, so a trailing slash does not matter.
-function leagueKey(url) {
-  const segment = (url ?? '').split('/').filter(Boolean).pop()
-  return segment ? decodeURIComponent(segment).toLowerCase() : null
-}
 
 const teamsByLeague = computed(() => {
   const byKey = new Map()
