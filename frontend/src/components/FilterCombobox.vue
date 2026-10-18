@@ -24,7 +24,6 @@ const props = defineProps({
   label: { type: String, required: true },
   options: { type: Array, required: true }, // [{ value, label }]
   allLabel: { type: String, default: null },
-  disabled: { type: Boolean, default: false },
 })
 const model = defineModel({ type: String, default: '' })
 
@@ -38,7 +37,7 @@ const triggerText = computed(() => props.options.find((o) => o.value === model.v
 <template>
   <div>
     <span :id="`${id}-label`" class="field-label">{{ label }}</span>
-    <ComboboxRoot v-model="selected" :disabled="disabled" dir="rtl">
+    <ComboboxRoot v-model="selected" dir="rtl">
       <ComboboxAnchor as-child>
         <ComboboxTrigger as-child>
           <button
@@ -46,7 +45,6 @@ const triggerText = computed(() => props.options.find((o) => o.value === model.v
             type="button"
             :aria-labelledby="`${id}-label ${id}`"
             class="field-input flex items-center justify-between gap-2 text-start"
-            :disabled="disabled"
           >
             <span class="truncate">{{ triggerText }}</span>
             <AppIcon name="chevron" />

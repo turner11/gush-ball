@@ -129,11 +129,11 @@ describe('AdminUsersView', () => {
     expect(wrapper.text()).not.toContain('dana')
   })
 
-  it('non-full-admin sees the full-admin-only message and fetches nothing', async () => {
+  it('non-full-admin sees the full-admin-only message and does not fetch /users', async () => {
     mockFetch({})
     const wrapper = await mountView({ username: 'x', team_ids: [1] })
 
     expect(wrapper.text()).toContain('פעולה זו זמינה למנהל ראשי בלבד')
-    expect(global.fetch).not.toHaveBeenCalled()
+    expect(global.fetch).not.toHaveBeenCalledWith(expect.stringContaining('/users'), expect.anything())
   })
 })

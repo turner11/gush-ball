@@ -1,4 +1,4 @@
-import { computed, ref, toValue, watch } from 'vue'
+import { computed, ref, toValue } from 'vue'
 
 import { apiFetch } from '../lib/api'
 import { useFavorites } from './useFavorites'
@@ -15,17 +15,7 @@ function leagueKey(url) {
 export function useLeagueFilter(teams) {
   const { sortGroups } = useFavorites()
   const leagues = ref([])
-  // Fetched once, when there are first teams to filter.
-  let requested = false
-  watch(
-    () => toValue(teams).length > 0,
-    (hasTeams) => {
-      if (!hasTeams || requested) return
-      requested = true
-      apiFetch('/leagues').then((ls) => (leagues.value = ls), () => {})
-    },
-    { immediate: true },
-  )
+  apiFetch('/leagues').then((ls) => (leagues.value = ls), () => {})
 
   const leagueId = ref('')
   const teamsOf = (league) => toValue(teams).filter((t) => leagueKey(t.ibasketball_league_url) === leagueKey(league.url))
