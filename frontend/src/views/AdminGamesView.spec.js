@@ -759,7 +759,8 @@ describe('AdminGamesView', () => {
     const { default: View } = await import('./AdminGamesView.vue')
     const wrapper = mount(View, { global: { plugins: [router] } })
     await flushPromises()
-    await wrapper.find('#team-select').setValue('team_b')
+    const { default: FilterCombobox } = await import('../components/FilterCombobox.vue')
+    wrapper.findAllComponents(FilterCombobox).find((c) => c.props('id') === 'team-select').vm.$emit('update:modelValue', 'team_b')
     await flushPromises()
 
     expect(router.currentRoute.value.path).toBe('/team_b/admin/games')

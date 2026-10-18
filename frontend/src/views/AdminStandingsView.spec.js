@@ -2,6 +2,8 @@ import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import FilterCombobox from '../components/FilterCombobox.vue'
+
 const ROWS = [
   {
     id: 1,
@@ -50,6 +52,12 @@ function errorRes(statusText = 'Server Error') {
       throw new Error('no body')
     },
   }
+}
+
+const leagueBox = (wrapper) => wrapper.findAllComponents({ name: 'FilterCombobox' }).find((c) => c.props('id') === 'league-select')
+async function pickLeague(wrapper, league) {
+  leagueBox(wrapper).vm.$emit('update:modelValue', league)
+  await flushPromises()
 }
 
 describe('AdminStandingsView', () => {
@@ -219,26 +227,36 @@ describe('AdminStandingsView', () => {
     mockFetch({ 'GET /api/standings': () => jsonRes(MULTI) })
     const wrapper = await mountView()
 
-    const options = wrapper.findAll('#league-select option').map((o) => o.text())
-    expect(options).toEqual(['ליגה א', 'ליגה ב'])
+    expect(leagueBox(wrapper).props('options').map((o) => o.label)).toEqual(['ליגה א', 'ליגה ב'])
     expect(wrapper.find('table').text()).toContain('קבוצה ב')
     expect(wrapper.find('table').text()).not.toContain('קבוצה ג')
 
-    await wrapper.find('#league-select').setValue('ליגה ב')
+    await pickLeague(wrapper, 'ליגה ב')
     expect(wrapper.find('table').text()).toContain('קבוצה ג')
     expect(wrapper.find('table').text()).not.toContain('קבוצה ב')
+  })
+
+  it("כל הליגות shows every league's rows with a league column", async () => {
+    mockFetch({ 'GET /api/standings': () => jsonRes(MULTI) })
+    const wrapper = await mountView()
+    expect(wrapper.find('thead').text()).not.toContain('ליגה')
+
+    await pickLeague(wrapper, '')
+    expect(wrapper.find('table').text()).toContain('קבוצה ג')
+    expect(wrapper.find('table').text()).toContain('קבוצה ב')
+    expect(wrapper.find('thead').text()).toContain('ליגה')
   })
 
   it('new-row form defaults the league to the selected league', async () => {
     mockFetch({ 'GET /api/standings': () => jsonRes(MULTI) })
     const wrapper = await mountView()
-    await wrapper.find('#league-select').setValue('ליגה ב')
+    await pickLeague(wrapper, 'ליגה ב')
     expect(wrapper.find('#standing-league-name').element.value).toBe('ליגה ב')
   })
 
   it("team admin sees only their team's leagues, read-only", async () => {
     const wrapper = await asTeamAdmin('https://x.il/team/c/')
-    expect(wrapper.findAll('#league-select option').map((o) => o.text())).toEqual(['ליגה ב'])
+    expect(leagueBox(wrapper).props('options').map((o) => o.label)).toEqual(['ליגה ב'])
     const labels = wrapper.findAll('button').map((b) => b.text())
     expect(labels).not.toContain('ערוך')
     expect(labels).not.toContain('מחק')
@@ -301,7 +319,7 @@ describe('AdminStandingsView', () => {
     const wrapper = await mountView()
     await new Promise((r) => setTimeout(r, 40))
     await flushPromises()
-    expect(wrapper.find('#league-select').element.value).toBe('ליגה ב')
+    expect(leagueBox(wrapper).props('modelValue')).toBe('ליגה ב')
   })
 
   it('team admin sees no league sync button outside their scope', async () => {

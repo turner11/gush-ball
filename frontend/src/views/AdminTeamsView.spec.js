@@ -72,6 +72,30 @@ describe('AdminTeamsView', () => {
     expect(wrapper.text()).toContain('קבוצה א')
   })
 
+  it('league filter hides teams of other leagues', async () => {
+    mockFetch({
+      'GET /api/teams': () =>
+        jsonRes([
+          { id: 1, name: 'קבוצה א', ibasketball_league_url: 'https://x.il/league/a' },
+          { id: 2, name: 'הפועל', ibasketball_league_url: 'https://x.il/league/b/' },
+        ]),
+      'GET /api/leagues': () =>
+        jsonRes([
+          { ibasketball_id: 1, name: 'ליגה א', url: 'https://x.il/league/a/' },
+          { ibasketball_id: 2, name: 'ליגה ב', url: 'https://x.il/league/b' },
+        ]),
+    })
+    const { default: AdminTeamsView } = await import('./AdminTeamsView.vue')
+    const { default: FilterCombobox } = await import('../components/FilterCombobox.vue')
+    const wrapper = mount(AdminTeamsView)
+    await flushPromises()
+
+    wrapper.findAllComponents(FilterCombobox).find((c) => c.props('id') === 'admin-team-league-filter').vm.$emit('update:modelValue', '2')
+    await flushPromises()
+    expect(wrapper.text()).toContain('הפועל')
+    expect(wrapper.text()).not.toContain('קבוצה א')
+  })
+
   it('confirming the dialog calls DELETE /api/teams/:id and removes the team from the list', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),

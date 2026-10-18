@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import FilterCombobox from '../components/FilterCombobox.vue'
 import SyncStatus from '../components/SyncStatus.vue'
 import { fullAdmin, ownTeams, useAuth } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
@@ -38,11 +39,11 @@ const rows = ref([])
 const team = ref(null)
 const loading = ref(true)
 const loadError = ref(null)
-const selectedLeague = ref('')
+const selectedLeague = ref(null) // null = not chosen yet, '' = all leagues
 const editing = ref(null)
 const form = ref(emptyForm())
 watch(selectedLeague, (league) => {
-  if (!editing.value) form.value.league_name = league
+  if (!editing.value) form.value.league_name = league ?? ''
 })
 const error = ref(null)
 const pendingDelete = ref(null)
@@ -61,13 +62,19 @@ const leagues = computed(() => {
     (name) => name,
   )
 })
-const leagueRows = computed(() => rows.value.filter((r) => r.league_name === selectedLeague.value))
+const leagueRows = computed(() =>
+  selectedLeague.value
+    ? rows.value.filter((r) => r.league_name === selectedLeague.value)
+    : rows.value.filter((r) => leagues.value.includes(r.league_name)), // all: stays within a team admin's scope
+)
+const tableFields = computed(() => (selectedLeague.value ? TABLE_FIELDS : FIELDS))
 
 // Pick the first league on load, and recover when the selected league's last row is deleted.
 watch(
   leagues,
   (ls) => {
-    if (!ls.includes(selectedLeague.value)) selectedLeague.value = ls[0] ?? ''
+    const missing = selectedLeague.value && !ls.includes(selectedLeague.value)
+    if (missing || (selectedLeague.value === null && ls.length)) selectedLeague.value = ls[0] ?? ''
   },
   { immediate: true },
 )
@@ -108,7 +115,7 @@ onMounted(() => {
 
 function resetForm() {
   editing.value = null
-  form.value = emptyForm(selectedLeague.value)
+  form.value = emptyForm(selectedLeague.value ?? '')
 }
 
 const formEl = ref(null)
@@ -165,12 +172,16 @@ async function onDelete(row) {
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">ניהול טבלת ליגה</h1>
-      <div v-if="leagues.length" class="w-full sm:w-64">
-        <label for="league-select" class="field-label">ליגה</label>
-        <select id="league-select" v-model="selectedLeague" class="field-input">
-          <option v-for="league in leagues" :key="league" :value="league">{{ league }}</option>
-        </select>
-      </div>
+      <FilterCombobox
+        v-if="leagues.length"
+        id="league-select"
+        :model-value="selectedLeague ?? ''"
+        @update:model-value="selectedLeague = $event"
+        label="ליגה"
+        all-label="כל הליגות"
+        :options="leagues.map((name) => ({ value: name, label: name }))"
+        class="w-full sm:w-64"
+      />
     </div>
 
     <SyncStatus v-if="syncLeague" v-slot="{ start, busy }" @finished="loadRows">
@@ -191,13 +202,13 @@ async function onDelete(row) {
           <table class="data-table">
             <thead>
               <tr class="table-header-row">
-                <th v-for="field in TABLE_FIELDS" :key="field.key">{{ field.column }}</th>
+                <th v-for="field in tableFields" :key="field.key">{{ field.column }}</th>
                 <th v-if="!readOnly"></th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="row in leagueRows" :key="row.id" class="table-body-row">
-                <td v-for="field in TABLE_FIELDS" :key="field.key" :data-label="field.column">{{ row[field.key] }}</td>
+                <td v-for="field in tableFields" :key="field.key" :data-label="field.column">{{ row[field.key] }}</td>
                 <td v-if="!readOnly" class="justify-end">
                   <span class="inline-flex gap-1">
                     <button type="button" class="btn-ghost" @click="startEdit(row)">ערוך</button>
