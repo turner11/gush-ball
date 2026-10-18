@@ -129,7 +129,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
       </div>
       <div v-if="clubTeams.length > 1">
         <SearchInput id="club-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה או ליגה" class="w-full sm:w-80" />
-        <p v-if="query.trim()" class="mt-2 text-sm text-muted" aria-live="polite">{{ shownTeams.length }} קבוצות</p>
+        <p class="mt-2 text-sm text-muted" aria-live="polite">{{ shownTeams.length === 1 ? 'קבוצה אחת' : `${shownTeams.length} קבוצות` }}</p>
       </div>
       <section class="space-y-3">
         <h2 class="section-title">הקבוצות</h2>

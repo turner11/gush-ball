@@ -187,6 +187,7 @@ describe('ClubView', () => {
       const w = await mountIt()
       await search(w, 'RoYaL')
       expect(teamLinks(w)).toEqual(['/royal'])
+      expect(w.get('[aria-live]').text()).toBe('קבוצה אחת')
     })
 
     it('shows a no-match state whose clear button restores all teams', async () => {
