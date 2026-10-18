@@ -21,10 +21,26 @@ const GAMES = [
 ]
 const stubs = { GameLocationLinks: true, GameStatsLink: true, RouterLink: RouterLinkStub }
 
-function mockFetch(games) {
+const FTEAMS = [
+  { id: 1, name: 'זד', name_en: 'Zed', club: 'מכבי', ibasketball_league_url: 'https://x.il/league/allstars' },
+  { id: 2, name: 'רויאל', name_en: 'Royal', club: 'מכבי', ibasketball_league_url: null },
+  { id: 3, name: 'אלפא', name_en: 'Alpha', club: 'מכבי', ibasketball_league_url: null },
+  { id: 4, name: 'וולבס', name_en: 'Wolves', club: 'מכבי', ibasketball_league_url: 'https://x.il/league/other/' },
+]
+const LEAGUES = [
+  { name: 'Allstars', url: 'https://x.il/league/allstars/' }, // trailing slash differs from the team's url
+  { name: 'Other', url: 'https://x.il/league/other' },
+]
+const FGAMES = [
+  { id: 20, team_id: 3, is_home: true, scheduled_at: '2026-03-14T18:00:00', status: 'scheduled', team_score: null, opponent_score: null, opponent: opp },
+  { id: 21, team_id: 4, is_home: true, scheduled_at: '2026-03-14T19:00:00', status: 'scheduled', team_score: null, opponent_score: null, opponent: opp },
+]
+
+function mockFetch(games, teams = TEAMS, leagues = []) {
   global.fetch = vi.fn((url) => {
     if (games instanceof Error) return Promise.reject(games)
-    const body = String(url).startsWith('/api/games') ? games : url === '/api/clubs' ? CLUBS : TEAMS
+    if (url === '/api/leagues') return leagues instanceof Error ? Promise.reject(leagues) : Promise.resolve({ ok: true, status: 200, json: async () => leagues })
+    const body = String(url).startsWith('/api/games') ? games : url === '/api/clubs' ? CLUBS : teams
     return Promise.resolve({ ok: true, status: 200, json: async () => body })
   })
 }
@@ -140,5 +156,64 @@ describe('ClubView', () => {
     mockFetch(new Error('boom'))
     const w = await mountIt()
     expect(w.get('[role=alert]').text()).toContain('שגיאה בטעינת המועדון')
+  })
+
+  describe('team filter', () => {
+    const search = async (w, q) => {
+      await w.get('#club-team-search').setValue(q)
+      await flushPromises()
+    }
+    const teamLinks = (w) => w.findAllComponents(RouterLinkStub).map((l) => l.props('to')).filter((to) => typeof to === 'string' && to.startsWith('/'))
+    const gameIds = (w) => w.findAllComponents(RouterLinkStub).map((l) => l.props('to')?.params?.id).filter(Boolean)
+
+    it('orders matches: name prefix, then name substring, then league name', async () => {
+      mockFetch(FGAMES, FTEAMS, LEAGUES)
+      const w = await mountIt()
+      await search(w, 'al')
+      expect(teamLinks(w)).toEqual(['/alpha', '/royal', '/zed'])
+    })
+
+    it("filters the week's games to the matching teams", async () => {
+      mockFetch(FGAMES, FTEAMS, LEAGUES)
+      const w = await mountIt()
+      expect(gameIds(w)).toEqual(expect.arrayContaining([20, 21]))
+      await search(w, 'al')
+      expect(gameIds(w)).toContain(20)
+      expect(gameIds(w)).not.toContain(21)
+    })
+
+    it('is case-insensitive', async () => {
+      mockFetch(FGAMES, FTEAMS, LEAGUES)
+      const w = await mountIt()
+      await search(w, 'RoYaL')
+      expect(teamLinks(w)).toEqual(['/royal'])
+    })
+
+    it('shows a no-match state whose clear button restores all teams', async () => {
+      mockFetch(FGAMES, FTEAMS, LEAGUES)
+      const w = await mountIt()
+      await search(w, 'qqq')
+      expect(teamLinks(w)).toEqual([])
+      expect(w.text()).toContain('אין קבוצות התואמות לחיפוש "qqq"')
+      await w.get('button.btn-secondary').trigger('click')
+      await flushPromises()
+      expect(teamLinks(w)).toHaveLength(4)
+    })
+
+    it('keeps the page working when /leagues fails', async () => {
+      mockFetch(FGAMES, FTEAMS, new Error('boom'))
+      const w = await mountIt()
+      expect(w.find('[role=alert]').exists()).toBe(false)
+      await search(w, 'al')
+      expect(teamLinks(w)).toEqual(['/alpha', '/royal'])
+    })
+
+    it('leaves the JSON-LD members unchanged while filtering', async () => {
+      mockFetch(FGAMES, FTEAMS, LEAGUES)
+      const w = await mountIt()
+      await search(w, 'al')
+      const ld = JSON.parse(document.head.querySelector('script[data-page]').textContent)
+      expect(ld.member).toHaveLength(4)
+    })
   })
 })
