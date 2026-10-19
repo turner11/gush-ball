@@ -78,6 +78,17 @@ describe('AdminHomeView', () => {
     expect(wrapper.find('membership-requests-stub').exists()).toBe(true)
   })
 
+  it('shows pending join requests before the sync error log', async () => {
+    mockFetch({ 'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }), 'GET /api/teams': () => jsonRes(TEAMS) })
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
+    await flushPromises()
+
+    const html = wrapper.html()
+    expect(html.indexOf('membership-requests-stub')).toBeGreaterThan(-1)
+    expect(html.indexOf('membership-requests-stub')).toBeLessThan(html.indexOf('sync-failures-stub'))
+  })
+
   it('links to the account page', async () => {
     mockFetch({ 'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }), 'GET /api/teams': () => jsonRes(TEAMS) })
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
