@@ -117,9 +117,9 @@ onMounted(async () => {
       </RouterLink>
     </nav>
 
-    <SyncFailures />
-
     <MembershipRequests />
+
+    <SyncFailures />
 
     <div class="card space-y-2">
       <h2 class="section-title">סנכרון מ-ibasketball</h2>
