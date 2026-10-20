@@ -38,7 +38,7 @@ services:
   # BBStats Streamlit app, for debugging: `docker compose --profile stats up stats`
   stats:
     profiles: [stats]
-    image: python:3.14-slim
+    image: python:3.15-slim
     working_dir: /stats
     volumes:
       - ./stats:/stats
