@@ -9,6 +9,8 @@ const props = defineProps({
   player: { type: Object, default: null },
   jersey: { type: Number, default: null },
   compact: Boolean,
+  // the team's tagged images; only those tagging this player alone join the slideshow
+  teamImages: { type: Array, default: () => [] },
 })
 
 const SLIDE_MS = 3000
@@ -18,12 +20,16 @@ const hovered = ref(false)
 let timer = null
 let delay = null
 
-const images = computed(() => props.player?.images ?? [])
+const own = computed(() => props.player?.images ?? [])
+const slides = computed(() => [
+  ...own.value,
+  ...props.teamImages.filter((i) => i.player_ids.length === 1 && i.player_ids[0] === props.player?.id),
+])
 
 function startSlideshow() {
   hovered.value = true
-  if (delay || images.value.length < 2) return
-  const advance = () => (index.value = (index.value + 1) % images.value.length)
+  if (delay || slides.value.length < 2) return
+  const advance = () => (index.value = (index.value + 1) % slides.value.length)
   delay = setTimeout(() => {
     advance()
     timer = setInterval(advance, SLIDE_MS)
@@ -55,10 +61,10 @@ onBeforeUnmount(stopSlideshow)
         class="overflow-hidden rounded-full ring-sunken"
       >
         <img
-          :src="images[0]?.url || DEFAULT_PLAYER_PHOTO"
+          :src="own[0]?.url || DEFAULT_PLAYER_PHOTO"
           :alt="player?.name ?? ''"
           loading="lazy"
-          :style="focusStyle(images[0])"
+          :style="focusStyle(own[0])"
           class="size-full object-cover object-top"
           @error="onPlayerImgError"
         />
@@ -72,13 +78,13 @@ onBeforeUnmount(stopSlideshow)
       </p>
     </div>
     <!-- on hover the slideshow fills the whole card: the nearest positioned ancestor, i.e. the caller's `relative overflow-hidden` card -->
-    <Transition v-if="hovered && images.length && !compact" name="slide">
+    <Transition v-if="hovered && slides.length && !compact" name="slide">
       <img
         :key="index"
-        :src="images[index].url"
+        :src="slides[index].url"
         alt=""
         data-testid="slide"
-        :style="focusStyle(images[index])"
+        :style="focusStyle(slides[index])"
         class="absolute inset-0 size-full object-cover object-top"
         @error="onPlayerImgError"
       />

@@ -6,6 +6,7 @@ import PlayerCard from '../components/PlayerCard.vue'
 import { apiFetch } from '../lib/api'
 
 const players = ref([])
+const teamImages = ref([])
 const loading = ref(false)
 
 // DefaultLayout picks the default team; this view only follows the selection.
@@ -14,14 +15,20 @@ const { selectedTeamId } = useSelectedTeam()
 async function loadPlayers() {
   if (!selectedTeamId.value) {
     players.value = []
+    teamImages.value = []
     return
   }
   const id = selectedTeamId.value
   loading.value = true
   try {
-    const loaded = await apiFetch(`/teams/${id}/players`)
+    // images only decorate the card slideshow: a failed call must not blank the roster
+    const [loaded, images] = await Promise.all([
+      apiFetch(`/teams/${id}/players`),
+      apiFetch(`/teams/${id}/images`).catch(() => []),
+    ])
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     players.value = loaded
+    teamImages.value = images
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
@@ -41,7 +48,7 @@ watch(selectedTeamId, loadPlayers, { immediate: true })
     </div>
     <ul v-else-if="players.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
       <li v-for="player in players" :key="player.id" class="card p-4 relative overflow-hidden">
-        <PlayerCard :player="player" />
+        <PlayerCard :player="player" :team-images="teamImages" />
       </li>
     </ul>
     <p v-else class="empty-state">אין שחקנים עדיין.</p>
