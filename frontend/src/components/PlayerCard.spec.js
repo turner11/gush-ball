@@ -26,6 +26,28 @@ describe('PlayerCard', () => {
   const slide = (w) => w.find('[data-testid="slide"]')
   const shown = (w) => slide(w).attributes('src')
 
+  it('appends solo-tagged team images after own images', async () => {
+    const teamImages = [
+      { url: '/t1.jpg', player_ids: [3] },
+      { url: '/t2.jpg', player_ids: [3, 4] },
+      { url: '/t3.jpg', player_ids: [4] },
+    ]
+    const w = mountCard({ player: { ...PLAYER, images: [{ url: '/a.jpg' }] }, teamImages })
+    await w.trigger('mouseenter')
+    expect(shown(w)).toBe('/a.jpg')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(shown(w)).toBe('/t1.jpg')
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(shown(w)).toBe('/a.jpg')
+  })
+
+  it('keeps the own photo in the circle; a solo-tagged image alone still shows on hover', async () => {
+    const w = mountCard({ player: { ...PLAYER, images: [] }, teamImages: [{ url: '/t1.jpg', player_ids: [3] }] })
+    expect(w.find('img').attributes('src')).toMatch(/default-player\.png$/)
+    await w.trigger('mouseenter')
+    expect(shown(w)).toBe('/t1.jpg')
+  })
+
   it('applies the stored face focus to the circle photo', () => {
     const w = mountCard({ player: { ...PLAYER, images: [{ url: '/a.jpg', focus_x: 50, focus_y: 40.5, zoom: 1.5 }] } })
     const style = w.find('img').attributes('style')

@@ -54,6 +54,21 @@ describe('RosterView', () => {
     expect(wrapper.text()).toContain('7')
   })
 
+  it('passes the team images to each player card', async () => {
+    const images = [{ id: 1, url: '/t.jpg', player_ids: [1] }]
+    mockFetch({
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'GET /api/teams/1/images': () => jsonRes(images),
+    })
+
+    const { default: RosterView } = await import('./RosterView.vue')
+    const { default: PlayerCard } = await import('../components/PlayerCard.vue')
+    const wrapper = mount(RosterView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.findComponent(PlayerCard).props('teamImages')).toEqual(images)
+  })
+
   it('roster page no longer renders lineups', async () => {
     mockFetch({ 'GET /api/teams/1/players': () => jsonRes(PLAYERS) })
 

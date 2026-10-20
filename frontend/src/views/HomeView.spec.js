@@ -116,12 +116,12 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('אין קבוצות במערכת עדיין')
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1', expect.anything())
   })
-  async function mountWithTeam(team, { links = [], players = [], games = [], videos = [], posts = [] } = {}) {
+  async function mountWithTeam(team, { links = [], players = [], games = [], videos = [], posts = [], images = [] } = {}) {
     mockFetch({
       'GET /api/teams/1': () => jsonRes(team),
       'GET /api/teams/1/links': () => jsonRes(links),
       'GET /api/teams/1/videos': () => jsonRes(videos),
-      'GET /api/teams/1/images': () => jsonRes([]),
+      'GET /api/teams/1/images': () => jsonRes(images),
       'GET /api/teams/1/posts': () => jsonRes(posts),
       'GET /api/teams/1/players': () => jsonRes(players),
       'GET /api/teams/1/games': () => jsonRes(games),
@@ -294,6 +294,16 @@ describe('HomeView', () => {
       expect(noAddr.find('a[href*="google.com/maps"]').exists()).toBe(false)
       expect(noAddr.find('a[href*="waze.com"]').exists()).toBe(false)
     })
+  })
+
+  it('passes the team images to the player cards', async () => {
+    const images = [{ id: 1, url: '/t.jpg', player_ids: [1] }]
+    const wrapper = await mountWithTeam(TEAM, {
+      players: [{ id: 1, name: 'דני', jersey_number: 4, images: [] }],
+      images,
+    })
+    const { default: PlayerCard } = await import('../components/PlayerCard.vue')
+    expect(wrapper.findComponent(PlayerCard).props('teamImages')).toEqual(images)
   })
 
   it('renders a carousel card per player', async () => {
