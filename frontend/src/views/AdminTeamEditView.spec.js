@@ -269,4 +269,18 @@ describe('AdminTeamEditView', () => {
     expect(wrapper.text()).toContain('רק מנהל ראשי יכול לשנות מועדון')
     expect(wrapper.text()).not.toContain('מנהלי הקבוצה')
   })
+
+  it('explains what the Facebook embed needs under the facebook field', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes([]),
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      ...CONTENT_HANDLERS,
+    })
+
+    const wrapper = await mountView()
+
+    expect(wrapper.find('#team-facebook_url').attributes('aria-describedby')).toBe('team-facebook_url-hint')
+    expect(wrapper.find('#team-facebook_url-hint').text()).toContain('ציבורי')
+    expect(wrapper.find('#team-instagram_url').attributes('aria-describedby')).toBeUndefined()
+  })
 })

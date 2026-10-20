@@ -31,7 +31,7 @@ const GROUPS = [
   {
     legend: 'רשתות חברתיות',
     fields: [
-      { key: 'facebook_url', label: 'פייסבוק', type: 'url' },
+      { key: 'facebook_url', label: 'פייסבוק', type: 'url', hint: 'הפוסטים מוצגים רק מדף פייסבוק ציבורי, ללא הגבלת גיל או מדינה.' },
       { key: 'instagram_url', label: 'אינסטגרם', type: 'url' },
       { key: 'youtube_url', label: 'יוטיוב', type: 'url' },
       { key: 'tiktok_url', label: 'טיקטוק', type: 'url' },
@@ -219,9 +219,10 @@ const contentSections = [
                 :required="field.required"
                 :list="field.key === 'club' ? 'club-options' : undefined"
                 :disabled="field.key === 'club' && !fullAdmin"
-                :aria-describedby="field.key === 'club' && !fullAdmin ? 'club-hint' : undefined"
+                :aria-describedby="field.hint ? `team-${field.key}-hint` : field.key === 'club' && !fullAdmin ? 'club-hint' : undefined"
                 class="field-input"
               />
+              <p v-if="field.hint" :id="`team-${field.key}-hint`" class="mt-1 text-sm text-muted">{{ field.hint }}</p>
               <template v-if="field.key === 'club'">
                 <datalist id="club-options"><option v-for="name in clubOptions" :key="name" :value="name" /></datalist>
                 <p v-if="!fullAdmin" id="club-hint" class="mt-1 text-sm text-muted">רק מנהל ראשי יכול לשנות מועדון</p>
