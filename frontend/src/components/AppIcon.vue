@@ -5,6 +5,7 @@ defineProps({ name: { type: String, required: true } })
 const PATHS = {
   chevron: 'M6 9l6 6 6-6',
   check: 'M20 6 9 17l-5-5',
+  clipboard: 'M9 2h6v4H9zM16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2',
   chart: 'M3 3v16a2 2 0 0 0 2 2h16M18 17V9M13 17V5M8 17v-3',
   minus: 'M5 12h14',
   waze: 'M12 3a8 8 0 0 0-7 11.9L4 20l4.5-1.2A8 8 0 1 0 12 3zM9 11h.01M15 11h.01M9 14.5c1 1 5 1 6 0',

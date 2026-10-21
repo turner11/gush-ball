@@ -16,6 +16,7 @@ const TYPE_LABELS = {
   video: 'וידאו',
   image: 'תמונה',
   post: 'פוסט',
+  play: 'מהלך',
   standing: 'טבלה',
   team: 'קבוצה',
   membership: 'חברות',

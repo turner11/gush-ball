@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 if TYPE_CHECKING:
-    from app.models.content import TeamImage, TeamLink, TeamPost, TeamVideo
+    from app.models.content import TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
     from app.models.game import Game
     from app.models.player import Player
 
@@ -56,4 +56,9 @@ class Team(Base):
     videos: Mapped[list["TeamVideo"]] = relationship(back_populates="team", cascade="all, delete-orphan")
     images: Mapped[list["TeamImage"]] = relationship(back_populates="team", cascade="all, delete-orphan")
     posts: Mapped[list["TeamPost"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    plays: Mapped[list["TeamPlay"]] = relationship(
+        back_populates="team",
+        cascade="all, delete-orphan",
+        order_by="(TeamPlay.sort_order.asc().nulls_last(), TeamPlay.id)",
+    )
     games: Mapped[list["Game"]] = relationship(back_populates="team", cascade="all, delete-orphan")

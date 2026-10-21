@@ -1,16 +1,19 @@
-"""CRUD for a team's four content resources (links/videos/images/posts).
+"""CRUD for a team's five content resources (links/videos/images/posts/plays).
 
-The four tables stay separate (see CLAUDE.md), but their routes are identical apart from the
-schemas, so they're registered once per resource by `_add_crud_routes` below.
+The tables stay separate (see CLAUDE.md), but their routes are identical apart from the
+schemas, so they're registered once per resource by `_add_crud_routes` below. Plays' list is
+member-only (#439); the other four lists are public.
 """
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, ConfigDict, HttpUrl
+from collections.abc import Sequence
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, ConfigDict, HttpUrl, model_validator
 from sqlalchemy.orm import Session
 
 from app.db import Base
-from app.deps import DbSession, RequireTeamAdmin, get_team_or_404
-from app.models import TeamImage, TeamLink, TeamPost, TeamVideo
+from app.deps import DbSession, RequireTeamAdmin, get_team_or_404, require_team_member
+from app.models import TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
 
 router = APIRouter(tags=["content"])
 
@@ -91,10 +94,61 @@ class TeamPostOut(BaseModel):
     body_en: str | None
 
 
+class TeamPlayCreate(BaseModel):
+    title: str
+    title_en: str | None = None
+    notes: str | None = None
+    file_url: HttpUrl | None = None
+    url: HttpUrl | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_source(self):
+        if (self.file_url is None) == (self.url is None):
+            raise ValueError("Provide exactly one of file_url or url")
+        return self
+
+
+class TeamPlayUpdate(BaseModel):
+    # omitted = unchanged; null -> 422 (NOT NULL column)
+    title: str = None
+    title_en: str | None = None
+    notes: str | None = None
+    file_url: HttpUrl | None = None
+    url: HttpUrl | None = None
+
+    @model_validator(mode="after")
+    def _swap_source(self):
+        sent = {"file_url", "url"} & self.model_fields_set
+        if len(sent) == 2:
+            if (self.file_url is None) == (self.url is None):
+                raise ValueError("Provide exactly one of file_url or url")
+        elif sent:
+            (field,) = sent
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null on its own; send the other source instead")
+            # Setting the other source on one PATCH clears this one; assigning marks it as set.
+            setattr(self, "url" if field == "file_url" else "file_url", None)
+        return self
+
+
+class TeamPlayOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    team_id: int
+    title: str
+    title_en: str | None
+    notes: str | None
+    file_url: str | None
+    url: str | None
+    sort_order: int | None
+
+
 def _to_columns(data: dict) -> dict:
     # HttpUrl doesn't map to a String column; store as plain str.
-    if data.get("url") is not None:
-        data["url"] = str(data["url"])
+    for key in ("url", "file_url"):
+        if data.get(key) is not None:
+            data[key] = str(data[key])
     return data
 
 
@@ -113,6 +167,8 @@ def _add_crud_routes(
     update_schema: type[BaseModel],
     out_schema: type[BaseModel],
     not_found: str,
+    *,
+    read_dependencies: Sequence = (),
 ) -> None:
     path = f"/teams/{{team_id}}/{resource}"
 
@@ -132,7 +188,7 @@ def _add_crud_routes(
         db.refresh(item)
         return item
 
-    @router.get(path, response_model=list[out_schema])
+    @router.get(path, response_model=list[out_schema], dependencies=list(read_dependencies))
     def list_items(team_id: int, db: DbSession):
         return list(getattr(get_team_or_404(db, team_id), resource))
 
@@ -163,3 +219,27 @@ _add_crud_routes(
     "images", TeamImage, TitledUrlCreate, TitledUrlUpdate, TitledUrlOut, "Image not found"
 )
 _add_crud_routes("posts", TeamPost, TeamPostCreate, TeamPostUpdate, TeamPostOut, "Post not found")
+_add_crud_routes(
+    "plays",
+    TeamPlay,
+    TeamPlayCreate,
+    TeamPlayUpdate,
+    TeamPlayOut,
+    "Play not found",
+    read_dependencies=[Depends(require_team_member)],
+)
+
+
+@router.put("/teams/{team_id}/plays/order", response_model=list[TeamPlayOut])
+def reorder_plays(team_id: int, ids: list[int], db: DbSession, _admin_id: RequireTeamAdmin):
+    team = get_team_or_404(db, team_id)
+    if sorted(ids) != sorted(p.id for p in team.plays):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="ids must be exactly this team's plays"
+        )
+    by_id = {p.id: p for p in team.plays}
+    for index, play_id in enumerate(ids):
+        by_id[play_id].sort_order = index
+    db.commit()
+    db.refresh(team)
+    return list(team.plays)

@@ -30,6 +30,7 @@ from app.deps import (
     check_not_last_full_admin,
     client_ip,
     is_admin,
+    member_team_ids,
     self_editable_player_ids,
 )
 from app.models import AdminUser, FavoriteTeam, Membership, Player, TeamRequest
@@ -137,6 +138,7 @@ def _session_user(db: Session, user: AdminUser) -> dict[str, Any]:
         # ponytail: the lone team only drives the UI's single-team shortcuts; team_ids is the real scope
         "team_id": team_ids[0] if team_ids is not None and len(team_ids) == 1 else None,
         "team_ids": team_ids,
+        "member_team_ids": member_team_ids(db, user),
         "clubs": admin_clubs(db, user),
         "player_ids": player_ids,
         "player_team_ids": sorted(set(db.scalars(select(Player.team_id).where(Player.id.in_(player_ids))))),

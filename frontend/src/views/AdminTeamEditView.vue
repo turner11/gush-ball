@@ -154,6 +154,18 @@ const contentSections = [
       { key: 'body_en', label: 'תוכן (אנגלית)', type: 'textarea' },
     ],
   },
+  {
+    resource: 'plays',
+    heading: 'פלייבוק',
+    reorderable: true,
+    fields: [
+      { key: 'title', label: 'כותרת', type: 'text', required: true },
+      { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
+      { key: 'notes', label: 'הערות', type: 'textarea' },
+      { key: 'file_url', label: 'קובץ: תמונה, GIF, MP4 או PDF', type: 'url', upload: true, accept: 'image/*,video/mp4,application/pdf' },
+      { key: 'url', label: 'או קישור חיצוני (FastDraw, YouTube…)', type: 'url' },
+    ],
+  },
 ]
 </script>
 
@@ -265,6 +277,7 @@ const contentSections = [
           :resource="section.resource"
           :heading="section.heading"
           :fields="section.fields"
+          :reorderable="section.reorderable"
         />
       </div>
       <TeamAdminsSection v-if="fullAdmin || clubAdmin(team.club)" :team-id="teamId" :club="team.club" />

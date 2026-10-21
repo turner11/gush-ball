@@ -54,7 +54,8 @@ describe('PlaybookView', () => {
     mockFetch()
     const wrapper = await mountView()
 
-    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['GIF', 'וידאו', 'מסמך', 'קישור'])
+    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['GIF', 'וידאו', 'מסמך'])
+    expect(wrapper.findAll('li').map((a) => a.text())[3]).toContain('קישור')
     expect(wrapper.find('img[src="https://cdn/a.gif"]').attributes('alt')).toBe('GIF')
     expect(wrapper.find('video[src="https://cdn/b.mp4"]').exists()).toBe(true)
     for (const href of ['https://cdn/c.pdf', 'https://fastdraw.example.com/p/1']) {
@@ -77,7 +78,7 @@ describe('PlaybookView', () => {
     mockFetch()
     await wrapper.findAll('button').find((b) => b.text() === 'נסו שוב').trigger('click')
     await flushPromises()
-    expect(wrapper.findAll('h2')).toHaveLength(4)
+    expect(wrapper.findAll('li')).toHaveLength(4)
   })
 
   it('does not request or render plays for a non-member', async () => {
