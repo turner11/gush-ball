@@ -1,25 +1,29 @@
 version: 2
+multi-ecosystem-groups:
+  all-dependencies:
+    schedule:
+      interval: weekly
 updates:
   - package-ecosystem: uv
     directory: /backend
-    schedule:
-      interval: weekly
+    patterns: ["*"]
+    multi-ecosystem-group: all-dependencies
   - package-ecosystem: npm
     directory: /frontend
-    schedule:
-      interval: weekly
+    patterns: ["*"]
+    multi-ecosystem-group: all-dependencies
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
+    patterns: ["*"]
+    multi-ecosystem-group: all-dependencies
   - package-ecosystem: docker
     directories: ["/backend", "/frontend", "/.docker/runner-claude"]
-    schedule:
-      interval: weekly
+    patterns: ["*"]
+    multi-ecosystem-group: all-dependencies
   - package-ecosystem: docker-compose
     directory: /
-    schedule:
-      interval: weekly
+    patterns: ["*"]
+    multi-ecosystem-group: all-dependencies
     ignore:
       - dependency-name: postgres
         update-types: ["version-update:semver-major"]
