@@ -124,7 +124,7 @@ def test_club_admin_edits_only_own_club_about(club_admin_client: TestClient, db_
 
 
 def test_club_about_forbidden_for_team_admin_and_anonymous(
-    team_admin_client: TestClient, db_session: Session
+    team_admin_client: TestClient, db_session: Session, sibling_team: Team
 ) -> None:
     club = _club(db_session)
 

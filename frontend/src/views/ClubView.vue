@@ -167,10 +167,10 @@ watch(() => route.params.clubSlug, load, { immediate: true })
         <h2 class="section-title">{{ club.about_title || 'על המועדון' }}</h2>
         <div v-if="club.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ club.about }}</p></div>
         <div v-if="club.about_links.length" class="flex flex-wrap gap-2">
-          <a v-for="l in club.about_links" :key="l.url" :href="l.url" target="_blank" rel="noopener" class="btn-secondary gap-2">{{ l.label }} <AppIcon name="external" /></a>
+          <a v-for="(l, i) in club.about_links" :key="i" :href="l.url" target="_blank" rel="noopener" class="btn-secondary gap-2">{{ l.label }} <AppIcon name="external" /></a>
         </div>
         <div v-if="club.about_images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <figure v-for="img in club.about_images" :key="img.url" class="space-y-1">
+          <figure v-for="(img, i) in club.about_images" :key="i" class="space-y-1">
             <a :href="img.url" target="_blank" rel="noopener"><img :src="img.url" :alt="img.title || club.name" loading="lazy" class="aspect-square w-full rounded-xl object-cover" /></a>
             <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>
           </figure>
