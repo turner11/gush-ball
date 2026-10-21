@@ -781,4 +781,23 @@ describe('AdminGamesView', () => {
 
     expect(router.currentRoute.value.path).toBe('/team_b/admin/games')
   })
+  it('editing a game shows the scorers editor for that game', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+      'GET /api/teams/1/players': () => jsonRes([]),
+      'GET /api/teams/1/games/100': () => jsonRes({ ...GAMES[0], scorers: [] }),
+    })
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const { default: GameScorersEditor } = await import('../components/GameScorersEditor.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.findComponent(GameScorersEditor).exists()).toBe(false)
+
+    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent(GameScorersEditor).props()).toEqual({ teamId: '1', gameId: 100 })
+  })
 })

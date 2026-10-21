@@ -13,6 +13,7 @@ const GAME = {
   team_score: 80,
   opponent_score: 70,
   description: 'משחק גמר מרגש',
+  scorers: [],
   opponent: { id: 6, name: 'הפועל עבר', logo_url: null, source_url: null, address: 'רחוב הספורט 1, חיפה' },
 }
 
@@ -20,6 +21,7 @@ function mockFetch(game) {
   global.fetch = vi.fn((url) => {
     if (url === '/api/teams/1') return Promise.resolve({ ok: true, status: 200, json: async () => TEAM })
     if (url === '/api/teams/1/games/5') return Promise.resolve(game)
+    if (url === '/api/teams/1/players') return Promise.resolve(ok([]))
     return Promise.reject(new Error(`Unhandled fetch: ${url}`))
   })
 }
@@ -31,6 +33,8 @@ async function mountAt(teamsLoaded, teamId = '1') {
     routes: [
       { path: '/:slug/games/:id', name: 'game', component: { template: '<div/>' } },
       { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' } },
+      { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
+      { path: '/:slug/admin/players', name: 'admin-players', component: { template: '<div/>' } },
       { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' } },
     ],
   })
@@ -86,5 +90,48 @@ describe('GameView', () => {
     sel.teamsLoaded.value = true
     await flushPromises()
     expect(global.fetch.mock.calls.map((c) => c[0])).toContain('/api/teams/1/games/5')
+  })
+
+  describe('scorers', () => {
+    const SCORERS = [
+      { player_id: 11, name: 'אלף', jersey_number: 7, points: 22 },
+      { player_id: 12, name: 'בית', jersey_number: null, points: 10 },
+    ]
+    const withScorers = { ...GAME, scorers: SCORERS }
+
+    it('lists scorers, highest first, with links to player pages', async () => {
+      mockFetch(ok(withScorers))
+      const { wrapper } = await mountAt(true)
+      const rows = wrapper.findAll('ol li')
+      expect(rows).toHaveLength(2)
+      expect(rows[0].text()).toContain('אלף')
+      expect(rows[0].text()).toContain('22')
+      expect(rows[0].find('a').attributes('href')).toBe('/players/11')
+    })
+
+    it('hides the scorers card from visitors when there are none', async () => {
+      mockFetch(ok(GAME))
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.text()).not.toContain('קלעים')
+    })
+
+    it('team admin can open the scorers editor', async () => {
+      mockFetch(ok(withScorers))
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      const { wrapper } = await mountAt(true)
+      const { default: GameScorersEditor } = await import('../components/GameScorersEditor.vue')
+      expect(wrapper.findComponent(GameScorersEditor).exists()).toBe(false)
+      await wrapper.findAll('button').find((b) => b.text() === 'עריכת קלעים').trigger('click')
+      expect(wrapper.findComponent(GameScorersEditor).exists()).toBe(true)
+    })
+
+    it('non-admin sees no edit button', async () => {
+      mockFetch(ok(withScorers))
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 2, team_ids: [] }
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.findAll('button').some((b) => b.text() === 'עריכת קלעים')).toBe(false)
+    })
   })
 })
