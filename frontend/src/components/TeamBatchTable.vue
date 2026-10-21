@@ -5,6 +5,7 @@ export const SOCIALS = [
   { key: 'youtube_url', label: 'יוטיוב' },
   { key: 'tiktok_url', label: 'טיקטוק' },
   { key: 'twitter_url', label: 'טוויטר (X)' },
+  { key: 'wikipedia_url', label: 'ויקיפדיה' },
 ]
 // The team fields a row edits; batch edit diffs exactly these.
 export const EDITABLE_KEYS = [

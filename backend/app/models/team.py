@@ -39,6 +39,7 @@ class Team(Base):
     youtube_url: Mapped[str | None] = mapped_column(String(500), default=None)
     tiktok_url: Mapped[str | None] = mapped_column(String(500), default=None)
     twitter_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    wikipedia_url: Mapped[str | None] = mapped_column(String(500), default=None)
 
     # Source URLs on ibasketball.co.il, used by the Phase 2 scraper.
     ibasketball_team_url: Mapped[str | None] = mapped_column(String(500), default=None)

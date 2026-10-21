@@ -35,7 +35,7 @@ export function pageTitle(base, nameEn) {
 
 // Only fields the team home page already shows, so the markup matches visible content.
 export function sportsTeamJsonLd(team, url, club) {
-  const sameAs = [team.facebook_url, team.instagram_url, team.youtube_url, team.tiktok_url, team.twitter_url].filter(Boolean)
+  const sameAs = [team.facebook_url, team.instagram_url, team.youtube_url, team.tiktok_url, team.twitter_url, team.wikipedia_url].filter(Boolean)
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsTeam',

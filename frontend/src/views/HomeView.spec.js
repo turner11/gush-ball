@@ -19,6 +19,7 @@ const TEAM = {
   youtube_url: null,
   tiktok_url: null,
   twitter_url: null,
+  wikipedia_url: null,
 }
 const LINKS = [{ id: 1, team_id: 1, label: 'אתר הליגה', label_en: null, url: 'https://example.com' }]
 const VIDEOS = []
@@ -116,7 +117,7 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('אין קבוצות במערכת עדיין')
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1', expect.anything())
   })
-  async function mountWithTeam(team, { links = [], players = [], games = [], videos = [], posts = [], images = [] } = {}) {
+  async function mountWithTeam(team, { links = [], players = [], games = [], videos = [], posts = [], images = [], extra = {} } = {}) {
     mockFetch({
       'GET /api/teams/1': () => jsonRes(team),
       'GET /api/teams/1/links': () => jsonRes(links),
@@ -125,6 +126,7 @@ describe('HomeView', () => {
       'GET /api/teams/1/posts': () => jsonRes(posts),
       'GET /api/teams/1/players': () => jsonRes(players),
       'GET /api/teams/1/games': () => jsonRes(games),
+      ...extra,
     })
     const { default: HomeView } = await import('./HomeView.vue')
     const wrapper = mount(HomeView, { global: { plugins: [router] } })
@@ -172,6 +174,16 @@ describe('HomeView', () => {
       'https://syndication.twitter.com/srv/timeline-profile/screen-name/gushclub',
     )
     expect(document.querySelector('script[src*="twitter.com"]')).toBeNull()
+  })
+
+  it('shows the Wikipedia button and preview for wikipedia_url', async () => {
+    const url = 'https://he.wikipedia.org/wiki/X'
+    const summary = 'https://he.wikipedia.org/api/rest_v1/page/summary/X'
+    const body = { type: 'standard', title: 'כותרת ויקי', extract: 'תקציר' }
+    const wrapper = await mountWithTeam({ ...TEAM, wikipedia_url: url }, { extra: { [`GET ${summary}`]: () => jsonRes(body) } })
+
+    expect(wrapper.findAll('a.btn-secondary').find((a) => a.text() === 'ויקיפדיה').attributes('href')).toBe(url)
+    expect(wrapper.text()).toContain('כותרת ויקי')
   })
 
   it('shows only platforms that have a url', async () => {

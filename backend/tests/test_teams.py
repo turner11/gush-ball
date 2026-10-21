@@ -38,6 +38,27 @@ def test_twitter_url_round_trips(admin_client: TestClient) -> None:
     assert admin_client.get(f"/teams/{created['id']}").json()["twitter_url"] == "https://x.com/club2"
 
 
+def test_wikipedia_url_round_trips(admin_client: TestClient) -> None:
+    created = _create_team(admin_client, "Team W", wikipedia_url="https://he.wikipedia.org/wiki/X")
+    assert admin_client.get(f"/teams/{created['id']}").json()["wikipedia_url"] == "https://he.wikipedia.org/wiki/X"
+    admin_client.patch(f"/teams/{created['id']}", json={"wikipedia_url": "https://en.m.wikipedia.org/wiki/Y"})
+    assert admin_client.get(f"/teams/{created['id']}").json()["wikipedia_url"] == "https://en.m.wikipedia.org/wiki/Y"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/wiki/X",
+        "http://he.wikipedia.org/wiki/X",
+        "https://he.wikipedia.org.evil.com/wiki/X",
+        r"https://evil.com\@he.wikipedia.org/",
+    ],
+)
+def test_wikipedia_url_rejects_non_wikipedia(admin_client: TestClient, url: str) -> None:
+    response = admin_client.post("/teams", json={"name": "Team V", "wikipedia_url": url})
+    assert response.status_code == 422
+
+
 def test_create_team_rejects_invalid_twitter_url(admin_client: TestClient) -> None:
     response = admin_client.post("/teams", json={"name": "Team U", "twitter_url": "not a url"})
     assert response.status_code == 422
