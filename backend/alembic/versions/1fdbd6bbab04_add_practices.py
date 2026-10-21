@@ -1,7 +1,7 @@
 """add practices
 
 Revision ID: 1fdbd6bbab04
-Revises: fb48cee40a53
+Revises: d172c8930a23
 Create Date: 2026-10-21 11:25:03.731297
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '1fdbd6bbab04'
-down_revision: str | Sequence[str] | None = 'fb48cee40a53'
+down_revision: str | Sequence[str] | None = 'd172c8930a23'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
