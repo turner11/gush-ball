@@ -27,6 +27,11 @@ const pendingDelete = ref(null)
 const confirmingAll = ref(false)
 
 // Past practices are clutter in the admin list.
+// Backend rejects a series longer than 366 days from the first practice.
+const repeatMax = computed(() => {
+  const start = form.value.starts_at.slice(0, 10)
+  return start ? new Date(Date.parse(start) + 366 * 864e5).toISOString().slice(0, 10) : undefined
+})
 const upcoming = computed(() => practices.value.filter((p) => new Date(p.starts_at) >= new Date()))
 
 async function load() {
@@ -170,7 +175,7 @@ async function onDeleteAll() {
         </div>
         <div v-if="!editing">
           <label for="practice-repeat" class="field-label">חזרה שבועית עד</label>
-          <input id="practice-repeat" v-model="form.repeat_weekly_until" type="date" :min="form.starts_at.slice(0, 10)" class="field-input" />
+          <input id="practice-repeat" v-model="form.repeat_weekly_until" type="date" :min="form.starts_at.slice(0, 10)" :max="repeatMax" class="field-input" />
         </div>
         <label v-else class="flex min-h-11 items-center gap-2">
           <input v-model="form.cancelled" type="checkbox" class="size-5" />

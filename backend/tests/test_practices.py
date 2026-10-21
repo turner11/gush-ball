@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Practice, Team
+from app.models.audit_log import AuditLog
 from tests.test_lineups import _login_as
 from tests.test_plays import ACCESS, _login_linked
 
@@ -96,6 +98,8 @@ def test_delete_upcoming_keeps_past_practices(admin_client, db_session, own_team
 
     assert [r["id"] for r in admin_client.get(_url(own_team)).json()] == [past.id]
     assert db_session.get(Practice, theirs.id) is not None
+    deleted = db_session.scalars(select(AuditLog).where(AuditLog.action == "delete", AuditLog.entity_type == "practice")).all()
+    assert len(deleted) == 2
 
 
 def test_practice_of_other_team_404(admin_client, db_session, own_team, other_team) -> None:

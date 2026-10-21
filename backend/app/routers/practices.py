@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from app.deps import DbSession, RequireTeamAdmin, RequireTeamMember, get_team_or_404
 from app.models import Practice
@@ -93,7 +93,9 @@ def update_practice(
 @router.delete("/upcoming", status_code=status.HTTP_204_NO_CONTENT)
 def delete_upcoming_practices(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> Response:
     now = datetime.now(ISRAEL).replace(tzinfo=None)
-    db.execute(delete(Practice).where(Practice.team_id == team_id, Practice.starts_at >= now))
+    # ORM delete per row (not Core delete()) so the after_flush audit listener sees each one.
+    for practice in db.scalars(select(Practice).where(Practice.team_id == team_id, Practice.starts_at >= now)):
+        db.delete(practice)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
