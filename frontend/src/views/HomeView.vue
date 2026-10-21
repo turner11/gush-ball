@@ -145,6 +145,11 @@ const hasSocialEmbed = computed(
           </div>
         </div>
 
+        <section v-if="team.about" class="space-y-2">
+          <h2 class="section-title">על הקבוצה</h2>
+          <div class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
+        </section>
+
         <section v-if="topPost" class="space-y-3">
           <div class="section-header">
             <h2 class="section-title">עדכונים</h2>
@@ -184,11 +189,6 @@ const hasSocialEmbed = computed(
               <VideoCard :video="video" />
             </li>
           </ul>
-        </section>
-
-        <section v-if="team.about" class="space-y-2">
-          <h2 class="section-title">על הקבוצה</h2>
-          <div class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
         </section>
 
         <section v-if="links.length" class="space-y-2">

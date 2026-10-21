@@ -138,6 +138,20 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           <a v-if="club.ibasketball_url" :href="club.ibasketball_url" target="_blank" rel="noopener noreferrer" class="section-link">המועדון ב-ibasketball</a>
         </div>
       </div>
+      <section v-if="hasAbout" class="space-y-3">
+        <h2 class="section-title">{{ club.about_title || 'על המועדון' }}</h2>
+        <div v-if="club.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ club.about }}</p></div>
+        <div v-if="club.about_links.length" class="flex flex-wrap gap-2">
+          <a v-for="(l, i) in club.about_links" :key="i" :href="l.url" target="_blank" rel="noopener" class="btn-secondary gap-2">{{ l.label }} <AppIcon name="external" /></a>
+        </div>
+        <div v-if="club.about_images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <figure v-for="(img, i) in club.about_images" :key="i" class="space-y-1">
+            <a :href="img.url" target="_blank" rel="noopener"><img :src="img.url" :alt="img.title || club.name" loading="lazy" class="aspect-square w-full rounded-xl object-cover" /></a>
+            <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>
+          </figure>
+        </div>
+      </section>
+      <p v-else-if="canEdit" class="empty-state">עוד אין תוכן על המועדון. <RouterLink :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">עריכת עמוד המועדון</RouterLink></p>
       <div v-if="clubTeams.length > 1">
         <SearchInput id="club-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה או ליגה" class="w-full sm:w-80" />
         <p class="mt-2 text-sm text-muted" aria-live="polite">{{ shownTeams.length === 1 ? 'קבוצה אחת' : `${shownTeams.length} קבוצות` }}</p>
@@ -163,20 +177,6 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           </ol>
         </div>
       </section>
-      <section v-if="hasAbout" class="space-y-3">
-        <h2 class="section-title">{{ club.about_title || 'על המועדון' }}</h2>
-        <div v-if="club.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ club.about }}</p></div>
-        <div v-if="club.about_links.length" class="flex flex-wrap gap-2">
-          <a v-for="(l, i) in club.about_links" :key="i" :href="l.url" target="_blank" rel="noopener" class="btn-secondary gap-2">{{ l.label }} <AppIcon name="external" /></a>
-        </div>
-        <div v-if="club.about_images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <figure v-for="(img, i) in club.about_images" :key="i" class="space-y-1">
-            <a :href="img.url" target="_blank" rel="noopener"><img :src="img.url" :alt="img.title || club.name" loading="lazy" class="aspect-square w-full rounded-xl object-cover" /></a>
-            <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>
-          </figure>
-        </div>
-      </section>
-      <p v-else-if="canEdit" class="empty-state">עוד אין תוכן על המועדון. <RouterLink :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">עריכת עמוד המועדון</RouterLink></p>
     </template>
   </section>
 </template>

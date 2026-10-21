@@ -153,6 +153,12 @@ describe('ClubView', () => {
     expect(ld.member.map((m) => m.url)).toEqual([`${location.origin}/team_a`, `${location.origin}/team_b`])
   })
 
+  it('puts the about block before the teams and the week', async () => {
+    mockFetch(GAMES)
+    const w = await mountIt()
+    expect(w.findAll('h2').map((h) => h.text())).toEqual(['הסיפור שלנו', 'הקבוצות', 'השבוע במועדון'])
+  })
+
   it('renders the about block: title, text, link chips and images', async () => {
     mockFetch(GAMES)
     const w = await mountIt()
