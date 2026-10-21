@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from app.models.content import TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
     from app.models.game import Game
     from app.models.player import Player
+    from app.models.practice import Practice
 
 
 class Team(Base):
@@ -66,3 +67,4 @@ class Team(Base):
         order_by="(TeamPlay.sort_order.asc().nulls_last(), TeamPlay.id)",
     )
     games: Mapped[list["Game"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    practices: Mapped[list["Practice"]] = relationship(back_populates="team", cascade="all, delete-orphan")

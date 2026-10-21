@@ -4,9 +4,9 @@ import { computed, ref } from 'vue'
 import { apiUrl } from '../lib/api'
 import AppIcon from './AppIcon.vue'
 
-const props = defineProps({ teamId: { type: Number, required: true } })
+const props = defineProps({ teamId: { type: Number, required: true }, practices: Boolean })
 
-const feedUrl = computed(() => apiUrl(`/teams/${props.teamId}/calendar.ics`))
+const feedUrl = computed(() => apiUrl(`/teams/${props.teamId}/calendar.ics${props.practices ? '?practices=1' : ''}`))
 const webcalUrl = computed(() => feedUrl.value.replace(/^https?:/, 'webcal:'))
 
 const copied = ref(false)
@@ -28,6 +28,7 @@ async function copy() {
   <div class="flex flex-wrap items-center gap-2">
     <a :href="webcalUrl" class="btn-secondary"><AppIcon name="calendar" />הוסף ליומן</a>
     <button type="button" class="btn-ghost" @click="copy">העתקת קישור ל-Google</button>
+    <p v-if="practices" class="basis-full text-sm text-muted">יומן Google מרענן מינויים רק כל כמה שעות, כך ששינוי של הרגע האחרון עשוי להופיע באיחור</p>
     <p v-if="copied" role="status" aria-live="polite" class="basis-full text-sm text-muted">הקישור הועתק</p>
     <p v-else-if="copyFailed" role="status" aria-live="polite" class="basis-full text-sm text-muted">
       לא ניתן להעתיק, העתיקו ידנית:

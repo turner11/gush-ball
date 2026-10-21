@@ -10,6 +10,7 @@ from app.models.content import TeamImage, TeamLink, TeamPlay, TeamPost, TeamVide
 from app.models.game import Game
 from app.models.membership import Membership
 from app.models.player import Player, PlayerImage, PlayerVideo
+from app.models.practice import Practice
 from app.models.standing_row import StandingRow
 from app.models.team import Team
 
@@ -34,6 +35,7 @@ class AuditLog(Base):
 # Allowlist: AdminUser (passwords, emails), Club, Opponent and LineupSnapshot are deliberately absent.
 _AUDITED: dict[type, str] = {
     Game: "game",
+    Practice: "practice",
     Player: "player",
     PlayerImage: "player_image",
     PlayerVideo: "player_video",

@@ -6,6 +6,7 @@ import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import GameRow from '../components/GameRow.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
+import PracticesAdmin from '../components/PracticesAdmin.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { ownTeams, useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
@@ -287,6 +288,7 @@ async function onDelete(game) {
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">ניהול משחקים</h1>
+      <a href="#practices" class="section-link">אימונים</a>
       <AdminTeamPicker :teams="teams" />
     </div>
 
@@ -435,6 +437,7 @@ async function onDelete(game) {
         </div>
       </form>
     </div>
+    <PracticesAdmin v-if="selectedTeam" :key="selectedTeam.id" :team="selectedTeam" />
     <a href="#game-form" class="fab lg:hidden" aria-label="הוספת משחק"><AppIcon name="plus" /></a>
 
     <ConfirmDialog
