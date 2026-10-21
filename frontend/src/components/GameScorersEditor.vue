@@ -12,6 +12,7 @@ const loading = ref(true)
 const loadError = ref(false)
 const saving = ref(false)
 const saveError = ref('')
+const justSaved = ref(false)
 const rows = ref([]) // { id, name, jersey_number, points: '' | number }
 const teamScore = ref(null)
 
@@ -44,11 +45,13 @@ onMounted(async () => {
 async function onSubmit() {
   saving.value = true
   saveError.value = ''
+  justSaved.value = false
   try {
     const body = rows.value.filter(filled).map((r) => ({ player_id: r.id, points: Number(r.points) }))
     emit('saved', await apiFetch(`/teams/${props.teamId}/games/${props.gameId}/scorers`, { method: 'PUT', body }))
+    justSaved.value = true
   } catch (e) {
-    saveError.value = e.message && e.message !== 'Unprocessable Entity' ? e.message : 'שגיאה בשמירת הקלעים, נסה שוב'
+    saveError.value = e.status === 422 ? 'נקודות לא תקינות (0 עד 200)' : 'שגיאה בשמירת הקלעים, נסה שוב'
   } finally {
     saving.value = false
   }
@@ -84,6 +87,7 @@ async function onSubmit() {
       </li>
     </ul>
     <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
+    <p aria-live="polite" class="text-sm text-muted">{{ justSaved ? 'הקלעים נשמרו' : '' }}</p>
     <div class="sticky-actions flex flex-wrap items-center justify-between gap-3">
       <p class="tabular-nums text-muted">
         סה״כ {{ total }} נק׳<template v-if="teamScore !== null"> · תוצאת הקבוצה {{ teamScore }}</template>

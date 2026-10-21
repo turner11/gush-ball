@@ -139,7 +139,8 @@ const hasSocialEmbed = computed(
               <!-- an unplayed game already shows its date in the middle -->
               <span v-if="played(m.game)">{{ formatDateTime(m.game.scheduled_at) }}</span>
               <GameLocationLinks v-if="gameAddress(m.game, team)" :address="gameAddress(m.game, team)" />
-              <RouterLink :to="base + '/schedule'" class="section-link ms-auto">ללוח המשחקים</RouterLink>
+              <RouterLink :to="`${base}/games/${m.game.id}`" class="section-link ms-auto" :aria-label="'פרטי המשחק נגד ' + m.game.opponent.name">פרטי המשחק</RouterLink>
+              <RouterLink :to="base + '/schedule'" class="section-link">ללוח המשחקים</RouterLink>
             </div>
           </div>
         </div>

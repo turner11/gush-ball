@@ -69,16 +69,17 @@ describe('GameScorersEditor', () => {
     expect(put[0]).toBe('/api/teams/1/games/5/scorers')
     expect(JSON.parse(put[1].body)).toEqual([{ player_id: 2, points: 0 }])
     expect(wrapper.emitted('saved')[0][0]).toEqual(saved)
+    expect(wrapper.find('[aria-live=polite]').text()).toBe('הקלעים נשמרו')
   })
 
-  it('shows the server error on a failed save', async () => {
+  it('shows a Hebrew message, not [object Object], on a validation error', async () => {
     mockFetch({
-      put: () => ({ ok: false, status: 422, json: async () => ({ detail: 'Player 9 is not on team 1' }) }),
+      put: () => ({ ok: false, status: 422, json: async () => ({ detail: [{ msg: 'less than or equal to 200' }] }) }),
     })
     const wrapper = await mountEditor()
     await wrapper.find('form').trigger('submit')
     await flushPromises()
-    expect(wrapper.find('[role=alert]').text()).toContain('Player 9 is not on team 1')
+    expect(wrapper.find('[role=alert]').text()).toBe('נקודות לא תקינות (0 עד 200)')
     expect(wrapper.emitted('saved')).toBeUndefined()
   })
 
