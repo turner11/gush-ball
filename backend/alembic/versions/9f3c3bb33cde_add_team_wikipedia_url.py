@@ -1,7 +1,7 @@
 """add team wikipedia_url
 
 Revision ID: 9f3c3bb33cde
-Revises: fb48cee40a53
+Revises: d172c8930a23
 Create Date: 2026-10-21 11:24:10.102766
 
 """
@@ -14,7 +14,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "9f3c3bb33cde"
-down_revision: str | Sequence[str] | None = "fb48cee40a53"
+down_revision: str | Sequence[str] | None = "d172c8930a23"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
