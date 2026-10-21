@@ -70,9 +70,9 @@ watch([selectedTeamId, checked], load, { immediate: true })
           </a>
           <video v-else-if="playKind(play) === 'video'" :src="play.file_url" :aria-label="play.title" controls preload="metadata" playsinline class="w-full rounded-xl" />
           <a v-else :href="play.file_url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">
-            <span class="badge">PDF</span><AppIcon name="external" />
+            <span class="font-extrabold">{{ play.title }}</span><span class="badge badge-muted">PDF</span><AppIcon name="external" />
           </a>
-          <h2 class="font-extrabold">{{ play.title }}</h2>
+          <h2 v-if="['image', 'video'].includes(playKind(play))" class="font-extrabold">{{ play.title }}</h2>
         </template>
         <p v-if="play.notes" class="whitespace-pre-line text-muted">{{ play.notes }}</p>
       </li>

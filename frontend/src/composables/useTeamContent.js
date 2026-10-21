@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { tryApiFetch } from '../lib/api'
 
 // Generic CRUD (list/create/update/delete) for one of a team's content
-// resources (links/videos/images/posts/plays) — the four resources differ only in
+// resources (links/videos/images/posts/plays) — the resources differ only in
 // field shape, not in how they're fetched.
 export function useTeamContent(resource) {
   const error = ref(null)

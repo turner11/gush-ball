@@ -54,7 +54,8 @@ describe('PlaybookView', () => {
     mockFetch()
     const wrapper = await mountView()
 
-    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['GIF', 'וידאו', 'מסמך'])
+    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['GIF', 'וידאו'])
+    expect(wrapper.find('a[href="https://cdn/c.pdf"]').text()).toContain('מסמך')
     expect(wrapper.findAll('li').map((a) => a.text())[3]).toContain('קישור')
     expect(wrapper.find('img[src="https://cdn/a.gif"]').attributes('alt')).toBe('GIF')
     expect(wrapper.find('video[src="https://cdn/b.mp4"]').exists()).toBe(true)
