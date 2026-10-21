@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
+import { clubAdmin, fullAdmin, useAuth } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -12,6 +13,7 @@ import { matchRank } from '../lib/search'
 import SearchInput from '../components/SearchInput.vue'
 import GameRow from '../components/GameRow.vue'
 import TeamCard from '../components/TeamCard.vue'
+import AppIcon from '../components/AppIcon.vue'
 
 // "This week at the club": the games of every team in this club from the last 7 to the next 7 days (#326).
 function day(offset) {
@@ -31,6 +33,12 @@ const leagues = ref([])
 const searchInput = ref(null)
 const club = ref(null) // null = not found (once loaded)
 
+const { user } = useAuth()
+const canEdit = computed(() => !!user.value && (fullAdmin.value || clubAdmin(club.value?.name)))
+const hasAbout = computed(() => {
+  const c = club.value
+  return !!c && !!(c.about_title || c.about || c.about_images.length || c.about_links.length)
+})
 const { sortTeams } = useFavorites()
 const clubTeams = computed(() => (club.value ? teams.value.filter((t) => t.club === club.value.name) : []))
 // The search lives in the URL so Back from a team page restores the filter.
@@ -125,7 +133,10 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           <h1 class="page-title">{{ club.name }}</h1>
           <p v-if="club.name_en" class="mt-1 text-lg font-semibold text-muted"><bdi lang="en">{{ club.name_en }}</bdi></p>
         </div>
-        <a v-if="club.ibasketball_url" :href="club.ibasketball_url" target="_blank" rel="noopener noreferrer" class="section-link">המועדון ב-ibasketball</a>
+        <div class="flex flex-wrap gap-x-4 gap-y-2">
+          <RouterLink v-if="canEdit" :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">עריכת עמוד המועדון</RouterLink>
+          <a v-if="club.ibasketball_url" :href="club.ibasketball_url" target="_blank" rel="noopener noreferrer" class="section-link">המועדון ב-ibasketball</a>
+        </div>
       </div>
       <div v-if="clubTeams.length > 1">
         <SearchInput id="club-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה או ליגה" class="w-full sm:w-80" />
@@ -152,6 +163,20 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           </ol>
         </div>
       </section>
+      <section v-if="hasAbout" class="space-y-3">
+        <h2 class="section-title">{{ club.about_title || 'על המועדון' }}</h2>
+        <div v-if="club.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ club.about }}</p></div>
+        <div v-if="club.about_links.length" class="flex flex-wrap gap-2">
+          <a v-for="l in club.about_links" :key="l.url" :href="l.url" target="_blank" rel="noopener" class="btn-secondary gap-2">{{ l.label }} <AppIcon name="external" /></a>
+        </div>
+        <div v-if="club.about_images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <figure v-for="img in club.about_images" :key="img.url" class="space-y-1">
+            <a :href="img.url" target="_blank" rel="noopener"><img :src="img.url" :alt="img.title || club.name" loading="lazy" class="aspect-square w-full rounded-xl object-cover" /></a>
+            <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>
+          </figure>
+        </div>
+      </section>
+      <p v-else-if="canEdit" class="empty-state">עוד אין תוכן על המועדון. <RouterLink :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">עריכת עמוד המועדון</RouterLink></p>
     </template>
   </section>
 </template>
