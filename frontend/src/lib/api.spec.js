@@ -66,6 +66,19 @@ describe('apiFetch', () => {
     expect(json).not.toHaveBeenCalled()
   })
 
+  it('throws an Error with "HTTP <status>" when statusText is empty and body has no detail (HTTP/2)', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 502,
+      statusText: '',
+      json: async () => { throw new SyntaxError('no body') },
+    })
+
+    const { apiFetch } = await import('./api.js')
+
+    await expect(apiFetch('/teams/1')).rejects.toThrow('HTTP 502')
+  })
+
   it('throws an Error using the response body detail when res.ok is false', async () => {
     global.fetch.mockResolvedValueOnce({
       ok: false,
