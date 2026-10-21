@@ -46,7 +46,7 @@ onMounted(async () => {
       :href="url"
       target="_blank"
       rel="noopener"
-      class="card flex gap-3 hover:border-ink/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+      class="card flex gap-3 transition hover:border-team"
     >
       <img v-if="data.thumbnail?.source" :src="data.thumbnail.source" alt="" loading="lazy" class="h-20 w-20 shrink-0 rounded-xl object-cover" />
       <div class="min-w-0 space-y-1" :lang="data.lang" :dir="data.dir">
