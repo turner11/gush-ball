@@ -3,10 +3,11 @@ from datetime import UTC, datetime
 import bbstats
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.models import Game, GameStatus, Opponent, Team
+from app.models import Game, GameScorer, GameStatus, Opponent, Player, Team
 
 
 def _make_team(db_session: Session, name: str = "Gush Ball A") -> Team:
@@ -598,3 +599,96 @@ def test_club_games_rejects_bad_range(client: TestClient, params: dict[str, str]
     assert response.status_code == 422
     assert params["from"] in response.json()["detail"]
     assert params["to"] in response.json()["detail"]
+
+
+def _make_player(db_session: Session, team: Team, name: str, jersey: int | None = None) -> Player:
+    player = Player(team=team, name=name, jersey_number=jersey)
+    db_session.add(player)
+    db_session.commit()
+    return player
+
+
+def test_put_scorers_replaces_list_and_get_game_returns_them_sorted(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    p1 = _make_player(db_session, team, "Alef", 7)
+    p2 = _make_player(db_session, team, "Bet", 9)
+    url = f"/teams/{team.id}/games/{game.id}"
+    assert admin_client.get(url).json()["scorers"] == []
+
+    put = admin_client.put(f"{url}/scorers", json=[{"player_id": p1.id, "points": 10}, {"player_id": p2.id, "points": 22}])
+
+    assert put.status_code == 200
+    expected = [
+        {"player_id": p2.id, "name": "Bet", "jersey_number": 9, "points": 22},
+        {"player_id": p1.id, "name": "Alef", "jersey_number": 7, "points": 10},
+    ]
+    assert put.json() == expected
+    assert admin_client.get(url).json()["scorers"] == expected
+
+    # re-saving the same player must not collide with the unique constraint
+    again = admin_client.put(f"{url}/scorers", json=[{"player_id": p1.id, "points": 5}])
+    assert again.status_code == 200
+    assert [(s["player_id"], s["points"]) for s in again.json()] == [(p1.id, 5)]
+
+
+def test_put_scorers_does_not_flag_manual_override(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    player = _make_player(db_session, team, "Alef")
+
+    admin_client.put(f"/teams/{team.id}/games/{game.id}/scorers", json=[{"player_id": player.id, "points": 2}])
+
+    db_session.refresh(game)
+    assert game.is_manually_overridden is False
+
+
+def test_put_scorers_rejects_player_from_another_team(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    stranger = _make_player(db_session, _make_team(db_session, "Other Team"), "Stranger")
+
+    response = admin_client.put(
+        f"/teams/{team.id}/games/{game.id}/scorers", json=[{"player_id": stranger.id, "points": 2}]
+    )
+
+    assert response.status_code == 422
+    assert str(stranger.id) in response.json()["detail"]
+
+
+def test_put_scorers_rejects_duplicate_player_and_negative_points(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    player = _make_player(db_session, team, "Alef")
+    url = f"/teams/{team.id}/games/{game.id}/scorers"
+
+    dup = admin_client.put(url, json=[{"player_id": player.id, "points": 2}, {"player_id": player.id, "points": 3}])
+    negative = admin_client.put(url, json=[{"player_id": player.id, "points": -1}])
+
+    assert dup.status_code == 422
+    assert negative.status_code == 422
+
+
+def test_put_scorers_scope(
+    client: TestClient, team_admin_client: TestClient, own_team: Team, other_team: Team, db_session: Session
+) -> None:
+    own_game = _make_game(db_session, own_team)
+    other_game = _make_game(db_session, other_team)
+    player = _make_player(db_session, own_team, "Alef")
+    body = [{"player_id": player.id, "points": 4}]
+
+    assert team_admin_client.put(f"/teams/{other_team.id}/games/{other_game.id}/scorers", json=[]).status_code == 403
+    assert team_admin_client.put(f"/teams/{own_team.id}/games/{own_game.id}/scorers", json=body).status_code == 200
+    client.post("/auth/logout")
+    assert client.put(f"/teams/{own_team.id}/games/{own_game.id}/scorers", json=body).status_code == 401
+
+
+def test_delete_game_deletes_its_scorers(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    player = _make_player(db_session, team, "Alef")
+    admin_client.put(f"/teams/{team.id}/games/{game.id}/scorers", json=[{"player_id": player.id, "points": 2}])
+
+    assert admin_client.delete(f"/teams/{team.id}/games/{game.id}").status_code == 204
+
+    assert db_session.scalars(select(GameScorer)).all() == []

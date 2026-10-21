@@ -52,6 +52,7 @@ describe('HomeView', () => {
       routes: [
         { path: '/', component: { template: '<div/>' } },
         { path: '/:slug/roster', component: { template: '<div/>' } },
+        { path: '/:slug/games/:id', component: { template: '<div/>' } },
         { path: '/:slug/media', component: { template: '<div/>' } },
       ],
     })
@@ -260,6 +261,13 @@ describe('HomeView', () => {
     const card = wrapper.find('div.card')
     expect(card.element.parentElement.className).not.toContain('sm:grid-cols-2')
     expect(card.text()).not.toContain(formatDateTime(scheduled_at))
+  })
+
+  it('links each game card to its game page', async () => {
+    const wrapper = await mountWithTeam(TEAM, {
+      games: [{ id: 7, opponent: { name: 'יריבה', source_url: null, logo_url: null }, scheduled_at: '2999-01-01T18:00:00', is_home: true, team_score: null, opponent_score: null }],
+    })
+    expect(wrapper.find('a[href$="/games/7"]').text()).toBe('פרטי המשחק')
   })
 
   it('shows the full date under a played game', async () => {

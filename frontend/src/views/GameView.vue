@@ -1,10 +1,12 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import GameLocationLinks from '../components/GameLocationLinks.vue'
+import GameScorersEditor from '../components/GameScorersEditor.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
+import { teamAdmin } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -18,7 +20,17 @@ const loading = ref(true)
 const error = ref('')
 
 const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.params.slug } }))
+const canEdit = computed(() => !!game.value && teamAdmin(game.value.team_id))
+const editingScorers = ref(false)
+const scorersToggle = ref(null)
 const address = computed(() => gameAddress(game.value, team.value))
+
+async function onScorersSaved(list) {
+  game.value.scorers = list
+  editingScorers.value = false
+  await nextTick()
+  scorersToggle.value?.focus()
+}
 
 // DefaultLayout resolves the slug to selectedTeamId; fetching before that would use a stale remembered team.
 watch(
@@ -91,6 +103,32 @@ watch(
         </template>
       </dl>
       <GameStatsLink :game="game" class="btn-secondary" />
+    </section>
+
+    <section v-if="game.scorers?.length || canEdit" class="card space-y-3">
+      <div class="section-header">
+        <h2 class="section-title">קלעים</h2>
+        <button
+          v-if="canEdit"
+          ref="scorersToggle"
+          type="button"
+          class="btn-secondary"
+          aria-controls="game-scorers-editor"
+          :aria-expanded="editingScorers"
+          @click="editingScorers = !editingScorers"
+        >
+          {{ editingScorers ? 'סגירה' : 'עריכת קלעים' }}
+        </button>
+      </div>
+      <GameScorersEditor v-if="editingScorers" id="game-scorers-editor" :team-id="game.team_id" :game-id="game.id" @saved="onScorersSaved" />
+      <ol v-else-if="game.scorers?.length" class="divide-y divide-line">
+        <li v-for="s in game.scorers" :key="s.player_id" class="flex min-h-11 items-center gap-3">
+          <span class="w-8 shrink-0 tabular-nums text-muted">{{ s.jersey_number != null ? `#${s.jersey_number}` : '' }}</span>
+          <RouterLink :to="{ name: 'player', params: { id: s.player_id } }" class="min-w-0 flex-1 break-words">{{ s.name }}</RouterLink>
+          <span class="text-lg font-black tabular-nums">{{ s.points }}</span>
+        </li>
+      </ol>
+      <p v-else class="empty-state">עדיין לא הוזנו קלעים.</p>
     </section>
 
     <section v-if="game.description" class="card space-y-2">

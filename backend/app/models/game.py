@@ -6,6 +6,7 @@ from sqlalchemy import JSON, Enum, ForeignKey, String, Text, UniqueConstraint, e
 from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from app.db import Base
+from app.models.game_scorer import GameScorer
 from app.models.lineup_snapshot import LineupSnapshot
 
 if TYPE_CHECKING:
@@ -59,6 +60,9 @@ class Game(Base):
     stats_url: Mapped[str | None] = mapped_column(String(500), default=None)
     # ORM cascade too: delete_game uses db.delete and SQLite tests don't enforce FKs.
     lineup_snapshots: Mapped[list["LineupSnapshot"]] = relationship(cascade="all, delete-orphan")
+    scorers: Mapped[list["GameScorer"]] = relationship(
+        cascade="all, delete-orphan", order_by="(GameScorer.points.desc(), GameScorer.id)"
+    )
 
     team: Mapped["Team"] = relationship(back_populates="games")
     opponent: Mapped["Opponent"] = relationship()
