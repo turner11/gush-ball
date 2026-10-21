@@ -8,6 +8,10 @@ updates:
     directory: /backend
     patterns: ["*"]
     multi-ecosystem-group: all-dependencies
+    ignore:
+      # OpenCV 5 drops cv2.CascadeClassifier, which scrape_games.py's face centring uses.
+      - dependency-name: opencv-python-headless
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /frontend
     patterns: ["*"]
