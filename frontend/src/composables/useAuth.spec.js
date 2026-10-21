@@ -135,4 +135,18 @@ describe('useAuth', () => {
       expect(safeNext(bad)).toBeNull()
     }
   })
+
+  it('teamMember: false when anonymous or the field is missing, true for null, matches string ids', async () => {
+    const { useAuth, teamMember } = await import('./useAuth.js')
+    const { user } = useAuth()
+
+    expect(teamMember('1')).toBe(false)
+    user.value = { username: 'a' }
+    expect(teamMember('1')).toBe(false)
+    user.value = { username: 'a', member_team_ids: [1, 3] }
+    expect(teamMember('1')).toBe(true)
+    expect(teamMember('2')).toBe(false)
+    user.value = { username: 'a', member_team_ids: null }
+    expect(teamMember('2')).toBe(true)
+  })
 })

@@ -417,6 +417,27 @@ describe('DefaultLayout', () => {
     expect(body.find('[role=menuitem][href="/team_a/admin"]').text()).toBe('ניהול')
   })
 
+  it.each([
+    ['a member of the team', [1], true],
+    ['a member of another team', [2], false],
+    ['anonymous', undefined, false],
+  ])('playbook link in nav and tab bar for %s: shown=%s', async (_n, ids, shown) => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/auth/me': () => (ids ? jsonRes({ username: 'p', member_team_ids: ids }) : unauthorized),
+    })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
+    await flushPromises()
+
+    for (const id of ['top-nav', 'tab-bar']) {
+      const hrefs = wrapper.find(`[data-testid="${id}"]`).findAll('a').map((a) => a.attributes('href'))
+      expect(hrefs.includes('/team_a/playbook')).toBe(shown)
+    }
+  })
+
   it('"בית" is a menu button, never inline links; its menu links team home and the IBBA page', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
