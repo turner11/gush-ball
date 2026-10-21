@@ -1,4 +1,4 @@
-from sqlalchemy import String, select
+from sqlalchemy import JSON, String, Text, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.db import Base
@@ -14,6 +14,14 @@ class Club(Base):
     name: Mapped[str] = mapped_column(String(120), unique=True)
     name_en: Mapped[str | None] = mapped_column(String(120), default=None)
     ibasketball_url: Mapped[str | None] = mapped_column(String(500), unique=True, default=None)
+    # shown on the club page (#451); edited as one form, so the lists are whole-list JSON
+    # ponytail: whole-list JSON, saved as one form; move to club_links/club_images tables if items ever need ids or tagging
+    about_title: Mapped[str | None] = mapped_column(String(200), default=None)
+    about_title_en: Mapped[str | None] = mapped_column(String(200), default=None)
+    about: Mapped[str | None] = mapped_column(Text, default=None)
+    about_en: Mapped[str | None] = mapped_column(Text, default=None)
+    about_images: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    about_links: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
 
 
 def get_or_create_club(db: Session, name: str) -> Club:

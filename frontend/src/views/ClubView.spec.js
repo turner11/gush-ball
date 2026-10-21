@@ -4,9 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 
 const NOW = new Date(2026, 2, 12, 12, 0)
+const NO_ABOUT = { about_title: null, about_title_en: null, about: null, about_en: null, about_images: [], about_links: [] }
 const CLUBS = [
-  { id: 5, name: 'מכבי', name_en: 'Maccabi', ibasketball_url: 'https://ibasketball.co.il/club/5/' },
-  { id: 6, name: 'הפועל', name_en: null, ibasketball_url: null },
+  {
+    id: 5, name: 'מכבי', name_en: 'Maccabi', ibasketball_url: 'https://ibasketball.co.il/club/5/', ...NO_ABOUT,
+    about_title: 'הסיפור שלנו',
+    about: 'מועדון קהילתי\nמאז 1990',
+    about_images: [{ url: 'https://cdn.example.com/a.jpg', title: 'האולם', title_en: null }],
+    about_links: [{ label: 'האתר שלנו', label_en: null, url: 'https://club.example.com/' }],
+  },
+  { id: 6, name: 'הפועל', name_en: null, ibasketball_url: null, ...NO_ABOUT },
 ]
 const TEAMS = [
   { id: 1, name: 'קבוצה א', name_en: 'Team A', club: 'מכבי' },
@@ -144,6 +151,38 @@ describe('ClubView', () => {
     expect(ld['@type']).toBe('SportsOrganization')
     expect(ld.sameAs).toEqual(['https://ibasketball.co.il/club/5/'])
     expect(ld.member.map((m) => m.url)).toEqual([`${location.origin}/team_a`, `${location.origin}/team_b`])
+  })
+
+  it('renders the about block: title, text, link chips and images', async () => {
+    mockFetch(GAMES)
+    const w = await mountIt()
+    expect(w.findAll('h2').map((h) => h.text())).toContain('הסיפור שלנו')
+    expect(w.text()).toContain('מועדון קהילתי')
+    const link = w.get('a[href="https://club.example.com/"]')
+    expect(link.attributes('target')).toBe('_blank')
+    expect(w.get('img[alt="האולם"]').attributes('src')).toBe('https://cdn.example.com/a.jpg')
+  })
+
+  it('hides the about block when the club has no about content', async () => {
+    mockFetch(GAMES)
+    const w = await mountIt('/clubs/6')
+    expect(w.text()).not.toContain('על המועדון')
+  })
+
+  it('shows the edit link to a club admin and full admin, never to anonymous', async () => {
+    const { useAuth } = await import('../composables/useAuth')
+    const editTo = (w) => w.findAllComponents(RouterLinkStub).some((l) => l.props('to')?.name === 'admin-club-edit')
+    for (const [user, shown] of [
+      [{ team_ids: [1], clubs: ['מכבי'] }, true],
+      [{ team_ids: [1], clubs: ['אחר'] }, false],
+      [{ team_ids: null }, true],
+      [null, false],
+    ]) {
+      useAuth().user.value = user
+      mockFetch(GAMES)
+      expect(editTo(await mountIt()), JSON.stringify(user)).toBe(shown)
+    }
+    useAuth().user.value = null
   })
 
   it('shows the empty state for an empty week', async () => {

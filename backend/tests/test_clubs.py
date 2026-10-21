@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.models import Club, Membership, Team
 
 URL = "https://ibasketball.co.il/club/3901-2/"
+NO_ABOUT = {"about_title": None, "about_title_en": None, "about": None, "about_en": None, "about_images": [], "about_links": []}
 
 
 def test_club_fks_cascade_on_rename() -> None:
@@ -23,7 +24,7 @@ def test_full_admin_lists_and_edits_club(admin_client: TestClient, db_session: S
     response = admin_client.patch(f"/clubs/{club.id}", json={"name": "Gush Etzion", "name_en": None, "ibasketball_url": URL})
 
     assert response.status_code == 200
-    assert response.json() == {"id": club.id, "name": "Gush Etzion", "name_en": None, "ibasketball_url": URL}
+    assert response.json() == {"id": club.id, "name": "Gush Etzion", "name_en": None, "ibasketball_url": URL, **NO_ABOUT}
     assert admin_client.get("/clubs").json() == [response.json()]
 
 
@@ -35,7 +36,7 @@ def test_club_patch_null_clears_only_that_field(admin_client: TestClient, db_ses
     response = admin_client.patch(f"/clubs/{club.id}", json={"ibasketball_url": None})
 
     assert response.status_code == 200
-    assert response.json() == {"id": club.id, "name": "Gush", "name_en": "Gush", "ibasketball_url": None}
+    assert response.json() == {"id": club.id, "name": "Gush", "name_en": "Gush", "ibasketball_url": None, **NO_ABOUT}
 
 
 @pytest.mark.parametrize(
@@ -79,3 +80,73 @@ def test_clubs_list_is_public(client: TestClient) -> None:
 
 def test_club_patch_is_full_admin_only(club_admin_client: TestClient) -> None:
     assert club_admin_client.patch("/clubs/1", json={"name": "X"}).status_code == 403
+
+
+def _club(db_session: Session, name: str = "Gush") -> Club:
+    club = Club(name=name)
+    db_session.add(club)
+    db_session.commit()
+    return club
+
+
+def test_club_about_round_trips_and_clears(admin_client: TestClient, db_session: Session) -> None:
+    club = _club(db_session)
+    body = {
+        "about_title": "עלינו",
+        "about": "שורה א\nשורה ב",
+        "about_images": [{"url": "https://cdn.example.com/a.jpg", "title": "תמונה"}],
+        "about_links": [
+            {"label": "אתר", "url": "https://example.com/"},
+            {"label": "פייסבוק", "url": "https://facebook.com/gush"},
+        ],
+    }
+
+    assert admin_client.put(f"/clubs/{club.id}/about", json=body).status_code == 200
+
+    (got,) = admin_client.get("/clubs").json()
+    assert got["about_title"] == "עלינו"
+    assert got["about"] == "שורה א\nשורה ב"
+    assert got["about_images"] == [{"url": "https://cdn.example.com/a.jpg", "title": "תמונה", "title_en": None}]
+    assert [link["label"] for link in got["about_links"]] == ["אתר", "פייסבוק"]
+    assert got["about_links"][0]["label_en"] is None
+
+    cleared = admin_client.put(f"/clubs/{club.id}/about", json={})
+    assert cleared.status_code == 200
+    assert {k: cleared.json()[k] for k in NO_ABOUT} == NO_ABOUT
+
+
+def test_club_admin_edits_only_own_club_about(club_admin_client: TestClient, db_session: Session) -> None:
+    mine = _club(db_session, "Gush")
+    other = _club(db_session, "Other")
+
+    assert club_admin_client.put(f"/clubs/{mine.id}/about", json={"about": "x"}).status_code == 200
+    assert club_admin_client.put(f"/clubs/{other.id}/about", json={"about": "x"}).status_code == 403
+
+
+def test_club_about_forbidden_for_team_admin_and_anonymous(
+    team_admin_client: TestClient, db_session: Session, sibling_team: Team
+) -> None:
+    club = _club(db_session)
+
+    assert team_admin_client.put(f"/clubs/{club.id}/about", json={}).status_code == 403
+    team_admin_client.cookies.clear()
+    assert team_admin_client.put(f"/clubs/{club.id}/about", json={}).status_code == 401
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"about_links": [{"label": "x", "url": "https://example.com/"}] * 21},
+        {"about_links": [{"label": "x", "url": "javascript:alert(1)"}]},
+        {"about_links": [{"label": "  ", "url": "https://example.com/"}]},
+        {"about": "x" * 5001},
+    ],
+)
+def test_club_about_rejects_bad_input(admin_client: TestClient, db_session: Session, body: dict) -> None:
+    club = _club(db_session)
+
+    assert admin_client.put(f"/clubs/{club.id}/about", json=body).status_code == 422
+
+
+def test_put_about_unknown_club_is_404(admin_client: TestClient) -> None:
+    assert admin_client.put("/clubs/999/about", json={}).status_code == 404

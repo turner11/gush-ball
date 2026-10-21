@@ -17,7 +17,7 @@ from app.deps import (
     RequireAnyAdmin,
     RequireUser,
     admin_clubs,
-    can_approve_team_request,
+    can_admin_club,
     is_admin,
 )
 from app.models import AdminUser, League, Membership, Team, TeamRequest
@@ -121,7 +121,7 @@ def request_team(
     if not user.is_full_admin and len(pending.all()) >= MAX_PENDING:  # before the fetch: the cap is what bounds it
         raise HTTPException(status.HTTP_409_CONFLICT, TOO_MANY)
     club = scrape_games.team_page_club(db, entry["ibasketball_team_url"])
-    auto = can_approve_team_request(db, user, club)
+    auto = can_admin_club(db, user, club)
     logo = entry["logo_url"]
     row = TeamRequest(
         user_id=user.id,
@@ -170,7 +170,7 @@ def _pending_in_scope(db: DbSession, admin: AdminUser, request_id: int) -> TeamR
     row = db.get(TeamRequest, request_id)
     if row is None or row.status != "pending":
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Team request {request_id} not found")
-    if not can_approve_team_request(db, admin, row.club):
+    if not can_admin_club(db, admin, row.club):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed for this team request")
     return row
 
