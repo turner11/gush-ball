@@ -26,12 +26,12 @@ const form = ref(emptyForm())
 const pendingDelete = ref(null)
 const confirmingAll = ref(false)
 
-// Past practices are clutter in the admin list.
 // Backend rejects a series longer than 366 days from the first practice.
 const repeatMax = computed(() => {
   const start = form.value.starts_at.slice(0, 10)
   return start ? new Date(Date.parse(start) + 366 * 864e5).toISOString().slice(0, 10) : undefined
 })
+// Past practices are clutter in the admin list.
 const upcoming = computed(() => practices.value.filter((p) => new Date(p.starts_at) >= new Date()))
 
 async function load() {
