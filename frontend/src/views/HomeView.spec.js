@@ -382,9 +382,16 @@ describe('HomeView', () => {
     expect(wrapper.text()).not.toContain('פוסט 2')
   })
 
+  it('shows the about section when the team has about text', async () => {
+    const wrapper = await mountWithTeam({ ...TEAM, about: 'קבוצה ותיקה' })
+
+    expect(wrapper.text()).toContain('על הקבוצה')
+    expect(wrapper.text()).toContain('קבוצה ותיקה')
+  })
+
   it('orders sections: games, post, players, videos', async () => {
     const opp = { name: 'יריבה', source_url: null, logo_url: null }
-    const wrapper = await mountWithTeam(TEAM, {
+    const wrapper = await mountWithTeam({ ...TEAM, about: 'x' }, {
       games: [
         { id: 1, opponent: opp, scheduled_at: '2999-01-01T18:00:00', is_home: false, team_score: null, opponent_score: null },
         { id: 2, opponent: opp, scheduled_at: '2000-01-01T18:00:00', is_home: false, team_score: 1, opponent_score: 2 },
@@ -395,7 +402,7 @@ describe('HomeView', () => {
     })
 
     const titles = wrapper.findAll('h2').map((h) => h.text())
-    expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'עדכונים', 'שחקנים', 'סרטונים'])
+    expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'עדכונים', 'שחקנים', 'סרטונים', 'על הקבוצה'])
   })
 
   it('shows only the 2 newest videos', async () => {
@@ -422,7 +429,7 @@ describe('HomeView', () => {
   it('hides sections with no content', async () => {
     const wrapper = await mountWithTeam(TEAM)
 
-    for (const title of ['קישורים', 'סרטונים', 'תמונות', 'עדכונים', 'שחקנים']) {
+    for (const title of ['קישורים', 'סרטונים', 'תמונות', 'עדכונים', 'שחקנים', 'על הקבוצה']) {
       expect(wrapper.text()).not.toContain(title)
     }
     expect(wrapper.find('.empty-state').exists()).toBe(false)

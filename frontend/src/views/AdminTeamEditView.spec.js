@@ -20,6 +20,8 @@ const TEAM = {
   ibasketball_team_url: null,
   ibasketball_league_url: 'https://ibasketball.co.il/league/1',
   club: null,
+  about: 'טקסט',
+  about_en: null,
 }
 
 function mockFetch(handlers) {
@@ -73,6 +75,25 @@ describe('AdminTeamEditView', () => {
       expect(wrapper.find(`#team-${key}`).element.value, key).toBe(TEAM[key] ?? '')
     }
     expect(wrapper.find('#team-primary-color').element.value).toBe('#ff0000')
+    expect(wrapper.find('#team-about').element.tagName).toBe('TEXTAREA')
+  })
+
+  it('saves about, sending null when cleared', async () => {
+    let patchBody
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'PATCH /api/teams/1': (options) => {
+        patchBody = JSON.parse(options.body)
+        return jsonRes({ ...TEAM, ...patchBody })
+      },
+      ...CONTENT_HANDLERS,
+    })
+    const wrapper = await mountView()
+
+    await wrapper.find('#team-about').setValue('')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patchBody.about).toBeNull()
   })
 
   it('offers the scraper-suggested league URL and fills the field on "use it"', async () => {

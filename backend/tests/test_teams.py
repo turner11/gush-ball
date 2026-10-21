@@ -69,6 +69,21 @@ def test_create_team_rejects_oversized_field(admin_client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_about_round_trips_and_clears(admin_client: TestClient) -> None:
+    created = _create_team(admin_client, "Team A", about="שורה 1\nשורה 2", about_en="Line")
+    got = admin_client.get(f"/teams/{created['id']}").json()
+    assert (got["about"], got["about_en"]) == ("שורה 1\nשורה 2", "Line")
+    admin_client.patch(f"/teams/{created['id']}", json={"about": None})
+    got = admin_client.get(f"/teams/{created['id']}").json()
+    assert got["about"] is None
+    assert got["about_en"] == "Line"
+
+
+def test_about_rejects_oversized(admin_client: TestClient) -> None:
+    response = admin_client.post("/teams", json={"name": "Team B", "about": "x" * 5001})
+    assert response.status_code == 422
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [

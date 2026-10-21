@@ -27,6 +27,13 @@ const GROUPS = [
       { key: 'home_court_address', label: 'כתובת אולם הבית', type: 'text' },
     ],
   },
+  {
+    legend: 'על הקבוצה',
+    fields: [
+      { key: 'about', label: 'על הקבוצה', type: 'textarea', hint: 'מוצג בעמוד הבית של הקבוצה. השאירו ריק כדי להסתיר.' },
+      { key: 'about_en', label: 'על הקבוצה (אנגלית)', type: 'textarea' },
+    ],
+  },
   { legend: 'מיתוג', fields: [{ key: 'logo_url', label: 'כתובת לוגו', type: 'url' }] },
   {
     legend: 'רשתות חברתיות',
@@ -79,6 +86,8 @@ async function onSubmit() {
     const payload = {
       ...Object.fromEntries(Object.entries(form).filter(([, value]) => value !== '')),
       club: form.club || null, // null lets a full admin take a team out of its club
+      about: form.about || null, // null clears it; '' would be dropped by the filter above
+      about_en: form.about_en || null,
     }
     const updated = await update(teamId, payload)
     if (updated && !error.value) {
@@ -224,9 +233,19 @@ const contentSections = [
                 <p v-else class="error-text" role="alert">לא ניתן לטעון את התמונה</p>
               </div>
             </template>
-            <div v-for="field in group.fields" :key="field.key">
+            <div v-for="field in group.fields" :key="field.key" :class="{ 'sm:col-span-2': field.type === 'textarea' }">
               <label :for="`team-${field.key}`" class="field-label">{{ field.label }}</label>
+              <textarea
+                v-if="field.type === 'textarea'"
+                :id="`team-${field.key}`"
+                v-model="form[field.key]"
+                rows="6"
+                maxlength="5000"
+                :aria-describedby="field.hint ? `team-${field.key}-hint` : undefined"
+                class="field-input"
+              />
               <input
+                v-else
                 :id="`team-${field.key}`"
                 v-model="form[field.key]"
                 :type="field.type"

@@ -33,6 +33,9 @@ class Team(Base):
     # A Club by its unique name; groups teams and keys club-admin scope. A rename cascades.
     club: Mapped[str | None] = mapped_column(String(120), ForeignKey("clubs.name", onupdate="CASCADE"), default=None)
     home_court_address: Mapped[str | None] = mapped_column(String(300), default=None)
+    # plain text, shown on the team home when non-empty (#444)
+    about: Mapped[str | None] = mapped_column(Text, default=None)
+    about_en: Mapped[str | None] = mapped_column(Text, default=None)
 
     facebook_url: Mapped[str | None] = mapped_column(String(500), default=None)
     instagram_url: Mapped[str | None] = mapped_column(String(500), default=None)
