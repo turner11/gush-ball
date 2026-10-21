@@ -389,7 +389,7 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('קבוצה ותיקה')
   })
 
-  it('orders sections: games, post, players, videos', async () => {
+  it('orders sections: games, about, post, players, videos', async () => {
     const opp = { name: 'יריבה', source_url: null, logo_url: null }
     const wrapper = await mountWithTeam({ ...TEAM, about: 'x' }, {
       games: [
@@ -402,7 +402,7 @@ describe('HomeView', () => {
     })
 
     const titles = wrapper.findAll('h2').map((h) => h.text())
-    expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'עדכונים', 'שחקנים', 'סרטונים', 'על הקבוצה'])
+    expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'על הקבוצה', 'עדכונים', 'שחקנים', 'סרטונים'])
   })
 
   it('shows only the 2 newest videos', async () => {
