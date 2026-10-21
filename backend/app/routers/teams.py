@@ -32,6 +32,7 @@ HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 Name = Annotated[str, StringConstraints(max_length=120)]
 ClubName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Address = Annotated[str, StringConstraints(max_length=300)]
+About = Annotated[str, StringConstraints(strip_whitespace=True, max_length=5000)]
 Url500 = Annotated[HttpUrl, UrlConstraints(max_length=500)]
 # a bundled preset key in frontend/public/backgrounds, or an image URL (upload or external)
 Background = Literal["hoop-1", "hoop-2"] | Url500
@@ -69,6 +70,8 @@ class TeamUpdate(BaseModel):
     logo_url: Url500 | None = None
     background: Background | None = None
     home_court_address: Address | None = None
+    about: About | None = None
+    about_en: About | None = None
     facebook_url: Url500 | None = None
     instagram_url: Url500 | None = None
     youtube_url: Url500 | None = None
@@ -96,6 +99,8 @@ class TeamOut(BaseModel):
     logo_url: str | None
     background: str
     home_court_address: str | None
+    about: str | None
+    about_en: str | None
     facebook_url: str | None
     instagram_url: str | None
     youtube_url: str | None
