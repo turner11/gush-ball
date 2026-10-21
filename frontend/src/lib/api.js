@@ -12,7 +12,7 @@ export async function apiFetch(path, options = {}) {
   })
 
   if (!res.ok) {
-    let detail = res.statusText
+    let detail = res.statusText || `HTTP ${res.status}`
     try {
       const data = await res.json()
       if (data?.detail) detail = data.detail
