@@ -17,6 +17,7 @@ const TYPE_LABELS = {
   image: 'תמונה',
   post: 'פוסט',
   play: 'מהלך',
+  practice: 'אימון',
   standing: 'טבלה',
   team: 'קבוצה',
   membership: 'חברות',

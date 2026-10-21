@@ -1,11 +1,11 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Response
 from sqlalchemy import select
 
 from app.deps import DbSession, get_team_or_404
-from app.models import Game, GameStatus, Team
+from app.models import Game, GameStatus, Practice, Team
 
 router = APIRouter(tags=["calendar"])
 
@@ -66,8 +66,27 @@ def _event_lines(team: Team, game: Game, stamp: str) -> list[str]:
     return lines
 
 
+def _practice_lines(team: Team, practice: Practice, stamp: str) -> list[str]:
+    lines = [
+        "BEGIN:VEVENT",
+        f"UID:practice-{practice.id}@gush-ball",
+        f"DTSTAMP:{stamp}",
+        f"DTSTART:{_utc(practice.starts_at)}",
+        f"DTEND:{_utc(practice.starts_at + timedelta(minutes=practice.duration_minutes))}",
+        f"SUMMARY:{_text(f'אימון {team.name}')}",
+    ]
+    if practice.location:
+        lines.append(f"LOCATION:{_text(practice.location)}")
+    if practice.notes:
+        lines.append("DESCRIPTION:" + _text(practice.notes))
+    if practice.cancelled:
+        lines.append("STATUS:CANCELLED")
+    lines.append("END:VEVENT")
+    return lines
+
+
 @router.get("/teams/{team_id}/calendar.ics")
-def team_calendar(team_id: int, db: DbSession) -> Response:
+def team_calendar(team_id: int, db: DbSession, practices: bool = False) -> Response:
     team = get_team_or_404(db, team_id)
     games = db.scalars(
         select(Game).where(Game.team_id == team_id, Game.needs_review.is_(False)).order_by(Game.scheduled_at)
@@ -83,6 +102,9 @@ def team_calendar(team_id: int, db: DbSession) -> Response:
     ]
     for game in games:
         lines += _event_lines(team, game, stamp)
+    if practices:  # opt-in: the member link adds them; the default feed never does
+        for practice in db.scalars(select(Practice).where(Practice.team_id == team_id).order_by(Practice.starts_at)):
+            lines += _practice_lines(team, practice, stamp)
     lines.append("END:VCALENDAR")
     body = "".join(_fold(line) + "\r\n" for line in lines)
     return Response(body, media_type="text/calendar")

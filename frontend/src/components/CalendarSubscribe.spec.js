@@ -16,6 +16,12 @@ describe('CalendarSubscribe', () => {
     expect(link.text()).toContain('הוסף ליומן')
   })
 
+  it('adds ?practices=1 and the Google refresh note when practices', () => {
+    const wrapper = mount(CalendarSubscribe, { props: { teamId: 7, practices: true } })
+    expect(wrapper.get('a').attributes('href')).toBe(feedUrl.replace(/^https?:/, 'webcal:') + '?practices=1')
+    expect(wrapper.text()).toContain('יומן Google מרענן')
+  })
+
   it('copies the http feed URL and confirms', async () => {
     const writeText = vi.fn().mockResolvedValue()
     stubClipboard(writeText)

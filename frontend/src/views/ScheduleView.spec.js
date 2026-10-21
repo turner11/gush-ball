@@ -86,6 +86,60 @@ describe('ScheduleView', () => {
     expect(text).not.toContain('2030-05-01T18:00:00')
   })
 
+  describe('practices', () => {
+    const soon = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 19)
+    const later = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 19)
+    const practice = (id, starts_at) => ({ id, starts_at, duration_minutes: 90, location: 'אולם הבית', notes: null, cancelled: false })
+    const base = {
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+      'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME]),
+    }
+    const calendarHref = (wrapper) => wrapper.findAll('a').find((a) => a.attributes('href').includes('calendar.ics')).attributes('href')
+
+    it('fetches and shows upcoming practices for a team member', async () => {
+      mockFetch({
+        ...base,
+        'GET /api/auth/me': () => jsonRes({ username: 'p', member_team_ids: [1] }),
+        'GET /api/teams/1/practices': () => jsonRes([practice(1, soon), practice(2, later)]),
+      })
+
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('אימונים קרובים')
+      expect(wrapper.findAll('li .badge-muted').filter((b) => b.text() === 'אימון')).toHaveLength(1)
+      expect(wrapper.text()).toContain('אולם הבית')
+    })
+
+    it('never requests practices for an anonymous visitor', async () => {
+      mockFetch({ ...base, 'GET /api/auth/me': () => ({ ok: false, status: 401, statusText: 'x', json: async () => ({}) }) })
+
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(global.fetch.mock.calls.some(([url]) => url.includes('/practices'))).toBe(false)
+      expect(calendarHref(wrapper)).not.toContain('practices=1')
+      expect(wrapper.text()).not.toContain('אימונים קרובים')
+    })
+
+    it('gives members the practices feed link', async () => {
+      mockFetch({
+        ...base,
+        'GET /api/auth/me': () => jsonRes({ username: 'p', member_team_ids: [1] }),
+        'GET /api/teams/1/practices': () => jsonRes([]),
+      })
+
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(calendarHref(wrapper)).toMatch(/^webcal:.*calendar\.ics\?practices=1$/)
+      expect(wrapper.text()).toContain('אין אימונים בשבועיים הקרובים')
+    })
+  })
+
   it('shows scores home side first, matching the home page', async () => {
     mockFetch({
       'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),

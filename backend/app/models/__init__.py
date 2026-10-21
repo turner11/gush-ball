@@ -8,6 +8,7 @@ from app.models.lineup_snapshot import LineupSnapshot
 from app.models.membership import Membership
 from app.models.opponent import Opponent, get_or_create_opponent
 from app.models.player import Player, PlayerImage, PlayerVideo
+from app.models.practice import Practice
 from app.models.standing_row import StandingRow
 from app.models.team import Team
 from app.models.team_request import TeamRequest
@@ -27,6 +28,7 @@ __all__ = [
     "Player",
     "PlayerImage",
     "PlayerVideo",
+    "Practice",
     "StandingRow",
     "Team",
     "TeamImage",

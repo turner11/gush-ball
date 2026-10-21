@@ -25,6 +25,7 @@ function body() {
 }
 
 function mockFetch(handlers) {
+  handlers = { 'GET /api/teams/1/practices': () => jsonRes([]), ...handlers } // PracticesAdmin loads on mount
   global.fetch = vi.fn((url, options = {}) => {
     const method = options.method || 'GET'
     const key = `${method} ${url}`
@@ -85,6 +86,21 @@ describe('AdminGamesView', () => {
     expect(wrapper.text()).toContain('מכבי')
     expect(wrapper.text()).toContain(formatGameDate('2026-10-01T18:00:00').time)
     expect(wrapper.text()).toContain('מתוכנן')
+  })
+
+  it('links to the practices section', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/games': () => jsonRes(GAMES),
+      'GET /api/teams/1/games/pending-review': () => jsonRes([]),
+    })
+
+    const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+    const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.get('a[href="#practices"]').text()).toBe('אימונים')
+    expect(wrapper.find('section#practices').exists()).toBe(true)
   })
 
   it('search filters games by opponent name and leaves pending games visible', async () => {

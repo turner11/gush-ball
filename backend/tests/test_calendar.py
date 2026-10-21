@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models import Game, GameStatus, Opponent, Team
+from app.models import Game, GameStatus, Opponent, Practice, Team
 
 
 def _game(db: Session, team: Team, opp: str, at: datetime, **kw: object) -> Game:
@@ -107,3 +107,40 @@ def test_calendar_postponed_game_summary_is_prefixed(client: TestClient, db_sess
     game.status = GameStatus.POSTPONED
     db_session.commit()
     assert "SUMMARY:נדחה: " in _feed(client, own_team).replace("\r\n ", "")
+
+
+def _practice(db: Session, team: Team, **kw: object) -> Practice:
+    practice = Practice(team_id=team.id, starts_at=datetime(2026, 1, 15, 18, 0), **kw)
+    db.add(practice)
+    db.commit()
+    return practice
+
+
+def test_calendar_default_feed_excludes_practices(client: TestClient, db_session: Session, own_team: Team) -> None:
+    _game(db_session, own_team, "Alpha", datetime(2026, 1, 1, 18, 0))
+    _practice(db_session, own_team)
+
+    body = _feed(client, own_team)
+
+    assert body.count("BEGIN:VEVENT") == 1
+    assert "practice-" not in body
+
+
+def test_calendar_practices_feed_includes_practices(client: TestClient, db_session: Session, own_team: Team) -> None:
+    _game(db_session, own_team, "Alpha", datetime(2026, 1, 1, 18, 0))
+    practice = _practice(db_session, own_team, location="Gym")
+
+    body = client.get(f"/teams/{own_team.id}/calendar.ics?practices=1").text
+
+    assert body.count("BEGIN:VEVENT") == 2
+    assert f"UID:practice-{practice.id}@gush-ball" in body
+    assert "DTSTART:20260115T160000Z" in body
+    assert "DTEND:20260115T173000Z" in body
+    assert "LOCATION:Gym" in body
+    assert "אימון" in body
+
+
+def test_calendar_cancelled_practice_has_status_cancelled(client: TestClient, db_session: Session, own_team: Team) -> None:
+    _practice(db_session, own_team, cancelled=True)
+
+    assert "STATUS:CANCELLED" in client.get(f"/teams/{own_team.id}/calendar.ics?practices=1").text
