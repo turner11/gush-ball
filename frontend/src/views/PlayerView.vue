@@ -52,7 +52,7 @@ const images = computed(() => [
   ...taggedImages.value.map((i) => ({ key: `t${i.id}`, url: i.url, alt: i.title })),
 ])
 
-// API order, the same unsorted order RosterView renders: deliberately not re-sorted.
+// API roster order (number, then name), the same order RosterView renders: deliberately not re-sorted.
 const teammates = ref([])
 const neighbours = computed(() => {
   const i = teammates.value.findIndex((t) => t.id === player.value?.id)

@@ -604,3 +604,18 @@ def test_admin_sets_and_clears_birth_date(admin_client: TestClient, db_session: 
     assert admin_client.patch(url, json={"birth_date": "2008-03-12"}).json()["birth_date"] == "2008-03-12"
     assert admin_client.patch(url, json={"birth_date": None}).json()["birth_date"] is None
     assert admin_client.patch(url, json={"birth_date": "2999-01-01"}).status_code == 422
+
+
+def test_list_players_sorted_by_number_then_name(client: TestClient, db_session: Session, team: Team) -> None:
+    for name, number in [("b", 7), ("Zed", None), ("x", 3), ("A", 7), ("alpha", None)]:
+        _player(db_session, team, name, number=number)
+    names = [p["name"] for p in client.get(f"/teams/{team.id}/players").json()]
+    assert names == ["x", "A", "b", "alpha", "Zed"]
+
+
+def test_list_deleted_players_sorted_by_number_then_name(admin_client: TestClient, team: Team) -> None:
+    for name, number in [("b", None), ("a", 4)]:
+        player = admin_client.post(f"/teams/{team.id}/players", json={"name": name, "jersey_number": number}).json()
+        admin_client.delete(f"/teams/{team.id}/players/{player['id']}")
+    names = [p["name"] for p in admin_client.get(f"/teams/{team.id}/players/deleted").json()]
+    assert names == ["a", "b"]

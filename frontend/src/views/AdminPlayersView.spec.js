@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const TEAMS = [{ id: 1, name: 'קבוצה א' }]
-const PLAYERS = [{ id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 7, images: [], videos: [] }]
+let PLAYERS
 
 function mockFetch(handlers) {
   global.fetch = vi.fn((url, options = {}) => {
@@ -33,6 +33,8 @@ describe('AdminPlayersView', () => {
   let router
 
   beforeEach(() => {
+    // fresh per test: handlers push/edit the returned array in place
+    PLAYERS = [{ id: 10, team_id: 1, name: 'יוסי', name_en: null, jersey_number: 7, images: [], videos: [] }]
     vi.resetModules()
     localStorage.clear()
     localStorage.setItem('gush-ball:selected-team-id', '1')
@@ -133,6 +135,25 @@ describe('AdminPlayersView', () => {
 
     expect(wrapper.text()).toContain('עמית')
     expect(wrapper.text()).not.toContain('יוסי')
+  })
+
+  it('a newly added player is placed by jersey number, not appended', async () => {
+    const created = { id: 20, team_id: 1, name: 'דני', name_en: null, jersey_number: 3, images: [], videos: [] }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'POST /api/teams/1/players': () => jsonRes(created, 201),
+    })
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.find('#player-name').setValue('דני')
+    await wrapper.find('#player-jersey-number').setValue('3')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const names = wrapper.findAll('tbody tr').map((r) => r.find('td[data-label="שם"]').text())
+    expect(names).toEqual(['דני', 'יוסי'])
   })
 
   it('submitting the add-player form POSTs and the new player appears in the list', async () => {

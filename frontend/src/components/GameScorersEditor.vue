@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { apiFetch } from '../lib/api'
+import { byRosterOrder } from '../lib/players'
 
 const props = defineProps({ teamId: { type: [Number, String], required: true }, gameId: { type: Number, required: true } })
 const emit = defineEmits(['saved'])
@@ -32,7 +33,7 @@ onMounted(async () => {
       .filter((s) => !roster.some((p) => p.id === s.player_id))
       .map((s) => ({ id: s.player_id, name: s.name, jersey_number: s.jersey_number }))
     rows.value = [...roster, ...missing]
-      .sort((a, b) => (a.jersey_number ?? Infinity) - (b.jersey_number ?? Infinity))
+      .sort(byRosterOrder)
       .map((p) => ({ ...p, points: points.get(p.id) ?? '' }))
     teamScore.value = game.team_score
   } catch {
