@@ -25,7 +25,12 @@ function body() {
 }
 
 function mockFetch(handlers) {
-  handlers = { 'GET /api/teams/1/practices': () => jsonRes([]), ...handlers } // PracticesAdmin loads on mount
+  handlers = {
+    'GET /api/teams/1/practices': () => jsonRes([]), // PracticesAdmin loads on mount
+    'GET /api/teams/1/players': () => jsonRes([{ id: 1, name: 'שחקן', jersey_number: 1 }]), // GameScorersEditor loads when a game is edited
+    'GET /api/teams/1/games/100': () => jsonRes({ ...GAMES[0], scorers: [] }),
+    ...handlers,
+  }
   global.fetch = vi.fn((url, options = {}) => {
     const method = options.method || 'GET'
     const key = `${method} ${url}`
@@ -62,6 +67,7 @@ describe('AdminGamesView', () => {
         { path: '/', component: { template: '<div/>' } },
         { path: '/:slug/admin/games', name: 'admin-games', component: { template: '<div/>' } },
         { path: '/stats', name: 'stats', component: { template: '<div/>' } },
+        { path: '/:slug/admin/players', name: 'admin-players', component: { template: '<div/>' } },
         { path: '/:slug/games/:id', name: 'game', component: { template: '<div/>' } },
       ],
     })
@@ -786,8 +792,6 @@ describe('AdminGamesView', () => {
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/games': () => jsonRes(GAMES),
       'GET /api/teams/1/games/pending-review': () => jsonRes([]),
-      'GET /api/teams/1/players': () => jsonRes([]),
-      'GET /api/teams/1/games/100': () => jsonRes({ ...GAMES[0], scorers: [] }),
     })
     const { default: AdminGamesView } = await import('./AdminGamesView.vue')
     const { default: GameScorersEditor } = await import('../components/GameScorersEditor.vue')

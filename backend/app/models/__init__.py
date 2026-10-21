@@ -3,6 +3,7 @@ from app.models.club import Club, get_or_create_club
 from app.models.content import TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
 from app.models.favorite_team import FavoriteTeam
 from app.models.game import Game, GameStatus
+from app.models.game_scorer import GameScorer
 from app.models.league import League
 from app.models.lineup_snapshot import LineupSnapshot
 from app.models.membership import Membership
@@ -20,6 +21,7 @@ __all__ = [
     "Club",
     "FavoriteTeam",
     "Game",
+    "GameScorer",
     "GameStatus",
     "League",
     "LineupSnapshot",

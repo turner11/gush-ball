@@ -32,8 +32,6 @@ async function mountEditor() {
   })
   router.push('/team_a/admin/players')
   await router.isReady()
-  const { useSelectedTeam } = await import('../composables/useSelectedTeam')
-  useSelectedTeam().selectedTeamId.value = '1'
   const { default: Editor } = await import('./GameScorersEditor.vue')
   const wrapper = mount(Editor, { props: { teamId: 1, gameId: 5 }, global: { plugins: [router] } })
   await flushPromises()

@@ -3,7 +3,7 @@ from datetime import date, datetime, time
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -15,7 +15,7 @@ from app.deps import (
     get_game_or_404,
     get_team_or_404,
 )
-from app.models import Game, GameStatus, get_or_create_opponent
+from app.models import Game, GameScorer, GameStatus, Player, get_or_create_opponent
 
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
 club_router = APIRouter(prefix="/games", tags=["games"])
@@ -94,6 +94,29 @@ class AdminGameRead(GameRead):
     needs_review: bool
     is_manually_overridden: bool
     scrape_suggestion: dict | None
+
+
+class ScorerIn(BaseModel):
+    player_id: int
+    points: int = Field(ge=0, le=200)
+
+
+class ScorerOut(BaseModel):
+    player_id: int
+    name: str
+    jersey_number: int | None
+    points: int
+
+
+class GameDetailRead(GameRead):
+    scorers: list[ScorerOut] = []
+
+
+def _scorers(game: Game) -> list[ScorerOut]:
+    return [
+        ScorerOut(player_id=s.player_id, name=s.player.name, jersey_number=s.player.jersey_number, points=s.points)
+        for s in game.scorers
+    ]
 
 
 def _public_game(game: Game, show_sheet: bool) -> GameRead:
@@ -180,13 +203,41 @@ def list_pending_review_games(
     )
 
 
-@router.get("/{game_id}", response_model=GameRead)
-def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> GameRead:
+@router.get("/{game_id}", response_model=GameDetailRead)
+def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> GameDetailRead:
     game = get_game_or_404(db, team_id, game_id)
     show = can_write_team(db, user, team_id)
     if game.needs_review and not show:  # unapproved scraped game, hidden like in list_games
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
-    return _public_game(game, show)
+    return GameDetailRead(**_public_game(game, show).model_dump(), scorers=_scorers(game))
+
+
+@router.put("/{game_id}/scorers", response_model=list[ScorerOut])
+def replace_game_scorers(
+    team_id: int,
+    game_id: int,
+    payload: list[ScorerIn],
+    db: DbSession,
+    _admin_id: RequireTeamAdmin,
+) -> list[ScorerOut]:
+    """Replaces the game's whole scorer list. A separate endpoint, not PATCH: never flags an override."""
+    game = get_game_or_404(db, team_id, game_id)
+    ids = [s.player_id for s in payload]
+    for pid in set(ids):
+        if ids.count(pid) > 1:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Player {pid} is listed twice")
+    # soft-deleted players of this team are allowed, so their past points survive a re-save
+    on_team = set(db.scalars(select(Player.id).where(Player.id.in_(ids), Player.team_id == team_id)))
+    for pid in ids:
+        if pid not in on_team:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Player {pid} is not on team {team_id}")
+    # flush the delete first: the unit of work inserts before deleting orphans, which would hit the unique key
+    game.scorers.clear()
+    db.flush()
+    game.scorers = [GameScorer(player_id=s.player_id, points=s.points) for s in payload]
+    db.commit()
+    db.refresh(game)
+    return _scorers(game)
 
 
 @router.patch("/{game_id}", response_model=AdminGameRead)

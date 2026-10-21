@@ -14,6 +14,8 @@ export const teamMember = (teamId) => {
   const ids = user.value?.member_team_ids
   return !!user.value && (ids === null || !!ids?.includes(Number(teamId)))
 }
+// UI gate only (the server enforces scope): team_ids null = full admin, [] = no admin grant.
+export const teamAdmin = (teamId) => !!user.value && (!user.value.team_ids || user.value.team_ids.includes(Number(teamId)))
 export const clubAdmin = (club) => !!club && !!user.value?.clubs?.includes(club)
 
 const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'

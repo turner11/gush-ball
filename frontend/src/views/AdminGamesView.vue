@@ -5,6 +5,7 @@ import AdminTeamPicker from '../components/AdminTeamPicker.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import GameRow from '../components/GameRow.vue'
+import GameScorersEditor from '../components/GameScorersEditor.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import PracticesAdmin from '../components/PracticesAdmin.vue'
 import SearchInput from '../components/SearchInput.vue'
@@ -361,7 +362,8 @@ async function onDelete(game) {
         </template>
       </div>
 
-      <form id="game-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
+      <div :class="!editing && 'lg:sticky lg:top-20'" class="space-y-6">
+      <form id="game-form" ref="formEl" class="card scroll-mt-24 space-y-3" @submit.prevent="onSubmit">
         <h2 class="section-title">{{ editing ? 'עריכת משחק' : 'הוספת משחק' }}</h2>
 
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
@@ -436,6 +438,11 @@ async function onDelete(game) {
           </button>
         </div>
       </form>
+      <section v-if="editing" class="card space-y-3">
+        <h2 class="section-title">קלעים</h2>
+        <GameScorersEditor :key="editing.id" :team-id="selectedTeamId" :game-id="editing.id" />
+      </section>
+      </div>
     </div>
     <PracticesAdmin v-if="selectedTeam" :key="selectedTeam.id" :team="selectedTeam" />
     <a href="#game-form" class="fab lg:hidden" aria-label="הוספת משחק"><AppIcon name="plus" /></a>
