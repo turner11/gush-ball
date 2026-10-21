@@ -134,6 +134,11 @@ class PlayerOut(BaseModel):
         return age_on(self.birth_date, datetime.now(ISRAEL).date()) if self.birth_date else None
 
 
+def _roster_order(player: Player) -> tuple:
+    # numbered first, then by name; mirrored by byRosterOrder in frontend/src/lib/players.js
+    return (player.jersey_number is None, player.jersey_number or 0, player.name.casefold(), player.id)
+
+
 def _public_player(player: Player, show_birth_date: bool) -> PlayerOut:
     out = PlayerOut.model_validate(player)
     out.minor = out.age is not None and out.age < ADULT_DOB_AGE
@@ -195,7 +200,7 @@ def create_player(
 def list_players(team_id: int, db: DbSession, user: OptionalUser) -> list[PlayerOut]:
     team = get_team_or_404(db, team_id)
     show = can_write_team(db, user, team_id)
-    return [_public_player(p, show) for p in team.players if p.deleted_at is None]
+    return [_public_player(p, show) for p in sorted(team.players, key=_roster_order) if p.deleted_at is None]
 
 
 # before the /{player_id} routes
@@ -259,7 +264,7 @@ def delete_player(
 @router.get("/teams/{team_id}/players/deleted", response_model=list[PlayerOut])
 def list_deleted_players(team_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> list[PlayerOut]:
     team = get_team_or_404(db, team_id)
-    return [_public_player(p, True) for p in team.players if p.deleted_at is not None]
+    return [_public_player(p, True) for p in sorted(team.players, key=_roster_order) if p.deleted_at is not None]
 
 
 @router.post("/teams/{team_id}/players/{player_id}/restore", response_model=PlayerOut)

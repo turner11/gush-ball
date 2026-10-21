@@ -10,6 +10,7 @@ import PlayerVideosEditor from '../components/PlayerVideosEditor.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { apiFetch } from '../lib/api'
 import { userLabel } from '../lib/format'
+import { byRosterOrder } from '../lib/players'
 import { matchesQuery } from '../lib/search'
 
 const teams = ref([])
@@ -18,7 +19,7 @@ const loading = ref(true)
 const query = ref('')
 const searchInput = ref(null)
 const shownPlayers = computed(() =>
-  players.value.filter((p) => matchesQuery(query.value, [p.name, p.name_en, p.jersey_number])),
+  players.value.filter((p) => matchesQuery(query.value, [p.name, p.name_en, p.jersey_number])).sort(byRosterOrder),
 )
 const deletedPlayers = ref(null) // null = hidden
 const editing = ref(null)
