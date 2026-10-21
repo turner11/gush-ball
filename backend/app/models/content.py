@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, Text
+from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -64,6 +64,7 @@ class TeamPost(Base):
     title_en: Mapped[str | None] = mapped_column(String(200), default=None)
     body: Mapped[str] = mapped_column(Text)
     body_en: Mapped[str | None] = mapped_column(Text, default=None)
+    pinned: Mapped[bool] = mapped_column(default=False, server_default=false())
 
     team: Mapped["Team"] = relationship(back_populates="posts")
 

@@ -32,7 +32,7 @@ async function load() {
     ])
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     videos.value = newestFirst(v)
-    posts.value = newestFirst(p)
+    posts.value = p
     images.value = newestFirst(i)
   } finally {
     if (id === selectedTeamId.value) loading.value = false
@@ -79,7 +79,10 @@ const tabs = [
         <div v-if="loading" class="skeleton h-32" aria-busy="true" />
         <div v-else-if="posts.length" class="space-y-6">
           <article v-for="post in posts" :key="post.id" class="card space-y-2">
-            <h3 class="text-lg font-extrabold">{{ post.title }}</h3>
+            <div class="flex items-center gap-2">
+              <h3 class="min-w-0 text-lg font-extrabold">{{ post.title }}</h3>
+              <span v-if="post.pinned" class="badge badge-muted shrink-0">נעוץ</span>
+            </div>
             <p class="max-w-prose whitespace-pre-line text-muted">{{ post.body }}</p>
           </article>
         </div>

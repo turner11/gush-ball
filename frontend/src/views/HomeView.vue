@@ -70,8 +70,7 @@ const matchCards = computed(() =>
 
 const lone = computed(() => matchCards.value.length === 1)
 
-// ponytail: the API has no ORDER BY, so highest id = newest.
-const newestPost = computed(() => posts.value.reduce((a, p) => (!a || p.id > a.id ? p : a), null))
+const topPost = computed(() => posts.value[0] ?? null) // API order: pinned first, then newest
 
 // ponytail: same highest-id-is-newest rule; the media page lists the rest.
 const latestVideos = computed(() => [...videos.value].sort((x, y) => y.id - x.id).slice(0, 2))
@@ -144,14 +143,17 @@ const hasSocialEmbed = computed(
           </div>
         </div>
 
-        <section v-if="newestPost" class="space-y-3">
+        <section v-if="topPost" class="space-y-3">
           <div class="section-header">
             <h2 class="section-title">עדכונים</h2>
             <RouterLink :to="base + '/media'" class="section-link">כל העדכונים</RouterLink>
           </div>
           <article class="card space-y-1">
-            <h3 class="text-lg font-extrabold">{{ newestPost.title }}</h3>
-            <p class="line-clamp-6 max-w-prose whitespace-pre-line text-muted">{{ newestPost.body }}</p>
+            <div class="flex items-center gap-2">
+              <h3 class="min-w-0 text-lg font-extrabold">{{ topPost.title }}</h3>
+              <span v-if="topPost.pinned" class="badge badge-muted shrink-0">נעוץ</span>
+            </div>
+            <p class="line-clamp-6 max-w-prose whitespace-pre-line text-muted">{{ topPost.body }}</p>
           </article>
         </section>
 
