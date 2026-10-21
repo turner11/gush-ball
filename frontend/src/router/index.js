@@ -32,6 +32,7 @@ const router = createRouter({
     { path: '/clubs/:clubSlug', name: 'club', component: () => import('../views/ClubView.vue') }, // not `slug`: useTeamFromRoute would treat it as a team; ClubView owns its head
     { path: '/:slug/club', redirect: { name: 'team-home' } }, // the pre-#372 club-week URL
     { path: '/:slug/stats', name: 'stats', component: () => import('../views/StatsView.vue'), meta: { title: 'סטטיסטיקה', description: (team) => `סטטיסטיקת חמישיות של ${team}.`, noindex: true } },
+    { path: '/:slug/playbook', name: 'playbook', component: () => import('../views/PlaybookView.vue'), meta: { title: 'פלייבוק', description: (team) => `מהלכי ${team}.`, noindex: true } },
     { path: '/teams', name: 'teams', component: () => import('../views/TeamsView.vue'), meta: { title: 'קבוצות', description: () => 'בחרו ליגה וקבוצה: משחקים, טבלה ושחקנים.' } },
     { path: '/teams/:leagueId(\\d+)', name: 'league-teams', component: () => import('../views/LeagueTeamsView.vue'), meta: { title: 'ליגה', description: () => 'הקבוצות בליגה: בחרו קבוצה למשחקים, לטבלה ולשחקנים.' } },
     { path: '/account', name: 'account', component: () => import('../views/AccountView.vue'), meta: { title: 'החשבון שלי', requiresUser: true, noindex: true } },

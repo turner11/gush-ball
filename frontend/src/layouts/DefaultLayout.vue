@@ -8,7 +8,7 @@ import ErrorBoundary from '../components/ErrorBoundary.vue'
 import FavoriteStar from '../components/FavoriteStar.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
-import { useAuth } from '../composables/useAuth'
+import { teamMember, useAuth } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -27,6 +27,7 @@ const navItems = computed(() => [
   { to: teamBase.value + '/roster', label: 'שחקנים' },
   { to: teamBase.value + '/media', label: 'מדיה' },
   { to: teamBase.value + '/stats', label: 'סטטיסטיקה' },
+  ...(teamMember(selectedTeamId.value) ? [{ to: teamBase.value + '/playbook', label: 'פלייבוק' }] : []),
 ])
 
 const tabItems = computed(() => [
@@ -37,6 +38,7 @@ const tabItems = computed(() => [
   { to: teamBase.value + '/roster', label: 'שחקנים', icon: 'users' },
   { to: teamBase.value + '/media', label: 'מדיה', icon: 'media' },
   { to: teamBase.value + '/stats', label: 'נתונים', icon: 'chart' },
+  ...(teamMember(selectedTeamId.value) ? [{ to: teamBase.value + '/playbook', label: 'פלייבוק', icon: 'clipboard' }] : []),
 ])
 
 const teams = ref([])

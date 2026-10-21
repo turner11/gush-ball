@@ -71,4 +71,11 @@ describe('ImageUpload', () => {
 
     expect(wrapper.text()).toContain('יותר מדי ניסיונות, נסו שוב מאוחר יותר')
   })
+
+  it('forwards the accept prop and defaults to images', async () => {
+    const { default: ImageUpload } = await import('./ImageUpload.vue')
+    expect(mount(ImageUpload).find('input').attributes('accept')).toBe('image/*')
+    const wrapper = mount(ImageUpload, { props: { accept: 'application/pdf' } })
+    expect(wrapper.find('input').attributes('accept')).toBe('application/pdf')
+  })
 })

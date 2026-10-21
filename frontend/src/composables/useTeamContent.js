@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { tryApiFetch } from '../lib/api'
 
 // Generic CRUD (list/create/update/delete) for one of a team's content
-// resources (links/videos/images/posts) — the four resources differ only in
+// resources (links/videos/images/posts/plays) — the resources differ only in
 // field shape, not in how they're fetched.
 export function useTeamContent(resource) {
   const error = ref(null)
@@ -28,5 +28,12 @@ export function useTeamContent(resource) {
       method: 'DELETE',
     })
 
-  return { error, list, create, update, delete: destroy }
+  // Only resources with a /order route (plays) support this: ids = the full list in the new order.
+  const reorder = (teamId, ids) =>
+    tryApiFetch(error, 'שגיאה בשינוי הסדר, נסה שוב', `/teams/${teamId}/${resource}/order`, {
+      method: 'PUT',
+      body: ids,
+    })
+
+  return { error, list, create, update, delete: destroy, reorder }
 }

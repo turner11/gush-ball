@@ -12,6 +12,7 @@ EXTENSION_BY_CONTENT_TYPE = {
     "image/webp": ".webp",
     "image/gif": ".gif",
     "video/mp4": ".mp4",
+    "application/pdf": ".pdf",
 }
 
 

@@ -6,7 +6,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, String, event, insert, inspec
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.db import Base
-from app.models.content import TeamImage, TeamLink, TeamPost, TeamVideo
+from app.models.content import TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
 from app.models.game import Game
 from app.models.membership import Membership
 from app.models.player import Player, PlayerImage, PlayerVideo
@@ -41,6 +41,7 @@ _AUDITED: dict[type, str] = {
     TeamVideo: "video",
     TeamImage: "image",
     TeamPost: "post",
+    TeamPlay: "play",
     StandingRow: "standing",
     Team: "team",
     Membership: "membership",

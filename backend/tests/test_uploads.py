@@ -166,3 +166,9 @@ def test_linked_player_uploads_are_rate_limited_admins_are_not(
     for _ in range(auth._MAX_ATTEMPTS):
         assert admin_client.post("/uploads", files=upload).status_code == 201
     assert admin_client.post("/uploads", files=upload).status_code == 429
+
+
+def test_upload_accepts_pdf(admin_client: TestClient, stub_upload_file: dict[str, Any]) -> None:
+    response = admin_client.post("/uploads", files={"file": ("play.pdf", b"%PDF-1.4", "application/pdf")})
+    assert response.status_code == 201
+    assert stub_upload_file["content_type"] == "application/pdf"

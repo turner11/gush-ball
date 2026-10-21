@@ -173,4 +173,42 @@ describe('TeamContentSection', () => {
     const post = global.fetch.mock.calls.find(([, o]) => o?.method === 'POST')
     expect(JSON.parse(post[1].body)).toEqual({ player_ids: [] })
   })
+
+  describe('reorderable', () => {
+    const PLAYS = [
+      { id: 5, title: 'ראשון' },
+      { id: 6, title: 'שני' },
+    ]
+    const PLAY_FIELDS = [{ key: 'title', label: 'כותרת', type: 'text', required: true }]
+    const mountPlays = async (extra) => {
+      const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+      const wrapper = mount(TeamContentSection, {
+        props: { teamId: 1, resource: 'plays', heading: 'פלייבוק', fields: PLAY_FIELDS, ...extra },
+      })
+      await flushPromises()
+      return wrapper
+    }
+
+    it('moving the first row down PUTs the swapped ids and reorders the list', async () => {
+      mockFetch({
+        'GET /api/teams/1/plays': () => jsonRes(PLAYS),
+        'PUT /api/teams/1/plays/order': () => jsonRes([PLAYS[1], PLAYS[0]]),
+      })
+      const wrapper = await mountPlays({ reorderable: true })
+
+      await wrapper.find('button[aria-label="הזזה למטה"]').trigger('click')
+      await flushPromises()
+
+      const put = global.fetch.mock.calls.find(([, o]) => o?.method === 'PUT')
+      expect(put[0]).toBe('/api/teams/1/plays/order')
+      expect(JSON.parse(put[1].body)).toEqual([6, 5])
+      expect(wrapper.findAll('li')[0].text()).toContain('שני')
+    })
+
+    it('has no move buttons unless reorderable', async () => {
+      mockFetch({ 'GET /api/teams/1/plays': () => jsonRes(PLAYS) })
+      const wrapper = await mountPlays()
+      expect(wrapper.find('button[aria-label="הזזה למטה"]').exists()).toBe(false)
+    })
+  })
 })

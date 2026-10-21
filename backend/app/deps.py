@@ -102,6 +102,28 @@ def can_write_team(db: Session, user: AdminUser | None, team_id: int) -> bool:
     return scope is None or team_id in scope
 
 
+def member_team_ids(db: Session, user: AdminUser) -> list[int] | None:
+    """Teams whose private content (playbook #439, practices #440) the user may see: None = every team (full admin).
+
+    Admins (team, or club via the team's club), team-scoped member/admin grants, and live linked roster players.
+    A club-level member grant does not count."""
+    admin_ids = admin_team_ids(db, user)
+    if admin_ids is None:
+        return None
+    granted = select(Membership.team_id).where(
+        Membership.user_id == user.id, Membership.role.in_(("member", "admin")), Membership.team_id.is_not(None)
+    )
+    linked = select(Player.team_id).where(Player.user_id == user.id, Player.deleted_at.is_(None))
+    return sorted({*admin_ids, *db.scalars(granted), *db.scalars(linked)})
+
+
+def can_view_team_private(db: Session, user: AdminUser | None, team_id: int) -> bool:
+    if user is None:
+        return False
+    ids = member_team_ids(db, user)
+    return ids is None or team_id in ids
+
+
 def check_team_scope(db: Session, admin: AdminUser, team_id: int) -> None:
     if not can_write_team(db, admin, team_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
@@ -226,6 +248,15 @@ def require_stats_viewer(user: RequireUser, db: DbSession) -> AdminUser:
 
 
 RequireStatsViewer = Annotated[AdminUser, Depends(require_stats_viewer)]
+
+
+def require_team_member(team_id: int, user: RequireUser, db: DbSession) -> AdminUser:
+    if not can_view_team_private(db, user, team_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Team members only")
+    return user
+
+
+RequireTeamMember = Annotated[AdminUser, Depends(require_team_member)]
 
 
 def get_team_or_404(db: Session, team_id: int) -> Team:

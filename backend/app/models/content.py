@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, ForeignKey, String, Text
+from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -66,3 +66,22 @@ class TeamPost(Base):
     body_en: Mapped[str | None] = mapped_column(Text, default=None)
 
     team: Mapped["Team"] = relationship(back_populates="posts")
+
+
+class TeamPlay(Base):
+    """A team-private play: an uploaded file (image/GIF/MP4/PDF) or an external link. Member-only reads (#439)."""
+
+    __tablename__ = "team_plays"
+    __table_args__ = (CheckConstraint("(file_url IS NULL) <> (url IS NULL)", name="ck_team_plays_one_source"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"))
+    title: Mapped[str] = mapped_column(String(200))
+    title_en: Mapped[str | None] = mapped_column(String(200), default=None)
+    notes: Mapped[str | None] = mapped_column(Text, default=None)
+    file_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    url: Mapped[str | None] = mapped_column(String(500), default=None)
+    # ponytail: NULL = never reordered, sorts last, so create needn't compute max+1.
+    sort_order: Mapped[int | None] = mapped_column(default=None)
+
+    team: Mapped["Team"] = relationship(back_populates="plays")

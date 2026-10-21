@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 
 import { useTeamContent } from '../composables/useTeamContent'
+import AppIcon from './AppIcon.vue'
 import ImageUpload from './ImageUpload.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import PlayerTagsInput from './PlayerTagsInput.vue'
@@ -11,9 +12,10 @@ const props = defineProps({
   resource: { type: String, required: true },
   heading: { type: String, required: true },
   fields: { type: Array, required: true },
+  reorderable: Boolean,
 })
 
-const { error, list, create, update, delete: destroy } = useTeamContent(props.resource)
+const { error, list, create, update, delete: destroy, reorder } = useTeamContent(props.resource)
 
 const items = ref([])
 const blank = (field) => (field.type === 'players' ? [] : '')
@@ -65,6 +67,14 @@ async function onSubmit() {
   }
 }
 
+async function move(index, delta) {
+  const next = [...items.value]
+  ;[next[index], next[index + delta]] = [next[index + delta], next[index]]
+  items.value = next
+  await reorder(props.teamId, next.map((item) => item.id))
+  if (error.value) await load() // the server order is the truth
+}
+
 function confirmDelete(itemId) {
   pendingDeleteId.value = itemId
 }
@@ -91,12 +101,20 @@ onMounted(load)
     </div>
     <ul v-else-if="items.length" class="divide-y divide-line">
       <li
-        v-for="item in items"
+        v-for="(item, index) in items"
         :key="item.id"
         class="flex items-center justify-between gap-2 py-2"
       >
         <span class="min-w-0 truncate">{{ fields.filter((f) => f.type !== 'players').map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
         <span class="inline-flex shrink-0 gap-1">
+          <template v-if="reorderable">
+            <button type="button" class="btn-ghost" aria-label="הזזה למעלה" :disabled="index === 0" @click="move(index, -1)">
+              <AppIcon name="chevron" class="rotate-180" />
+            </button>
+            <button type="button" class="btn-ghost" aria-label="הזזה למטה" :disabled="index === items.length - 1" @click="move(index, 1)">
+              <AppIcon name="chevron" />
+            </button>
+          </template>
           <button
             type="button"
             class="btn-ghost"
@@ -146,7 +164,7 @@ onMounted(load)
           :required="field.required"
           class="field-input"
         />
-        <ImageUpload v-if="field.upload" @uploaded="(url) => (form[field.key] = url)" />
+        <ImageUpload v-if="field.upload" :accept="field.accept" @uploaded="(url) => (form[field.key] = url)" />
         </template>
       </div>
 
