@@ -18,7 +18,7 @@ const props = defineProps({
 const { error, list, create, update, delete: destroy, reorder } = useTeamContent(props.resource)
 
 const items = ref([])
-const blank = (field) => (field.type === 'players' ? [] : '')
+const blank = (field) => (field.type === 'players' ? [] : field.type === 'checkbox' ? false : '')
 const form = reactive(Object.fromEntries(props.fields.map((f) => [f.key, blank(f)])))
 const loading = ref(true)
 const submitting = ref(false)
@@ -51,14 +51,13 @@ async function onSubmit() {
     if (editingId.value) {
       const updated = await update(props.teamId, editingId.value, payload)
       if (updated && !error.value) {
-        const index = items.value.findIndex((item) => item.id === editingId.value)
-        if (index !== -1) items.value[index] = updated
+        await load() // the server order is the truth (e.g. pinned posts move up)
         resetForm()
       }
     } else {
       const created = await create(props.teamId, payload)
       if (created && !error.value) {
-        items.value.push(created)
+        await load()
         resetForm()
       }
     }
@@ -105,7 +104,12 @@ onMounted(load)
         :key="item.id"
         class="flex items-center justify-between gap-2 py-2"
       >
-        <span class="min-w-0 truncate">{{ fields.filter((f) => f.type !== 'players').map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
+        <span class="flex min-w-0 items-center gap-2">
+          <span class="min-w-0 truncate">{{ fields.filter((f) => !['players', 'checkbox'].includes(f.type)).map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
+          <template v-for="f in fields" :key="f.key">
+            <span v-if="f.type === 'checkbox' && item[f.key]" class="badge badge-muted shrink-0">{{ f.label }}</span>
+          </template>
+        </span>
         <span class="inline-flex shrink-0 gap-1">
           <template v-if="reorderable">
             <button type="button" class="btn-ghost" aria-label="הזזה למעלה" :disabled="index === 0" @click="move(index, -1)">
@@ -145,6 +149,10 @@ onMounted(load)
       <p v-if="editingId" class="text-sm text-muted">עורך: {{ fields.filter((f) => f.type !== 'players').map((f) => form[f.key]).filter(Boolean)[0] }}</p>
       <div v-for="field in fields" :key="field.key">
         <PlayerTagsInput v-if="field.type === 'players'" v-model="form[field.key]" :team-id="teamId" />
+        <label v-else-if="field.type === 'checkbox'" class="flex min-h-11 items-center gap-2">
+          <input v-model="form[field.key]" type="checkbox" class="size-5" />
+          <span class="field-label">{{ field.label }}</span>
+        </label>
         <template v-else>
         <label :for="`${resource}-${field.key}`" class="field-label">
           {{ field.label }}

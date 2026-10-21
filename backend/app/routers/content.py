@@ -73,6 +73,7 @@ class TeamPostCreate(BaseModel):
     title_en: str | None = None
     body: str
     body_en: str | None = None
+    pinned: bool = False
 
 
 class TeamPostUpdate(BaseModel):
@@ -81,6 +82,7 @@ class TeamPostUpdate(BaseModel):
     title_en: str | None = None
     body: str = None
     body_en: str | None = None
+    pinned: bool = None
 
 
 class TeamPostOut(BaseModel):
@@ -92,6 +94,7 @@ class TeamPostOut(BaseModel):
     title_en: str | None
     body: str
     body_en: str | None
+    pinned: bool
 
 
 class TeamPlayCreate(BaseModel):

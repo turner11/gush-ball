@@ -354,6 +354,14 @@ describe('HomeView', () => {
     expect(wrapper.text()).not.toContain('פוסט 1')
   })
 
+  it('shows the pinned post over a newer one', async () => {
+    const post = (id, pinned) => ({ id, team_id: 1, title: `פוסט ${id}`, body: 'x', pinned })
+    const wrapper = await mountWithTeam(TEAM, { posts: [post(1, true), post(2, false)] })
+
+    expect(wrapper.text()).toContain('פוסט 1')
+    expect(wrapper.text()).not.toContain('פוסט 2')
+  })
+
   it('orders sections: games, post, players, videos', async () => {
     const opp = { name: 'יריבה', source_url: null, logo_url: null }
     const wrapper = await mountWithTeam(TEAM, {

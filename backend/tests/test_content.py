@@ -358,3 +358,25 @@ def test_patch_null_required_text_rejected(
 
     db_session.expire_all()
     assert getattr(db_session.get(model_class, item_id), field) == payload[field]
+
+
+def _post_ids(client: TestClient, team: Team) -> list[int]:
+    return [p["id"] for p in client.get(f"/teams/{team.id}/posts").json()]
+
+
+def test_pinned_posts_list_first(admin_client: TestClient, client: TestClient, team: Team) -> None:
+    a, b, c = (admin_client.post(f"/teams/{team.id}/posts", json={"title": t, "body": "x"}).json()["id"] for t in "abc")
+    assert admin_client.patch(f"/teams/{team.id}/posts/{a}", json={"pinned": True}).status_code == 200
+    posts = client.get(f"/teams/{team.id}/posts").json()
+    assert [p["id"] for p in posts] == [a, c, b]
+    assert posts[0]["pinned"] is True
+
+    admin_client.patch(f"/teams/{team.id}/posts/{a}", json={"pinned": False})
+    assert _post_ids(client, team) == [c, b, a]
+
+
+def test_post_pinned_defaults_false_and_rejects_null(admin_client: TestClient, team: Team) -> None:
+    created = admin_client.post(f"/teams/{team.id}/posts", json={"title": "t", "body": "x"}).json()
+    assert created["pinned"] is False
+    response = admin_client.patch(f"/teams/{team.id}/posts/{created['id']}", json={"pinned": None})
+    assert response.status_code == 422

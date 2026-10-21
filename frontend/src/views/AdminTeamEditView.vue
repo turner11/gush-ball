@@ -152,6 +152,7 @@ const contentSections = [
       { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
       { key: 'body', label: 'תוכן', type: 'textarea', required: true },
       { key: 'body_en', label: 'תוכן (אנגלית)', type: 'textarea' },
+      { key: 'pinned', label: 'נעוץ', type: 'checkbox' },
     ],
   },
   {

@@ -55,7 +55,11 @@ class Team(Base):
     links: Mapped[list["TeamLink"]] = relationship(back_populates="team", cascade="all, delete-orphan")
     videos: Mapped[list["TeamVideo"]] = relationship(back_populates="team", cascade="all, delete-orphan")
     images: Mapped[list["TeamImage"]] = relationship(back_populates="team", cascade="all, delete-orphan")
-    posts: Mapped[list["TeamPost"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    posts: Mapped[list["TeamPost"]] = relationship(
+        back_populates="team",
+        cascade="all, delete-orphan",
+        order_by="(TeamPost.pinned.desc(), TeamPost.id.desc())",
+    )
     plays: Mapped[list["TeamPlay"]] = relationship(
         back_populates="team",
         cascade="all, delete-orphan",
