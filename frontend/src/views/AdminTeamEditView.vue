@@ -36,6 +36,7 @@ const GROUPS = [
       { key: 'youtube_url', label: 'יוטיוב', type: 'url' },
       { key: 'tiktok_url', label: 'טיקטוק', type: 'url' },
       { key: 'twitter_url', label: 'טוויטר (X)', type: 'url' },
+      { key: 'wikipedia_url', label: 'ויקיפדיה', type: 'url' },
     ],
   },
   {

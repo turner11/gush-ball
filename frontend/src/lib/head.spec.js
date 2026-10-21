@@ -62,6 +62,7 @@ describe('sportsTeamJsonLd', () => {
       home_court_address: 'אולם, תל אביב',
       facebook_url: 'https://facebook.com/a',
       instagram_url: 'https://instagram.com/a',
+      wikipedia_url: 'https://he.wikipedia.org/wiki/א',
     }
     expect(sportsTeamJsonLd(team, 'https://x.org/team_a')).toEqual({
       '@context': 'https://schema.org',
@@ -70,7 +71,7 @@ describe('sportsTeamJsonLd', () => {
       sport: 'Basketball',
       url: 'https://x.org/team_a',
       logo: 'https://cdn.example.com/a.png',
-      sameAs: ['https://facebook.com/a', 'https://instagram.com/a'],
+      sameAs: ['https://facebook.com/a', 'https://instagram.com/a', 'https://he.wikipedia.org/wiki/א'],
       location: { '@type': 'Place', address: 'אולם, תל אביב' },
     })
   })

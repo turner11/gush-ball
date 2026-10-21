@@ -1,6 +1,7 @@
 import logging
 import re
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
@@ -45,6 +46,19 @@ def _require_ibasketball(url: HttpUrl) -> HttpUrl:
 
 IbasketballUrl = Annotated[Url500, AfterValidator(_require_ibasketball)]
 
+_WIKIPEDIA_HOST = re.compile(r"^[a-z-]+(\.m)?\.wikipedia\.org$")
+
+
+def _require_wikipedia(url: HttpUrl) -> HttpUrl:
+    # The visitor's browser fetches the summary from this host; pin it. netloc (not hostname)
+    # rejects userinfo, ports and backslash tricks, as in scrape_games.ibasketball_url_or_none.
+    if url.scheme != "https" or not _WIKIPEDIA_HOST.match(urlsplit(str(url)).netloc.lower()):
+        raise ValueError("must be an https://<lang>.wikipedia.org URL")
+    return url
+
+
+WikipediaUrl = Annotated[Url500, AfterValidator(_require_wikipedia)]
+
 
 class TeamUpdate(BaseModel):
     name: Name | None = None
@@ -60,6 +74,7 @@ class TeamUpdate(BaseModel):
     youtube_url: Url500 | None = None
     tiktok_url: Url500 | None = None
     twitter_url: Url500 | None = None
+    wikipedia_url: WikipediaUrl | None = None
     ibasketball_team_url: IbasketballUrl | None = None
     ibasketball_league_url: IbasketballUrl | None = None
 
@@ -86,6 +101,7 @@ class TeamOut(BaseModel):
     youtube_url: str | None
     tiktok_url: str | None
     twitter_url: str | None
+    wikipedia_url: str | None
     ibasketball_team_url: str | None
     ibasketball_league_url: str | None
     league_url_suggestion: str | None

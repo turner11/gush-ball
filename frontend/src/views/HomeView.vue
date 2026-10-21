@@ -7,6 +7,7 @@ import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import VideoCard from '../components/VideoCard.vue'
+import WikipediaCard from '../components/WikipediaCard.vue'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -104,7 +105,7 @@ const twitterHandle = computed(() => firstPathSegment(team.value?.twitter_url))
 
 const hasSocial = computed(() => {
   const t = team.value
-  return !!(t && (t.facebook_url || t.instagram_url || t.youtube_url || t.tiktok_url || t.twitter_url))
+  return !!(t && (t.facebook_url || t.instagram_url || t.youtube_url || t.tiktok_url || t.twitter_url || t.wikipedia_url))
 })
 
 const hasSocialEmbed = computed(
@@ -210,7 +211,10 @@ const hasSocialEmbed = computed(
           <a v-if="team.youtube_url" :href="team.youtube_url" target="_blank" rel="noopener" class="btn-secondary">יוטיוב</a>
           <a v-if="team.tiktok_url" :href="team.tiktok_url" target="_blank" rel="noopener" class="btn-secondary">טיקטוק</a>
           <a v-if="team.twitter_url" :href="team.twitter_url" target="_blank" rel="noopener" class="btn-secondary">טוויטר</a>
+          <a v-if="team.wikipedia_url" :href="team.wikipedia_url" target="_blank" rel="noopener" class="btn-secondary">ויקיפדיה</a>
         </div>
+
+        <WikipediaCard v-if="team.wikipedia_url" :key="team.wikipedia_url" :url="team.wikipedia_url" />
 
         <section v-if="hasSocialEmbed" class="space-y-2">
           <h2 class="section-title">ברשתות</h2>
