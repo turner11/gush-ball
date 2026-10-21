@@ -2,10 +2,12 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
+import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
+import VideoCard from '../components/VideoCard.vue'
 import { teamAdmin } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -23,6 +25,9 @@ const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.
 const canEdit = computed(() => !!game.value && teamAdmin(game.value.team_id))
 const editingScorers = ref(false)
 const scorersToggle = ref(null)
+const editingMedia = ref(false)
+const mediaToggle = ref(null)
+const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.images?.length))
 const address = computed(() => gameAddress(game.value, team.value))
 
 async function onScorersSaved(list) {
@@ -30,6 +35,14 @@ async function onScorersSaved(list) {
   editingScorers.value = false
   await nextTick()
   scorersToggle.value?.focus()
+}
+
+async function onMediaSaved(media) {
+  game.value.videos = media.videos
+  game.value.images = media.images
+  editingMedia.value = false
+  await nextTick()
+  mediaToggle.value?.focus()
 }
 
 // DefaultLayout resolves the slug to selectedTeamId; fetching before that would use a stale remembered team.
@@ -134,6 +147,36 @@ watch(
     <section v-if="game.description" class="card space-y-2">
       <h2 class="section-title">על המשחק</h2>
       <p class="max-w-prose whitespace-pre-line">{{ game.description }}</p>
+    </section>
+
+    <section v-if="hasMedia || canEdit" class="card space-y-3">
+      <div class="section-header">
+        <h2 class="section-title">מדיה</h2>
+        <button
+          v-if="canEdit"
+          ref="mediaToggle"
+          type="button"
+          class="btn-secondary"
+          aria-controls="game-media-editor"
+          :aria-expanded="editingMedia"
+          @click="editingMedia = !editingMedia"
+        >
+          {{ editingMedia ? 'סגירה' : 'עריכת מדיה' }}
+        </button>
+      </div>
+      <GameMediaEditor v-if="editingMedia" id="game-media-editor" :team-id="game.team_id" :game-id="game.id" @saved="onMediaSaved" />
+      <template v-else-if="hasMedia">
+        <ul v-if="game.videos?.length" class="grid gap-6 sm:grid-cols-2">
+          <li v-for="(v, i) in game.videos" :key="i"><VideoCard :video="v" /></li>
+        </ul>
+        <div v-if="game.images?.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <figure v-for="(img, i) in game.images" :key="i" class="space-y-1">
+            <a :href="img.url" target="_blank" rel="noopener"><img :src="img.url" :alt="img.title || `נגד ${game.opponent.name}`" loading="lazy" class="aspect-square w-full rounded-xl object-cover" /></a>
+            <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>
+          </figure>
+        </div>
+      </template>
+      <p v-else class="empty-state">עדיין לא נוספו סרטונים או תמונות.</p>
     </section>
   </div>
 </template>

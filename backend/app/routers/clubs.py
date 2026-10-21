@@ -6,18 +6,12 @@ from sqlalchemy import select
 
 from app.deps import DbSession, RequireAdmin, RequireAnyAdmin, check_club_scope
 from app.models import Club
-from app.routers.teams import About, ClubName, IbasketballUrl, Name, Url500
+from app.routers.teams import About, ClubName, IbasketballUrl, Name, TitledImage, Url500
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
 
 
 AboutTitle = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
-
-
-class ClubAboutImage(BaseModel):
-    url: Url500
-    title: Name | None = None
-    title_en: Name | None = None
 
 
 class ClubAboutLink(BaseModel):
@@ -36,7 +30,7 @@ class ClubOut(BaseModel):
     about_title_en: str | None
     about: str | None
     about_en: str | None
-    about_images: list[ClubAboutImage]
+    about_images: list[TitledImage]
     about_links: list[ClubAboutLink]
 
     model_config = {"from_attributes": True}
@@ -55,7 +49,7 @@ class ClubAboutUpdate(BaseModel):
     about_title_en: AboutTitle | None = None
     about: About | None = None
     about_en: About | None = None
-    about_images: list[ClubAboutImage] = Field(default=[], max_length=20)
+    about_images: list[TitledImage] = Field(default=[], max_length=20)
     about_links: list[ClubAboutLink] = Field(default=[], max_length=20)
 
 

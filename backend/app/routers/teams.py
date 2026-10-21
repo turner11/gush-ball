@@ -35,6 +35,14 @@ Address = Annotated[str, StringConstraints(max_length=300)]
 About = Annotated[str, StringConstraints(strip_whitespace=True, max_length=5000)]
 Url500 = Annotated[HttpUrl, UrlConstraints(max_length=500)]
 # a bundled preset key in frontend/public/backgrounds, or an image URL (upload or external)
+class TitledImage(BaseModel):
+    """One image in an admin-edited JSON list (club about, game media); stored as-is."""
+
+    url: Url500
+    title: Name | None = None
+    title_en: Name | None = None
+
+
 Background = Literal["hoop-1", "hoop-2"] | Url500
 
 

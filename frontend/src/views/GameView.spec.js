@@ -14,6 +14,8 @@ const GAME = {
   opponent_score: 70,
   description: 'משחק גמר מרגש',
   scorers: [],
+  videos: [],
+  images: [],
   opponent: { id: 6, name: 'הפועל עבר', logo_url: null, source_url: null, address: 'רחוב הספורט 1, חיפה' },
 }
 
@@ -132,6 +134,46 @@ describe('GameView', () => {
       useAuth().user.value = { id: 2, team_ids: [] }
       const { wrapper } = await mountAt(true)
       expect(wrapper.findAll('button').some((b) => b.text() === 'עריכת קלעים')).toBe(false)
+    })
+  })
+
+  describe('media', () => {
+    const withMedia = {
+      ...GAME,
+      videos: [{ url: 'https://www.youtube.com/watch?v=abc123', title: 'תקציר', title_en: null }],
+      images: [{ url: 'https://cdn.example.com/a.jpg', title: 'חגיגה', title_en: null }],
+    }
+
+    it('renders a YouTube iframe and an image when the game has media', async () => {
+      mockFetch(ok(withMedia))
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.find('iframe').attributes('src')).toContain('abc123')
+      expect(wrapper.find('img[src="https://cdn.example.com/a.jpg"]').attributes('alt')).toBe('חגיגה')
+    })
+
+    it('hides the media card from visitors when both lists are empty', async () => {
+      mockFetch(ok(GAME))
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.text()).not.toContain('מדיה')
+    })
+
+    it('team admin can open the media editor', async () => {
+      mockFetch(ok(withMedia))
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      const { wrapper } = await mountAt(true)
+      const { default: GameMediaEditor } = await import('../components/GameMediaEditor.vue')
+      expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(false)
+      await wrapper.findAll('button').find((b) => b.text() === 'עריכת מדיה').trigger('click')
+      expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(true)
+    })
+
+    it('non-admin sees no edit button', async () => {
+      mockFetch(ok(withMedia))
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 2, team_ids: [] }
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.findAll('button').some((b) => b.text() === 'עריכת מדיה')).toBe(false)
     })
   })
 })

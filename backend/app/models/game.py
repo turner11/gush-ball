@@ -58,6 +58,10 @@ class Game(Base):
 
     # Not a scrape field: setting it never flags an override. Sheet holding BBStats snapshots.
     stats_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    # Admin content, not scrape fields: editing them never flags an override.
+    # ponytail: whole-list JSON like Club.about_images (#451); tables only if items need ids or tagging.
+    videos: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    images: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     # ORM cascade too: delete_game uses db.delete and SQLite tests don't enforce FKs.
     lineup_snapshots: Mapped[list["LineupSnapshot"]] = relationship(cascade="all, delete-orphan")
     scorers: Mapped[list["GameScorer"]] = relationship(
