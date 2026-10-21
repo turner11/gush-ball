@@ -114,8 +114,9 @@ frontend: test + build). A UI change also needs a visual check at both widths.
 
 Don't build these ahead of their phase, even if a related task makes them tempting:
 
-- Stats beyond per-lineup +/- from admin-loaded BBStats sheets: no box-score stats, no in-site stat
-  entry, no precomputed/stored aggregates
+- Stats beyond per-lineup +/- from admin-loaded BBStats sheets and per-game scorers (#441: a game's
+  players and their points, entered in-site by that team's admins): no other box-score stats, no
+  other in-site stat entry, no precomputed/stored aggregates
 - Dynamic per-team color theming (Phase 3) — dark/light mode is a *different*, already-shipped
   feature; don't conflate the two
 - Social media embeds (Phase 3)
