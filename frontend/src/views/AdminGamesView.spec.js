@@ -28,7 +28,7 @@ function mockFetch(handlers) {
   handlers = {
     'GET /api/teams/1/practices': () => jsonRes([]), // PracticesAdmin loads on mount
     'GET /api/teams/1/players': () => jsonRes([{ id: 1, name: 'שחקן', jersey_number: 1 }]), // GameScorersEditor loads when a game is edited
-    'GET /api/teams/1/games/100': () => jsonRes({ ...GAMES[0], scorers: [] }),
+    'GET /api/teams/1/games/100': () => jsonRes({ ...GAMES[0], scorers: [], videos: [], images: [] }),
     ...handlers,
   }
   global.fetch = vi.fn((url, options = {}) => {
@@ -803,5 +803,7 @@ describe('AdminGamesView', () => {
     await flushPromises()
 
     expect(wrapper.findComponent(GameScorersEditor).props()).toEqual({ teamId: '1', gameId: 100 })
+    const { default: GameMediaEditor } = await import('../components/GameMediaEditor.vue')
+    expect(wrapper.findComponent(GameMediaEditor).props()).toEqual({ teamId: '1', gameId: 100 })
   })
 })

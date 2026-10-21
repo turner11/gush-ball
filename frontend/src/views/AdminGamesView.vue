@@ -5,6 +5,7 @@ import AdminTeamPicker from '../components/AdminTeamPicker.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import GameRow from '../components/GameRow.vue'
+import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import PracticesAdmin from '../components/PracticesAdmin.vue'
@@ -441,6 +442,10 @@ async function onDelete(game) {
       <section v-if="editing" class="card space-y-3">
         <h2 class="section-title">קלעים</h2>
         <GameScorersEditor :key="editing.id" :team-id="selectedTeamId" :game-id="editing.id" />
+      </section>
+      <section v-if="editing" class="card space-y-3">
+        <h2 class="section-title">מדיה</h2>
+        <GameMediaEditor :key="editing.id" :team-id="selectedTeamId" :game-id="editing.id" />
       </section>
       </div>
     </div>

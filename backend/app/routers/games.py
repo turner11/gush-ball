@@ -16,6 +16,8 @@ from app.deps import (
     get_team_or_404,
 )
 from app.models import Game, GameScorer, GameStatus, Player, get_or_create_opponent
+from app.routers.players import VideoTitle
+from app.routers.teams import Name, Url500
 
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
 club_router = APIRouter(prefix="/games", tags=["games"])
@@ -108,8 +110,27 @@ class ScorerOut(BaseModel):
     points: int
 
 
+class GameVideo(BaseModel):
+    url: Url500
+    title: VideoTitle
+    title_en: Name | None = None
+
+
+class GameImage(BaseModel):
+    url: Url500
+    title: Name | None = None
+    title_en: Name | None = None
+
+
+class GameMedia(BaseModel):
+    videos: list[GameVideo] = Field(default=[], max_length=20)
+    images: list[GameImage] = Field(default=[], max_length=20)
+
+
 class GameDetailRead(GameRead):
     scorers: list[ScorerOut] = []
+    videos: list[GameVideo] = []
+    images: list[GameImage] = []
 
 
 def _scorers(game: Game) -> list[ScorerOut]:
@@ -209,7 +230,12 @@ def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> G
     show = can_write_team(db, user, team_id)
     if game.needs_review and not show:  # unapproved scraped game, hidden like in list_games
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
-    return GameDetailRead(**_public_game(game, show).model_dump(), scorers=_scorers(game))
+    return GameDetailRead(
+        **_public_game(game, show).model_dump(),
+        scorers=_scorers(game),
+        videos=game.videos,
+        images=game.images,
+    )
 
 
 @router.put("/{game_id}/scorers", response_model=list[ScorerOut])
@@ -329,3 +355,20 @@ def delete_game(
     game = get_game_or_404(db, team_id, game_id)
     db.delete(game)
     db.commit()
+
+
+@router.put("/{game_id}/media", response_model=GameMedia)
+def replace_game_media(
+    team_id: int,
+    game_id: int,
+    payload: GameMedia,
+    db: DbSession,
+    _admin_id: RequireTeamAdmin,
+) -> GameMedia:
+    """Replaces the game's whole media block. A separate endpoint, not PATCH: never flags an override."""
+    game = get_game_or_404(db, team_id, game_id)
+    data = payload.model_dump(mode="json")  # json mode: HttpUrl -> str; reassigning tracks the JSON change
+    game.videos = data["videos"]
+    game.images = data["images"]
+    db.commit()
+    return GameMedia(videos=game.videos, images=game.images)
