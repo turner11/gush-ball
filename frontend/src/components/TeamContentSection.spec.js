@@ -211,4 +211,32 @@ describe('TeamContentSection', () => {
       expect(wrapper.find('button[aria-label="הזזה למטה"]').exists()).toBe(false)
     })
   })
+
+  it('checkbox field posts its boolean and shows a badge, not "true"', async () => {
+    const fields = [
+      { key: 'title', label: 'כותרת', type: 'text', required: true },
+      { key: 'pinned', label: 'נעוץ', type: 'checkbox' },
+    ]
+    mockFetch({
+      'GET /api/teams/1/posts': () => jsonRes([{ id: 5, title: 'חשוב', pinned: true }]),
+      'POST /api/teams/1/posts': () => jsonRes({ id: 6, title: 'חדש', pinned: true }, 201),
+    })
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const wrapper = mount(TeamContentSection, {
+      props: { teamId: 1, resource: 'posts', heading: 'עדכונים', fields },
+    })
+    await flushPromises()
+
+    const row = wrapper.find('li')
+    expect(row.find('.badge').text()).toBe('נעוץ')
+    expect(row.text()).not.toContain('true')
+
+    await wrapper.find('input[type="text"]').setValue('חדש')
+    await wrapper.find('input[type="checkbox"]').setValue(true)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const post = global.fetch.mock.calls.find(([, o]) => o?.method === 'POST')
+    expect(JSON.parse(post[1].body)).toEqual({ title: 'חדש', pinned: true })
+  })
 })

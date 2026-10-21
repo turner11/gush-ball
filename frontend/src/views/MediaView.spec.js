@@ -7,8 +7,8 @@ const VIDEOS = [
   { id: 2, title: 'אמצע', url: 'https://youtu.be/v2' },
 ]
 const POSTS = [
-  { id: 1, title: 'פוסט ישן', body: 'גוף ישן' },
   { id: 2, title: 'פוסט חדש', body: 'גוף חדש' },
+  { id: 1, title: 'פוסט ישן', body: 'גוף ישן' },
 ]
 const IMAGES = [
   { id: 1, title: 'תמונה א', url: 'https://img/a.jpg' },
@@ -70,6 +70,19 @@ describe('MediaView', () => {
     expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['פוסט חדש', 'פוסט ישן'])
     expect(wrapper.text()).toContain('גוף חדש')
     expect(wrapper.text()).toContain('גוף ישן')
+  })
+
+  it('keeps the API order for posts and badges pinned ones', async () => {
+    const posts = [
+      { id: 1, title: 'נעוץ א', body: 'x', pinned: true },
+      { id: 2, title: 'חדש ב', body: 'y', pinned: false },
+    ]
+    const wrapper = await mountView({ posts })
+    await openTab(wrapper, 'עדכונים')
+    expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['נעוץ א', 'חדש ב'])
+    const articles = wrapper.findAll('article')
+    expect(articles[0].text()).toContain('נעוץ')
+    expect(articles[1].find('.badge').exists()).toBe(false)
   })
 
   it('shows all images on the images tab', async () => {
