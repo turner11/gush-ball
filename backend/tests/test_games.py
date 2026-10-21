@@ -761,3 +761,14 @@ def test_put_media_scope(
     assert team_admin_client.put(f"/teams/{own_team.id}/games/{own_game.id}/media", json={}).status_code == 200
     client.post("/auth/logout")
     assert client.put(f"/teams/{own_team.id}/games/{own_game.id}/media", json={}).status_code == 401
+
+
+def test_put_media_accepts_long_english_video_title(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    video = {"url": "https://veo.co/m/1", "title": "x", "title_en": "e" * 200}
+
+    res = admin_client.put(f"/teams/{team.id}/games/{game.id}/media", json={"videos": [video]})
+
+    assert res.status_code == 200
+    assert res.json()["videos"][0]["title_en"] == "e" * 200

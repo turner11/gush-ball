@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-import ImageUpload from '../components/ImageUpload.vue'
+import ImageListEditor from '../components/ImageListEditor.vue'
 import { clubAdmin, fullAdmin } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -117,23 +117,7 @@ onMounted(load)
           </div>
         </fieldset>
 
-        <fieldset class="space-y-3">
-          <legend class="section-title">תמונות</legend>
-          <p v-if="!form.about_images.length" class="empty-state">אין תמונות</p>
-          <div v-for="(img, i) in form.about_images" :key="img.url" class="grid items-end gap-2 sm:grid-cols-[4rem_1fr_1fr_auto]">
-            <img :src="img.url" alt="" class="size-16 rounded-xl object-cover" />
-            <div>
-              <label :for="`image-title-${i}`" class="field-label">כותרת תמונה {{ i + 1 }}</label>
-              <input :id="`image-title-${i}`" v-model="img.title" class="field-input" maxlength="120" />
-            </div>
-            <div>
-              <label :for="`image-title-en-${i}`" class="field-label">כותרת תמונה {{ i + 1 }} (אנגלית)</label>
-              <input :id="`image-title-en-${i}`" v-model="img.title_en" class="field-input" maxlength="120" dir="ltr" lang="en" />
-            </div>
-            <button type="button" class="btn-danger-ghost" :data-test="`remove-image-${i}`" :aria-label="`הסרת תמונה ${i + 1}`" @click="form.about_images.splice(i, 1)">הסרה</button>
-          </div>
-          <ImageUpload label="הוספת תמונה" @uploaded="(url) => form.about_images.push({ url, title: '', title_en: '' })" />
-        </fieldset>
+        <ImageListEditor v-model="form.about_images" />
 
         <fieldset class="space-y-3">
           <legend class="section-title">קישורים</legend>

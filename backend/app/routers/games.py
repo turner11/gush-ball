@@ -17,7 +17,7 @@ from app.deps import (
 )
 from app.models import Game, GameScorer, GameStatus, Player, get_or_create_opponent
 from app.routers.players import VideoTitle
-from app.routers.teams import Name, Url500
+from app.routers.teams import TitledImage, Url500
 
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
 club_router = APIRouter(prefix="/games", tags=["games"])
@@ -113,24 +113,18 @@ class ScorerOut(BaseModel):
 class GameVideo(BaseModel):
     url: Url500
     title: VideoTitle
-    title_en: Name | None = None
-
-
-class GameImage(BaseModel):
-    url: Url500
-    title: Name | None = None
-    title_en: Name | None = None
+    title_en: VideoTitle | None = None
 
 
 class GameMedia(BaseModel):
     videos: list[GameVideo] = Field(default=[], max_length=20)
-    images: list[GameImage] = Field(default=[], max_length=20)
+    images: list[TitledImage] = Field(default=[], max_length=20)
 
 
 class GameDetailRead(GameRead):
     scorers: list[ScorerOut] = []
     videos: list[GameVideo] = []
-    images: list[GameImage] = []
+    images: list[TitledImage] = []
 
 
 def _scorers(game: Game) -> list[ScorerOut]:

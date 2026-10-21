@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 
-import ImageUpload from './ImageUpload.vue'
+import ImageListEditor from './ImageListEditor.vue'
 import { apiFetch } from '../lib/api'
 
 const props = defineProps({ teamId: { type: [Number, String], required: true }, gameId: { type: Number, required: true } })
@@ -81,23 +81,7 @@ async function onSubmit() {
       <button type="button" class="btn-secondary" data-test="add-video" @click="form.videos.push({ title: '', title_en: '', url: '' })">הוספת סרטון</button>
     </fieldset>
 
-    <fieldset class="space-y-3">
-      <legend class="section-title">תמונות</legend>
-      <p v-if="!form.images.length" class="empty-state">אין תמונות</p>
-      <div v-for="(img, i) in form.images" :key="img.url" class="grid items-end gap-2 sm:grid-cols-[4rem_1fr_1fr_auto]">
-        <img :src="img.url" alt="" class="size-16 rounded-xl object-cover" />
-        <div>
-          <label :for="`image-title-${i}`" class="field-label">כותרת תמונה {{ i + 1 }}</label>
-          <input :id="`image-title-${i}`" v-model="img.title" class="field-input" maxlength="120" />
-        </div>
-        <div>
-          <label :for="`image-title-en-${i}`" class="field-label">כותרת תמונה {{ i + 1 }} (אנגלית)</label>
-          <input :id="`image-title-en-${i}`" v-model="img.title_en" class="field-input" maxlength="120" dir="ltr" lang="en" />
-        </div>
-        <button type="button" class="btn-danger-ghost" :data-test="`remove-image-${i}`" :aria-label="`הסרת תמונה ${i + 1}`" @click="form.images.splice(i, 1)">הסרה</button>
-      </div>
-      <ImageUpload label="הוספת תמונה" @uploaded="(url) => form.images.push({ url, title: '', title_en: '' })" />
-    </fieldset>
+    <ImageListEditor v-model="form.images" />
 
     <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
     <p aria-live="polite" class="text-sm text-muted">{{ justSaved ? 'המדיה נשמרה' : '' }}</p>
