@@ -124,4 +124,80 @@ describe('RosterView', () => {
     expect(wrapper.text()).toContain('עמית')
     expect(wrapper.text()).not.toContain('יוסי')
   })
+
+  describe('inline editing (#471)', () => {
+    const asTeamAdmin = async () => {
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+    }
+    const button = (w, text) => w.findAll('button').find((b) => b.text().includes(text))
+
+    it('team admin adds a coach inline and it lands in the מאמנים group', async () => {
+      await asTeamAdmin()
+      const created = { ...COACH, name: 'מאמן חדש' }
+      mockFetch({
+        'GET /api/teams/1/players': () => jsonRes(structuredClone(PLAYERS)),
+        'GET /api/teams/1/images': () => jsonRes([]),
+        'POST /api/teams/1/players': () => jsonRes(created, 201),
+      })
+      const { default: RosterView } = await import('./RosterView.vue')
+      const w = mount(RosterView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      await button(w, 'הוספת שחקן').trigger('click')
+      await w.get('#player-name').setValue('מאמן חדש')
+      await w.get('#player-is-coach').setValue(true)
+      expect(w.find('#player-jersey-number').exists()).toBe(false)
+      await w.get('#add-player-form').trigger('submit')
+      await flushPromises()
+
+      const [, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'POST')
+      expect(JSON.parse(options.body)).toMatchObject({ is_coach: true, jersey_number: null })
+      expect(w.findAll('h2').map((h) => h.text())).toEqual(['מאמנים', 'שחקנים'])
+      expect(w.find('#add-player-form').exists()).toBe(false)
+    })
+
+    it('team admin edits a player inline and focus returns to the edit button', async () => {
+      await asTeamAdmin()
+      mockFetch({
+        'GET /api/teams/1/players': () => jsonRes(structuredClone(PLAYERS)),
+        'GET /api/teams/1/images': () => jsonRes([]),
+        'PATCH /api/teams/1/players/1': () => jsonRes({ ...PLAYERS[0], jersey_number: 23 }),
+      })
+      const { default: RosterView } = await import('./RosterView.vue')
+      const w = mount(RosterView, { global: { plugins: [router] }, attachTo: document.body })
+      await flushPromises()
+
+      await w.get('#edit-player-1').trigger('click')
+      await w.get('#player-jersey-number').setValue('23')
+      await w.get('#player-editor-1 form').trigger('submit')
+      await flushPromises()
+
+      const [url, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
+      expect(url).toBe('/api/teams/1/players/1')
+      expect(JSON.parse(options.body)).not.toHaveProperty('user_id')
+      expect(w.text()).toContain('23')
+      expect(w.find('#player-editor-1').exists()).toBe(false)
+      expect(document.activeElement.id).toBe('edit-player-1')
+      w.unmount()
+    })
+
+    it('fans and "view as player" see no add or edit controls', async () => {
+      mockFetch({ 'GET /api/teams/1/players': () => jsonRes(structuredClone(PLAYERS)), 'GET /api/teams/1/images': () => jsonRes([]) })
+      const { default: RosterView } = await import('./RosterView.vue')
+      let w = mount(RosterView, { global: { plugins: [router] } })
+      await flushPromises()
+      expect(w.find('#edit-player-1').exists()).toBe(false)
+      expect(w.text()).not.toContain('הוספת שחקן')
+
+      await asTeamAdmin()
+      const { viewAsMember } = await import('../composables/useAuth')
+      viewAsMember.value = true
+      w = mount(RosterView, { global: { plugins: [router] } })
+      await flushPromises()
+      expect(w.find('#edit-player-1').exists()).toBe(false)
+      expect(w.text()).not.toContain('הוספת שחקן')
+      viewAsMember.value = false
+    })
+  })
 })

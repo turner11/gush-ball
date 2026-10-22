@@ -542,6 +542,21 @@ describe('DefaultLayout', () => {
     expect(style.getPropertyValue('--team-on-primary')).toBe('#000000')
   })
 
+  it('recolors the header when a page patches the shared team row', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    Object.assign(useSelectedTeam().teams.value[0], { primary_color: '#1d428a' })
+    await flushPromises()
+
+    expect(wrapper.element.style.getPropertyValue('--team-primary')).toBe('#1d428a')
+    expect(wrapper.element.style.getPropertyValue('--team-on-primary')).toBe('#ffffff')
+  })
+
   it('updates the custom properties when the switcher changes', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 

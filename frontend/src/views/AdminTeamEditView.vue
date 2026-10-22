@@ -5,6 +5,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import ImageUpload from '../components/ImageUpload.vue'
 import TeamAdminsSection from '../components/TeamAdminsSection.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
+import TeamColorFields from '../components/TeamColorFields.vue'
 import { clubAdmin, fullAdmin } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
@@ -146,20 +147,7 @@ onMounted(() => Promise.all([load(), loadClubOptions()]))
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <template v-if="group.legend === 'מיתוג'">
-              <div>
-                <label for="team-primary-color" class="field-label">צבע ראשי</label>
-                <div class="mt-1 flex items-center gap-2">
-                  <input id="team-primary-color" v-model="form.primary_color" type="color" class="h-11 w-16 rounded" />
-                  <span class="text-sm tabular-nums" dir="ltr">{{ form.primary_color }}</span>
-                </div>
-              </div>
-              <div>
-                <label for="team-secondary-color" class="field-label">צבע משני</label>
-                <div class="mt-1 flex items-center gap-2">
-                  <input id="team-secondary-color" v-model="form.secondary_color" type="color" class="h-11 w-16 rounded" />
-                  <span class="text-sm tabular-nums" dir="ltr">{{ form.secondary_color }}</span>
-                </div>
-              </div>
+              <TeamColorFields v-model:primary="form.primary_color" v-model:secondary="form.secondary_color" />
               <div>
                 <label for="team-background" class="field-label">רקע</label>
                 <select id="team-background" v-model="form.background" class="field-input">
