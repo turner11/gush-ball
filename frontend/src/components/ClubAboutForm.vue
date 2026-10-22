@@ -10,7 +10,6 @@ const props = defineProps({ club: { type: Object, required: true } })
 const emit = defineEmits(['saved', 'cancel'])
 
 const saving = ref(false)
-const saved = ref(false)
 const saveError = ref(null)
 const form = reactive({ about_title: '', about_title_en: '', about: '', about_en: '', about_images: [], about_links: [], officials: [] })
 
@@ -36,7 +35,6 @@ function move(i, delta) {
 
 async function save() {
   saving.value = true
-  saved.value = false
   saveError.value = null
   try {
     const body = {
@@ -49,8 +47,6 @@ async function save() {
       officials: form.officials.map((o) => ({ name: o.name, position: o.position, image_url: orNull(o.image_url), about: orNull(o.about) })),
     }
     const result = await apiFetch(`/clubs/${props.club.id}/about`, { method: 'PUT', body })
-    fill(result) // the server's normalised values
-    saved.value = true
     emit('saved', result)
   } catch (err) {
     saveError.value =
@@ -151,7 +147,6 @@ async function save() {
     <div class="flex flex-wrap items-center gap-3">
       <button type="submit" class="btn-primary" :disabled="saving">שמירה</button>
       <button type="button" class="btn-secondary" @click="emit('cancel')">ביטול</button>
-      <span aria-live="polite" class="text-sm text-muted">{{ saved ? 'נשמר' : '' }}</span>
       <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
     </div>
   </form>

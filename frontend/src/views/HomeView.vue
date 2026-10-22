@@ -50,6 +50,12 @@ function toggleAbout() {
   aboutError.value = null
 }
 
+async function cancelAbout() {
+  editingAbout.value = false
+  await nextTick()
+  aboutToggle.value?.focus()
+}
+
 async function saveAbout() {
   savingAbout.value = true
   aboutError.value = null
@@ -216,7 +222,7 @@ const hasSocialEmbed = computed(
             <p v-if="aboutError" class="error-text" role="alert">{{ aboutError }}</p>
             <div class="flex flex-wrap gap-3">
               <button type="submit" class="btn-primary" :disabled="savingAbout">שמירה</button>
-              <button type="button" class="btn-secondary" @click="toggleAbout">ביטול</button>
+              <button type="button" class="btn-secondary" @click="cancelAbout">ביטול</button>
             </div>
           </form>
           <div v-else-if="team.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>

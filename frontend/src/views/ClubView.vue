@@ -90,6 +90,7 @@ const groups = computed(() => {
 const teamOf = (g) => teams.value.find((t) => t.id === g.team_id) ?? null
 
 async function load() {
+  editing.value = false
   const slug = route.params.clubSlug
   loading.value = true
   error.value = false

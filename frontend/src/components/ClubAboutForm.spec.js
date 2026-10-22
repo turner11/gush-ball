@@ -60,7 +60,6 @@ describe('ClubAboutForm', () => {
       ],
       officials: [{ name: 'דני', position: 'יו״ר', image_url: null, about: null }],
     })
-    expect(w.text()).toContain('נשמר')
   })
 
   it('removes an image and a link before saving', async () => {
