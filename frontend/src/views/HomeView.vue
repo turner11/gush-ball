@@ -1,17 +1,20 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
+import TeamContentSection from '../components/TeamContentSection.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import VideoCard from '../components/VideoCard.vue'
 import WikipediaCard from '../components/WikipediaCard.vue'
+import { canEditTeam } from '../composables/useAuth'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { gameAddress, played, splitGames } from '../lib/games'
+import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const team = ref(null)
 // Path strings, not named routes: this view also renders on the slug-less home route.
@@ -24,10 +27,64 @@ const players = ref([])
 const games = ref([])
 const loading = ref(false)
 
+// Inline editors for the about text and the links (#471); both close on a team switch or when the preview turns on.
+const canEdit = computed(() => !!team.value && canEditTeam(team.value.id))
+const editingAbout = ref(false)
+const editingLinks = ref(false)
+const aboutDraft = ref('')
+const savingAbout = ref(false)
+const aboutError = ref(null)
+const aboutToggle = ref(null)
+const linksToggle = ref(null)
+const closeEditors = () => {
+  editingAbout.value = false
+  editingLinks.value = false
+}
+watch(canEdit, (can) => {
+  if (!can) closeEditors()
+})
+
+function toggleAbout() {
+  editingAbout.value = !editingAbout.value
+  aboutDraft.value = team.value.about ?? ''
+  aboutError.value = null
+}
+
+async function saveAbout() {
+  savingAbout.value = true
+  aboutError.value = null
+  try {
+    team.value = await apiFetch(`/teams/${team.value.id}`, { method: 'PATCH', body: { about: aboutDraft.value.trim() || null } })
+    editingAbout.value = false
+    await nextTick()
+    aboutToggle.value?.focus()
+  } catch {
+    aboutError.value = 'שגיאה בשמירה, נסו שוב'
+  } finally {
+    savingAbout.value = false
+  }
+}
+
+async function toggleLinks() {
+  if (!editingLinks.value) {
+    editingLinks.value = true
+    return
+  }
+  editingLinks.value = false
+  try {
+    links.value = await apiFetch(`/teams/${team.value.id}/links`)
+  } catch {
+    // keep the old list rather than blanking it
+  }
+  await nextTick()
+  linksToggle.value?.focus()
+}
+
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId, teamsLoaded } = useSelectedTeam()
 
 async function load() {
+  closeEditors()
   if (!selectedTeamId.value) {
     team.value = null
     links.value = []
@@ -145,9 +202,25 @@ const hasSocialEmbed = computed(
           </div>
         </div>
 
-        <section v-if="team.about" class="space-y-2">
-          <h2 class="section-title">על הקבוצה</h2>
-          <div class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
+        <section v-if="team.about || canEdit" class="space-y-2">
+          <div class="section-header">
+            <h2 class="section-title">על הקבוצה</h2>
+            <button v-if="canEdit" ref="aboutToggle" type="button" class="btn-secondary" aria-controls="home-about-editor" :aria-expanded="editingAbout" @click="toggleAbout">{{ editingAbout ? 'סגירה' : 'עריכה' }}</button>
+          </div>
+          <form v-if="editingAbout" id="home-about-editor" class="card space-y-3" @submit.prevent="saveAbout">
+            <div>
+              <label for="home-about" class="field-label">על הקבוצה</label>
+              <textarea id="home-about" v-model="aboutDraft" class="field-input" rows="6" maxlength="5000" />
+              <p class="mt-1 text-sm text-muted">השאירו ריק כדי להסתיר.</p>
+            </div>
+            <p v-if="aboutError" class="error-text" role="alert">{{ aboutError }}</p>
+            <div class="flex flex-wrap gap-3">
+              <button type="submit" class="btn-primary" :disabled="savingAbout">שמירה</button>
+              <button type="button" class="btn-secondary" @click="toggleAbout">ביטול</button>
+            </div>
+          </form>
+          <div v-else-if="team.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
+          <p v-else class="empty-state">עוד אין טקסט על הקבוצה.</p>
         </section>
 
         <section v-if="topPost" class="space-y-3">
@@ -191,9 +264,14 @@ const hasSocialEmbed = computed(
           </ul>
         </section>
 
-        <section v-if="links.length" class="space-y-2">
-          <h2 class="section-title">קישורים</h2>
-          <ul class="flex flex-wrap gap-2">
+        <section v-if="links.length || canEdit" class="space-y-2">
+          <div class="section-header">
+            <h2 class="section-title">קישורים</h2>
+            <button v-if="canEdit" ref="linksToggle" type="button" class="btn-secondary" aria-controls="home-links-editor" :aria-expanded="editingLinks" @click="toggleLinks">{{ editingLinks ? 'סיום עריכה' : 'עריכת קישורים' }}</button>
+          </div>
+          <TeamContentSection v-if="editingLinks" id="home-links-editor" :key="team.id" :team-id="team.id" v-bind="CONTENT_SECTIONS.links" />
+          <p v-else-if="!links.length" class="empty-state">אין קישורים עדיין.</p>
+          <ul v-else class="flex flex-wrap gap-2">
             <li v-for="link in links" :key="link.id">
               <a :href="link.url" target="_blank" rel="noopener" class="btn-secondary gap-2">{{ link.label }}<AppIcon name="external" /></a>
             </li>
