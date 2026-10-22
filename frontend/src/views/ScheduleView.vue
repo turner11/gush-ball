@@ -33,9 +33,11 @@ watch(canEdit, (can) => {
 })
 
 async function closeEditor() {
-  const opener = editingId.value === 'new' ? addToggle.value : document.getElementById('edit-game-' + editingId.value)
+  const openerId = editingId.value
   editingId.value = null
   await nextTick()
+  // Looked up after the re-render: a game that moved sections was re-mounted, so an earlier element is detached.
+  const opener = openerId === 'new' ? addToggle.value : document.getElementById('edit-game-' + openerId)
   opener?.focus()
 }
 
