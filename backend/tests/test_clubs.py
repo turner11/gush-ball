@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.models import Club, Membership, Team
 
 URL = "https://ibasketball.co.il/club/3901-2/"
-NO_ABOUT = {"about_title": None, "about_title_en": None, "about": None, "about_en": None, "about_images": [], "about_links": []}
+NO_ABOUT = {"about_title": None, "about_title_en": None, "about": None, "about_en": None, "about_images": [], "about_links": [], "officials": []}
 
 
 def test_club_fks_cascade_on_rename() -> None:
@@ -133,6 +133,24 @@ def test_club_about_forbidden_for_team_admin_and_anonymous(
     assert team_admin_client.put(f"/clubs/{club.id}/about", json={}).status_code == 401
 
 
+def test_club_officials_round_trip_in_order(admin_client: TestClient, db_session: Session) -> None:
+    club = _club(db_session)
+    first = {"name": " דני ", "position": "יו״ר", "image_url": "https://cdn.example.com/d.jpg", "about": "ותיק"}
+    second = {"name": "רונית", "position": "מזכירה"}
+
+    assert admin_client.put(f"/clubs/{club.id}/about", json={"officials": [first, second]}).status_code == 200
+
+    (got,) = admin_client.get("/clubs").json()
+    assert got["officials"] == [
+        {"name": "דני", "position": "יו״ר", "image_url": "https://cdn.example.com/d.jpg", "about": "ותיק"},
+        {"name": "רונית", "position": "מזכירה", "image_url": None, "about": None},
+    ]
+
+    admin_client.put(f"/clubs/{club.id}/about", json={"officials": [second, first]})
+    (got,) = admin_client.get("/clubs").json()
+    assert [o["name"] for o in got["officials"]] == ["רונית", "דני"]
+
+
 @pytest.mark.parametrize(
     "body",
     [
@@ -140,6 +158,10 @@ def test_club_about_forbidden_for_team_admin_and_anonymous(
         {"about_links": [{"label": "x", "url": "javascript:alert(1)"}]},
         {"about_links": [{"label": "  ", "url": "https://example.com/"}]},
         {"about": "x" * 5001},
+        {"officials": [{"name": " ", "position": "x"}]},
+        {"officials": [{"name": "x"}]},
+        {"officials": [{"name": "x", "position": "x", "image_url": "javascript:alert(1)"}]},
+        {"officials": [{"name": "x", "position": "x"}] * 51},
     ],
 )
 def test_club_about_rejects_bad_input(admin_client: TestClient, db_session: Session, body: dict) -> None:

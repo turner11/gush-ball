@@ -13,6 +13,7 @@ const CLUB = {
   about_en: null,
   about_images: [{ url: 'https://cdn.example.com/a.jpg', title: 'תמונה', title_en: null }],
   about_links: [{ label: 'אתר', label_en: null, url: 'https://club.example.com/' }],
+  officials: [{ name: 'דני', position: 'יו״ר', image_url: null, about: null }],
 }
 const jsonRes = (body, status = 200) => ({ ok: status < 400, status, json: async () => body })
 const ImageUploadStub = { name: 'ImageUpload', template: '<button type="button" class="upload" />' }
@@ -76,6 +77,7 @@ describe('AdminClubAboutView', () => {
         { label: 'אתר', label_en: null, url: 'https://club.example.com/' },
         { label: 'פייסבוק', label_en: null, url: 'https://facebook.com/gush' },
       ],
+      officials: [{ name: 'דני', position: 'יו״ר', image_url: null, about: null }],
     })
     expect(w.text()).toContain('נשמר')
   })
@@ -90,6 +92,32 @@ describe('AdminClubAboutView', () => {
     const body = JSON.parse(putCall()[1].body)
     expect(body.about_images).toEqual([])
     expect(body.about_links).toEqual([])
+  })
+
+  it('adds, uploads a photo for, reorders and saves officials', async () => {
+    const w = await mountView()
+    await w.get('[data-test=add-official]').trigger('click')
+    await w.get('#official-name-1').setValue('רונית')
+    await w.get('#official-position-1').setValue('מזכירה')
+    const uploads = w.findAllComponents({ name: 'ImageUpload' })
+    uploads.at(-1).vm.$emit('uploaded', 'https://cdn.example.com/o.jpg')
+    await flushPromises()
+    await w.get('[aria-label="הזזה למעלה 2"]').trigger('click')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(JSON.parse(putCall()[1].body).officials).toEqual([
+      { name: 'רונית', position: 'מזכירה', image_url: 'https://cdn.example.com/o.jpg', about: null },
+      { name: 'דני', position: 'יו״ר', image_url: null, about: null },
+    ])
+  })
+
+  it('removes an official', async () => {
+    const w = await mountView()
+    await w.get('[data-test=remove-official-0]').trigger('click')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(JSON.parse(putCall()[1].body).officials).toEqual([])
   })
 
   it('shows an alert when saving fails', async () => {

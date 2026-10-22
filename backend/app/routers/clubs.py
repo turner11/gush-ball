@@ -20,6 +20,13 @@ class ClubAboutLink(BaseModel):
     url: Url500
 
 
+class ClubOfficial(BaseModel):
+    name: ClubName
+    position: ClubName
+    image_url: Url500 | None = None
+    about: About | None = None
+
+
 class ClubOut(BaseModel):
     # ponytail: about rides on the list; split to GET /clubs/{id} if the list payload grows
     id: int
@@ -32,6 +39,7 @@ class ClubOut(BaseModel):
     about_en: str | None
     about_images: list[TitledImage]
     about_links: list[ClubAboutLink]
+    officials: list[ClubOfficial]
 
     model_config = {"from_attributes": True}
 
@@ -51,6 +59,7 @@ class ClubAboutUpdate(BaseModel):
     about_en: About | None = None
     about_images: list[TitledImage] = Field(default=[], max_length=20)
     about_links: list[ClubAboutLink] = Field(default=[], max_length=20)
+    officials: list[ClubOfficial] = Field(default=[], max_length=50)
 
 
 @router.get("", response_model=list[ClubOut])
