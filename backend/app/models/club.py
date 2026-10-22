@@ -22,6 +22,8 @@ class Club(Base):
     about_en: Mapped[str | None] = mapped_column(Text, default=None)
     about_images: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     about_links: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    # list order is the display order; no _en keys (JSON items gain them without a migration)
+    officials: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
 
 
 def get_or_create_club(db: Session, name: str) -> Club:

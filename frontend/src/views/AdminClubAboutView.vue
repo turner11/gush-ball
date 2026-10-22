@@ -2,7 +2,9 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
+import AppIcon from '../components/AppIcon.vue'
 import ImageListEditor from '../components/ImageListEditor.vue'
+import ImageUpload from '../components/ImageUpload.vue'
 import { clubAdmin, fullAdmin } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -15,7 +17,7 @@ const loadError = ref(false)
 const saving = ref(false)
 const saved = ref(false)
 const saveError = ref(null)
-const form = reactive({ about_title: '', about_title_en: '', about: '', about_en: '', about_images: [], about_links: [] })
+const form = reactive({ about_title: '', about_title_en: '', about: '', about_en: '', about_images: [], about_links: [], officials: [] })
 
 const allowed = computed(() => fullAdmin.value || clubAdmin(club.value?.name))
 
@@ -28,6 +30,7 @@ function fill(c) {
     about_en: c.about_en ?? '',
     about_images: c.about_images.map((i) => ({ ...i, title: i.title ?? '', title_en: i.title_en ?? '' })),
     about_links: c.about_links.map((l) => ({ ...l, label_en: l.label_en ?? '' })),
+    officials: c.officials.map((o) => ({ ...o, image_url: o.image_url ?? '', about: o.about ?? '' })),
   })
 }
 
@@ -47,6 +50,11 @@ async function load() {
 
 const orNull = (v) => v.trim() || null
 
+function move(i, delta) {
+  const list = form.officials
+  ;[list[i], list[i + delta]] = [list[i + delta], list[i]]
+}
+
 async function save() {
   saving.value = true
   saved.value = false
@@ -59,6 +67,7 @@ async function save() {
       about_en: orNull(form.about_en),
       about_images: form.about_images.map((i) => ({ url: i.url, title: orNull(i.title), title_en: orNull(i.title_en) })),
       about_links: form.about_links.map((l) => ({ label: l.label, label_en: orNull(l.label_en), url: l.url })),
+      officials: form.officials.map((o) => ({ name: o.name, position: o.position, image_url: orNull(o.image_url), about: orNull(o.about) })),
     }
     fill(await apiFetch(`/clubs/${clubId}/about`, { method: 'PUT', body })) // the server's normalised values
     saved.value = true
@@ -138,6 +147,44 @@ onMounted(load)
             <button type="button" class="btn-danger-ghost" :data-test="`remove-link-${i}`" :aria-label="`הסרת קישור ${i + 1}`" @click="form.about_links.splice(i, 1)">הסרה</button>
           </div>
           <button type="button" class="btn-secondary" data-test="add-link" @click="form.about_links.push({ label: '', label_en: '', url: '' })">הוספת קישור</button>
+        </fieldset>
+
+        <fieldset class="space-y-3">
+          <legend class="section-title">בעלי תפקידים</legend>
+          <p v-if="!form.officials.length" class="empty-state">אין בעלי תפקידים</p>
+          <div v-for="(o, i) in form.officials" :key="i" class="space-y-2 rounded-xl border border-line p-3">
+            <div class="grid gap-2 sm:grid-cols-2">
+              <div>
+                <label :for="`official-name-${i}`" class="field-label">שם בעל תפקיד {{ i + 1 }}</label>
+                <input :id="`official-name-${i}`" v-model="o.name" class="field-input" required maxlength="120" />
+              </div>
+              <div>
+                <label :for="`official-position-${i}`" class="field-label">תפקיד {{ i + 1 }}</label>
+                <input :id="`official-position-${i}`" v-model="o.position" class="field-input" required maxlength="120" />
+              </div>
+              <div class="sm:col-span-2">
+                <label :for="`official-about-${i}`" class="field-label">על בעל התפקיד {{ i + 1 }}</label>
+                <textarea :id="`official-about-${i}`" v-model="o.about" class="field-input" rows="3" maxlength="5000" />
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <template v-if="o.image_url">
+                <img :src="o.image_url" alt="" class="size-16 rounded-full object-cover" />
+                <button type="button" class="btn-danger-ghost" @click="o.image_url = ''">הסרת תמונה</button>
+              </template>
+              <ImageUpload v-else :label="`תמונה לבעל תפקיד ${i + 1}`" @uploaded="(url) => (o.image_url = url)" />
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <button type="button" class="btn-ghost" :aria-label="`הזזה למעלה ${i + 1}`" :disabled="i === 0" @click="move(i, -1)">
+                <AppIcon name="chevron" class="rotate-180" />
+              </button>
+              <button type="button" class="btn-ghost" :aria-label="`הזזה למטה ${i + 1}`" :disabled="i === form.officials.length - 1" @click="move(i, 1)">
+                <AppIcon name="chevron" />
+              </button>
+              <button type="button" class="btn-danger-ghost" :data-test="`remove-official-${i}`" :aria-label="`הסרת בעל תפקיד ${i + 1}`" @click="form.officials.splice(i, 1)">הסרה</button>
+            </div>
+          </div>
+          <button type="button" class="btn-secondary" data-test="add-official" @click="form.officials.push({ name: '', position: '', image_url: '', about: '' })">הוספת בעל תפקיד</button>
         </fieldset>
 
         <div class="flex flex-wrap items-center gap-3">

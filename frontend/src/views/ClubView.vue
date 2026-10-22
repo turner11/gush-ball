@@ -9,6 +9,7 @@ import { apiFetch } from '../lib/api'
 import { splitGames } from '../lib/games'
 import { clubJsonLd, pageTitle, setJsonLd, setMeta } from '../lib/head'
 import { leagueKey } from '../lib/leagues'
+import { DEFAULT_PLAYER_PHOTO, onPlayerImgError } from '../lib/playerPhoto'
 import { matchRank } from '../lib/search'
 import SearchInput from '../components/SearchInput.vue'
 import GameRow from '../components/GameRow.vue'
@@ -151,7 +152,20 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           </figure>
         </div>
       </section>
-      <p v-else-if="canEdit" class="empty-state">עוד אין תוכן על המועדון. <RouterLink :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">עריכת עמוד המועדון</RouterLink></p>
+      <section v-if="club.officials.length" class="space-y-3">
+        <h2 class="section-title">בעלי תפקידים</h2>
+        <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <li v-for="(o, i) in club.officials" :key="i" class="card flex items-start gap-3">
+            <img :src="o.image_url || DEFAULT_PLAYER_PHOTO" alt="" loading="lazy" class="size-16 shrink-0 rounded-full object-cover" @error="onPlayerImgError" />
+            <div class="min-w-0">
+              <h3 class="font-bold">{{ o.name }}</h3>
+              <p class="text-sm text-muted">{{ o.position }}</p>
+              <p v-if="o.about" class="mt-1 whitespace-pre-line break-words text-sm">{{ o.about }}</p>
+            </div>
+          </li>
+        </ul>
+      </section>
+      <p v-if="canEdit && !hasAbout && !club.officials.length" class="empty-state">עוד אין תוכן על המועדון. <RouterLink :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">עריכת עמוד המועדון</RouterLink></p>
       <div v-if="clubTeams.length > 1">
         <SearchInput id="club-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה או ליגה" class="w-full sm:w-80" />
         <p class="mt-2 text-sm text-muted" aria-live="polite">{{ shownTeams.length === 1 ? 'קבוצה אחת' : `${shownTeams.length} קבוצות` }}</p>

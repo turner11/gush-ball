@@ -167,7 +167,7 @@ describe('ClubView', () => {
     mockFetch(GAMES)
     const w = await mountIt()
     const text = w.text()
-    expect(w.findAll('h3').map((h) => h.text())).toEqual(['דני כהן', 'רונית לוי'])
+    expect(w.findAll('li h3').map((h) => h.text())).toEqual(['דני כהן', 'רונית לוי'])
     expect(text).toContain('יו״ר')
     expect(text).toContain('ותיק המועדון')
     expect(text.indexOf('מועדון קהילתי')).toBeLessThan(text.indexOf('בעלי תפקידים'))
