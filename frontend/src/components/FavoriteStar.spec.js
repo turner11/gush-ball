@@ -22,6 +22,13 @@ describe('FavoriteStar', () => {
     expect(mount(FavoriteStar, { props: { teamId: 1, name: 'א' } }).find('button').exists()).toBe(false)
   })
 
+  it('renders nothing in the anonymous preview', async () => {
+    const { FavoriteStar } = await setup({ username: 'a', favorite_team_ids: [] })
+    const { previewMode } = await import('../composables/useAuth.js')
+    previewMode.value = 'anonymous'
+    expect(mount(FavoriteStar, { props: { teamId: 1, name: 'א' } }).find('button').exists()).toBe(false)
+  })
+
   it('toggles optimistically and sends PUT/DELETE', async () => {
     let release
     const { FavoriteStar, fetchMock } = await setup(

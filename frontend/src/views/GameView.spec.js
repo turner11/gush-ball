@@ -179,9 +179,9 @@ describe('GameView', () => {
 
   it('preview hides the scorers and media edit buttons from a team admin (#468)', async () => {
     mockFetch(ok({ ...GAME, scorers: [{ player_id: 2, name: 'x', points: 2 }], videos: [{ url: 'https://youtu.be/a', title: 't', title_en: null }] }))
-    const { useAuth, viewAsMember } = await import('../composables/useAuth')
+    const { useAuth, previewMode } = await import('../composables/useAuth')
     useAuth().user.value = { id: 1, team_ids: [1] }
-    viewAsMember.value = true
+    previewMode.value = 'member'
     const { wrapper } = await mountAt(true)
     const labels = wrapper.findAll('button').map((b) => b.text())
     expect(labels).not.toContain('עריכת קלעים')

@@ -124,6 +124,27 @@ describe('ScheduleView', () => {
       expect(wrapper.text()).not.toContain('אימונים קרובים')
     })
 
+    it('anonymous preview hides practices; exiting loads them', async () => {
+      mockFetch({
+        ...base,
+        'GET /api/auth/me': () => jsonRes({ username: 'p', member_team_ids: [1] }),
+        'GET /api/teams/1/practices': () => jsonRes([practice(1, soon)]),
+      })
+      const { previewMode } = await import('../composables/useAuth')
+      previewMode.value = 'anonymous'
+
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+      expect(global.fetch.mock.calls.some(([url]) => url.includes('/practices'))).toBe(false)
+      expect(wrapper.text()).not.toContain('אימונים קרובים')
+      expect(calendarHref(wrapper)).not.toContain('practices=1')
+
+      previewMode.value = null
+      await flushPromises()
+      expect(wrapper.text()).toContain('אימונים קרובים')
+    })
+
     it('gives members the practices feed link', async () => {
       mockFetch({
         ...base,
@@ -432,7 +453,7 @@ describe('ScheduleView', () => {
     })
 
     it('fans and "view as player" see no add or edit controls', async () => {
-      const { viewAsMember } = await import('../composables/useAuth')
+      const { previewMode } = await import('../composables/useAuth')
       mockFetch({
         'GET /api/auth/me': () => ({ ok: false, status: 401, statusText: 'x', json: async () => ({}) }),
         'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
@@ -444,11 +465,11 @@ describe('ScheduleView', () => {
       expect(button(fan, 'הוספת משחק')).toBeUndefined()
       expect(button(fan, 'עריכה')).toBeUndefined()
 
-      viewAsMember.value = true
+      previewMode.value = 'member'
       const preview = await mountWith()
       expect(button(preview, 'הוספת משחק')).toBeUndefined()
       expect(button(preview, 'עריכה')).toBeUndefined()
-      viewAsMember.value = false
+      previewMode.value = null
     })
   })
 })

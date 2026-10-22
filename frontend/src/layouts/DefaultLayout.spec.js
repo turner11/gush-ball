@@ -856,6 +856,33 @@ describe('DefaultLayout', () => {
     wrapper.unmount()
   })
 
+  it('admin previews as an anonymous visitor and exits (#477)', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/auth/me': () => jsonRes({ username: 'admin', display_name: 'admin', is_admin: true, member_team_ids: null }),
+    })
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
+    await router.push('/team_a/schedule')
+    await flushPromises()
+    const hasPlaybook = () => wrapper.findAll('a').some((a) => a.text() === 'פלייבוק')
+    expect(hasPlaybook()).toBe(true)
+
+    const body = await openMenu(wrapper.find('header button[aria-label$="תפריט חשבון"]'))
+    const items = body.findAll('[role=menuitem]').map((m) => m.text())
+    expect(items).toEqual(expect.arrayContaining(['תצוגה כשחקן', 'תצוגה כאורח']))
+    await body.findAll('[role=menuitem]').find((m) => m.text() === 'תצוגה כאורח').trigger('click')
+    await flushPromises()
+
+    const banner = wrapper.find('[role=status]')
+    expect(banner.text()).toContain('תצוגה כאורח')
+    expect(hasPlaybook()).toBe(false)
+    await banner.findAll('button').find((b) => b.text() === 'חזרה לתצוגת מנהל').trigger('click')
+    expect(wrapper.find('[role=status]').exists()).toBe(false)
+    expect(hasPlaybook()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('a non-admin account menu has no view-as-player item', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
