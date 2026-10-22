@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import LineupStats from '../components/LineupStats.vue'
-import { useAuth, viewAsMember } from '../composables/useAuth'
+import { previewMode, useAuth, viewer } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatGameDate } from '../lib/format'
@@ -20,8 +20,8 @@ if (!checked.value) checkSession()
 
 const players = ref([])
 const games = ref([])
-const canView = computed(() => !!user.value?.can_view_stats)
-const pending = computed(() => user.value?.memberships?.some((m) => m.role === 'pending'))
+const canView = computed(() => !!viewer.value?.can_view_stats)
+const pending = computed(() => viewer.value?.memberships?.some((m) => m.role === 'pending'))
 const loading = ref(false)
 const error = ref(false)
 
@@ -49,7 +49,7 @@ const statsGames = computed(() =>
 )
 const requestedId = computed(() => Number(route.query.game) || null)
 const selectedGame = computed(() => statsGames.value.find((g) => g.id === requestedId.value) ?? null)
-const liveUrl = computed(() => selectedGame.value && liveStatsUrl(selectedGame.value, viewAsMember.value ? null : user.value))
+const liveUrl = computed(() => selectedGame.value && liveStatsUrl(selectedGame.value, previewMode.value ? null : user.value))
 const fellBack = computed(() => requestedId.value && !selectedGame.value && !loading.value)
 
 function optionLabel(g) {
@@ -73,7 +73,7 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
     </div>
     <div v-else-if="!canView" class="card mx-auto max-w-xl space-y-3 text-center">
       <AppIcon name="chart" class="mx-auto size-8 text-muted" aria-hidden="true" />
-      <template v-if="!user">
+      <template v-if="!viewer">
         <h2 class="section-title">הסטטיסטיקה זמינה לשחקני המועדון</h2>
         <p class="text-muted">התחברו עם Google ובקשו להצטרף לקבוצה. אחרי אישור המנהל תוכלו לראות את ה־+/- של כל חמישייה.</p>
         <RouterLink :to="{ name: 'admin-login', query: { next: route.fullPath } }" class="btn-primary w-full sm:w-auto">כניסה / הרשמה</RouterLink>

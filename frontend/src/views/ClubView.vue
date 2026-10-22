@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import { clubAdmin, fullAdmin, useAuth, viewAsMember } from '../composables/useAuth'
+import { clubAdmin, fullAdmin, useAuth, previewMode } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -36,7 +36,7 @@ const searchInput = ref(null)
 const club = ref(null) // null = not found (once loaded)
 
 const { user } = useAuth()
-const canEdit = computed(() => !viewAsMember.value && !!user.value && (fullAdmin.value || clubAdmin(club.value?.name)))
+const canEdit = computed(() => !previewMode.value && !!user.value && (fullAdmin.value || clubAdmin(club.value?.name)))
 const editing = ref(false)
 const editToggle = ref(null)
 watch(canEdit, (can) => {

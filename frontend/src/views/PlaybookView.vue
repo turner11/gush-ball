@@ -5,14 +5,14 @@ import { useRoute } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
-import { canEditTeam, teamMember, useAuth } from '../composables/useAuth'
+import { canEditTeam, teamMember, useAuth, viewer } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const route = useRoute()
 const { selectedTeamId } = useSelectedTeam()
-const { user, checked, checkSession } = useAuth()
+const { checked, checkSession } = useAuth()
 if (!checked.value) checkSession()
 
 const plays = ref([])
@@ -41,7 +41,7 @@ async function load() {
   }
 }
 
-watch([selectedTeamId, checked], load, { immediate: true })
+watch([selectedTeamId, checked, viewer], load, { immediate: true })
 
 const canEdit = computed(() => !!selectedTeamId.value && canEditTeam(selectedTeamId.value))
 const editing = ref(false)
@@ -77,7 +77,7 @@ watch(canEdit, (can) => {
     </div>
     <div v-else-if="!teamMember(selectedTeamId)" class="space-y-3">
       <p class="empty-state">הדף זמין לחברי הקבוצה בלבד</p>
-      <RouterLink v-if="!user" :to="{ name: 'admin-login', query: { next: route.fullPath } }" class="btn-primary w-full sm:w-auto">כניסה / הרשמה</RouterLink>
+      <RouterLink v-if="!viewer" :to="{ name: 'admin-login', query: { next: route.fullPath } }" class="btn-primary w-full sm:w-auto">כניסה / הרשמה</RouterLink>
     </div>
     <div v-else-if="error" class="space-y-3">
       <p class="error-text" role="alert">שגיאה בטעינת המהלכים</p>

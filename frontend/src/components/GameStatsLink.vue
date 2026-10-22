@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { useAuth, viewAsMember } from '../composables/useAuth'
+import { useAuth, previewMode } from '../composables/useAuth'
 import { gameStatsRoute, liveStatsUrl } from '../lib/games'
 import AppIcon from './AppIcon.vue'
 
@@ -10,7 +10,7 @@ import AppIcon from './AppIcon.vue'
 // Styling comes from the caller (attribute fallthrough).
 const props = defineProps({ game: { type: Object, required: true } })
 const { user } = useAuth()
-const liveUrl = computed(() => liveStatsUrl(props.game, viewAsMember.value ? null : user.value))
+const liveUrl = computed(() => liveStatsUrl(props.game, previewMode.value ? null : user.value))
 </script>
 
 <template>
