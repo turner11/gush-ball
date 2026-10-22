@@ -142,7 +142,7 @@ describe('HomeView', () => {
     )
 
     const hrefOf = (text) => wrapper.findAll('a').find((a) => a.text() === text).attributes('href')
-    expect(hrefOf('כל השחקנים')).toBe('/elizur/roster')
+    expect(hrefOf('לכל הסגל')).toBe('/elizur/roster')
     expect(hrefOf('כל העדכונים')).toBe('/elizur/media')
   })
 
