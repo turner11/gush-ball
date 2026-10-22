@@ -44,7 +44,7 @@ async function load() {
 
 watch(selectedTeamId, load, { immediate: true })
 
-const canEdit = computed(() => canEditTeam(selectedTeamId.value))
+const canEdit = computed(() => !!selectedTeamId.value && canEditTeam(selectedTeamId.value))
 const editing = ref(false)
 const editToggle = ref(null)
 

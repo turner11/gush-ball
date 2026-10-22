@@ -31,7 +31,7 @@ export const CONTENT_SECTIONS = {
   },
   posts: {
     resource: 'posts',
-    heading: 'פוסטים',
+    heading: 'עדכונים',
     fields: [
       { key: 'title', label: 'כותרת', type: 'text', required: true },
       { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
