@@ -380,4 +380,75 @@ describe('ScheduleView', () => {
       expect(wrapper.find('a[href^="https://app.streamlit.app"]').exists()).toBe(false)
     })
   })
+
+  describe('inline game editing', () => {
+    const ME = { username: 'a', team_ids: [1] }
+    const NEW_GAME = { ...FUTURE_GAME, id: 3, opponent: { ...FUTURE_GAME.opponent, id: 7, name: 'בני חדש' } }
+
+    async function mountWith(extra = {}) {
+      mockFetch({
+        'GET /api/auth/me': () => jsonRes(ME),
+        'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+        'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME]),
+        ...extra,
+      })
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+      return wrapper
+    }
+    const button = (wrapper, text) => wrapper.findAll('button').find((b) => b.text().includes(text))
+
+    it('team admin adds a game from the schedule and it appears under upcoming', async () => {
+      const wrapper = await mountWith({ 'POST /api/teams/1/games': () => jsonRes(NEW_GAME, 201) })
+      await button(wrapper, 'הוספת משחק').trigger('click')
+      await wrapper.find('#game-opponent-name').setValue('בני חדש')
+      await wrapper.find('#game-scheduled-at').setValue('2030-06-01T18:00')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      const [, options] = global.fetch.mock.calls.find(([u, o]) => u === '/api/teams/1/games' && o?.method === 'POST')
+      expect(JSON.parse(options.body).opponent_name).toBe('בני חדש')
+      expect(wrapper.find('form').exists()).toBe(false)
+      expect(wrapper.text()).toContain('בני חדש')
+    })
+
+    it('team admin edits a game inline through the same PATCH, without touching stats_url', async () => {
+      const done = { ...FUTURE_GAME, status: 'final', team_score: 90, opponent_score: 80 }
+      const wrapper = await mountWith({ 'PATCH /api/teams/1/games/1': () => jsonRes(done) })
+      await button(wrapper, 'עריכה').trigger('click')
+      await wrapper.find('#game-status').setValue('final')
+      await wrapper.find('#game-team-score').setValue('90')
+      await wrapper.find('#game-opponent-score').setValue('80')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      const [, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
+      const body = JSON.parse(options.body)
+      expect(body.status).toBe('final')
+      expect(body).not.toHaveProperty('stats_url')
+      expect(wrapper.find('form').exists()).toBe(false)
+      expect(wrapper.text()).toContain('90 : 80')
+    })
+
+    it('fans and "view as player" see no add or edit controls', async () => {
+      const { viewAsMember } = await import('../composables/useAuth')
+      mockFetch({
+        'GET /api/auth/me': () => ({ ok: false, status: 401, statusText: 'x', json: async () => ({}) }),
+        'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+        'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME]),
+      })
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const fan = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+      expect(button(fan, 'הוספת משחק')).toBeUndefined()
+      expect(button(fan, 'עריכה')).toBeUndefined()
+
+      viewAsMember.value = true
+      const preview = await mountWith()
+      expect(button(preview, 'הוספת משחק')).toBeUndefined()
+      expect(button(preview, 'עריכה')).toBeUndefined()
+      viewAsMember.value = false
+    })
+  })
 })

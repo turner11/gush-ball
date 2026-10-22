@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import AdminTeamPicker from '../components/AdminTeamPicker.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import GameForm from '../components/GameForm.vue'
 import GameRow from '../components/GameRow.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
@@ -17,8 +18,6 @@ import { formatDateTime } from '../lib/format'
 import { byDate, sheetCopyUrl, STATUS_LABELS } from '../lib/games'
 import { matchesQuery } from '../lib/search'
 
-const STATUSES = Object.keys(STATUS_LABELS)
-
 const FIELD_LABELS = {
   scheduled_at: 'תאריך',
   status: 'סטטוס',
@@ -28,25 +27,13 @@ const FIELD_LABELS = {
   opponent_name: 'יריבה',
 }
 
-function emptyForm() {
-  return {
-    opponent_name: '',
-    scheduled_at: '',
-    is_home: true,
-    status: 'scheduled',
-    team_score: '',
-    opponent_score: '',
-    description: '',
-  }
-}
-
 const teams = ref([])
 const games = ref([])
 const loading = ref(false)
 const listError = ref(null)
 const pendingGames = ref([])
 const editing = ref(null)
-const form = ref(emptyForm())
+const formKey = ref(0) // bumping it remounts GameForm: refill on edit, clear after save
 const error = ref(null)
 const pendingDelete = ref(null)
 const { user } = useAuth()
@@ -181,60 +168,24 @@ async function loadStats() {
 function resetForm() {
   confirming.value = null
   editing.value = null
-  form.value = emptyForm()
+  formKey.value++
 }
 
 const formEl = ref(null)
 
 function startEdit(game) {
-  formEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  formEl.value?.$el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   editing.value = game
   confirming.value = null
   statsMessage.value = null
   statsUrl.value = game.stats_url ?? ''
-  form.value = {
-    opponent_name: game.opponent.name,
-    scheduled_at: game.scheduled_at.slice(0, 16),
-    is_home: game.is_home,
-    status: game.status,
-    team_score: game.team_score ?? '',
-    opponent_score: game.opponent_score ?? '',
-    description: game.description ?? '',
-  }
+  formKey.value++
 }
 
-async function onSubmit() {
-  const payload = {
-    opponent_name: form.value.opponent_name,
-    scheduled_at: form.value.scheduled_at,
-    is_home: form.value.is_home,
-    status: form.value.status,
-    team_score: form.value.team_score === '' ? null : Number(form.value.team_score),
-    opponent_score: form.value.opponent_score === '' ? null : Number(form.value.opponent_score),
-    description: form.value.description || null,
-  }
-
+function onSaved(game) {
   error.value = null
-  try {
-    if (editing.value) {
-      payload.stats_url = statsUrl.value.trim() || null
-      const updated = await apiFetch(`/teams/${selectedTeamId.value}/games/${editing.value.id}`, {
-        method: 'PATCH',
-        body: payload,
-      })
-      replaceGame(updated)
-    } else {
-      const created = await apiFetch(`/teams/${selectedTeamId.value}/games`, {
-        method: 'POST',
-        body: payload,
-      })
-      games.value.push(created)
-    }
-
-    resetForm()
-  } catch {
-    error.value = 'שגיאה בשמירת המשחק, נסה שוב'
-  }
+  replaceGame(game)
+  resetForm()
 }
 
 async function approveGame(game) {
@@ -364,48 +315,18 @@ async function onDelete(game) {
       </div>
 
       <div :class="!editing && 'lg:sticky lg:top-20'" class="space-y-6">
-      <form id="game-form" ref="formEl" class="card scroll-mt-24 space-y-3" @submit.prevent="onSubmit">
-        <h2 class="section-title">{{ editing ? 'עריכת משחק' : 'הוספת משחק' }}</h2>
-
+      <GameForm
+        id="game-form"
+        ref="formEl"
+        :key="formKey"
+        class="card scroll-mt-24"
+        :team-id="selectedTeamId"
+        :game="editing"
+        :stats-url="editing ? statsUrl : null"
+        @saved="onSaved"
+        @cancel="resetForm"
+      >
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
-
-        <div>
-          <label for="game-opponent-name" class="field-label">יריבה</label>
-          <input id="game-opponent-name" v-model="form.opponent_name" type="text" required class="field-input" />
-        </div>
-
-        <div>
-          <label for="game-scheduled-at" class="field-label">תאריך ושעה</label>
-          <input id="game-scheduled-at" v-model="form.scheduled_at" type="datetime-local" required class="field-input" />
-        </div>
-
-        <label class="flex min-h-11 items-center gap-2">
-          <input v-model="form.is_home" type="checkbox" class="size-5" />
-          <span class="field-label">משחק בית</span>
-        </label>
-
-        <div>
-          <label for="game-status" class="field-label">סטטוס</label>
-          <select id="game-status" v-model="form.status" class="field-input">
-            <option v-for="s in STATUSES" :key="s" :value="s">{{ STATUS_LABELS[s] }}</option>
-          </select>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label for="game-team-score" class="field-label">תוצאה — קבוצה</label>
-            <input id="game-team-score" v-model="form.team_score" type="number" class="field-input" />
-          </div>
-          <div>
-            <label for="game-opponent-score" class="field-label">תוצאה — יריבה</label>
-            <input id="game-opponent-score" v-model="form.opponent_score" type="number" class="field-input" />
-          </div>
-        </div>
-
-        <div>
-          <label for="game-description" class="field-label">תיאור</label>
-          <textarea id="game-description" v-model="form.description" class="field-input"></textarea>
-        </div>
 
         <div v-if="editing" class="space-y-2 border-t border-line pt-3">
           <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
@@ -429,16 +350,7 @@ async function onDelete(game) {
           </div>
           <p v-if="statsMessage" class="text-sm">{{ statsMessage }}</p>
         </div>
-
-        <div class="flex gap-2">
-          <button type="submit" class="btn-primary">
-            {{ editing ? 'שמירה' : 'הוספה' }}
-          </button>
-          <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
-            ביטול
-          </button>
-        </div>
-      </form>
+      </GameForm>
       <section v-if="editing" class="card space-y-3">
         <h2 class="section-title">קלעים</h2>
         <GameScorersEditor :key="editing.id" :team-id="selectedTeamId" :game-id="editing.id" />
