@@ -1,12 +1,14 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
-import { teamMember, useAuth } from '../composables/useAuth'
+import { canEditTeam, teamMember, useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const route = useRoute()
 const { selectedTeamId } = useSelectedTeam()
@@ -40,15 +42,36 @@ async function load() {
 }
 
 watch([selectedTeamId, checked], load, { immediate: true })
+
+const canEdit = computed(() => !!selectedTeamId.value && canEditTeam(selectedTeamId.value))
+const editing = ref(false)
+const editToggle = ref(null)
+
+async function toggleEditing() {
+  editing.value = !editing.value
+  if (editing.value) return
+  load() // show what the editor changed
+  await nextTick()
+  editToggle.value?.focus()
+}
+
+// Turning on the player preview (or switching to a team the user can't edit) closes the editor.
+watch(canEdit, (can) => {
+  if (!can) editing.value = false
+})
 </script>
 
 <template>
   <section v-if="selectedTeamId" class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">פלייבוק</h1>
+      <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" :aria-pressed="editing" @click="toggleEditing">
+        {{ editing ? 'סיום עריכה' : 'עריכת מהלכים' }}
+      </button>
     </div>
 
-    <div v-if="!checked || loading" class="grid gap-6 sm:grid-cols-2" aria-busy="true">
+    <TeamContentSection v-if="editing && canEdit" :key="selectedTeamId" :team-id="selectedTeamId" v-bind="CONTENT_SECTIONS.plays" />
+    <div v-else-if="!checked || loading" class="grid gap-6 sm:grid-cols-2" aria-busy="true">
       <div class="skeleton h-44" />
       <div class="skeleton h-44" />
     </div>

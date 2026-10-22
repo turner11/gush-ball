@@ -1,10 +1,13 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 
+import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
+import { canEditTeam } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const videos = ref([])
 const posts = ref([])
@@ -41,6 +44,23 @@ async function load() {
 
 watch(selectedTeamId, load, { immediate: true })
 
+const canEdit = computed(() => !!selectedTeamId.value && canEditTeam(selectedTeamId.value))
+const editing = ref(false)
+const editToggle = ref(null)
+
+async function toggleEditing() {
+  editing.value = !editing.value
+  if (editing.value) return
+  load() // show what the editors changed
+  await nextTick()
+  editToggle.value?.focus()
+}
+
+// Turning on the player preview (or switching to a team the user can't edit) closes the editors.
+watch(canEdit, (can) => {
+  if (!can) editing.value = false
+})
+
 const tabs = [
   { value: 'videos', label: 'סרטונים' },
   { value: 'posts', label: 'עדכונים' },
@@ -50,7 +70,12 @@ const tabs = [
 
 <template>
   <section class="space-y-6">
-    <h1 class="page-title">מדיה</h1>
+    <div class="page-header">
+      <h1 class="page-title">מדיה</h1>
+      <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" :aria-pressed="editing" @click="toggleEditing">
+        {{ editing ? 'סיום עריכה' : 'עריכת מדיה' }}
+      </button>
+    </div>
 
     <TabsRoot default-value="videos" dir="rtl" class="space-y-6">
       <TabsList class="segmented">
@@ -65,7 +90,8 @@ const tabs = [
       </TabsList>
 
       <TabsContent value="videos">
-        <div v-if="loading" class="space-y-3" aria-busy="true">
+        <TeamContentSection v-if="editing" :key="selectedTeamId" :team-id="selectedTeamId" v-bind="CONTENT_SECTIONS.videos" />
+        <div v-else-if="loading" class="space-y-3" aria-busy="true">
           <div class="skeleton h-32" />
           <div class="skeleton h-32" />
         </div>
@@ -76,7 +102,8 @@ const tabs = [
       </TabsContent>
 
       <TabsContent value="posts">
-        <div v-if="loading" class="skeleton h-32" aria-busy="true" />
+        <TeamContentSection v-if="editing" :key="selectedTeamId" :team-id="selectedTeamId" v-bind="CONTENT_SECTIONS.posts" />
+        <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
         <div v-else-if="posts.length" class="space-y-6">
           <article v-for="post in posts" :key="post.id" class="card space-y-2">
             <div class="flex items-center gap-2">
@@ -90,7 +117,8 @@ const tabs = [
       </TabsContent>
 
       <TabsContent value="images">
-        <div v-if="loading" class="skeleton h-32" aria-busy="true" />
+        <TeamContentSection v-if="editing" :key="selectedTeamId" :team-id="selectedTeamId" v-bind="CONTENT_SECTIONS.images" />
+        <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
         <div v-else-if="images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <a v-for="image in images" :key="image.id" :href="image.url" target="_blank" rel="noopener">
             <figure class="space-y-1">

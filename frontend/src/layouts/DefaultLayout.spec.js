@@ -821,4 +821,38 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('header a[href="/admin/login"]').exists()).toBe(true)
     expect(router.currentRoute.value.path).toBe('/team_a/schedule')
   })
+
+  it('admin menu toggles view-as-player and shows an exit banner', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), ...ADMIN })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
+    await router.push('/team_a/schedule')
+    await flushPromises()
+    expect(wrapper.find('[role=status]').exists()).toBe(false)
+    const body = await openMenu(wrapper.find('header button[aria-label$="תפריט חשבון"]'))
+    await body.findAll('[role=menuitem]').find((m) => m.text() === 'תצוגה כשחקן').trigger('click')
+    await flushPromises()
+
+    const banner = wrapper.find('[role=status]')
+    expect(banner.exists()).toBe(true)
+    await banner.findAll('button').find((b) => b.text() === 'חזרה לתצוגת מנהל').trigger('click')
+    expect(wrapper.find('[role=status]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('a non-admin account menu has no view-as-player item', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/auth/me': () => jsonRes({ username: 'p', display_name: 'p', is_admin: false }),
+    })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
+    await router.push('/team_a/schedule')
+    await flushPromises()
+    const body = await openMenu(wrapper.find('header button[aria-label$="תפריט חשבון"]'))
+    expect(body.findAll('[role=menuitem]').some((m) => m.text() === 'תצוגה כשחקן')).toBe(false)
+    wrapper.unmount()
+  })
 })

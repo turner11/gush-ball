@@ -10,6 +10,7 @@ import { teamSlug } from '../composables/useSelectedTeam'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
 import { BACKGROUND_PRESETS, backgroundSrc, isPresetBackground } from '../lib/backgrounds'
+import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const route = useRoute()
 const teamId = route.params.id
@@ -123,61 +124,6 @@ async function loadClubOptions() {
 }
 
 onMounted(() => Promise.all([load(), loadClubOptions()]))
-
-const contentSections = [
-  {
-    resource: 'links',
-    heading: 'קישורים',
-    fields: [
-      { key: 'label', label: 'תווית', type: 'text', required: true },
-      { key: 'label_en', label: 'תווית (אנגלית)', type: 'text' },
-      { key: 'url', label: 'כתובת', type: 'url', required: true },
-    ],
-  },
-  {
-    resource: 'videos',
-    heading: 'סרטונים',
-    fields: [
-      { key: 'title', label: 'כותרת', type: 'text', required: true },
-      { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
-      { key: 'url', label: 'כתובת', type: 'url', required: true },
-      { key: 'player_ids', label: 'תיוג שחקנים', type: 'players' },
-    ],
-  },
-  {
-    resource: 'images',
-    heading: 'תמונות',
-    fields: [
-      { key: 'title', label: 'כותרת', type: 'text', required: true },
-      { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
-      { key: 'url', label: 'כתובת', type: 'url', required: true, upload: true },
-      { key: 'player_ids', label: 'תיוג שחקנים', type: 'players' },
-    ],
-  },
-  {
-    resource: 'posts',
-    heading: 'פוסטים',
-    fields: [
-      { key: 'title', label: 'כותרת', type: 'text', required: true },
-      { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
-      { key: 'body', label: 'תוכן', type: 'textarea', required: true },
-      { key: 'body_en', label: 'תוכן (אנגלית)', type: 'textarea' },
-      { key: 'pinned', label: 'נעוץ', type: 'checkbox' },
-    ],
-  },
-  {
-    resource: 'plays',
-    heading: 'פלייבוק',
-    reorderable: true,
-    fields: [
-      { key: 'title', label: 'כותרת', type: 'text', required: true },
-      { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
-      { key: 'notes', label: 'הערות', type: 'textarea' },
-      { key: 'file_url', label: 'קובץ: תמונה, GIF, MP4 או PDF', type: 'url', upload: true, accept: 'image/*,video/mp4,application/pdf' },
-      { key: 'url', label: 'או קישור חיצוני (FastDraw, YouTube…)', type: 'url' },
-    ],
-  },
-]
 </script>
 
 <template>
@@ -293,7 +239,7 @@ const contentSections = [
       <!-- grid-cols-1 = minmax(0,1fr): an implicit track grows to fit a long truncated item and overflows the page -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <TeamContentSection
-          v-for="section in contentSections"
+          v-for="section in Object.values(CONTENT_SECTIONS)"
           :key="section.resource"
           :team-id="teamId"
           :resource="section.resource"

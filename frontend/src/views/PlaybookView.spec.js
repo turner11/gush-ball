@@ -90,4 +90,19 @@ describe('PlaybookView', () => {
     expect(wrapper.text()).toContain('הדף זמין לחברי הקבוצה בלבד')
     expect(wrapper.text()).not.toContain('GIF')
   })
+
+  it('team admin edits plays inline (#468)', async () => {
+    mockFetch({ 'GET /api/auth/me': () => jsonRes({ username: 'a', team_ids: [1], member_team_ids: [1] }), 'GET /api/teams/1/players': () => jsonRes([]) })
+    const wrapper = await mountView()
+    await wrapper.findAll('button').find((b) => b.text() === 'עריכת מהלכים').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('button[aria-label="הזזה למעלה"]').exists()).toBe(true)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'סיום עריכה')).toBe(true)
+  })
+
+  it('a plain member sees no edit button (#468)', async () => {
+    mockFetch({ 'GET /api/auth/me': () => jsonRes({ username: 'p', team_ids: [], member_team_ids: [1] }) })
+    const wrapper = await mountView()
+    expect(wrapper.findAll('button').some((b) => b.text() === 'עריכת מהלכים')).toBe(false)
+  })
 })

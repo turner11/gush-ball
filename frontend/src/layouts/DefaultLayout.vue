@@ -8,7 +8,7 @@ import ErrorBoundary from '../components/ErrorBoundary.vue'
 import FavoriteStar from '../components/FavoriteStar.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
-import { teamMember, useAuth } from '../composables/useAuth'
+import { teamMember, useAuth, viewAsMember } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -219,6 +219,9 @@ onMounted(async () => {
                   <DropdownMenuItem v-if="user.is_admin" as-child>
                     <RouterLink :to="teamBase + '/admin'" class="menu-item">ניהול</RouterLink>
                   </DropdownMenuItem>
+                  <DropdownMenuItem v-if="user.is_admin" class="menu-item" @select="viewAsMember = !viewAsMember">
+                    {{ viewAsMember ? 'חזרה לתצוגת מנהל' : 'תצוגה כשחקן' }}
+                  </DropdownMenuItem>
                   <DropdownMenuItem as-child>
                     <RouterLink :to="{ name: 'account' }" class="menu-item">החשבון שלי</RouterLink>
                   </DropdownMenuItem>
@@ -242,6 +245,12 @@ onMounted(async () => {
           </template>
         </div>
       </header>
+      <div v-if="viewAsMember && user" role="status" class="border-b border-line bg-sunken text-ink">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6">
+          <p class="text-sm font-semibold">תצוגה כשחקן: כך רואים את האתר חברי הקבוצה</p>
+          <button type="button" class="btn-secondary" @click="viewAsMember = false">חזרה לתצוגת מנהל</button>
+        </div>
+      </div>
     </div>
 
     <section

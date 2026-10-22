@@ -6,7 +6,7 @@ import AppIcon from '../components/AppIcon.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
-import { useAuth } from '../composables/useAuth'
+import { canEditTeam, useAuth } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { pageTitle, playerJsonLd, setJsonLd } from '../lib/head'
@@ -17,6 +17,8 @@ const { user } = useAuth()
 const editing = ref(false)
 const editButton = ref(null)
 const isMine = computed(() => !!player.value && !!user.value?.player_ids?.includes(player.value.id))
+// A linked player edits their own row; a team admin (unless previewing as a player) edits any row of the team (#468).
+const canEdit = computed(() => isMine.value || (!!player.value && canEditTeam(player.value.team_id)))
 
 function onSaved(updated) {
   player.value = updated
@@ -161,7 +163,7 @@ watch(
           </RouterLink>
           <div class="flex flex-wrap justify-center gap-x-4 gap-y-2 sm:justify-start">
             <button
-              v-if="isMine"
+              v-if="canEdit"
               ref="editButton"
               type="button"
               class="btn-secondary"
@@ -169,13 +171,13 @@ watch(
               aria-controls="profile-form"
               @click="editing = !editing"
             >
-              עריכת הפרופיל שלי
+              {{ isMine ? 'עריכת הפרופיל שלי' : 'עריכת שחקן' }}
             </button>
             <RouterLink :to="{ name: 'roster', params: { slug: String(player.team_id) } }" class="section-link">כל השחקנים של {{ team.name }}</RouterLink>
           </div>
         </div>
       </header>
-      <PlayerProfileForm v-if="isMine && editing" :player="player" @saved="onSaved" @cancel="closeEditor" />
+      <PlayerProfileForm v-if="canEdit && editing" :player="player" @saved="onSaved" @cancel="closeEditor" />
       <template v-if="images.length">
         <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           <li v-for="(image, index) in images" :key="image.key">
@@ -213,18 +215,18 @@ watch(
           </template>
         </dialog>
       </template>
-      <div v-else-if="isMine" class="empty-state space-y-3">
-        <p>עדיין אין תמונות בפרופיל שלך.</p>
+      <div v-else-if="canEdit" class="empty-state space-y-3">
+        <p>{{ isMine ? 'עדיין אין תמונות בפרופיל שלך.' : 'עדיין אין תמונות לשחקן.' }}</p>
         <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת תמונות</button>
       </div>
       <p v-else class="text-sm text-muted">אין תמונות עדיין.</p>
-      <section v-if="videos.length || isMine" class="space-y-2">
+      <section v-if="videos.length || canEdit" class="space-y-2">
         <h2 class="section-title">סרטונים</h2>
         <ul v-if="videos.length" class="grid gap-6 sm:grid-cols-2">
           <li v-for="video in videos" :key="video.key"><VideoCard :video="video" /></li>
         </ul>
         <div v-else class="empty-state space-y-3">
-          <p>עדיין אין סרטונים בפרופיל שלך.</p>
+          <p>{{ isMine ? 'עדיין אין סרטונים בפרופיל שלך.' : 'עדיין אין סרטונים לשחקן.' }}</p>
           <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת סרטון</button>
         </div>
       </section>
