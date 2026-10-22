@@ -20,7 +20,7 @@ function jsonRes(body) {
 }
 
 async function mountView({ videos = VIDEOS, posts = POSTS, images = IMAGES } = {}) {
-  const data = { videos, posts, images }
+  const data = { videos, posts, images, players: [] }
   global.fetch = vi.fn((url) => {
     const kind = String(url).split('/').pop()
     if (!(kind in data)) return Promise.reject(new Error(`Unhandled fetch: ${url}`))
@@ -115,5 +115,34 @@ describe('MediaView', () => {
 
     expect(wrapper.text()).toContain('סרטון קבוצה ב')
     expect(wrapper.text()).not.toContain('חדש')
+  })
+
+  describe('inline editing (#468)', () => {
+    const editButton = (wrapper, text = 'עריכת מדיה') => wrapper.findAll('button').find((b) => b.text() === text)
+
+    it('team admin edits media inline', async () => {
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      const wrapper = await mountView()
+      await editButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(wrapper.findAll('button').some((b) => b.text() === 'הוספה')).toBe(true)
+
+      global.fetch.mockClear()
+      await editButton(wrapper, 'סיום עריכה').trigger('click')
+      await flushPromises()
+      expect(global.fetch.mock.calls.map(([u]) => u)).toContain('/api/teams/1/videos')
+      expect(wrapper.findAll('button').some((b) => b.text() === 'הוספה')).toBe(false)
+    })
+
+    it('visitors and preview see no edit button', async () => {
+      const { useAuth, viewAsMember } = await import('../composables/useAuth')
+      const visitor = await mountView()
+      expect(editButton(visitor)).toBeUndefined()
+
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      viewAsMember.value = true
+      expect(editButton(await mountView())).toBeUndefined()
+    })
   })
 })

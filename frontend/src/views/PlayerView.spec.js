@@ -379,4 +379,27 @@ describe('PlayerView', () => {
       expect(wrapper.find('h1').text()).toContain('חדש')
     })
   })
+
+  describe('team admin edit (#468)', () => {
+    const edit = (w) => w.findAll('button').find((b) => b.text() === 'עריכת שחקן')
+
+    it('team admin can edit a player they are not linked to', async () => {
+      global.fetch = okFetch()
+      useAuth().user.value = { username: 'a', team_ids: [1], player_ids: [] }
+      const wrapper = await mountAt('/players/3')
+      await edit(wrapper).trigger('click')
+      expect(wrapper.find('#profile-form').exists()).toBe(true)
+    })
+
+    it("preview hides the admin edit but keeps a linked player's own edit", async () => {
+      global.fetch = okFetch()
+      const { viewAsMember } = await import('../composables/useAuth')
+      viewAsMember.value = true
+      useAuth().user.value = { username: 'a', team_ids: [1], player_ids: [] }
+      expect(edit(await mountAt('/players/3'))).toBeUndefined()
+      useAuth().user.value = { username: 'a', team_ids: [1], player_ids: [3] }
+      expect((await mountAt('/players/3')).text()).toContain('עריכת הפרופיל שלי')
+      viewAsMember.value = false
+    })
+  })
 })

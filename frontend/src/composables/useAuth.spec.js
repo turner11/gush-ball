@@ -149,4 +149,17 @@ describe('useAuth', () => {
     user.value = { username: 'a', member_team_ids: null }
     expect(teamMember('2')).toBe(true)
   })
+
+  it('canEditTeam follows teamAdmin and is false while viewing as member', async () => {
+    const { canEditTeam, teamAdmin, viewAsMember, useAuth } = await import('./useAuth.js')
+    const { user } = useAuth()
+
+    expect(canEditTeam(1)).toBe(false)
+    user.value = { username: 'a', team_ids: [1] }
+    expect(canEditTeam(1)).toBe(true)
+    expect(canEditTeam(2)).toBe(false)
+    viewAsMember.value = true
+    expect(canEditTeam(1)).toBe(false)
+    expect(teamAdmin(1)).toBe(true)
+  })
 })
