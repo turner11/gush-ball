@@ -110,6 +110,17 @@ describe('LeagueTeamsView', () => {
     expect(query.next).toBe('/teams/10?request=' + encodeURIComponent('https://x/team/קבוצה זרה/'))
   })
 
+  it('an admin previewing as anonymous is sent to login like a visitor, not the confirm', async () => {
+    mockApi(foreignLeague(), {}, ok(ME))
+    const { previewMode } = await import('../composables/useAuth')
+    previewMode.value = 'anonymous'
+    const wrapper = await mountView()
+    await wrapper.find(REQUEST_BUTTON).trigger('click')
+    await flushPromises()
+    expect(wrapper.vm.$router.currentRoute.value.name).toBe('admin-login')
+    expect(body().text()).not.toContain('לבקש להוסיף את קבוצה זרה לאתר?')
+  })
+
   it('a ?request= for a signed-in user opens the confirm, and confirming POSTs the team', async () => {
     mockApi(foreignLeague(), { 'POST /api/team-requests': () => ok({ id: 1, name: 'x', status: 'pending' }) }, ok(ME))
     await mountView('/teams/10?request=' + encodeURIComponent('https://x/team/קבוצה זרה/'))
