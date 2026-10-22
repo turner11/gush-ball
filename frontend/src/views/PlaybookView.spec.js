@@ -91,6 +91,18 @@ describe('PlaybookView', () => {
     expect(wrapper.text()).not.toContain('GIF')
   })
 
+  it('anonymous preview shows the members-only state with sign-in', async () => {
+    mockFetch()
+    const { previewMode } = await import('../composables/useAuth')
+    previewMode.value = 'anonymous'
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).toContain('הדף זמין לחברי הקבוצה בלבד')
+    expect(wrapper.find('a[href^="/admin/login"]').exists()).toBe(true)
+    expect(global.fetch.mock.calls.map(([u]) => u)).not.toContain('/api/teams/1/plays')
+    previewMode.value = null
+  })
+
   it('team admin edits plays inline (#468)', async () => {
     mockFetch({ 'GET /api/auth/me': () => jsonRes({ username: 'a', team_ids: [1], member_team_ids: [1] }), 'GET /api/teams/1/players': () => jsonRes([]) })
     const wrapper = await mountView()

@@ -191,13 +191,13 @@ describe('RosterView', () => {
       expect(w.text()).not.toContain('הוספת שחקן')
 
       await asTeamAdmin()
-      const { viewAsMember } = await import('../composables/useAuth')
-      viewAsMember.value = true
+      const { previewMode } = await import('../composables/useAuth')
+      previewMode.value = 'member'
       w = mount(RosterView, { global: { plugins: [router] } })
       await flushPromises()
       expect(w.find('#edit-player-1').exists()).toBe(false)
       expect(w.text()).not.toContain('הוספת שחקן')
-      viewAsMember.value = false
+      previewMode.value = null
     })
   })
 })

@@ -7,7 +7,7 @@ import GameForm from '../components/GameForm.vue'
 import GameRow from '../components/GameRow.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import PracticeRow from '../components/PracticeRow.vue'
-import { canEditTeam, teamMember, useAuth } from '../composables/useAuth'
+import { canEditTeam, teamMember, useAuth, viewer } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { splitGames } from '../lib/games'
@@ -106,7 +106,7 @@ async function loadPractices() {
   }
 }
 
-watch([selectedTeamId, checked], loadPractices, { immediate: true })
+watch([selectedTeamId, checked, viewer], loadPractices, { immediate: true })
 </script>
 
 <template>

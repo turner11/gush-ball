@@ -6,17 +6,16 @@ import AppIcon from '../components/AppIcon.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
-import { canEditTeam, useAuth } from '../composables/useAuth'
+import { canEditTeam, viewer } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { pageTitle, playerJsonLd, setJsonLd } from '../lib/head'
 import { DEFAULT_PLAYER_PHOTO, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
 
 const route = useRoute()
-const { user } = useAuth()
 const editing = ref(false)
 const editButton = ref(null)
-const isMine = computed(() => !!player.value && !!user.value?.player_ids?.includes(player.value.id))
+const isMine = computed(() => !!player.value && !!viewer.value?.player_ids?.includes(player.value.id))
 // A linked player edits their own row; a team admin (unless previewing as a player) edits any row of the team (#468).
 const canEdit = computed(() => isMine.value || (!!player.value && canEditTeam(player.value.team_id)))
 

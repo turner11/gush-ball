@@ -199,22 +199,22 @@ describe('ClubView', () => {
   })
 
   it('shows the edit button to a club admin and full admin, never to anonymous or in preview', async () => {
-    const { useAuth, viewAsMember } = await import('../composables/useAuth')
+    const { useAuth, previewMode } = await import('../composables/useAuth')
     const editBtn = (w) => w.findAll('button').some((b) => b.text() === 'עריכת עמוד המועדון')
     for (const [user, preview, shown] of [
-      [{ team_ids: [1], clubs: ['מכבי'] }, false, true],
-      [{ team_ids: [1], clubs: ['אחר'] }, false, false],
-      [{ team_ids: null }, false, true],
-      [{ team_ids: null }, true, false],
-      [null, false, false],
+      [{ team_ids: [1], clubs: ['מכבי'] }, null, true],
+      [{ team_ids: [1], clubs: ['אחר'] }, null, false],
+      [{ team_ids: null }, null, true],
+      [{ team_ids: null }, 'member', false],
+      [null, null, false],
     ]) {
       useAuth().user.value = user
-      viewAsMember.value = preview
+      previewMode.value = preview
       mockFetch(GAMES)
       expect(editBtn(await mountIt()), JSON.stringify([user, preview])).toBe(shown)
     }
     useAuth().user.value = null
-    viewAsMember.value = false
+    previewMode.value = null
   })
 
   describe('inline editing', () => {
@@ -233,9 +233,9 @@ describe('ClubView', () => {
       return w
     }
     afterEach(async () => {
-      const { useAuth, viewAsMember } = await import('../composables/useAuth')
+      const { useAuth, previewMode } = await import('../composables/useAuth')
       useAuth().user.value = null
-      viewAsMember.value = false
+      previewMode.value = null
     })
 
     it('club admin edits about and officials inline and sees the result', async () => {
@@ -254,8 +254,8 @@ describe('ClubView', () => {
     it('turning on the preview closes an open editor', async () => {
       const w = await openEditor()
       expect(w.find('#club-about-editor').exists()).toBe(true)
-      const { viewAsMember } = await import('../composables/useAuth')
-      viewAsMember.value = true
+      const { previewMode } = await import('../composables/useAuth')
+      previewMode.value = 'member'
       await nextTick()
       expect(w.find('#club-about-editor').exists()).toBe(false)
     })

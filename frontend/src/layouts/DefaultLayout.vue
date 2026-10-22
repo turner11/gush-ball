@@ -8,7 +8,7 @@ import ErrorBoundary from '../components/ErrorBoundary.vue'
 import FavoriteStar from '../components/FavoriteStar.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
-import { teamMember, useAuth, viewAsMember } from '../composables/useAuth'
+import { previewMode, teamMember, useAuth } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -18,6 +18,12 @@ import { onColor } from '../lib/teamColors'
 
 // Bound (not a static src) so the SFC compiler serves it from public/ as-is.
 const LOGO_URL = '/logo.jpg'
+
+const PREVIEWS = {
+  member: { item: 'תצוגה כשחקן', banner: 'תצוגה כשחקן: כך רואים את האתר חברי הקבוצה' },
+  anonymous: { item: 'תצוגה כאורח', banner: 'תצוגה כאורח: כך רואים את האתר גולשים שלא התחברו' },
+}
+const otherPreviews = computed(() => Object.entries(PREVIEWS).filter(([mode]) => mode !== previewMode.value))
 
 // "בית" is a dropdown in the template, not a link here.
 const navItems = computed(() => [
@@ -218,9 +224,17 @@ onMounted(async () => {
                   <DropdownMenuItem v-if="user.is_admin" as-child>
                     <RouterLink :to="teamBase + '/admin'" class="menu-item">ניהול</RouterLink>
                   </DropdownMenuItem>
-                  <DropdownMenuItem v-if="user.is_admin" class="menu-item" @select="viewAsMember = !viewAsMember">
-                    {{ viewAsMember ? 'חזרה לתצוגת מנהל' : 'תצוגה כשחקן' }}
-                  </DropdownMenuItem>
+                  <template v-if="user.is_admin">
+                    <DropdownMenuItem
+                      v-for="[mode, preview] in otherPreviews"
+                      :key="mode"
+                      class="menu-item"
+                      @select="previewMode = mode"
+                    >
+                      {{ preview.item }}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem v-if="previewMode" class="menu-item" @select="previewMode = null">חזרה לתצוגת מנהל</DropdownMenuItem>
+                  </template>
                   <DropdownMenuItem as-child>
                     <RouterLink :to="{ name: 'account' }" class="menu-item">החשבון שלי</RouterLink>
                   </DropdownMenuItem>
@@ -244,10 +258,10 @@ onMounted(async () => {
           </template>
         </div>
       </header>
-      <div v-if="viewAsMember && user" role="status" class="border-b border-line bg-sunken text-ink">
+      <div v-if="previewMode && user" role="status" class="border-b border-line bg-sunken text-ink">
         <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6">
-          <p class="text-sm font-semibold">תצוגה כשחקן: כך רואים את האתר חברי הקבוצה</p>
-          <button type="button" class="btn-secondary" @click="viewAsMember = false">חזרה לתצוגת מנהל</button>
+          <p class="text-sm font-semibold">{{ PREVIEWS[previewMode].banner }}</p>
+          <button type="button" class="btn-secondary" @click="previewMode = null">חזרה לתצוגת מנהל</button>
         </div>
       </div>
     </div>

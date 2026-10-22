@@ -136,12 +136,12 @@ describe('MediaView', () => {
     })
 
     it('visitors and preview see no edit button', async () => {
-      const { useAuth, viewAsMember } = await import('../composables/useAuth')
+      const { useAuth, previewMode } = await import('../composables/useAuth')
       const visitor = await mountView()
       expect(editButton(visitor)).toBeUndefined()
 
       useAuth().user.value = { id: 1, team_ids: [1] }
-      viewAsMember.value = true
+      previewMode.value = 'member'
       expect(editButton(await mountView())).toBeUndefined()
     })
   })

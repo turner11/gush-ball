@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 
-import { useAuth } from '../composables/useAuth'
+import { viewer } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import AppIcon from './AppIcon.vue'
 
@@ -10,14 +10,13 @@ const props = defineProps({
   name: { type: String, required: true },
 })
 
-const { user } = useAuth()
 const { favoriteIds, toggle } = useFavorites()
 const on = computed(() => favoriteIds.value.has(props.teamId))
 </script>
 
 <template>
   <button
-    v-if="user"
+    v-if="viewer"
     type="button"
     class="btn-icon"
     :aria-pressed="on"

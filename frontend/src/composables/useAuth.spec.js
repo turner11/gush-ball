@@ -151,15 +151,31 @@ describe('useAuth', () => {
   })
 
   it('canEditTeam follows teamAdmin and is false while viewing as member', async () => {
-    const { canEditTeam, teamAdmin, viewAsMember, useAuth } = await import('./useAuth.js')
+    const { canEditTeam, teamAdmin, previewMode, useAuth } = await import('./useAuth.js')
     const { user } = useAuth()
 
     expect(canEditTeam(1)).toBe(false)
     user.value = { username: 'a', team_ids: [1] }
     expect(canEditTeam(1)).toBe(true)
     expect(canEditTeam(2)).toBe(false)
-    viewAsMember.value = true
+    previewMode.value = 'member'
     expect(canEditTeam(1)).toBe(false)
     expect(teamAdmin(1)).toBe(true)
+  })
+
+  it('anonymous preview: viewer is null and teamMember false; member preview keeps membership', async () => {
+    const { canEditTeam, teamMember, previewMode, viewer, useAuth } = await import('./useAuth.js')
+    useAuth().user.value = { username: 'a', team_ids: [1], member_team_ids: [1] }
+
+    previewMode.value = 'anonymous'
+    expect(viewer.value).toBeNull()
+    expect(teamMember(1)).toBe(false)
+    expect(canEditTeam(1)).toBe(false)
+
+    previewMode.value = 'member'
+    expect(viewer.value).not.toBeNull()
+    expect(teamMember(1)).toBe(true)
+    expect(canEditTeam(1)).toBe(false)
+    previewMode.value = null
   })
 })

@@ -164,6 +164,15 @@ describe('StatsView', () => {
       noData()
     })
 
+    it('admin in the anonymous preview sees the sign-in prompt and loads nothing', async () => {
+      const { previewMode } = await import('../composables/useAuth')
+      previewMode.value = 'anonymous'
+      const wrapper = await mountAsUser(() => jsonRes({ username: 'a', can_view_stats: true, team_id: null }), '/stats')
+      expect(wrapper.find('a.btn-primary').text()).toContain('כניסה / הרשמה')
+      noData()
+      previewMode.value = null
+    })
+
     it('pending user sees waiting for approval with a link to join', async () => {
       const me = { username: 'p', can_view_stats: false, memberships: [{ id: 1, team_id: 1, club: null, role: 'pending' }] }
       const wrapper = await mountAsUser(() => jsonRes(me))

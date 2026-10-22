@@ -8,18 +8,22 @@ const checked = ref(false)
 const error = ref(null)
 // team_ids: null = full admin, else the team ids this team/club admin may touch (server-enforced).
 export const fullAdmin = computed(() => !user.value?.team_ids)
+// The account public pages render for: null in the anonymous preview. Content gates only; the account menu and
+// admin pages keep `user`.
+export const viewer = computed(() => (previewMode.value === 'anonymous' ? null : user.value))
 // member_team_ids: null = every team (full admin), else the teams whose private content the user may see. Unlike
 // fullAdmin, anonymous (no user) is never a member.
 export const teamMember = (teamId) => {
-  const ids = user.value?.member_team_ids
-  return !!user.value && (ids === null || !!ids?.includes(Number(teamId)))
+  const ids = viewer.value?.member_team_ids
+  return !!viewer.value && (ids === null || !!ids?.includes(Number(teamId)))
 }
 // UI gate only (the server enforces scope): team_ids null = full admin, [] = no admin grant.
 export const teamAdmin = (teamId) => !!user.value && (!user.value.team_ids || user.value.team_ids.includes(Number(teamId)))
-// "View as player" preview (#468): hides public-page edit controls only; the server still enforces scope. Admin
-// pages keep using teamAdmin. ponytail: plain ref, a reload exits the preview (fails safe); sessionStorage if wanted.
-export const viewAsMember = ref(false)
-export const canEditTeam = (teamId) => !viewAsMember.value && teamAdmin(teamId)
+// Admin preview (#468, #477): null | 'member' (hides edit controls) | 'anonymous' (also hides member-only content).
+// The server still enforces scope. Admin pages keep using teamAdmin.
+// ponytail: plain ref, a reload exits the preview (fails safe); sessionStorage if wanted.
+export const previewMode = ref(null)
+export const canEditTeam = (teamId) => !previewMode.value && teamAdmin(teamId)
 export const clubAdmin = (club) => !!club && !!user.value?.clubs?.includes(club)
 
 const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
@@ -70,7 +74,7 @@ export function useAuth() {
     try {
       await apiFetch('/auth/logout', { method: 'POST' })
       user.value = null
-      viewAsMember.value = false
+      previewMode.value = null
     } catch {
       error.value = 'שגיאת התנתקות, נסה שוב'
     }

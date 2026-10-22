@@ -556,15 +556,15 @@ describe('HomeView', () => {
       expect(w.text()).not.toContain('עריכה')
       expect(w.text()).not.toContain('עריכת קישורים')
       expect(w.text()).not.toContain('צבעי הקבוצה')
-      const { viewAsMember } = await import('../composables/useAuth')
+      const { previewMode } = await import('../composables/useAuth')
       useAuth().user.value = { id: 1, team_ids: [1] }
-      viewAsMember.value = true
+      previewMode.value = 'member'
       w = await mountWithTeam(TEAM)
       expect(w.text()).not.toContain('עריכה')
       expect(w.text()).not.toContain('עריכת קישורים')
       expect(w.text()).not.toContain('על הקבוצה')
       expect(w.text()).not.toContain('צבעי הקבוצה')
-      viewAsMember.value = false
+      previewMode.value = null
     })
   })
 })

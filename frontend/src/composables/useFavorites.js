@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 import { byAffinity } from '../lib/favorites'
-import { useAuth } from './useAuth'
+import { useAuth, viewer } from './useAuth'
 
 const { user } = useAuth()
 const error = ref(null)
@@ -37,7 +37,7 @@ export function useFavorites() {
     favoriteIds,
     error,
     toggle,
-    sortTeams: (teams) => byAffinity(teams, user.value),
-    sortGroups: (items, teamsOf, nameOf) => byAffinity(items, user.value, teamsOf, nameOf),
+    sortTeams: (teams) => byAffinity(teams, viewer.value),
+    sortGroups: (items, teamsOf, nameOf) => byAffinity(items, viewer.value, teamsOf, nameOf),
   }
 }

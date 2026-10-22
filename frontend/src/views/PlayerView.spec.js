@@ -400,13 +400,22 @@ describe('PlayerView', () => {
 
     it("preview hides the admin edit but keeps a linked player's own edit", async () => {
       global.fetch = okFetch()
-      const { viewAsMember } = await import('../composables/useAuth')
-      viewAsMember.value = true
+      const { previewMode } = await import('../composables/useAuth')
+      previewMode.value = 'member'
       useAuth().user.value = { username: 'a', team_ids: [1], player_ids: [] }
       expect(edit(await mountAt('/players/3'))).toBeUndefined()
       useAuth().user.value = { username: 'a', team_ids: [1], player_ids: [3] }
       expect((await mountAt('/players/3')).text()).toContain('עריכת הפרופיל שלי')
-      viewAsMember.value = false
+      previewMode.value = null
+    })
+
+    it("anonymous preview hides a linked player's own edit", async () => {
+      global.fetch = okFetch()
+      const { previewMode } = await import('../composables/useAuth')
+      previewMode.value = 'anonymous'
+      useAuth().user.value = { username: 'a', team_ids: [], player_ids: [3] }
+      expect((await mountAt('/players/3')).text()).not.toContain('עריכת הפרופיל שלי')
+      previewMode.value = null
     })
   })
 })

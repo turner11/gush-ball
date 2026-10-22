@@ -4,14 +4,14 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import TeamCard from '../components/TeamCard.vue'
-import { useAuth } from '../composables/useAuth'
+import { useAuth, viewer } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 
 const route = useRoute()
 const router = useRouter()
-const { user, checked, checkSession } = useAuth()
+const { checked, checkSession } = useAuth()
 const data = ref(null) // null = loading
 const errorStatus = ref(null)
 const confirming = ref(null) // the not-on-site team awaiting the request confirmation
@@ -45,7 +45,7 @@ async function ask(t) {
   requestError.value = ''
   notice.value = null
   if (!checked.value) await checkSession()
-  if (!user.value) return toLogin(t)
+  if (!viewer.value) return toLogin(t)
   confirming.value = t
 }
 
@@ -55,7 +55,7 @@ async function openRequestFromLogin() {
   const t = data.value.notOnSite.find((x) => x.ibasketball_team_url === wanted && !x.requested)
   if (!t) return
   if (!checked.value) await checkSession()
-  if (user.value) confirming.value = t
+  if (viewer.value) confirming.value = t
 }
 
 function closeConfirm() {
