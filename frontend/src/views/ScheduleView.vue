@@ -1,11 +1,13 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import AppIcon from '../components/AppIcon.vue'
 import CalendarSubscribe from '../components/CalendarSubscribe.vue'
+import GameForm from '../components/GameForm.vue'
 import GameRow from '../components/GameRow.vue'
+import GameStatsLink from '../components/GameStatsLink.vue'
 import PracticeRow from '../components/PracticeRow.vue'
-import { teamMember, useAuth } from '../composables/useAuth'
+import { canEditTeam, teamMember, useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { splitGames } from '../lib/games'
@@ -22,6 +24,28 @@ const PRACTICE_DAYS = 14 // a season of weekly practices must not bury the games
 const team = ref(null)
 const loading = ref(false)
 
+// Inline add/edit (#471): editingId is null, 'new' or a game id, so one form is open at a time.
+const canEdit = computed(() => !!team.value && canEditTeam(team.value.id))
+const editingId = ref(null)
+const addToggle = ref(null)
+watch(canEdit, (can) => {
+  if (!can) editingId.value = null
+})
+
+async function closeEditor() {
+  const opener = editingId.value === 'new' ? addToggle.value : document.getElementById('edit-game-' + editingId.value)
+  editingId.value = null
+  await nextTick()
+  opener?.focus()
+}
+
+function onSaved(game) {
+  const idx = games.value.findIndex((g) => g.id === game.id)
+  if (idx === -1) games.value.push(game)
+  else games.value[idx] = game
+  closeEditor()
+}
+
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
 
@@ -33,6 +57,7 @@ const sections = computed(() => [
 ])
 
 async function loadGames() {
+  editingId.value = null
   if (!selectedTeamId.value) {
     games.value = []
     team.value = null
@@ -90,8 +115,24 @@ watch([selectedTeamId, checked], loadPractices, { immediate: true })
         <h1 class="page-title">לוח משחקים</h1>
         <a v-if="team?.ibasketball_team_url" :href="team.ibasketball_team_url" target="_blank" rel="noopener" class="section-link">{{ team.name }}<AppIcon name="external" /></a>
       </div>
-      <CalendarSubscribe v-if="team" :team-id="team.id" :practices="isMember" />
+      <div v-if="team" class="flex flex-wrap items-center gap-2">
+        <button
+          v-if="canEdit"
+          ref="addToggle"
+          type="button"
+          class="btn-secondary"
+          aria-controls="add-game-form"
+          :aria-expanded="editingId === 'new'"
+          @click="editingId = editingId === 'new' ? null : 'new'"
+        >
+          <template v-if="editingId === 'new'">סגירה</template>
+          <template v-else><AppIcon name="plus" />הוספת משחק</template>
+        </button>
+        <CalendarSubscribe :team-id="team.id" :practices="isMember" />
+      </div>
     </div>
+
+    <GameForm v-if="editingId === 'new'" id="add-game-form" class="card max-w-2xl" :team-id="team.id" @saved="onSaved" />
 
     <section v-if="isMember" class="space-y-3">
       <h2 class="section-title">אימונים קרובים</h2>
@@ -118,7 +159,25 @@ watch([selectedTeamId, checked], loadPractices, { immediate: true })
       <section v-for="s in sections" :key="s.title" class="space-y-3">
         <h2 class="section-title">{{ s.title }}</h2>
         <ol v-if="s.games.length" class="card divide-y divide-line overflow-hidden p-0">
-          <GameRow v-for="game in s.games" :key="game.id" :game="game" :team="team" />
+          <template v-for="game in s.games" :key="game.id">
+            <GameRow :game="game" :team="team">
+              <template v-if="canEdit" #actions>
+                <GameStatsLink :game="game" class="btn-ghost" />
+                <button
+                  :id="'edit-game-' + game.id"
+                  type="button"
+                  class="btn-ghost"
+                  :aria-label="'עריכת המשחק נגד ' + game.opponent.name"
+                  :aria-expanded="editingId === game.id"
+                  :aria-controls="'game-editor-' + game.id"
+                  @click="editingId = editingId === game.id ? null : game.id"
+                >עריכה</button>
+              </template>
+            </GameRow>
+            <li v-if="editingId === game.id" :id="'game-editor-' + game.id" class="px-4 py-4 sm:px-5">
+              <GameForm class="max-w-2xl" :team-id="team.id" :game="game" @saved="onSaved" @cancel="closeEditor" />
+            </li>
+          </template>
         </ol>
         <p v-else class="empty-state">{{ s.empty }}</p>
       </section>
