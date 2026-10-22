@@ -1,6 +1,7 @@
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 
 const NOW = new Date(2026, 2, 12, 12, 0)
@@ -197,20 +198,67 @@ describe('ClubView', () => {
     expect(w.text()).not.toContain('על המועדון')
   })
 
-  it('shows the edit link to a club admin and full admin, never to anonymous', async () => {
-    const { useAuth } = await import('../composables/useAuth')
-    const editTo = (w) => w.findAllComponents(RouterLinkStub).some((l) => l.props('to')?.name === 'admin-club-edit')
-    for (const [user, shown] of [
-      [{ team_ids: [1], clubs: ['מכבי'] }, true],
-      [{ team_ids: [1], clubs: ['אחר'] }, false],
-      [{ team_ids: null }, true],
-      [null, false],
+  it('shows the edit button to a club admin and full admin, never to anonymous or in preview', async () => {
+    const { useAuth, viewAsMember } = await import('../composables/useAuth')
+    const editBtn = (w) => w.findAll('button').some((b) => b.text() === 'עריכת עמוד המועדון')
+    for (const [user, preview, shown] of [
+      [{ team_ids: [1], clubs: ['מכבי'] }, false, true],
+      [{ team_ids: [1], clubs: ['אחר'] }, false, false],
+      [{ team_ids: null }, false, true],
+      [{ team_ids: null }, true, false],
+      [null, false, false],
     ]) {
       useAuth().user.value = user
+      viewAsMember.value = preview
       mockFetch(GAMES)
-      expect(editTo(await mountIt()), JSON.stringify(user)).toBe(shown)
+      expect(editBtn(await mountIt()), JSON.stringify([user, preview])).toBe(shown)
     }
     useAuth().user.value = null
+    viewAsMember.value = false
+  })
+
+  describe('inline editing', () => {
+    const openEditor = async () => {
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { team_ids: null }
+      mockFetch(GAMES)
+      const base = global.fetch
+      global.fetch = vi.fn((url, o = {}) =>
+        o.method === 'PUT'
+          ? Promise.resolve({ ok: true, status: 200, json: async () => ({ ...CLUBS[0], ...JSON.parse(o.body) }) })
+          : base(url, o),
+      )
+      const w = await mountIt()
+      await w.findAll('button').find((b) => b.text() === 'עריכת עמוד המועדון').trigger('click')
+      return w
+    }
+    afterEach(async () => {
+      const { useAuth, viewAsMember } = await import('../composables/useAuth')
+      useAuth().user.value = null
+      viewAsMember.value = false
+    })
+
+    it('club admin edits about and officials inline and sees the result', async () => {
+      const w = await openEditor()
+      await w.get('#club-about-title').setValue('כותרת חדשה')
+      await w.get('#club-about-editor').trigger('submit')
+      await flushPromises()
+
+      const [url, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PUT')
+      expect(url).toBe('/api/clubs/5/about')
+      expect(JSON.parse(options.body).officials).toHaveLength(2)
+      expect(w.find('#club-about-editor').exists()).toBe(false)
+      expect(w.findAll('h2').map((h) => h.text())).toContain('כותרת חדשה')
+    })
+
+    it('turning on the preview closes an open editor', async () => {
+      const w = await openEditor()
+      expect(w.find('#club-about-editor').exists()).toBe(true)
+      const { viewAsMember } = await import('../composables/useAuth')
+      viewAsMember.value = true
+      await nextTick()
+      expect(w.find('#club-about-editor').exists()).toBe(false)
+    })
   })
 
   it('shows the empty state for an empty week', async () => {

@@ -1,5 +1,4 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const CLUB = {
@@ -18,40 +17,22 @@ const CLUB = {
 const jsonRes = (body, status = 200) => ({ ok: status < 400, status, json: async () => body })
 const ImageUploadStub = { name: 'ImageUpload', template: '<button type="button" class="upload" />' }
 
-describe('AdminClubAboutView', () => {
-  let router
-
-  beforeEach(async () => {
-    vi.resetModules()
-    router = createRouter({
-      history: createWebHistory(),
-      routes: [
-        { path: '/admin/clubs/:id', component: { template: '<div/>' } },
-        { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
-        { path: '/clubs/:clubSlug', name: 'club', component: { template: '<div/>' } },
-      ],
-    })
-  })
+describe('ClubAboutForm', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  async function mountView(id = 5, putStatus = 200) {
-    router.push(`/admin/clubs/${id}`)
-    await router.isReady()
-    global.fetch = vi.fn((url, options = {}) => {
-      if (options.method === 'PUT') return Promise.resolve(jsonRes(putStatus === 200 ? { ...CLUB, ...JSON.parse(options.body) } : {}, putStatus))
-      return Promise.resolve(jsonRes([CLUB]))
-    })
-    const { useAuth } = await import('../composables/useAuth')
-    useAuth().user.value = { id: 1, team_ids: null }
-    const { default: View } = await import('./AdminClubAboutView.vue')
-    const w = mount(View, { global: { plugins: [router], stubs: { ImageUpload: ImageUploadStub } } })
+  async function mountForm(putStatus = 200) {
+    global.fetch = vi.fn((url, options = {}) =>
+      Promise.resolve(jsonRes(putStatus === 200 ? { ...CLUB, ...JSON.parse(options.body) } : {}, putStatus)),
+    )
+    const { default: Form } = await import('./ClubAboutForm.vue')
+    const w = mount(Form, { props: { club: CLUB }, global: { stubs: { ImageUpload: ImageUploadStub } } })
     await flushPromises()
     return w
   }
   const putCall = () => global.fetch.mock.calls.find(([, o]) => o?.method === 'PUT')
 
-  it('loads the club and PUTs the whole block', async () => {
-    const w = await mountView()
+  it('PUTs the whole block', async () => {
+    const w = await mountForm()
     await w.get('#club-about-title').setValue('כותרת חדשה')
     await w.get('#club-about').setValue('')
     await w.get('[data-test=add-link]').trigger('click')
@@ -83,7 +64,7 @@ describe('AdminClubAboutView', () => {
   })
 
   it('removes an image and a link before saving', async () => {
-    const w = await mountView()
+    const w = await mountForm()
     await w.get('[data-test=remove-image-0]').trigger('click')
     await w.get('[data-test=remove-link-0]').trigger('click')
     await w.get('form').trigger('submit')
@@ -95,7 +76,7 @@ describe('AdminClubAboutView', () => {
   })
 
   it('adds, uploads a photo for, reorders and saves officials', async () => {
-    const w = await mountView()
+    const w = await mountForm()
     await w.get('[data-test=add-official]').trigger('click')
     await w.get('#official-name-1').setValue('רונית')
     await w.get('#official-position-1').setValue('מזכירה')
@@ -113,7 +94,7 @@ describe('AdminClubAboutView', () => {
   })
 
   it('removes an official', async () => {
-    const w = await mountView()
+    const w = await mountForm()
     await w.get('[data-test=remove-official-0]').trigger('click')
     await w.get('form').trigger('submit')
     await flushPromises()
@@ -121,15 +102,23 @@ describe('AdminClubAboutView', () => {
   })
 
   it('shows an alert when saving fails', async () => {
-    const w = await mountView(5, 500)
+    const w = await mountForm(500)
     await w.get('form').trigger('submit')
     await flushPromises()
     expect(w.get('[role=alert]').text()).toContain('השמירה נכשלה')
   })
 
-  it('shows not-found for an unknown club id', async () => {
-    const w = await mountView(99)
-    expect(w.text()).toContain('המועדון לא נמצא')
-    expect(w.find('form').exists()).toBe(false)
+  it('emits saved with the server club', async () => {
+    const w = await mountForm()
+    await w.get('#club-about-title').setValue('חדש')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.emitted('saved')[0][0]).toEqual({ ...CLUB, ...JSON.parse(putCall()[1].body) })
+  })
+
+  it('cancel emits cancel', async () => {
+    const w = await mountForm()
+    await w.findAll('button').find((b) => b.text() === 'ביטול').trigger('click')
+    expect(w.emitted('cancel')).toHaveLength(1)
   })
 })

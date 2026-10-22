@@ -465,4 +465,58 @@ describe('HomeView', () => {
     expect(aside.find('iframe').exists()).toBe(true)
     expect(aside.text()).not.toContain('קישורים')
   })
+
+  describe('inline editing (#471)', () => {
+    const asTeamAdmin = async () => {
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      return useAuth
+    }
+    const button = (w, text) => w.findAll('button').find((b) => b.text() === text)
+
+    it('team admin edits the about text inline', async () => {
+      await asTeamAdmin()
+      const w = await mountWithTeam(TEAM, {
+        extra: { 'PATCH /api/teams/1': () => jsonRes({ ...TEAM, about: 'חדש' }) },
+      })
+      await button(w, 'עריכה').trigger('click')
+      await w.get('#home-about').setValue('חדש')
+      await w.get('#home-about-editor').trigger('submit')
+      await flushPromises()
+
+      const [, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
+      expect(JSON.parse(options.body)).toEqual({ about: 'חדש' })
+      expect(w.find('#home-about-editor').exists()).toBe(false)
+      expect(w.text()).toContain('חדש')
+    })
+
+    it('team admin opens the links editor, and closing reloads links', async () => {
+      await asTeamAdmin()
+      const w = await mountWithTeam(TEAM, { links: LINKS })
+      await button(w, 'עריכת קישורים').trigger('click')
+      await flushPromises()
+      expect(w.findComponent({ name: 'TeamContentSection' }).props('resource')).toBe('links')
+      const linkGets = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/teams/1/links' && !o?.method).length
+      const before = linkGets()
+      await button(w, 'סיום עריכה').trigger('click')
+      await flushPromises()
+      expect(linkGets()).toBe(before + 1)
+    })
+
+    it('visitors and preview see no edit controls on the team home', async () => {
+      const useAuth = await asTeamAdmin()
+      useAuth().user.value = null
+      let w = await mountWithTeam(TEAM)
+      expect(w.text()).not.toContain('עריכה')
+      expect(w.text()).not.toContain('עריכת קישורים')
+      const { viewAsMember } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      viewAsMember.value = true
+      w = await mountWithTeam(TEAM)
+      expect(w.text()).not.toContain('עריכה')
+      expect(w.text()).not.toContain('עריכת קישורים')
+      expect(w.text()).not.toContain('על הקבוצה')
+      viewAsMember.value = false
+    })
+  })
 })
