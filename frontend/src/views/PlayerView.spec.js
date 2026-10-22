@@ -73,6 +73,13 @@ const withPlayer = (overrides) => {
 describe('PlayerView', () => {
   afterEach(() => vi.restoreAllMocks())
 
+  it('a coach shows מאמן instead of a jersey number', async () => {
+    withPlayer({ is_coach: true, jersey_number: null })
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.text()).toContain('מאמן')
+    expect(wrapper.text()).not.toContain('#7')
+  })
+
   it('shows birth date and age when present', async () => {
     withPlayer({ birth_date: '2008-03-12', age: 18 })
     const wrapper = await mountAt('/players/3')

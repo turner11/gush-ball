@@ -180,6 +180,28 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('דני')
   })
 
+  it('ticking מאמן hides the jersey field and POSTs is_coach true with a null jersey', async () => {
+    const created = { id: 20, team_id: 1, name: 'מאמן', name_en: null, jersey_number: null, is_coach: true, images: [], videos: [] }
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'POST /api/teams/1/players': () => jsonRes(created, 201),
+    })
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    await wrapper.find('#player-name').setValue('מאמן')
+    await wrapper.find('#player-jersey-number').setValue('9')
+    await wrapper.find('#player-is-coach').setValue(true)
+    expect(wrapper.find('#player-jersey-number').exists()).toBe(false)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const post = global.fetch.mock.calls.find(([, o]) => o?.method === 'POST')
+    expect(JSON.parse(post[1].body)).toMatchObject({ is_coach: true, jersey_number: null })
+  })
+
   it('uploading a player image fills the image url input and הוסף תמונה posts it', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),

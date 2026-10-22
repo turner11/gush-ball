@@ -23,7 +23,7 @@ const shownPlayers = computed(() =>
 )
 const deletedPlayers = ref(null) // null = hidden
 const editing = ref(null)
-const form = ref({ name: '', name_en: '', jersey_number: '', birth_date: '', user_id: '' })
+const form = ref({ name: '', name_en: '', jersey_number: '', is_coach: false, birth_date: '', user_id: '' })
 const linkableUsers = ref([]) // null = failed to load
 const links = ref({}) // player id -> linked username
 const linkedUserIds = ref({}) // player id -> linked user id
@@ -78,7 +78,7 @@ watch(selectedTeamId, loadPlayers)
 
 function resetForm() {
   editing.value = null
-  form.value = { name: '', name_en: '', jersey_number: '', birth_date: '', user_id: '' }
+  form.value = { name: '', name_en: '', jersey_number: '', is_coach: false, birth_date: '', user_id: '' }
 }
 
 const formEl = ref(null)
@@ -90,6 +90,7 @@ function startEdit(player) {
     name: player.name,
     name_en: player.name_en ?? '',
     jersey_number: player.jersey_number ?? '',
+    is_coach: player.is_coach,
     birth_date: player.birth_date ?? '',
     user_id: linkedUserIds.value[player.id] ?? '',
   }
@@ -99,7 +100,8 @@ async function onSubmit() {
   const payload = {
     name: form.value.name,
     name_en: form.value.name_en || null,
-    jersey_number: form.value.jersey_number === '' ? null : Number(form.value.jersey_number),
+    jersey_number: form.value.is_coach || form.value.jersey_number === '' ? null : Number(form.value.jersey_number),
+    is_coach: form.value.is_coach,
     birth_date: form.value.birth_date || null,
   }
 
@@ -218,7 +220,10 @@ async function deleteImage(player, image) {
             </thead>
             <tbody>
               <tr v-for="player in shownPlayers" :key="player.id" class="table-body-row">
-                <td data-label="מספר">{{ player.jersey_number }}</td>
+                <td data-label="מספר">
+                  <span v-if="player.is_coach" class="badge-muted">מאמן</span>
+                  <template v-else>{{ player.jersey_number }}</template>
+                </td>
                 <td data-label="שם">
                   {{ player.name }}
                   <span v-if="links[player.id]" class="badge-muted">{{ links[player.id] }}</span>
@@ -288,7 +293,12 @@ async function deleteImage(player, image) {
           <input id="player-name-en" v-model="form.name_en" type="text" class="field-input" />
         </div>
 
-        <div>
+        <label class="flex min-h-11 items-center gap-2">
+          <input id="player-is-coach" v-model="form.is_coach" type="checkbox" class="size-5" />
+          <span class="field-label">מאמן</span>
+        </label>
+
+        <div v-if="!form.is_coach">
           <label for="player-jersey-number" class="field-label">מספר חולצה</label>
           <input id="player-jersey-number" v-model="form.jersey_number" type="number" class="field-input" />
         </div>

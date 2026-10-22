@@ -23,7 +23,7 @@ issue, before starting.
 - `Opponent`: **not** a `Team`. Thin: name + logo + source URL, scraped or entered ad hoc. This
   split is deliberate — never fold opponents into the `Team` model to "save a table."
 - `League`: thin: ibasketball id, name, page URL, season start year. Current-season, non-empty leagues only, refilled nightly from `wp-json/sportspress/v2/leagues` (`sync_leagues`, unscoped syncs only). Teams link by `Team.ibasketball_league_url == League.url`, with no FK. Users can request a missing team (#351); follow-ups are #350 (picker), #351, #352.
-- `Player`: belongs to a `Team`; jersey number; images; optional `user_id` link to an account (#329).
+- `Player`: belongs to a `Team`; jersey number; images; optional `user_id` link to an account (#329); `is_coach` marks a coach row (no jersey; listed first; excluded from scorers and scraper roster matching) (#472).
 - `Game`: one `Team`'s schedule entry against an `Opponent`. Phase 2 adds scrape-bookkeeping
   columns (`source_event_id`, `is_scraped`, `needs_review`, `is_manually_overridden`) — Phase 1
   work should not add these early.

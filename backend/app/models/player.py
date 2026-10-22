@@ -20,6 +20,7 @@ class Player(Base):
     jersey_number: Mapped[int | None] = mapped_column(default=None)
     source_url: Mapped[str | None] = mapped_column(String(500), default=None)
     birth_date: Mapped[date | None] = mapped_column(default=None)
+    is_coach: Mapped[bool] = mapped_column(default=False, server_default=false())  # a coach: no jersey, listed first
     # player page fetched once for a DOB; scrape bookkeeping, never in the API
     birth_date_checked: Mapped[bool] = mapped_column(default=False, server_default=false())
     deleted_at: Mapped[datetime | None] = mapped_column(default=None)

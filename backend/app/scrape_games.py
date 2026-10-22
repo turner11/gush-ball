@@ -536,7 +536,7 @@ def sync_team_players(db: Session, team: Team) -> int:
         if player and player.deleted_at is not None:
             live_twin = db.scalar(
                 select(Player)
-                .where(Player.team_id == team.id, Player.name == name, Player.deleted_at.is_(None))
+                .where(Player.team_id == team.id, Player.name == name, Player.is_coach.is_(False), Player.deleted_at.is_(None))
                 .order_by(Player.id)
             )
             if live_twin is not None:
@@ -546,7 +546,7 @@ def sync_team_players(db: Session, team: Team) -> int:
         if not player:
             player = db.scalar(
                 select(Player)
-                .where(Player.team_id == team.id, Player.name == name)
+                .where(Player.team_id == team.id, Player.name == name, Player.is_coach.is_(False))
                 .order_by(Player.deleted_at.is_not(None), Player.id)
             )
             if player is not None:
