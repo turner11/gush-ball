@@ -6,6 +6,7 @@ import { useSelectedTeam } from '../composables/useSelectedTeam'
 import AdminTeamPicker from '../components/AdminTeamPicker.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ImageUpload from '../components/ImageUpload.vue'
+import PlayerForm from '../components/PlayerForm.vue'
 import PlayerVideosEditor from '../components/PlayerVideosEditor.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { apiFetch } from '../lib/api'
@@ -23,7 +24,8 @@ const shownPlayers = computed(() =>
 )
 const deletedPlayers = ref(null) // null = hidden
 const editing = ref(null)
-const form = ref({ name: '', name_en: '', jersey_number: '', is_coach: false, birth_date: '', user_id: '' })
+const formKey = ref(0) // bumped to remount PlayerForm (refill or clear)
+const linkUserId = ref('')
 const linkableUsers = ref([]) // null = failed to load
 const links = ref({}) // player id -> linked username
 const linkedUserIds = ref({}) // player id -> linked user id
@@ -78,60 +80,37 @@ watch(selectedTeamId, loadPlayers)
 
 function resetForm() {
   editing.value = null
-  form.value = { name: '', name_en: '', jersey_number: '', is_coach: false, birth_date: '', user_id: '' }
+  linkUserId.value = ''
+  formKey.value++
 }
 
 const formEl = ref(null)
 
 function startEdit(player) {
-  formEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  formEl.value?.$el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   editing.value = player
-  form.value = {
-    name: player.name,
-    name_en: player.name_en ?? '',
-    jersey_number: player.jersey_number ?? '',
-    is_coach: player.is_coach,
-    birth_date: player.birth_date ?? '',
-    user_id: linkedUserIds.value[player.id] ?? '',
-  }
+  linkUserId.value = linkedUserIds.value[player.id] ?? ''
+  formKey.value++
 }
 
-async function onSubmit() {
-  const payload = {
-    name: form.value.name,
-    name_en: form.value.name_en || null,
-    jersey_number: form.value.is_coach || form.value.jersey_number === '' ? null : Number(form.value.jersey_number),
-    is_coach: form.value.is_coach,
-    birth_date: form.value.birth_date || null,
-  }
+// user_id only when changed: a failed links load must never silently unlink the player
+const userIdChange = computed(() => {
+  if (!editing.value) return undefined
+  const was = linkedUserIds.value[editing.value.id] ?? ''
+  if (String(linkUserId.value) === String(was)) return undefined
+  return linkUserId.value === '' ? null : Number(linkUserId.value)
+})
 
+async function onSaved(saved) {
   error.value = null
-  try {
-    if (editing.value) {
-      // user_id only when changed: a failed links load must never silently unlink the player
-      const was = linkedUserIds.value[editing.value.id] ?? ''
-      const body = String(form.value.user_id) === String(was)
-        ? payload
-        : { ...payload, user_id: form.value.user_id === '' ? null : Number(form.value.user_id) }
-      const updated = await apiFetch(`/teams/${selectedTeamId.value}/players/${editing.value.id}`, {
-        method: 'PATCH',
-        body,
-      })
-      await loadLinks(selectedTeamId.value)
-      const idx = players.value.findIndex((p) => p.id === updated.id)
-      if (idx !== -1) players.value[idx] = updated
-    } else {
-      const created = await apiFetch(`/teams/${selectedTeamId.value}/players`, {
-        method: 'POST',
-        body: payload,
-      })
-      players.value.push(created)
-    }
-
-    resetForm()
-  } catch {
-    error.value = 'שגיאה בשמירת השחקן, נסה שוב'
+  if (editing.value) {
+    await loadLinks(selectedTeamId.value)
+    const idx = players.value.findIndex((p) => p.id === saved.id)
+    if (idx !== -1) players.value[idx] = saved
+  } else {
+    players.value.push(saved)
   }
+  resetForm()
 }
 
 async function onDelete(player) {
@@ -278,42 +257,25 @@ async function deleteImage(player, image) {
         </div>
       </div>
 
-      <form id="player-form" ref="formEl" class="card scroll-mt-24 space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
-        <h2 class="section-title">{{ editing ? 'עריכת שחקן' : 'הוספת שחקן' }}</h2>
-
+      <PlayerForm
+        id="player-form"
+        ref="formEl"
+        :key="formKey"
+        class="card scroll-mt-24 lg:sticky lg:top-20"
+        :team-id="selectedTeamId"
+        :player="editing"
+        :user-id="userIdChange"
+        @saved="onSaved"
+        @cancel="resetForm"
+      >
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
-
-        <div>
-          <label for="player-name" class="field-label">שם</label>
-          <input id="player-name" v-model="form.name" type="text" required class="field-input" />
-        </div>
-
-        <div>
-          <label for="player-name-en" class="field-label">שם באנגלית</label>
-          <input id="player-name-en" v-model="form.name_en" type="text" class="field-input" />
-        </div>
-
-        <label class="flex min-h-11 items-center gap-2">
-          <input id="player-is-coach" v-model="form.is_coach" type="checkbox" class="size-5" />
-          <span class="field-label">מאמן</span>
-        </label>
-
-        <div v-if="!form.is_coach">
-          <label for="player-jersey-number" class="field-label">מספר חולצה</label>
-          <input id="player-jersey-number" v-model="form.jersey_number" type="number" class="field-input" />
-        </div>
-
-        <div>
-          <label for="player-birth-date" class="field-label">תאריך לידה</label>
-          <input id="player-birth-date" v-model="form.birth_date" type="date" class="field-input" />
-        </div>
 
         <div v-if="editing">
           <label for="player-user" class="field-label">משתמש מקושר</label>
-          <select id="player-user" v-model="form.user_id" class="field-input" :disabled="linkableUsers === null">
+          <select id="player-user" v-model="linkUserId" class="field-input" :disabled="linkableUsers === null">
             <option value="">{{ linkableUsers === null ? 'שגיאה בטעינת המשתמשים' : 'ללא' }}</option>
-            <option v-if="form.user_id !== '' && !(linkableUsers ?? []).some((u) => u.id === form.user_id)" :value="form.user_id">
-              משתמש מקושר (#{{ form.user_id }})
+            <option v-if="linkUserId !== '' && !(linkableUsers ?? []).some((u) => u.id === linkUserId)" :value="linkUserId">
+              משתמש מקושר (#{{ linkUserId }})
             </option>
             <option v-for="u in linkableUsers ?? []" :key="u.id" :value="u.id">{{ userLabel(u) }}</option>
           </select>
@@ -323,16 +285,7 @@ async function deleteImage(player, image) {
           <h3 class="field-label">סרטונים</h3>
           <PlayerVideosEditor :player="editing" @change="(videos) => (editing.videos = videos)" />
         </div>
-
-        <div class="flex gap-2">
-          <button type="submit" class="btn-primary">
-            {{ editing ? 'שמירה' : 'הוספה' }}
-          </button>
-          <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">
-            ביטול
-          </button>
-        </div>
-      </form>
+      </PlayerForm>
     </div>
     <a href="#player-form" class="fab lg:hidden" aria-label="הוספת שחקן"><AppIcon name="plus" /></a>
   </section>

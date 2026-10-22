@@ -41,11 +41,10 @@ const tabItems = computed(() => [
   ...(teamMember(selectedTeamId.value) ? [{ to: teamBase.value + '/playbook', label: 'פלייבוק', icon: 'clipboard' }] : []),
 ])
 
-const teams = ref([])
 const clubs = ref([])
 const { user, checked, checkSession, logout } = useAuth()
 const { error: favError } = useFavorites()
-const { selectedTeamId, teamsLoaded, markTeamsLoaded } = useSelectedTeam()
+const { selectedTeamId, teamsLoaded, teams, markTeamsLoaded } = useSelectedTeam()
 
 // Scoped to this layout's root so admin pages stay neutral; unset vars fall back in style.css.
 const selectedTeam = computed(() => teams.value.find((t) => String(t.id) === selectedTeamId.value))

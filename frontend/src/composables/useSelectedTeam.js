@@ -5,6 +5,8 @@ const STORAGE_KEY = 'gush-ball:selected-team-id'
 
 const selectedTeamId = ref(localStorage.getItem(STORAGE_KEY))
 const teamsLoaded = ref(false)
+// DefaultLayout's public team list. A public page's save patches its row so the header follows (#471).
+const teams = ref([])
 
 watch(selectedTeamId, (id) => {
   if (id) localStorage.setItem(STORAGE_KEY, id)
@@ -25,12 +27,12 @@ export function teamSlug(team) {
 export function useSelectedTeam() {
   // Call once the real team list has loaded. A remembered team is one the visitor opened;
   // forget it if it no longer exists. Never invents a default, so first-time visitors can be told apart.
-  function markTeamsLoaded(teams) {
+  function markTeamsLoaded(list) {
     teamsLoaded.value = true
-    if (!teams.some((t) => String(t.id) === selectedTeamId.value)) selectedTeamId.value = null
+    if (!list.some((t) => String(t.id) === selectedTeamId.value)) selectedTeamId.value = null
   }
 
-  return { selectedTeamId, teamsLoaded, markTeamsLoaded }
+  return { selectedTeamId, teamsLoaded, teams, markTeamsLoaded }
 }
 
 // The URL slug picks the team on every route that has one (home, /:slug/schedule, /:slug/admin, …).

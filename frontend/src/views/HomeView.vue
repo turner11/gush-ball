@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
+import TeamColorFields from '../components/TeamColorFields.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import VideoCard from '../components/VideoCard.vue'
@@ -27,49 +28,65 @@ const players = ref([])
 const games = ref([])
 const loading = ref(false)
 
-// Inline editors for the about text and the links (#471); both close on a team switch or when the preview turns on.
+// Inline editors for the about text, the colors and the links (#471); all close on a team switch or when the preview turns on.
 const canEdit = computed(() => !!team.value && canEditTeam(team.value.id))
-const editingAbout = ref(false)
+const editingField = ref(null) // 'about' | 'colors' | null: the PATCH editors share one slot
 const editingLinks = ref(false)
 const aboutDraft = ref('')
-const savingAbout = ref(false)
-const aboutError = ref(null)
-const aboutToggle = ref(null)
+// The draft starts at the saved value (null for none; the picker then shows black), so only a real pick differs from it.
+const colorsDraft = ref({ primary: null, secondary: null })
+const colorsInitial = computed(() => ({
+  primary: team.value?.primary_color ?? null,
+  secondary: team.value?.secondary_color ?? null,
+}))
+const saving = ref(false)
+const saveError = ref(null)
 const linksToggle = ref(null)
 const closeEditors = () => {
-  editingAbout.value = false
+  editingField.value = null
   editingLinks.value = false
 }
 watch(canEdit, (can) => {
   if (!can) closeEditors()
 })
 
-function toggleAbout() {
-  editingAbout.value = !editingAbout.value
+function toggleEditor(field) {
+  editingField.value = editingField.value === field ? null : field
   aboutDraft.value = team.value.about ?? ''
-  aboutError.value = null
+  colorsDraft.value = { ...colorsInitial.value }
+  saveError.value = null
 }
 
-async function cancelAbout() {
-  editingAbout.value = false
+async function closeEditor() {
+  const field = editingField.value
+  editingField.value = null
   await nextTick()
-  aboutToggle.value?.focus()
+  document.getElementById(`home-${field}-toggle`)?.focus()
 }
 
-async function saveAbout() {
-  savingAbout.value = true
-  aboutError.value = null
+async function saveTeam(body) {
+  if (!Object.keys(body).length) return closeEditor()
+  saving.value = true
+  saveError.value = null
   try {
-    team.value = await apiFetch(`/teams/${team.value.id}`, { method: 'PATCH', body: { about: aboutDraft.value.trim() || null } })
-    editingAbout.value = false
-    await nextTick()
-    aboutToggle.value?.focus()
+    const saved = await apiFetch(`/teams/${team.value.id}`, { method: 'PATCH', body })
+    team.value = saved
+    // the layout's header reads its own copy of the team row
+    Object.assign(teams.value.find((t) => t.id === saved.id) ?? {}, saved)
+    await closeEditor()
   } catch {
-    aboutError.value = 'שגיאה בשמירה, נסו שוב'
+    saveError.value = 'שגיאה בשמירה, נסו שוב'
   } finally {
-    savingAbout.value = false
+    saving.value = false
   }
 }
+
+const saveAbout = () => saveTeam({ about: aboutDraft.value.trim() || null })
+const saveColors = () =>
+  saveTeam({
+    ...(colorsDraft.value.primary !== colorsInitial.value.primary && { primary_color: colorsDraft.value.primary }),
+    ...(colorsDraft.value.secondary !== colorsInitial.value.secondary && { secondary_color: colorsDraft.value.secondary }),
+  })
 
 async function toggleLinks() {
   if (!editingLinks.value) {
@@ -87,7 +104,7 @@ async function toggleLinks() {
 }
 
 // DefaultLayout picks the default team; this view only follows the selection.
-const { selectedTeamId, teamsLoaded } = useSelectedTeam()
+const { selectedTeamId, teamsLoaded, teams } = useSelectedTeam()
 
 async function load() {
   closeEditors()
@@ -211,22 +228,48 @@ const hasSocialEmbed = computed(
         <section v-if="team.about || canEdit" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">על הקבוצה</h2>
-            <button v-if="canEdit" ref="aboutToggle" type="button" class="btn-secondary" aria-controls="home-about-editor" :aria-expanded="editingAbout" @click="toggleAbout">{{ editingAbout ? 'סגירה' : 'עריכה' }}</button>
+            <button v-if="canEdit" id="home-about-toggle" type="button" class="btn-secondary" aria-controls="home-about-editor" :aria-expanded="editingField === 'about'" @click="toggleEditor('about')">{{ editingField === 'about' ? 'סגירה' : 'עריכה' }}</button>
           </div>
-          <form v-if="editingAbout" id="home-about-editor" class="card space-y-3" @submit.prevent="saveAbout">
+          <form v-if="editingField === 'about'" id="home-about-editor" class="card space-y-3" @submit.prevent="saveAbout">
             <div>
               <label for="home-about" class="field-label">על הקבוצה</label>
               <textarea id="home-about" v-model="aboutDraft" class="field-input" rows="6" maxlength="5000" />
               <p class="mt-1 text-sm text-muted">השאירו ריק כדי להסתיר.</p>
             </div>
-            <p v-if="aboutError" class="error-text" role="alert">{{ aboutError }}</p>
+            <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
             <div class="flex flex-wrap gap-3">
-              <button type="submit" class="btn-primary" :disabled="savingAbout">שמירה</button>
-              <button type="button" class="btn-secondary" @click="cancelAbout">ביטול</button>
+              <button type="submit" class="btn-primary" :disabled="saving">שמירה</button>
+              <button type="button" class="btn-secondary" @click="closeEditor">ביטול</button>
             </div>
           </form>
           <div v-else-if="team.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
           <p v-else class="empty-state">עוד אין טקסט על הקבוצה.</p>
+        </section>
+
+        <section v-if="canEdit" class="space-y-2">
+          <div class="section-header">
+            <h2 class="section-title">צבעי הקבוצה</h2>
+            <button id="home-colors-toggle" type="button" class="btn-secondary" aria-controls="home-colors-editor" :aria-expanded="editingField === 'colors'" @click="toggleEditor('colors')">{{ editingField === 'colors' ? 'סגירה' : 'עריכת צבעים' }}</button>
+          </div>
+          <form v-if="editingField === 'colors'" id="home-colors-editor" class="card space-y-3" @submit.prevent="saveColors">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <TeamColorFields v-model:primary="colorsDraft.primary" v-model:secondary="colorsDraft.secondary" />
+            </div>
+            <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
+            <div class="flex flex-wrap gap-3">
+              <button type="submit" class="btn-primary" :disabled="saving">שמירה</button>
+              <button type="button" class="btn-secondary" @click="closeEditor">ביטול</button>
+            </div>
+          </form>
+          <div v-else class="flex flex-wrap items-center gap-3">
+            <template v-if="team.primary_color || team.secondary_color">
+              <span v-for="(c, i) in [team.primary_color, team.secondary_color].filter(Boolean)" :key="i" class="flex items-center gap-2">
+                <span class="size-11 rounded-lg border border-line" :style="{ backgroundColor: c }" aria-hidden="true" />
+                <span dir="ltr" class="text-sm tabular-nums">{{ c }}</span>
+              </span>
+            </template>
+            <span v-else class="text-muted">צבעי ברירת המחדל</span>
+          </div>
         </section>
 
         <section v-if="topPost" class="space-y-3">
