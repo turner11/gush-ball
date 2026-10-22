@@ -348,7 +348,7 @@ describe('PlayerView', () => {
     })
 
     it('visitors get a muted line, no upload prompt (#385)', async () => {
-      for (const me of [{ username: 'a', player_ids: [4] }, null]) {
+      for (const me of [{ username: 'a', player_ids: [4], team_ids: [] }, null]) {
         await signIn(me, EMPTY)
         const wrapper = await mountAt('/players/3')
         expect(wrapper.text()).toContain('אין תמונות עדיין')

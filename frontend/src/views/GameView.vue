@@ -8,7 +8,7 @@ import GameScorersEditor from '../components/GameScorersEditor.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import VideoCard from '../components/VideoCard.vue'
-import { teamAdmin } from '../composables/useAuth'
+import { canEditTeam } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -22,7 +22,11 @@ const loading = ref(true)
 const error = ref('')
 
 const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.params.slug } }))
-const canEdit = computed(() => !!game.value && teamAdmin(game.value.team_id))
+const canEdit = computed(() => !!game.value && canEditTeam(game.value.team_id))
+// Closes any open editor when the player preview turns on.
+watch(canEdit, (can) => {
+  if (!can) editingScorers.value = editingMedia.value = false
+})
 const editingScorers = ref(false)
 const scorersToggle = ref(null)
 const editingMedia = ref(false)

@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import LineupStats from '../components/LineupStats.vue'
-import { useAuth } from '../composables/useAuth'
+import { useAuth, viewAsMember } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatGameDate } from '../lib/format'
@@ -49,7 +49,7 @@ const statsGames = computed(() =>
 )
 const requestedId = computed(() => Number(route.query.game) || null)
 const selectedGame = computed(() => statsGames.value.find((g) => g.id === requestedId.value) ?? null)
-const liveUrl = computed(() => selectedGame.value && liveStatsUrl(selectedGame.value, user.value))
+const liveUrl = computed(() => selectedGame.value && liveStatsUrl(selectedGame.value, viewAsMember.value ? null : user.value))
 const fellBack = computed(() => requestedId.value && !selectedGame.value && !loading.value)
 
 function optionLabel(g) {

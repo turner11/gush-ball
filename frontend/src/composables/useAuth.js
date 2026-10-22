@@ -16,6 +16,10 @@ export const teamMember = (teamId) => {
 }
 // UI gate only (the server enforces scope): team_ids null = full admin, [] = no admin grant.
 export const teamAdmin = (teamId) => !!user.value && (!user.value.team_ids || user.value.team_ids.includes(Number(teamId)))
+// "View as player" preview (#468): hides public-page edit controls only; the server still enforces scope. Admin
+// pages keep using teamAdmin. ponytail: plain ref, a reload exits the preview (fails safe); sessionStorage if wanted.
+export const viewAsMember = ref(false)
+export const canEditTeam = (teamId) => !viewAsMember.value && teamAdmin(teamId)
 export const clubAdmin = (club) => !!club && !!user.value?.clubs?.includes(club)
 
 const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
@@ -66,6 +70,7 @@ export function useAuth() {
     try {
       await apiFetch('/auth/logout', { method: 'POST' })
       user.value = null
+      viewAsMember.value = false
     } catch {
       error.value = 'שגיאת התנתקות, נסה שוב'
     }
