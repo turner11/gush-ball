@@ -402,7 +402,7 @@ describe('HomeView', () => {
     })
 
     const titles = wrapper.findAll('h2').map((h) => h.text())
-    expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'על הקבוצה', 'עדכונים', 'שחקנים', 'סרטונים'])
+    expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'על הקבוצה', 'עדכונים', 'הסגל', 'סרטונים'])
   })
 
   it('shows only the 2 newest videos', async () => {
@@ -429,7 +429,7 @@ describe('HomeView', () => {
   it('hides sections with no content', async () => {
     const wrapper = await mountWithTeam(TEAM)
 
-    for (const title of ['קישורים', 'סרטונים', 'תמונות', 'עדכונים', 'שחקנים', 'על הקבוצה']) {
+    for (const title of ['קישורים', 'סרטונים', 'תמונות', 'עדכונים', 'הסגל', 'על הקבוצה']) {
       expect(wrapper.text()).not.toContain(title)
     }
     expect(wrapper.find('.empty-state').exists()).toBe(false)

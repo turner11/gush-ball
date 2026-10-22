@@ -13,4 +13,13 @@ describe('byRosterOrder', () => {
     ]
     expect([...players].sort(byRosterOrder).map((p) => p.name)).toEqual(['x', 'A', 'b', 'alpha', 'Zed'])
   })
+
+  it('puts coaches first', () => {
+    const people = [
+      { id: 1, name: 'A', jersey_number: 1 },
+      { id: 2, name: 'Z', jersey_number: null, is_coach: true },
+      { id: 3, name: 'B', jersey_number: null, is_coach: true },
+    ]
+    expect([...people].sort(byRosterOrder).map((p) => p.name)).toEqual(['B', 'Z', 'A'])
+  })
 })

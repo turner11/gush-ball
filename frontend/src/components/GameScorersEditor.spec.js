@@ -55,6 +55,13 @@ describe('GameScorersEditor', () => {
     expect(wrapper.text()).toContain('30')
   })
 
+  it('coaches are not listed as scorers', async () => {
+    mockFetch({ players: [...PLAYERS, { id: 8, name: 'מאמן', jersey_number: null, is_coach: true }] })
+    const wrapper = await mountEditor()
+    expect(wrapper.find('#scorer-8').exists()).toBe(false)
+    expect(wrapper.find('#scorer-1').exists()).toBe(true)
+  })
+
   it('saves only filled rows, including 0, and emits saved', async () => {
     const saved = [{ player_id: 2, name: 'בית', jersey_number: 9, points: 0 }]
     mockFetch({ put: () => res(saved) })

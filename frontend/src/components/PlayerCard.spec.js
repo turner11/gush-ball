@@ -26,6 +26,12 @@ describe('PlayerCard', () => {
   const slide = (w) => w.find('[data-testid="slide"]')
   const shown = (w) => slide(w).attributes('src')
 
+  it('a coach shows the מאמן pill and no jersey', () => {
+    const w = mountCard({ player: { ...PLAYER, is_coach: true, jersey_number: null } })
+    expect(w.text()).toContain('מאמן')
+    expect(w.text()).not.toContain('#')
+  })
+
   it('appends solo-tagged team images after own images', async () => {
     const teamImages = [
       { url: '/t1.jpg', player_ids: [3] },

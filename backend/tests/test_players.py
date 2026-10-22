@@ -356,7 +356,7 @@ def test_linked_user_edits_own_name(client: TestClient, db_session: Session, own
     assert response.json()["name"] == "New"
 
 
-@pytest.mark.parametrize("field,value", [("jersey_number", 9), ("user_id", None)])
+@pytest.mark.parametrize("field,value", [("jersey_number", 9), ("user_id", None), ("is_coach", True)])
 def test_linked_user_cannot_change_admin_fields(
     field: str, value: int | None, client: TestClient, db_session: Session, own_team: Team
 ) -> None:
@@ -619,3 +619,39 @@ def test_list_deleted_players_sorted_by_number_then_name(admin_client: TestClien
         admin_client.delete(f"/teams/{team.id}/players/{player['id']}")
     names = [p["name"] for p in admin_client.get(f"/teams/{team.id}/players/deleted").json()]
     assert names == ["a", "b"]
+
+
+def test_create_coach_has_no_jersey(admin_client: TestClient, team: Team) -> None:
+    response = admin_client.post(
+        f"/teams/{team.id}/players", json={"name": "Coach", "is_coach": True, "jersey_number": 5}
+    )
+    assert response.status_code == 201
+    assert response.json()["is_coach"] is True
+    assert response.json()["jersey_number"] is None
+
+
+def test_patch_to_coach_clears_jersey(admin_client: TestClient, db_session: Session, team: Team) -> None:
+    player = _player(db_session, team, number=8)
+    response = admin_client.patch(f"/teams/{team.id}/players/{player.id}", json={"is_coach": True})
+    assert response.status_code == 200
+    assert response.json()["is_coach"] is True
+    assert response.json()["jersey_number"] is None
+
+
+def test_list_players_coaches_first(client: TestClient, db_session: Session, team: Team) -> None:
+    _player(db_session, team, name="Numbered", number=3)
+    _player(db_session, team, name="Unnumbered", number=None)
+    for name in ("Coach B", "Coach A"):
+        db_session.add(Player(team_id=team.id, name=name, is_coach=True))
+    db_session.commit()
+    names = [p["name"] for p in client.get(f"/teams/{team.id}/players").json()]
+    assert names == ["Coach A", "Coach B", "Numbered", "Unnumbered"]
+
+
+def test_linked_user_edits_own_coach_row(client: TestClient, db_session: Session, own_team: Team) -> None:
+    user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
+    coach = Player(team_id=own_team.id, name="Coach", is_coach=True, user_id=user.id)
+    db_session.add(coach)
+    db_session.commit()
+    response = client.patch(f"/teams/{own_team.id}/players/{coach.id}", json={"name": "New"})
+    assert response.status_code == 200

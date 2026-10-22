@@ -857,6 +857,21 @@ def test_sync_team_players_does_not_reimport_renamed_player(
     assert db_session.query(Player).filter_by(source_url="/p/1").one().name == "Renamed"
 
 
+def test_sync_team_players_does_not_adopt_same_name_coach(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    db_session.add(Player(team_id=team.id, name="איתי ורולקר", is_coach=True))
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+
+    scrape_games.sync_team_players(db_session, team)
+
+    coach = db_session.query(Player).filter_by(is_coach=True).one()
+    assert coach.source_url is None
+    assert db_session.query(Player).filter_by(name="איתי ורולקר", is_coach=False, source_url="/p/1").count() == 1
+
+
 def test_sync_team_players_rekeys_player_whose_href_changed(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:

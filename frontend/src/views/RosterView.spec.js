@@ -54,6 +54,27 @@ describe('RosterView', () => {
     expect(wrapper.text()).toContain('7')
   })
 
+  const COACH = { id: 9, team_id: 1, name: 'המאמן', name_en: null, jersey_number: null, is_coach: true, images: [] }
+
+  it('renders a מאמנים group before the players', async () => {
+    mockFetch({ 'GET /api/teams/1/players': () => jsonRes([COACH, ...PLAYERS]) })
+    const { default: RosterView } = await import('./RosterView.vue')
+    const wrapper = mount(RosterView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['מאמנים', 'שחקנים'])
+    expect(wrapper.find('ul').text()).toContain('המאמן')
+  })
+
+  it('no group headings when the team has no coaches', async () => {
+    mockFetch({ 'GET /api/teams/1/players': () => jsonRes(PLAYERS) })
+    const { default: RosterView } = await import('./RosterView.vue')
+    const wrapper = mount(RosterView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.findAll('h2')).toHaveLength(0)
+  })
+
   it('passes the team images to each player card', async () => {
     const images = [{ id: 1, url: '/t.jpg', player_ids: [1] }]
     mockFetch({
