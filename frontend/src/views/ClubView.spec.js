@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 
 const NOW = new Date(2026, 2, 12, 12, 0)
-const NO_ABOUT = { about_title: null, about_title_en: null, about: null, about_en: null, about_images: [], about_links: [] }
+const NO_ABOUT = { about_title: null, about_title_en: null, about: null, about_en: null, about_images: [], about_links: [], officials: [] }
 const CLUBS = [
   {
     id: 5, name: 'מכבי', name_en: 'Maccabi', ibasketball_url: 'https://ibasketball.co.il/club/5/', ...NO_ABOUT,
@@ -12,6 +12,10 @@ const CLUBS = [
     about: 'מועדון קהילתי\nמאז 1990',
     about_images: [{ url: 'https://cdn.example.com/a.jpg', title: 'האולם', title_en: null }],
     about_links: [{ label: 'האתר שלנו', label_en: null, url: 'https://club.example.com/' }],
+    officials: [
+      { name: 'דני כהן', position: 'יו״ר', image_url: 'https://cdn.example.com/d.jpg', about: 'ותיק המועדון' },
+      { name: 'רונית לוי', position: 'מזכירה', image_url: null, about: null },
+    ],
   },
   { id: 6, name: 'הפועל', name_en: null, ibasketball_url: null, ...NO_ABOUT },
 ]
@@ -156,7 +160,25 @@ describe('ClubView', () => {
   it('puts the about block before the teams and the week', async () => {
     mockFetch(GAMES)
     const w = await mountIt()
-    expect(w.findAll('h2').map((h) => h.text())).toEqual(['הסיפור שלנו', 'הקבוצות', 'השבוע במועדון'])
+    expect(w.findAll('h2').map((h) => h.text())).toEqual(['הסיפור שלנו', 'בעלי תפקידים', 'הקבוצות', 'השבוע במועדון'])
+  })
+
+  it('lists officials under the about block, in order', async () => {
+    mockFetch(GAMES)
+    const w = await mountIt()
+    const text = w.text()
+    expect(w.findAll('h3').map((h) => h.text())).toEqual(['דני כהן', 'רונית לוי'])
+    expect(text).toContain('יו״ר')
+    expect(text).toContain('ותיק המועדון')
+    expect(text.indexOf('מועדון קהילתי')).toBeLessThan(text.indexOf('בעלי תפקידים'))
+    expect(text.indexOf('בעלי תפקידים')).toBeLessThan(text.indexOf('הקבוצות'))
+    expect(w.findAll('li img').map((i) => i.attributes('src'))).toEqual(['https://cdn.example.com/d.jpg', '/default-player.png'])
+  })
+
+  it('hides officials when there are none', async () => {
+    mockFetch(GAMES)
+    const w = await mountIt('/clubs/6')
+    expect(w.text()).not.toContain('בעלי תפקידים')
   })
 
   it('renders the about block: title, text, link chips and images', async () => {
