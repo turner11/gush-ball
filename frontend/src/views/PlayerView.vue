@@ -148,8 +148,9 @@ watch(
           />
         </div>
         <div class="min-w-0 flex-1 space-y-2">
-          <p v-if="player.jersey_number != null" class="w-fit rounded-xl bg-team px-3 py-1 text-3xl font-black leading-none tabular-nums text-on-team max-sm:mx-auto sm:text-5xl">
-            #{{ player.jersey_number }}
+          <p v-if="player.is_coach || player.jersey_number != null" class="w-fit rounded-xl bg-team px-3 py-1 text-3xl font-black leading-none tabular-nums text-on-team max-sm:mx-auto sm:text-5xl">
+            <template v-if="player.is_coach">מאמן</template>
+            <template v-else>#{{ player.jersey_number }}</template>
           </p>
           <h1 class="page-title">{{ player.name }}</h1>
           <p v-if="player.name_en" class="text-lg font-semibold text-muted"><bdi lang="en">{{ player.name_en }}</bdi></p>

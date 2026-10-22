@@ -76,7 +76,7 @@ def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
         if player is None or player.deleted_at is not None:
             return None
         photo = db.scalar(select(PlayerImage.url).where(PlayerImage.player_id == player.id).order_by(PlayerImage.id))
-        return _title(f"{player.name} · {player.team.name}", player.name_en), f"פרופיל שחקן של {player.team.name}.", photo or player.team.logo_url
+        return _title(f"{player.name} · {player.team.name}", player.name_en), f"פרופיל {'מאמן' if player.is_coach else 'שחקן'} של {player.team.name}.", photo or player.team.logo_url
     if len(parts) == 2 and parts[0] == "clubs":
         club = _club_for_slug(db, parts[1])
         if club is None:

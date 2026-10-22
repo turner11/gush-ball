@@ -1,6 +1,7 @@
-// Roster order: numbered players first (ascending), then by name, then id.
+// Roster order: coaches first, then numbered players (ascending), then by name, then id.
 // Mirrors _roster_order in backend/app/routers/players.py; plain < / > matches Python's code-point str order.
 export function byRosterOrder(a, b) {
+  if (!!a.is_coach !== !!b.is_coach) return a.is_coach ? -1 : 1
   const aNone = a.jersey_number == null
   const bNone = b.jersey_number == null
   if (aNone !== bNone) return aNone ? 1 : -1

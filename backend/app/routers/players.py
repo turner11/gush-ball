@@ -73,6 +73,7 @@ class PlayerCreate(BaseModel):
     name_en: str | None = None
     jersey_number: int | None = None
     birth_date: PastDate | None = None
+    is_coach: bool = False
 
 
 class PlayerUpdate(BaseModel):
@@ -81,6 +82,7 @@ class PlayerUpdate(BaseModel):
     name_en: PlayerName | None = None
     jersey_number: int | None = None
     birth_date: PastDate | None = None
+    is_coach: bool = None  # omitted = unchanged; null -> 422 (NOT NULL column); team admins only
     user_id: int | None = None  # the linked account; omitted = unchanged, null = unlink (team admins only)
 
 
@@ -123,6 +125,7 @@ class PlayerOut(BaseModel):
     name: str
     name_en: str | None
     jersey_number: int | None
+    is_coach: bool
     birth_date: date | None
     minor: bool = False  # under ADULT_DOB_AGE; plain field so it survives birth_date being nulled
     images: list[PlayerImageOut]
@@ -135,8 +138,14 @@ class PlayerOut(BaseModel):
 
 
 def _roster_order(player: Player) -> tuple:
-    # numbered first, then by name; mirrored by byRosterOrder in frontend/src/lib/players.js
-    return (player.jersey_number is None, player.jersey_number or 0, player.name.casefold(), player.id)
+    # coaches first, then numbered, then by name; mirrored by byRosterOrder in frontend/src/lib/players.js
+    return (not player.is_coach, player.jersey_number is None, player.jersey_number or 0, player.name.casefold(), player.id)
+
+
+def _drop_coach_jersey(player: Player) -> None:
+    # a coach never has a jersey, so lineups, scorers and jersey sorting cannot pick one up
+    if player.is_coach:
+        player.jersey_number = None
 
 
 def _public_player(player: Player, show_birth_date: bool) -> PlayerOut:
@@ -190,6 +199,7 @@ def create_player(
 ) -> PlayerOut:
     get_team_or_404(db, team_id)
     player = Player(team_id=team_id, **payload.model_dump())
+    _drop_coach_jersey(player)
     db.add(player)
     db.commit()
     db.refresh(player)
@@ -247,6 +257,7 @@ def update_player(
         _check_linkable(db, get_team_or_404(db, team_id), updates["user_id"])
     for field, value in updates.items():
         setattr(player, field, value)
+    _drop_coach_jersey(player)
     db.commit()
     db.refresh(player)
     return _public_player(player, can_write_team(db, user, team_id))

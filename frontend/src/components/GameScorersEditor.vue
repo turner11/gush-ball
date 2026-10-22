@@ -27,7 +27,7 @@ onMounted(async () => {
       apiFetch(`/teams/${props.teamId}/games/${props.gameId}`),
     ])
     const points = new Map(game.scorers.map((s) => [s.player_id, s.points]))
-    const roster = players.map((p) => ({ id: p.id, name: p.name, jersey_number: p.jersey_number }))
+    const roster = players.filter((p) => !p.is_coach).map((p) => ({ id: p.id, name: p.name, jersey_number: p.jersey_number }))
     // a soft-deleted scorer is not in the roster; keep the row so saving does not drop their points
     const missing = game.scorers
       .filter((s) => !roster.some((p) => p.id === s.player_id))

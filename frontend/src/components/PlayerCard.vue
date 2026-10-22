@@ -70,11 +70,12 @@ onBeforeUnmount(stopSlideshow)
         />
       </div>
       <p
-        v-if="(player?.jersey_number ?? jersey) != null"
+        v-if="player?.is_coach || (player?.jersey_number ?? jersey) != null"
         :class="compact ? 'text-[10px]' : 'text-xs'"
         class="absolute inset-x-0 -bottom-1.5 mx-auto w-fit rounded-md bg-team px-1.5 font-black tabular-nums text-on-team ring-2 ring-raised"
       >
-        #{{ player?.jersey_number ?? jersey }}
+        <template v-if="player?.is_coach">מאמן</template>
+        <template v-else>#{{ player?.jersey_number ?? jersey }}</template>
       </p>
     </div>
     <!-- on hover the slideshow fills the whole card: the nearest positioned ancestor, i.e. the caller's `relative overflow-hidden` card -->

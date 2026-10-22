@@ -1,11 +1,18 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import PlayerCard from '../components/PlayerCard.vue'
 import { apiFetch } from '../lib/api'
 
 const players = ref([])
+// coaches lead the API order; a heading only appears when there are two groups
+const groups = computed(() =>
+  [
+    { title: 'מאמנים', people: players.value.filter((p) => p.is_coach) },
+    { title: 'שחקנים', people: players.value.filter((p) => !p.is_coach) },
+  ].filter((g) => g.people.length),
+)
 const teamImages = ref([])
 const loading = ref(false)
 
@@ -46,11 +53,16 @@ watch(selectedTeamId, loadPlayers, { immediate: true })
     <div v-if="loading" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6" aria-busy="true">
       <div v-for="n in 5" :key="n" class="skeleton h-40" />
     </div>
-    <ul v-else-if="players.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-      <li v-for="player in players" :key="player.id" class="card p-4 relative overflow-hidden">
-        <PlayerCard :player="player" :team-images="teamImages" />
-      </li>
-    </ul>
+    <template v-else-if="groups.length">
+      <div v-for="group in groups" :key="group.title" class="space-y-4">
+        <h2 v-if="groups.length > 1" class="section-title">{{ group.title }}</h2>
+        <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <li v-for="player in group.people" :key="player.id" class="card p-4 relative overflow-hidden">
+            <PlayerCard :player="player" :team-images="teamImages" />
+          </li>
+        </ul>
+      </div>
+    </template>
     <p v-else class="empty-state">אין שחקנים עדיין.</p>
   </section>
 </template>

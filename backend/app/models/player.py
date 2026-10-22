@@ -21,6 +21,7 @@ class Player(Base):
     source_url: Mapped[str | None] = mapped_column(String(500), default=None)
     birth_date: Mapped[date | None] = mapped_column(default=None)
     # player page fetched once for a DOB; scrape bookkeeping, never in the API
+    is_coach: Mapped[bool] = mapped_column(default=False, server_default=false())  # a coach: no jersey, listed first
     birth_date_checked: Mapped[bool] = mapped_column(default=False, server_default=false())
     deleted_at: Mapped[datetime | None] = mapped_column(default=None)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("admin_users.id", ondelete="SET NULL"), index=True, default=None)

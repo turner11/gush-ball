@@ -245,7 +245,7 @@ const hasSocialEmbed = computed(
 
         <section v-if="players.length" class="space-y-2">
           <div class="section-header">
-            <h2 class="section-title">שחקנים</h2>
+            <h2 class="section-title">הסגל</h2>
             <RouterLink :to="base + '/roster'" class="section-link">כל השחקנים</RouterLink>
           </div>
           <!-- swipe row on touch widths; from md a wrapping grid (mouse users can't scroll a hidden-scrollbar row) -->
