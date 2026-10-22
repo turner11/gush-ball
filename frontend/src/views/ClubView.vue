@@ -1,8 +1,8 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import { clubAdmin, fullAdmin, useAuth } from '../composables/useAuth'
+import { clubAdmin, fullAdmin, useAuth, viewAsMember } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -15,6 +15,7 @@ import SearchInput from '../components/SearchInput.vue'
 import GameRow from '../components/GameRow.vue'
 import TeamCard from '../components/TeamCard.vue'
 import AppIcon from '../components/AppIcon.vue'
+import ClubAboutForm from '../components/ClubAboutForm.vue'
 
 // "This week at the club": the games of every team in this club from the last 7 to the next 7 days (#326).
 function day(offset) {
@@ -35,7 +36,21 @@ const searchInput = ref(null)
 const club = ref(null) // null = not found (once loaded)
 
 const { user } = useAuth()
-const canEdit = computed(() => !!user.value && (fullAdmin.value || clubAdmin(club.value?.name)))
+const canEdit = computed(() => !viewAsMember.value && !!user.value && (fullAdmin.value || clubAdmin(club.value?.name)))
+const editing = ref(false)
+const editToggle = ref(null)
+watch(canEdit, (can) => {
+  if (!can) editing.value = false
+})
+function onSaved(updated) {
+  club.value = updated
+  closeEditor()
+}
+async function closeEditor() {
+  editing.value = false
+  await nextTick()
+  editToggle.value?.focus()
+}
 const hasAbout = computed(() => {
   const c = club.value
   return !!c && !!(c.about_title || c.about || c.about_images.length || c.about_links.length)
@@ -75,6 +90,7 @@ const groups = computed(() => {
 const teamOf = (g) => teams.value.find((t) => t.id === g.team_id) ?? null
 
 async function load() {
+  editing.value = false
   const slug = route.params.clubSlug
   loading.value = true
   error.value = false
@@ -135,11 +151,12 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           <p v-if="club.name_en" class="mt-1 text-lg font-semibold text-muted"><bdi lang="en">{{ club.name_en }}</bdi></p>
         </div>
         <div class="flex flex-wrap gap-x-4 gap-y-2">
-          <RouterLink v-if="canEdit" :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">עריכת עמוד המועדון</RouterLink>
+          <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" aria-controls="club-about-editor" :aria-expanded="editing" @click="editing = !editing">{{ editing ? 'סיום עריכה' : 'עריכת עמוד המועדון' }}</button>
           <a v-if="club.ibasketball_url" :href="club.ibasketball_url" target="_blank" rel="noopener noreferrer" class="section-link">המועדון ב-ibasketball</a>
         </div>
       </div>
-      <section v-if="hasAbout" class="space-y-3">
+      <ClubAboutForm v-if="editing" id="club-about-editor" :club="club" @saved="onSaved" @cancel="closeEditor" />
+      <section v-if="!editing && hasAbout" class="space-y-3">
         <h2 class="section-title">{{ club.about_title || 'על המועדון' }}</h2>
         <div v-if="club.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ club.about }}</p></div>
         <div v-if="club.about_links.length" class="flex flex-wrap gap-2">
@@ -152,7 +169,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           </figure>
         </div>
       </section>
-      <section v-if="club.officials.length" class="space-y-3">
+      <section v-if="!editing && club.officials.length" class="space-y-3">
         <h2 class="section-title">בעלי תפקידים</h2>
         <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <li v-for="(o, i) in club.officials" :key="i" class="card flex items-start gap-3">
@@ -165,7 +182,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           </li>
         </ul>
       </section>
-      <p v-if="canEdit && !hasAbout && !club.officials.length" class="empty-state">עוד אין תוכן על המועדון. <RouterLink :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">עריכת עמוד המועדון</RouterLink></p>
+      <p v-if="!editing && canEdit && !hasAbout && !club.officials.length" class="empty-state">עוד אין תוכן על המועדון. <button type="button" class="btn-primary" @click="editing = true">הוספת תוכן</button></p>
       <div v-if="clubTeams.length > 1">
         <SearchInput id="club-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה או ליגה" class="w-full sm:w-80" />
         <p class="mt-2 text-sm text-muted" aria-live="polite">{{ shownTeams.length === 1 ? 'קבוצה אחת' : `${shownTeams.length} קבוצות` }}</p>

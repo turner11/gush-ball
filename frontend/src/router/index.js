@@ -54,7 +54,6 @@ const router = createRouter({
     { path: '/admin/users', name: 'admin-users', component: () => import('../views/AdminUsersView.vue'), meta: admin('ניהול משתמשים') },
     { path: '/admin/teams/import', name: 'admin-teams-import', component: () => import('../views/AdminClubImportView.vue'), meta: admin('ייבוא קבוצות מאגודה') },
     { path: '/admin/teams/batch', name: 'admin-teams-batch-edit', component: () => import('../views/AdminTeamsBatchEditView.vue'), meta: admin('עריכת קבוצות') },
-    { path: '/admin/clubs/:id', name: 'admin-club-edit', component: () => import('../views/AdminClubAboutView.vue'), meta: admin('עריכת עמוד המועדון') },
     { path: '/admin/teams/:id', name: 'admin-team-edit', component: () => import('../views/AdminTeamEditView.vue'), meta: admin('עריכת קבוצה') },
     ...LEGACY_PATHS.map(([path, name]) => ({ path, redirect: () => {
       const slug = useSelectedTeam().selectedTeamId.value
