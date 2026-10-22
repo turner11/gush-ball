@@ -33,11 +33,11 @@ const canEdit = computed(() => !!team.value && canEditTeam(team.value.id))
 const editingField = ref(null) // 'about' | 'colors' | null: the PATCH editors share one slot
 const editingLinks = ref(false)
 const aboutDraft = ref('')
-// The color picker always shows a color; a team without one shows black, which must not be saved unless chosen.
-const colorsDraft = ref({ primary: '', secondary: '' })
+// The draft starts at the saved value (null for none; the picker then shows black), so only a real pick differs from it.
+const colorsDraft = ref({ primary: null, secondary: null })
 const colorsInitial = computed(() => ({
-  primary: team.value?.primary_color ?? '#000000',
-  secondary: team.value?.secondary_color ?? '#000000',
+  primary: team.value?.primary_color ?? null,
+  secondary: team.value?.secondary_color ?? null,
 }))
 const saving = ref(false)
 const saveError = ref(null)
@@ -262,8 +262,8 @@ const hasSocialEmbed = computed(
             </div>
           </form>
           <div v-else class="flex flex-wrap items-center gap-3">
-            <template v-if="team.primary_color">
-              <span v-for="c in [team.primary_color, team.secondary_color].filter(Boolean)" :key="c" class="flex items-center gap-2">
+            <template v-if="team.primary_color || team.secondary_color">
+              <span v-for="(c, i) in [team.primary_color, team.secondary_color].filter(Boolean)" :key="i" class="flex items-center gap-2">
                 <span class="size-11 rounded-lg border border-line" :style="{ backgroundColor: c }" aria-hidden="true" />
                 <span dir="ltr" class="text-sm tabular-nums">{{ c }}</span>
               </span>

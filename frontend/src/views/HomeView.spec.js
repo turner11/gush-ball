@@ -522,6 +522,22 @@ describe('HomeView', () => {
       expect(useSelectedTeam().teams.value[0].primary_color).toBe('#123456')
     })
 
+    it('a secondary-only color is saved, shown, and a picked black counts as a change', async () => {
+      await asTeamAdmin()
+      const w = await mountWithTeam(TEAM, {
+        extra: { 'PATCH /api/teams/1': () => jsonRes({ ...TEAM, secondary_color: '#000000' }) },
+      })
+      await button(w, 'עריכת צבעים').trigger('click')
+      await w.get('#team-secondary-color').setValue('#000000')
+      await w.get('#home-colors-editor').trigger('submit')
+      await flushPromises()
+
+      const [, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
+      expect(JSON.parse(options.body)).toEqual({ secondary_color: '#000000' })
+      expect(w.text()).not.toContain('צבעי ברירת המחדל')
+      expect(w.text()).toContain('#000000')
+    })
+
     it('saving the colors untouched sends nothing and keeps a colorless team colorless', async () => {
       await asTeamAdmin()
       const w = await mountWithTeam(TEAM)
