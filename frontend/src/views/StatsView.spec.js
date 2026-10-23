@@ -221,10 +221,13 @@ describe('StatsView', () => {
       expect(wrapper.findAll('svg[role=img]')).toHaveLength(2)
       const select = wrapper.find('#highlight-player')
       expect(select.element.value).toBe('2') // top total scorer
+      const highlighted = () => wrapper.findAll('svg[role=img]')[1].find('g.text-team circle title').text()
+      expect(highlighted()).toContain('בית')
       const players = () => wrapper.findAll('svg[role=img]')[1]
       expect(players().findAll('polyline.text-team')).toHaveLength(1)
       await select.setValue('1')
       expect(select.element.value).toBe('1')
+      expect(highlighted()).toContain('אלף')
       expect(players().findAll('polyline.text-team')).toHaveLength(1)
     })
 

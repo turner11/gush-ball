@@ -113,7 +113,6 @@ class ScorerOut(BaseModel):
 class ScorerHistoryOut(ScorerOut):
     game_id: int
     scheduled_at: datetime
-    opponent_name: str
 
 
 class GameVideo(BaseModel):
@@ -232,14 +231,11 @@ def list_team_scorers(team_id: int, db: DbSession) -> list[ScorerHistoryOut]:
     rows = db.execute(
         select(GameScorer, Game)
         .join(Game, GameScorer.game_id == Game.id)
-        .options(selectinload(Game.opponent))
         .where(Game.team_id == team_id, Game.needs_review.is_(False))
         .order_by(Game.scheduled_at, Game.id, GameScorer.points.desc())
     )
     return [
-        ScorerHistoryOut(
-            **_scorer_out(s).model_dump(), game_id=g.id, scheduled_at=g.scheduled_at, opponent_name=g.opponent.name
-        )
+        ScorerHistoryOut(**_scorer_out(s).model_dump(), game_id=g.id, scheduled_at=g.scheduled_at)
         for s, g in rows
     ]
 

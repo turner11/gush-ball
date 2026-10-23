@@ -11,7 +11,7 @@ const props = defineProps({
 
 const W = 640
 const H = 240
-const PAD = { start: 44, end: 16, top: 16, bottom: 36 } // start = right in RTL, where the y labels sit
+const PAD = { start: 44, end: 28, top: 16, bottom: 36 } // start = right in RTL, where the y labels sit; under dir=rtl SVG "end" extends rightwards from x
 const TICKS = 4
 const STYLE = {
   primary: { cls: 'text-team', width: 3, dash: null },
@@ -43,7 +43,7 @@ const lines = computed(() =>
       <g class="text-line" stroke="currentColor" stroke-width="1">
         <line v-for="g in gridlines" :key="g" :x1="PAD.end" :x2="W - PAD.start" :y1="y(g)" :y2="y(g)" />
       </g>
-      <g class="fill-current text-muted" font-size="20" text-anchor="start">
+      <g class="fill-current text-muted" font-size="20" text-anchor="end">
         <text v-for="g in gridlines" :key="g" :x="W - PAD.start + 8" :y="y(g) + 7">{{ g }}</text>
       </g>
       <g class="fill-current text-muted" font-size="20" text-anchor="middle">

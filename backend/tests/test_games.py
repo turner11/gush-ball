@@ -803,7 +803,6 @@ def test_list_team_scorers_returns_rows_in_date_order_with_opponent(client: Test
         (earlier.id, "Alef", 10),
         (later.id, "Alef", 8),
     ]
-    assert rows[0]["opponent_name"] == "Early FC"
     assert rows[0]["scheduled_at"].startswith("2026-01-05T18:00")
     assert rows[0]["player_id"] == p2.id
     assert rows[0]["jersey_number"] == 9

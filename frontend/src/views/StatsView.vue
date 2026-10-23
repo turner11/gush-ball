@@ -8,7 +8,6 @@ import LineupStats from '../components/LineupStats.vue'
 import { previewMode, useAuth, viewer } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
-import { formatGameDate } from '../lib/format'
 import { byDate, gameDayLabel, liveStatsUrl, played, scoringByPlayer } from '../lib/games'
 
 const route = useRoute()
@@ -59,8 +58,7 @@ const liveUrl = computed(() => selectedGame.value && liveStatsUrl(selectedGame.v
 const fellBack = computed(() => requestedId.value && !selectedGame.value && !loading.value)
 
 function optionLabel(g) {
-  const { day, month } = formatGameDate(g.scheduled_at)
-  return `נגד ${g.opponent.name} · ${day} ${month}`
+  return `נגד ${g.opponent.name} · ${gameDayLabel(g.scheduled_at)}`
 }
 
 // Season charts: oldest game first, independent of the ?game= picker.
