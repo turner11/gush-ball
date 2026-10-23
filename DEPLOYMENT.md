@@ -13,9 +13,8 @@ Order matters: storage first (you need its values for the env vars), then the do
 |---|---|
 | Cloudflare R2 | `gush-ball-media` (public) + `gush-ball-backups` (private), one API token each |
 | Coolify | one Docker Compose resource: env vars, domain, scheduled scrape tasks, auto-deploy on push to `master` |
-| GitHub | `master` ruleset requiring CI, push webhook to Coolify (Public Repository source only) |
+| GitHub | `master` ruleset requiring CI, push webhook to Coolify (Public Repository source only), three secrets for the daily backup check |
 | Sentry | two projects (backend, frontend) + new-issue alert email |
-| Hetzner box | `~/gush-ball-backup.env`, `~/backup.sh`, one crontab line (nightly backup) |
 
 ## 1. Object storage (Cloudflare R2)
 
@@ -43,8 +42,9 @@ needed.
    permission **Object Read & Write**, *Specify bucket* → `gush-ball-media` only.
    Copy the **Access Key ID** → `OBJECT_STORAGE_ACCESS_KEY_ID` and **Secret Access Key** →
    `OBJECT_STORAGE_SECRET_ACCESS_KEY`. The secret is shown once.
-6. **Backup token**: same again, scoped to `gush-ball-backups` only →
-   `BACKUP_ACCESS_KEY_ID` / `BACKUP_SECRET_ACCESS_KEY`.
+6. **Backup tokens**: same again, scoped to `gush-ball-backups` only →
+   `BACKUP_ACCESS_KEY_ID` / `BACKUP_SECRET_ACCESS_KEY`. Then a second one with **Object Read only** on the same bucket,
+   for the GitHub backup check ([BACKUP.md §3](BACKUP.md#3-the-nightly-backup-to-r2)).
 7. `OBJECT_STORAGE_REGION=auto` (R2 ignores regions, but boto3 wants one).
 
 ## 2. Domain
@@ -120,13 +120,13 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 
 1. Coolify → your project → *New resource* → *Public Repository* (or *Private Repository (GitHub App)*):
    `https://github.com/turner11/gush-ball`, branch `master`, build pack **Docker Compose**, compose file
-   `/docker-compose.prod.yml`. *Why:* this is what Coolify clones and builds; Docker Compose is how the three services
-   (db, backend, web) are described.
+   `/docker-compose.prod.yml`. *Why:* this is what Coolify clones and builds; Docker Compose is how the four services
+   (db, backend, web, backup) are described.
 2. Enable **submodules** for the repo (advanced settings). *Why:* the backend build needs the `stats/` folder, which
    is a git submodule and is skipped by a plain clone.
 3. On the `web` service set the domain to `https://<domain>` (the one from step 2). *Why:* Coolify's proxy then routes that
    hostname to `web` (port 80) and automatically requests a free Let's Encrypt HTTPS certificate. It can only do
-   that if the A record from step 2 already points here. The `backend` and `db` services get no domain: they must
+   that if the A record from step 2 already points here. The `backend`, `db` and `backup` services get no domain: they must
    not be reachable from the internet (`web` proxies `/api/*` to `backend` internally).
 4. *Environment Variables* (the compose file refuses to start if a required one is missing; every value must be free of
    spaces, `$` and quotes). *Why:* secrets and per-environment settings live here, not in git:
@@ -142,6 +142,9 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `OBJECT_STORAGE_ACCESS_KEY_ID` | Step 1.5 |
 | `OBJECT_STORAGE_SECRET_ACCESS_KEY` | Step 1.5 |
 | `OBJECT_STORAGE_REGION` | Optional, defaults to `auto` |
+| `BACKUP_BUCKET` | Step 1.4 |
+| `BACKUP_ACCESS_KEY_ID` | Step 1.6 |
+| `BACKUP_SECRET_ACCESS_KEY` | Step 1.6 |
 | `STATS_URL` | Optional, the Streamlit Community Cloud app URL (`https://<app>.streamlit.app`) |
 | `STATS_TEMPLATE_URL` | Optional, URL or sheet ID of the headers-only template Google Sheet (see §4.3) |
 | `PUBLIC_URL` | `https://<domain>`. Required: password-reset links and the Google redirect URI are built from it. |
@@ -278,13 +281,14 @@ A second, thin task refreshes only scores and tables on game nights (otherwise r
 
 ## 6. Nightly backup
 
-Set up the nightly `pg_dump` to the private R2 backup bucket: [BACKUP.md, section 3](BACKUP.md#3-set-up-the-nightly-backup-to-r2).
+The `backup` service in `docker-compose.prod.yml` dumps the DB to the private R2 backup bucket on every deploy and
+nightly; a GitHub Action restores the newest dump every morning: [BACKUP.md, section 3](BACKUP.md#3-the-nightly-backup-to-r2).
 *Why:* the database lives on this one machine; without an off-machine copy, a dead disk loses everything.
 
 ## 7. Verify a backup
 
-Restore a dump into a scratch DB to prove it works: [BACKUP.md, section 4](BACKUP.md#4-verify-an-r2-backup). Taking a
-manual backup before a risky deploy and restoring production are in the same file.
+The *Backup check* GitHub Action does this every morning. To do it by hand: [BACKUP.md, section 4](BACKUP.md#4-verify-an-r2-backup).
+Taking a manual backup before a risky deploy and restoring production are in the same file.
 
 ## 8. Media bucket custom domain (optional)
 
@@ -370,5 +374,5 @@ The nightly scrape (§5) needs no extra step: Coolify scheduled tasks run in the
 | Upload returns 502 "Object storage is not configured correctly" | Wrong `OBJECT_STORAGE_*` value or token not scoped to that bucket |
 | Upload works but image is broken | `OBJECT_STORAGE_PUBLIC_URL` wrong, or bucket public access off |
 | Every `login ...` log line shows the same `ip=10.x`/`172.x` address, and logins return 429 for everyone | Caddy isn't trusting the Coolify proxy (`trusted_proxies` in `frontend/Caddyfile`), or the proxy topology changed |
-| `backup.sh`: `expected 1 running container matching ...` | Stack not deployed, mid-redeploy, or the Coolify resource was recreated with a new id; check `docker ps` and set `DB_CONTAINER` in `~/gush-ball-backup.env` |
-| `backup.sh` fails with `AccessDenied` | `~/gush-ball-backup.env` wrong, or token not scoped to `BACKUP_BUCKET` |
+| `backup` service log: `backup: FAILED, retrying in 5 minutes` | The line above it says why: `AccessDenied` = `BACKUP_*` wrong or token not scoped to `BACKUP_BUCKET`; `could not connect` = DB still starting (the retry fixes it) |
+| *Backup check* Action fails | Its log says why: no dump in 26h (the `backup` service is down or failing), a broken dump, or a missing GitHub secret |

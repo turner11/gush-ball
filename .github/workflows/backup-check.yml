@@ -1,0 +1,51 @@
+name: Backup check
+
+# Every morning: download the newest production dump from R2, restore it into a throwaway Postgres and count rows.
+# A failure (no dump in 26h, a broken dump, an empty restore, missing secrets) fails the run, and GitHub emails you.
+# The backup itself is the `backup` service in docker-compose.prod.yml; see BACKUP.md section 3.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restore-newest-dump:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24  # = prod db
+        env:
+          POSTGRES_USER: gush_ball
+          POSTGRES_PASSWORD: gush_ball
+          POSTGRES_DB: gush_ball
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      BUCKET: gush-ball-backups
+      AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_READ_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_READ_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL: ${{ secrets.OBJECT_STORAGE_ENDPOINT_URL }}
+      AWS_DEFAULT_REGION: auto
+    steps:
+      - name: Download the newest dump
+        run: |
+          newest=$(aws s3api list-objects-v2 --bucket "$BUCKET" \
+            --query 'sort_by(Contents, &LastModified)[-1].[Key, LastModified]' --output text)
+          read -r key modified <<< "$newest"
+          age_h=$(( ($(date +%s) - $(date -d "$modified" +%s)) / 3600 ))
+          echo "newest: $key, $modified (${age_h}h old)"
+          [ "$age_h" -lt 26 ] || { echo "::error::newest backup $key is ${age_h}h old; the backup service is not running or failing"; exit 1; }
+          aws s3 cp "s3://$BUCKET/$key" newest.dump --only-show-errors
+          ls -l newest.dump
+      - name: Restore it and count rows
+        # The service's own pg_restore: the runner's client may be older than the server's dump format.
+        env:
+          DB: ${{ job.services.db.id }}
+        run: |
+          docker exec -i "$DB" pg_restore -U gush_ball -d gush_ball --no-owner --exit-on-error < newest.dump
+          teams=$(docker exec "$DB" psql -U gush_ball -d gush_ball -tAc 'select count(*) from teams')
+          games=$(docker exec "$DB" psql -U gush_ball -d gush_ball -tAc 'select count(*) from games')
+          echo "restored: $teams teams, $games games"
+          [ "$teams" -gt 0 ] || { echo "::error::restored dump has no teams"; exit 1; }
