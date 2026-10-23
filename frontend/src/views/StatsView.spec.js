@@ -25,6 +25,7 @@ function mockFetch(overrides = {}) {
     'GET /api/auth/me': () => jsonRes(MEMBER),
     'GET /api/teams/1/players': () => jsonRes(PLAYERS),
     'GET /api/teams/1/games': () => jsonRes(GAMES),
+    'GET /api/teams/1/games/scorers': () => jsonRes([]),
     [LINEUPS]: () => jsonRes([]),
     [`${LINEUPS}&game_id=2`]: () => jsonRes([]),
     [`${LINEUPS}&game_id=3`]: () => jsonRes([]),
@@ -203,5 +204,47 @@ describe('StatsView', () => {
     await wrapper.findAll('button').find((b) => b.text() === 'נסה שוב').trigger('click')
     await flushPromises()
     expect(wrapper.find('select').exists()).toBe(true)
+  })
+
+  describe('season charts', () => {
+    const scored = (id, day, ours, theirs) => ({ ...game(id, day, false), status: 'final', team_score: ours, opponent_score: theirs })
+    const srow = (game_id, day, player_id, name, points) => ({
+      game_id, scheduled_at: `2026-03-${day}T18:00:00`, opponent_name: `יריבה ${game_id}`, player_id, name, jersey_number: 1, points,
+    })
+    const SCORERS = [srow(1, '01', 1, 'אלף', 5), srow(1, '01', 2, 'בית', 9), srow(2, '08', 1, 'אלף', 6), srow(2, '08', 2, 'בית', 11)]
+    const SCORED_GAMES = () => jsonRes([scored(1, '01', 40, 30), scored(2, '08', 50, 55)])
+
+    it('shows team-vs-opponent and players scoring charts for a viewer; the select switches the highlight', async () => {
+      mockFetch({ 'GET /api/teams/1/games': SCORED_GAMES, 'GET /api/teams/1/games/scorers': () => jsonRes(SCORERS) })
+      await router.push('/stats')
+      const wrapper = await mountView()
+      expect(wrapper.findAll('svg[role=img]')).toHaveLength(2)
+      const select = wrapper.find('#highlight-player')
+      expect(select.element.value).toBe('2') // top total scorer
+      const highlighted = () => wrapper.findAll('svg[role=img]')[1].find('g.text-team circle title').text()
+      expect(highlighted()).toContain('בית')
+      const players = () => wrapper.findAll('svg[role=img]')[1]
+      expect(players().findAll('polyline.text-team')).toHaveLength(1)
+      await select.setValue('1')
+      expect(select.element.value).toBe('1')
+      expect(highlighted()).toContain('אלף')
+      expect(players().findAll('polyline.text-team')).toHaveLength(1)
+    })
+
+    it('charts still render when the team has no BBStats games', async () => {
+      mockFetch({ 'GET /api/teams/1/games': SCORED_GAMES, 'GET /api/teams/1/games/scorers': () => jsonRes(SCORERS) })
+      await router.push('/stats')
+      const wrapper = await mountView()
+      expect(wrapper.findAll('svg[role=img]')).toHaveLength(2)
+      expect(wrapper.text()).toContain('עדיין אין נתונים לקבוצה')
+    })
+
+    it('anonymous visitors get no chart and no scorer fetch', async () => {
+      mockFetch({ 'GET /api/auth/me': UNAUTHORIZED })
+      await router.push('/stats')
+      const wrapper = await mountView()
+      expect(wrapper.find('svg[role=img]').exists()).toBe(false)
+      expect(urls().some((u) => u.includes('scorers'))).toBe(false)
+    })
   })
 })

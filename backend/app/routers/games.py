@@ -110,6 +110,11 @@ class ScorerOut(BaseModel):
     points: int
 
 
+class ScorerHistoryOut(ScorerOut):
+    game_id: int
+    scheduled_at: datetime
+
+
 class GameVideo(BaseModel):
     url: Url500
     title: VideoTitle
@@ -127,11 +132,12 @@ class GameDetailRead(GameRead):
     images: list[TitledImage] = []
 
 
+def _scorer_out(s: GameScorer) -> ScorerOut:
+    return ScorerOut(player_id=s.player_id, name=s.player.name, jersey_number=s.player.jersey_number, points=s.points)
+
+
 def _scorers(game: Game) -> list[ScorerOut]:
-    return [
-        ScorerOut(player_id=s.player_id, name=s.player.name, jersey_number=s.player.jersey_number, points=s.points)
-        for s in game.scorers
-    ]
+    return [_scorer_out(s) for s in game.scorers]
 
 
 def _public_game(game: Game, show_sheet: bool) -> GameRead:
@@ -216,6 +222,22 @@ def list_pending_review_games(
             )
         )
     )
+
+
+@router.get("/scorers", response_model=list[ScorerHistoryOut])
+def list_team_scorers(team_id: int, db: DbSession) -> list[ScorerHistoryOut]:
+    """Every scorer row of the team's approved games, oldest game first (public like each game's scorers)."""
+    get_team_or_404(db, team_id)
+    rows = db.execute(
+        select(GameScorer, Game)
+        .join(Game, GameScorer.game_id == Game.id)
+        .where(Game.team_id == team_id, Game.needs_review.is_(False))
+        .order_by(Game.scheduled_at, Game.id, GameScorer.points.desc())
+    )
+    return [
+        ScorerHistoryOut(**_scorer_out(s).model_dump(), game_id=g.id, scheduled_at=g.scheduled_at)
+        for s, g in rows
+    ]
 
 
 @router.get("/{game_id}", response_model=GameDetailRead)

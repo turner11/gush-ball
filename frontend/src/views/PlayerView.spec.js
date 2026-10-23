@@ -34,6 +34,7 @@ const RESPONSES = {
   '/api/players/3': PLAYER,
   '/api/teams/1/players': ROSTER,
   '/api/teams/1': { id: 1, name: 'קבוצה א', name_en: 'Team A' },
+  '/api/teams/1/games/scorers': [],
   '/api/teams/1/images': [
     { id: 10, title: 'אימון', url: '/t1.jpg', player_ids: [3] },
     { id: 11, title: 'אחר', url: '/other.jpg', player_ids: [4] },
@@ -417,5 +418,35 @@ describe('PlayerView', () => {
       expect((await mountAt('/players/3')).text()).not.toContain('עריכת הפרופיל שלי')
       previewMode.value = null
     })
+  })
+
+  const row = (game_id, day, player_id, points) => ({
+    game_id, scheduled_at: `2026-03-${day}T18:00:00`, opponent_name: `יריבה ${game_id}`, player_id, name: 'x', jersey_number: 1, points,
+  })
+  const withScorers = (rows) => {
+    const base = okFetch()
+    global.fetch = vi.fn((url) =>
+      url === '/api/teams/1/games/scorers' ? Promise.resolve({ ok: true, status: 200, json: async () => rows }) : base(url),
+    )
+  }
+
+  it('1 game shows stat tiles (1 / points / avg) and no chart', async () => {
+    withScorers([row(1, '01', 3, 12), row(1, '01', 4, 30)])
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.findAll('.stat-value').map((v) => v.text())).toEqual(['1', '12', '12.0'])
+    expect(wrapper.find('svg[role=img]').exists()).toBe(false)
+  })
+
+  it('2+ games shows the scoring chart', async () => {
+    withScorers([row(1, '01', 3, 12), row(2, '08', 3, 7), row(2, '08', 4, 30)])
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.findAll('.stat-value').map((v) => v.text())).toEqual(['2', '19', '9.5'])
+    expect(wrapper.findAll('svg[role=img] polyline')).toHaveLength(1)
+  })
+
+  it('0 games hides the statistics section', async () => {
+    withScorers([row(1, '01', 4, 30)])
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.find('.stat-value').exists()).toBe(false)
   })
 })

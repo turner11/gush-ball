@@ -96,4 +96,34 @@ describe('GameScorersEditor', () => {
     expect(wrapper.text()).toContain('אין שחקנים בסגל.')
     expect(wrapper.find('a').attributes('href')).toBe('/team_a/admin/players')
   })
+
+  it('a player marked played with no points saves 0', async () => {
+    mockFetch({ game: { ...GAME, scorers: [] } })
+    const wrapper = await mountEditor()
+    await wrapper.find('#played-2').setValue(true)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    const put = global.fetch.mock.calls.find((c) => c[1]?.method === 'PUT')
+    expect(JSON.parse(put[1].body)).toEqual([{ player_id: 2, points: 0 }])
+  })
+
+  it('unchecking played drops the player from the save', async () => {
+    mockFetch()
+    const wrapper = await mountEditor()
+    expect(wrapper.find('#played-1').element.checked).toBe(true)
+    await wrapper.find('#played-1').setValue(false)
+    expect(wrapper.find('#scorer-1').element.value).toBe('')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    const put = global.fetch.mock.calls.find((c) => c[1]?.method === 'PUT')
+    expect(JSON.parse(put[1].body)).toEqual([{ player_id: 3, points: 8 }])
+  })
+
+  it('typing points marks the player played', async () => {
+    mockFetch()
+    const wrapper = await mountEditor()
+    expect(wrapper.find('#played-2').element.checked).toBe(false)
+    await wrapper.find('#scorer-2').setValue('5')
+    expect(wrapper.find('#played-2').element.checked).toBe(true)
+  })
 })

@@ -772,3 +772,52 @@ def test_put_media_accepts_long_english_video_title(admin_client: TestClient, db
 
     assert res.status_code == 200
     assert res.json()["videos"][0]["title_en"] == "e" * 200
+
+
+def _scored_game(db_session: Session, team: Team, opponent: str, day: int, scorers: list[tuple[Player, int]], **kw) -> Game:
+    opp = Opponent(name=opponent)
+    db_session.add(opp)
+    db_session.flush()
+    game = Game(
+        team=team, opponent=opp, scheduled_at=datetime(2026, 1, day, 18, 0), status=GameStatus.FINAL, **kw
+    )
+    game.scorers = [GameScorer(player_id=p.id, points=pts) for p, pts in scorers]
+    db_session.add(game)
+    db_session.commit()
+    return game
+
+
+def test_list_team_scorers_returns_rows_in_date_order_with_opponent(client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    p1 = _make_player(db_session, team, "Alef", 7)
+    p2 = _make_player(db_session, team, "Bet", 9)
+    later = _scored_game(db_session, team, "Later FC", 20, [(p1, 8)])
+    earlier = _scored_game(db_session, team, "Early FC", 5, [(p1, 10), (p2, 22)])
+
+    response = client.get(f"/teams/{team.id}/games/scorers")
+
+    assert response.status_code == 200
+    rows = response.json()
+    assert [(r["game_id"], r["name"], r["points"]) for r in rows] == [
+        (earlier.id, "Bet", 22),
+        (earlier.id, "Alef", 10),
+        (later.id, "Alef", 8),
+    ]
+    assert rows[0]["scheduled_at"].startswith("2026-01-05T18:00")
+    assert rows[0]["player_id"] == p2.id
+    assert rows[0]["jersey_number"] == 9
+
+
+def test_list_team_scorers_hides_needs_review_games_and_other_teams(client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    other = _make_team(db_session, "Other Team")
+    p = _make_player(db_session, team, "Alef", 7)
+    q = _make_player(db_session, other, "Gimel", 3)
+    visible = _scored_game(db_session, team, "Ok FC", 5, [(p, 4)])
+    _scored_game(db_session, team, "Hidden FC", 6, [(p, 99)], needs_review=True)
+    _scored_game(db_session, other, "Elsewhere FC", 7, [(q, 50)])
+
+    rows = client.get(f"/teams/{team.id}/games/scorers").json()
+
+    assert [(r["game_id"], r["points"]) for r in rows] == [(visible.id, 4)]
+    assert client.get("/teams/999999/games/scorers").status_code == 404

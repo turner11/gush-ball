@@ -3,12 +3,14 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import LineChart from '../components/LineChart.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { canEditTeam, viewer } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { gameDayLabel, scoringByPlayer } from '../lib/games'
 import { pageTitle, playerJsonLd, setJsonLd } from '../lib/head'
 import { DEFAULT_PLAYER_PHOTO, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
 
@@ -35,6 +37,9 @@ const error = ref('')
 // Own first photo only: tagged team images aren't portraits and carry no face focus.
 const avatar = computed(() => player.value?.images?.[0])
 const taggedImages = ref([])
+const scoring = ref([]) // this player's scorer rows, oldest game first
+const totalPoints = computed(() => scoring.value.reduce((sum, r) => sum + r.points, 0))
+const average = computed(() => (totalPoints.value / scoring.value.length).toFixed(1))
 const taggedVideos = ref([])
 // Personal videos first; the key prefix keeps personal and team ids apart.
 const videos = computed(() => [
@@ -96,16 +101,18 @@ watch(
     error.value = ''
     try {
       const p = await apiFetch(`/players/${id}`)
-      const [t, teamImages, teamVideos, teamPlayers] = await Promise.all([
+      const [t, teamImages, teamVideos, teamPlayers, scorerRows] = await Promise.all([
         apiFetch(`/teams/${p.team_id}`),
         apiFetch(`/teams/${p.team_id}/images`),
         apiFetch(`/teams/${p.team_id}/videos`),
         apiFetch(`/teams/${p.team_id}/players`),
+        apiFetch(`/teams/${p.team_id}/games/scorers`),
       ])
       if (id !== route.params.id) return // navigated away mid-load: don't clobber the new page's title/JSON-LD
       taggedImages.value = taggedNewestFirst(teamImages, p.id)
       taggedVideos.value = taggedNewestFirst(teamVideos, p.id)
       teammates.value = teamPlayers
+      scoring.value = scoringByPlayer(scorerRows).get(p.id) ?? []
       player.value = p
       team.value = t
       document.title = pageTitle(`${p.name} · ${t.name}`, p.name_en)
@@ -178,6 +185,29 @@ watch(
         </div>
       </header>
       <PlayerProfileForm v-if="canEdit && editing" :player="player" @saved="onSaved" @cancel="closeEditor" />
+      <section v-if="scoring.length" class="card space-y-4">
+        <h2 class="section-title">סטטיסטיקה</h2>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="stat">
+            <span class="stat-value">{{ scoring.length }}</span>
+            <span class="stat-label">משחקים</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">{{ totalPoints }}</span>
+            <span class="stat-label">נקודות</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">{{ average }}</span>
+            <span class="stat-label">ממוצע למשחק</span>
+          </div>
+        </div>
+        <LineChart
+          v-if="scoring.length >= 2"
+          :labels="scoring.map((r) => gameDayLabel(r.scheduled_at))"
+          :series="[{ key: 'points', name: 'נקודות', values: scoring.map((r) => r.points), emphasis: 'primary' }]"
+          :aria-label="`נקודות של ${player.name} לאורך העונה`"
+        />
+      </section>
       <template v-if="images.length">
         <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           <li v-for="(image, index) in images" :key="image.key">
