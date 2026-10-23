@@ -18,18 +18,18 @@ const busy = ref(false)
 const actionError = ref('')
 
 // ponytail: error key is the exact message, so HTTP-status errors (which embed the team URL) don't merge; strip URLs if asked.
-const groupKey = {
+const groupLabel = {
   error: (row) => row.message,
   date: (row) => dayFormat.format(new Date(row.failed_at)),
-  team: (row) => row.team_id,
+  team: (row) => row.team_name,
 }
-const groupLabel = { error: (row) => row.message, date: (row) => dayFormat.format(new Date(row.failed_at)), team: (row) => row.team_name }
 
 const groups = computed(() => {
   const byKey = new Map() // insertion order = order of each group's newest failure
   for (const row of rows.value) {
-    const key = groupKey[groupBy.value](row)
-    if (!byKey.has(key)) byKey.set(key, { key, label: groupLabel[groupBy.value](row), rows: [] })
+    const label = groupLabel[groupBy.value](row)
+    const key = groupBy.value === 'team' ? row.team_id : label // team names may repeat across clubs
+    if (!byKey.has(key)) byKey.set(key, { key, label, rows: [] })
     byKey.get(key).rows.push(row)
   }
   return [...byKey.values()]
@@ -113,6 +113,7 @@ async function dismissGroup(group) {
           <li v-for="row in group.rows" :key="row.team_id" class="space-y-2 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
             <div class="min-w-0">
               <p v-if="groupBy !== 'team'" class="truncate font-bold" dir="auto">{{ row.team_name }}</p>
+              <p v-if="groupBy !== 'error'" class="break-words text-sm" dir="ltr">{{ row.message }}</p>
               <p class="text-sm text-muted">נכשל ב-{{ formatDateTime(row.failed_at) }}</p>
             </div>
             <div class="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">

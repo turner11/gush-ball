@@ -102,6 +102,8 @@ describe('SyncFailures', () => {
       expect(groups[0].text()).toContain('קבוצה א')
       expect(groups[0].text()).toContain('קבוצה ב')
       expect(groups[1].text()).toContain('קבוצה ג')
+      expect(groups[0].text()).toContain(SP)
+      expect(groups[0].text()).toContain('games: The read operation timed out')
     })
 
     it('switching to team gives one group per team', async () => {
