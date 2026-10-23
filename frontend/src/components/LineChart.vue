@@ -11,7 +11,7 @@ const props = defineProps({
 
 const W = 640
 const H = 240
-const PAD = { start: 44, end: 28, top: 16, bottom: 36 } // start = right in RTL, where the y labels sit; under dir=rtl SVG "end" extends rightwards from x
+const PAD = { start: 44, end: 36, top: 16, bottom: 36 } // start = right in RTL, where the y labels sit; under dir=rtl SVG "end" extends rightwards from x
 const TICKS = 4
 const STYLE = {
   primary: { cls: 'text-team', width: 3, dash: null },
