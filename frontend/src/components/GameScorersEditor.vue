@@ -14,11 +14,12 @@ const loadError = ref(false)
 const saving = ref(false)
 const saveError = ref('')
 const justSaved = ref(false)
-const rows = ref([]) // { id, name, jersey_number, points: '' | number }
+const rows = ref([]) // { id, name, jersey_number, played, points: '' | number }
 const teamScore = ref(null)
 
 const filled = (r) => r.points !== '' && r.points !== null
 const total = computed(() => rows.value.filter(filled).reduce((sum, r) => sum + Number(r.points), 0))
+const playedCount = computed(() => rows.value.filter((r) => r.played).length)
 
 onMounted(async () => {
   try {
@@ -34,7 +35,7 @@ onMounted(async () => {
       .map((s) => ({ id: s.player_id, name: s.name, jersey_number: s.jersey_number }))
     rows.value = [...roster, ...missing]
       .sort(byRosterOrder)
-      .map((p) => ({ ...p, points: points.get(p.id) ?? '' }))
+      .map((p) => ({ ...p, played: points.has(p.id), points: points.get(p.id) ?? '' }))
     teamScore.value = game.team_score
   } catch {
     loadError.value = true
@@ -48,7 +49,7 @@ async function onSubmit() {
   saveError.value = ''
   justSaved.value = false
   try {
-    const body = rows.value.filter(filled).map((r) => ({ player_id: r.id, points: Number(r.points) }))
+    const body = rows.value.filter((r) => r.played).map((r) => ({ player_id: r.id, points: filled(r) ? Number(r.points) : 0 }))
     emit('saved', await apiFetch(`/teams/${props.teamId}/games/${props.gameId}/scorers`, { method: 'PUT', body }))
     justSaved.value = true
   } catch (e) {
@@ -72,6 +73,16 @@ async function onSubmit() {
   <form v-else class="space-y-3" @submit.prevent="onSubmit">
     <ul class="divide-y divide-line">
       <li v-for="r in rows" :key="r.id" class="flex min-h-11 items-center gap-3 py-1">
+        <label class="flex size-11 shrink-0 cursor-pointer items-center justify-center">
+          <input
+            :id="`played-${r.id}`"
+            v-model="r.played"
+            type="checkbox"
+            class="size-5 accent-team"
+            :aria-label="`${r.name} שיחק`"
+            @change="!r.played && (r.points = '')"
+          />
+        </label>
         <label :for="`scorer-${r.id}`" class="flex min-w-0 flex-1 items-center gap-3">
           <span class="w-8 shrink-0 tabular-nums text-muted">{{ r.jersey_number != null ? `#${r.jersey_number}` : '' }}</span>
           <span class="min-w-0 break-words">{{ r.name }}</span>
@@ -84,6 +95,7 @@ async function onSubmit() {
           max="200"
           inputmode="numeric"
           class="field-input !mt-0 w-20 tabular-nums"
+          @input="r.played = $event.target.value !== ''"
         />
       </li>
     </ul>
@@ -91,7 +103,7 @@ async function onSubmit() {
     <p aria-live="polite" class="text-sm text-muted">{{ justSaved ? 'הקלעים נשמרו' : '' }}</p>
     <div class="sticky-actions flex flex-wrap items-center justify-between gap-3">
       <p class="tabular-nums text-muted">
-        סה״כ {{ total }} נק׳<template v-if="teamScore !== null"> · תוצאת הקבוצה {{ teamScore }}</template>
+        שיחקו {{ playedCount }} · סה״כ {{ total }} נק׳<template v-if="teamScore !== null"> · תוצאת הקבוצה {{ teamScore }}</template>
       </p>
       <button type="submit" class="btn-primary" :disabled="saving">שמירת קלעים</button>
     </div>

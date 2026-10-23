@@ -3,23 +3,25 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import LineChart from '../components/LineChart.vue'
 import LineupStats from '../components/LineupStats.vue'
 import { previewMode, useAuth, viewer } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatGameDate } from '../lib/format'
-import { liveStatsUrl } from '../lib/games'
+import { byDate, gameDayLabel, liveStatsUrl, played, scoringByPlayer } from '../lib/games'
 
 const route = useRoute()
 const router = useRouter()
 // DefaultLayout picks the default team; this view only follows the selection.
-const { selectedTeamId } = useSelectedTeam()
+const { selectedTeamId, teams } = useSelectedTeam()
 // Fire and forget: the session gates the page (#249) and, for admins, shows the live stats link.
 const { user, checked, checkSession } = useAuth()
 if (!checked.value) checkSession()
 
 const players = ref([])
 const games = ref([])
+const scorerRows = ref([])
 const canView = computed(() => !!viewer.value?.can_view_stats)
 const pending = computed(() => viewer.value?.memberships?.some((m) => m.role === 'pending'))
 const loading = ref(false)
@@ -31,9 +33,13 @@ async function load() {
   loading.value = true
   error.value = false
   try {
-    const loaded = await Promise.all([apiFetch(`/teams/${id}/players`), apiFetch(`/teams/${id}/games`)])
+    const loaded = await Promise.all([
+      apiFetch(`/teams/${id}/players`),
+      apiFetch(`/teams/${id}/games`),
+      apiFetch(`/teams/${id}/games/scorers`),
+    ])
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
-    ;[players.value, games.value] = loaded
+    ;[players.value, games.value, scorerRows.value] = loaded
   } catch {
     if (id === selectedTeamId.value) error.value = true
   } finally {
@@ -56,6 +62,37 @@ function optionLabel(g) {
   const { day, month } = formatGameDate(g.scheduled_at)
   return `נגד ${g.opponent.name} · ${day} ${month}`
 }
+
+// Season charts: oldest game first, independent of the ?game= picker.
+const teamName = computed(() => teams.value.find((t) => String(t.id) === String(selectedTeamId.value))?.name ?? 'הקבוצה')
+const scoredGames = computed(() => games.value.filter(played).sort(byDate))
+const scoreSeries = computed(() => [
+  { key: 'us', name: teamName.value, values: scoredGames.value.map((g) => g.team_score), emphasis: 'primary' },
+  { key: 'them', name: 'יריבות', values: scoredGames.value.map((g) => g.opponent_score), emphasis: 'secondary' },
+])
+const scorerGameIds = computed(() => [...new Set(scorerRows.value.map((r) => r.game_id))])
+const scorerLabels = computed(() => {
+  const dateOf = new Map(scorerRows.value.map((r) => [r.game_id, r.scheduled_at]))
+  return scorerGameIds.value.map((id) => gameDayLabel(dateOf.get(id)))
+})
+const scorers = computed(() =>
+  [...scoringByPlayer(scorerRows.value)].map(([id, rows]) => ({
+    id,
+    name: rows[0].name,
+    total: rows.reduce((sum, r) => sum + r.points, 0),
+    values: scorerGameIds.value.map((gid) => rows.find((r) => r.game_id === gid)?.points ?? null),
+  })),
+)
+const chosenId = ref(null)
+const highlightId = computed(
+  () => (scorers.value.some((p) => p.id === chosenId.value) ? chosenId.value : [...scorers.value].sort((a, b) => b.total - a.total)[0]?.id),
+)
+// the highlighted line is drawn last, on top
+const scorerSeries = computed(() =>
+  [...scorers.value]
+    .sort((a, b) => (a.id === highlightId.value) - (b.id === highlightId.value))
+    .map((p) => ({ key: p.id, name: p.name, values: p.values, emphasis: p.id === highlightId.value ? 'primary' : 'muted' })),
+)
 
 const pick = (event) => router.push({ query: event.target.value ? { game: event.target.value } : {} })
 </script>
@@ -98,8 +135,42 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
       <p class="error-text" role="alert">שגיאה בטעינת הסטטיסטיקה</p>
       <button type="button" class="btn-secondary" @click="load">נסה שוב</button>
     </div>
-    <p v-else-if="!statsGames.length" class="empty-state">עדיין אין נתונים לקבוצה</p>
     <template v-else>
+      <section class="space-y-4">
+        <h2 class="section-title">נקודות לאורך העונה</h2>
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="card space-y-3">
+            <h3 class="font-bold">הקבוצה מול היריבות</h3>
+            <template v-if="scoredGames.length >= 2">
+              <ul class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+                <li v-for="s in scoreSeries" :key="s.key" class="flex items-center gap-2">
+                  <svg viewBox="0 0 24 4" class="w-6" aria-hidden="true" :class="s.emphasis === 'primary' ? 'text-team' : 'text-muted'">
+                    <line x1="0" y1="2" x2="24" y2="2" stroke="currentColor" stroke-width="3" :stroke-dasharray="s.emphasis === 'primary' ? null : '5 3'" />
+                  </svg>
+                  {{ s.name }}
+                </li>
+              </ul>
+              <LineChart :labels="scoredGames.map((g) => gameDayLabel(g.scheduled_at))" :series="scoreSeries" aria-label="תוצאות הקבוצה והיריבות לאורך העונה" />
+            </template>
+            <p v-else class="text-sm text-muted">הגרף יופיע אחרי שני משחקים עם תוצאה</p>
+          </div>
+          <div class="card space-y-3">
+            <h3 class="font-bold">נקודות לפי שחקן</h3>
+            <template v-if="scorerGameIds.length >= 2">
+              <div class="w-full sm:max-w-xs">
+                <label for="highlight-player" class="field-label">הדגשת שחקן</label>
+                <select id="highlight-player" class="field-input" :value="highlightId" @change="chosenId = Number($event.target.value)">
+                  <option v-for="p in scorers" :key="p.id" :value="p.id">{{ p.name }}</option>
+                </select>
+              </div>
+              <LineChart :labels="scorerLabels" :series="scorerSeries" aria-label="נקודות של כל שחקן לאורך העונה" />
+            </template>
+            <p v-else class="text-sm text-muted">הגרף יופיע אחרי שני משחקים עם קלעים</p>
+          </div>
+        </div>
+      </section>
+      <p v-if="!statsGames.length" class="empty-state">עדיין אין נתונים לקבוצה</p>
+      <template v-else>
       <div class="flex flex-wrap items-end gap-x-4 gap-y-2">
         <div class="w-full sm:max-w-sm">
           <label for="stats-game" class="field-label">משחק</label>
@@ -120,6 +191,7 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
       <p v-if="fellBack" class="text-sm text-muted" role="status">המשחק המבוקש לא נמצא — מוצגים כל המשחקים</p>
       <p class="text-sm text-muted">{{ selectedGame ? '+/- של כל הרכב במשחק הזה' : '+/- של כל הרכב לאורך העונה, לפי נתוני המשחקים' }}</p>
       <LineupStats :team-id="Number(selectedTeamId)" :players="players" :game-id="selectedGame?.id ?? null" />
+      </template>
     </template>
   </section>
 </template>

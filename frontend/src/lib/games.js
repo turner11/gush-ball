@@ -1,3 +1,5 @@
+import { formatGameDate } from './format'
+
 // Comparator: earliest game first.
 export const byDate = (a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)
 
@@ -51,4 +53,17 @@ export function sheetCopyUrl(value) {
   const v = value.trim()
   const id = v.match(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/([^/?#]+)/)?.[1] ?? v.match(/^[\w-]+$/)?.[0]
   return id ? `https://docs.google.com/spreadsheets/d/${id}/copy` : null
+}
+
+// Short "05 ינו׳" label for chart axes and picker options.
+export function gameDayLabel(value) {
+  const { day, month } = formatGameDate(value)
+  return `${day} ${month}`
+}
+
+// Scorer rows (oldest game first, as the API returns them) grouped by player.
+export function scoringByPlayer(rows) {
+  const byPlayer = new Map()
+  for (const r of rows) byPlayer.set(r.player_id, [...(byPlayer.get(r.player_id) ?? []), r])
+  return byPlayer
 }
