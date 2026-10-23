@@ -6,7 +6,7 @@ services:
   db:
     image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     # No container_name: Coolify ignores it and names this db-<resource-id>-<deploy-timestamp>. Scripts match the
-    # stable db-<resource-id> prefix (backup.sh, dbsync.sh, pull_prod_db.py).
+    # stable db-<resource-id> prefix (dbsync.sh, pull_prod_db.py).
     restart: unless-stopped
     logging: *logging
     environment:
@@ -65,6 +65,21 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:?}  # absolute og:image / robots.txt Sitemap (Caddy templates)
     depends_on:
       - backend
+
+  # Nightly pg_dump to the private R2 backup bucket (BACKUP.md section 3). Logs: Coolify -> this service.
+  backup:
+    build: ./backup
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      BACKUP_BUCKET: ${BACKUP_BUCKET:?}
+      OBJECT_STORAGE_ENDPOINT_URL: ${OBJECT_STORAGE_ENDPOINT_URL:?}
+      AWS_ACCESS_KEY_ID: ${BACKUP_ACCESS_KEY_ID:?}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_SECRET_ACCESS_KEY:?}
+      AWS_DEFAULT_REGION: auto
+    depends_on:
+      - db
 
 volumes:
   db_data:

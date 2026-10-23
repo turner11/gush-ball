@@ -10,8 +10,8 @@ docker ps -qf name=db-uk44s8kc08ggkoksoo80skcw     # prints the container id; mu
 ```
 
 If the Coolify resource is ever recreated, the id changes. Find the new one with
-`docker ps --format '{{.Names}}' | grep '^db-'` and update it in `backup.sh`, `dbsync.sh`, `pull_prod_db.py` and this
-file. `coolify-db` is Coolify's own database: never touch it.
+`docker ps --format '{{.Names}}' | grep '^db-'` and update it in `dbsync.sh`, `pull_prod_db.py` and this
+file. (The nightly backup is unaffected: it runs inside the compose stack and reaches the DB as `db`.) `coolify-db` is Coolify's own database: never touch it.
 
 *Why this matters:* the database lives on that one machine. If its disk dies, or a bad migration damages data, the only
 way back is a copy kept somewhere else.
@@ -23,8 +23,8 @@ Run the local commands in **Git Bash** from the repo root. PowerShell's `>` redi
 |---|---|
 | [1. Take a backup to your machine](#1-take-a-backup-to-your-machine) | Before any risky deploy, especially an irreversible migration |
 | [2. Check a dump](#2-check-a-dump) | Right after taking one |
-| [3. Set up the nightly backup to R2](#3-set-up-the-nightly-backup-to-r2) | Once per server |
-| [4. Verify an R2 backup](#4-verify-an-r2-backup) | After setup, then every few months |
+| [3. The nightly backup to R2](#3-the-nightly-backup-to-r2) | Set up once; then download a dump from R2 |
+| [4. Verify an R2 backup](#4-verify-an-r2-backup) | By hand; the *Backup check* Action does it daily |
 | [5. Restore production from a dump](#5-restore-production-from-a-dump) | Only when production data must go back |
 
 ## 1. Take a backup to your machine
@@ -63,73 +63,87 @@ docker exec -i gush-ball-db-1 pg_restore --list < prod-<timestamp>.dump | head -
 The local container must be running (`docker compose up -d db`). Its name is `gush-ball-db-1`; check with `docker ps`
 if that fails.
 
-## 3. Set up the nightly backup to R2
+## 3. The nightly backup to R2
 
-**What:** every night, `backup.sh` finds the DB container by its prefix, runs `pg_dump` in it, and uploads the dump to a private Cloudflare R2
-bucket through a throwaway `amazon/aws-cli` container. It runs from the server's crontab, outside Coolify, because the
-dump tool and the upload don't share a container.
+**What:** the `backup` service in `docker-compose.prod.yml` (`backup/backup.sh`) runs `pg_dump` against the `db`
+service and uploads the dump to the private R2 bucket `gush-ball-backups` as `gush_ball-<UTC date>T<HHMM>.dump`. It
+runs once on every deploy and then every night at 03:00 UTC, and retries every 5 minutes after a failure. Coolify
+deploys it with the rest of the stack, so there is no server crontab and nothing to SSH for.
 
-### 3.1 Create the bucket and token (Cloudflare)
+Every morning at 06:00 UTC the [*Backup check*](.github/workflows/backup-check.yml) GitHub Action downloads the newest
+dump, restores it into a throwaway Postgres and counts teams and games. If no dump is newer than 26 hours, or the
+restore fails, the run fails and GitHub emails you.
 
-1. [Cloudflare dashboard](https://dash.cloudflare.com/) → *R2 Object Storage* → *Create bucket* → name
-   `gush-ball-backups` → *Create bucket*. Leave *Public access* **off**. It must not be the media bucket, or the dated
-   dumps would be public.
-2. Optional: the bucket → *Settings* →
-   [*Object lifecycle rules*](https://developers.cloudflare.com/r2/buckets/object-lifecycles/) → *Add rule* → delete
-   objects after 30 days, so dumps don't pile up forever.
-3. *R2 Object Storage* → *Manage R2 API Tokens* (or *API* → *Manage API tokens*) → *Create API token*
-   ([docs](https://developers.cloudflare.com/r2/api/tokens/)):
-   - *Permissions:* **Object Read & Write**
-   - *Specify bucket(s):* `gush-ball-backups` only
-   - *Create API Token*, then copy the **Access Key ID** and **Secret Access Key**. The secret is shown once.
-4. Note the S3 endpoint, `https://<account-id>.r2.cloudflarestorage.com`. It is the same value as
-   `OBJECT_STORAGE_ENDPOINT_URL` in the Coolify env vars, and it is also shown on the token page.
+### 3.1 Set it up (once)
 
-### 3.2 Configure the server
+1. **Bucket and tokens:** [DEPLOYMENT.md §1](DEPLOYMENT.md#1-object-storage-cloudflare-r2) steps 4 and 6: the
+   private `gush-ball-backups` bucket, a **Read & Write** token for the server, and a **Read only** token for the
+   GitHub check. Both are scoped to that bucket only. Optional: a lifecycle rule (step 4) that deletes dumps after 30
+   days.
+2. **Coolify env vars:** the resource → *Environment Variables* → add the following, then *Save*:
 
-1. SSH in: `ssh root@<server-ip>`.
-2. Create the env file. It lives outside the repo because it holds secrets:
+   | Variable | Value |
+   |---|---|
+   | `BACKUP_BUCKET` | `gush-ball-backups` |
+   | `BACKUP_ACCESS_KEY_ID` | The Read & Write token's Access Key ID |
+   | `BACKUP_SECRET_ACCESS_KEY` | The Read & Write token's Secret Access Key |
 
-   ```bash
-   cat > ~/gush-ball-backup.env <<'EOF'
-   BACKUP_BUCKET=gush-ball-backups
-   BACKUP_ACCESS_KEY_ID=<Access Key ID from 3.1>
-   BACKUP_SECRET_ACCESS_KEY=<Secret Access Key from 3.1>
-   OBJECT_STORAGE_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
-   EOF
-   chmod 600 ~/gush-ball-backup.env
-   ```
+   The service also uses `POSTGRES_PASSWORD` and `OBJECT_STORAGE_ENDPOINT_URL`, which are already set. *Why before
+   the deploy:* the compose file refuses to deploy while one of them is missing.
+3. **GitHub secrets:** the repo → *Settings* → *Secrets and variables* → *Actions* → *New repository secret*, three
+   times:
 
-   `chmod 600` makes it readable by root only.
-3. Install the script. Re-run this whenever `backup.sh` changes in the repo:
+   | Secret | Value |
+   |---|---|
+   | `BACKUP_READ_ACCESS_KEY_ID` | The Read only token's Access Key ID |
+   | `BACKUP_READ_SECRET_ACCESS_KEY` | The Read only token's Secret Access Key |
+   | `OBJECT_STORAGE_ENDPOINT_URL` | Same value as in Coolify: `https://<account-id>.r2.cloudflarestorage.com` |
 
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/turner11/gush-ball/master/backup.sh -o ~/backup.sh && chmod +x ~/backup.sh
-   ```
+4. **Deploy:** redeploy in Coolify, or merge anything to `master`.
 
-### 3.3 Test it, then schedule it
+### 3.2 Verify it
 
-1. Run it once by hand: `~/backup.sh`. No output means success. `expected 1 running container matching ...` means the
-   prefix found no DB container (or two, mid-redeploy): see the container note at the top of this file.
-2. **Verify:** Cloudflare → *R2* → `gush-ball-backups` → a `gush_ball-<today>.dump` object exists and isn't tiny.
-   *Why now:* find a wrong key or endpoint today, not on the day you need a restore.
-3. Schedule it: `crontab -e`, then add this line to run it every night at 03:00
-   ([crontab.guru](https://crontab.guru/) explains the syntax):
+1. Coolify → the resource → *Logs* → the `backup` service. Within a minute of the deploy you see
+   `backup: uploaded gush_ball-<date>T<time>.dump (<n> bytes)`. A `backup: FAILED` line has the reason just above it.
+2. Cloudflare → *R2* → `gush-ball-backups` → *Objects*: the same file is listed.
+3. GitHub → *Actions* → *Backup check* → *Run workflow*. A green run means the newest dump was downloaded and
+   restored. The log shows `restored: <n> teams, <m> games`.
+4. From then on, nothing to do. If a backup stops landing, the next morning's *Backup check* fails and GitHub emails
+   you.
 
-   ```
-   0 3 * * * ~/backup.sh
-   ```
+### 3.3 Download a dump to your PC
 
-4. **Verify** the next morning: a new dated dump is in the bucket.
+**Easiest:** Cloudflare → *R2* → `gush-ball-backups` → *Objects* → the file → *Download*.
 
-Encryption is R2's server-side at-rest encryption; there is no client-side encryption.
+**Command line** (Git Bash, Docker running). Create `~/r2-backups.env` once, outside the repo, with the **Read only**
+token. Use no quotes, because Docker reads the file literally:
+
+```
+AWS_ACCESS_KEY_ID=<Read only Access Key ID>
+AWS_SECRET_ACCESS_KEY=<Read only Secret Access Key>
+AWS_DEFAULT_REGION=auto
+AWS_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
+```
+
+Then, from the repo root:
+
+```bash
+R2="docker run --rm --env-file $HOME/r2-backups.env amazon/aws-cli:2.38.1"
+$R2 s3 ls s3://gush-ball-backups/                                # list the dumps
+F=gush_ball-2026-10-23T0300.dump                                 # pick one from the list
+$R2 s3 cp s3://gush-ball-backups/$F - > $F                       # download it (Git Bash, not PowerShell)
+```
+
+Check it with [section 2](#2-check-a-dump). To load it into your local dev DB (this wipes the local DB):
+`uv run pull_prod_db.py --dump $F`.
 
 ## 4. Verify an R2 backup
 
 **What:** restore a dump from R2 into a throwaway `scratch` database on the server, then drop it. Production data is not
-touched. **Why:** a backup you've never restored is a guess.
+touched. **Why:** a backup you've never restored is a guess. The *Backup check* Action (section 3) does this daily on
+GitHub's machines; this is the by-hand version.
 
-On the server, with the values from `~/gush-ball-backup.env`:
+On the server, with the Read & Write token from section 3.1:
 
 ```bash
 DB=$(docker ps -qf name=db-uk44s8kc08ggkoksoo80skcw)
