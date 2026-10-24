@@ -17,12 +17,6 @@
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
     }
-    # www -> apex (#485). Coolify terminates TLS, so https is fixed; the guard keeps a www PUBLIC_URL working
-    @www {
-        header_regexp www Host ^www\.(.+)$
-        not expression "https://" + {host} == "{$PUBLIC_URL}"
-    }
-    redir @www https://{re.www.1}{uri} 301
     # per-page share tags (#327) for index.html's httpInclude. Lookup failure -> 200 empty, so index.html keeps its
     # defaults instead of 500ing (httpInclude errors on >= 400)
     handle /api/og {

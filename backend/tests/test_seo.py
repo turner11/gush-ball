@@ -1,3 +1,4 @@
+import json
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 
@@ -259,3 +260,5 @@ def test_og_site_json_ld_escapes_braces_and_script_close(client, club_domain, db
     body = _og_host(client, "/", "mj.example")
     assert "{{" not in body
     assert body.count("</script>") == 1
+    script = body.split('<script type="application/ld+json">')[1].split("</script>")[0]
+    assert json.loads(script)["name"] == "{{x}}</script>"

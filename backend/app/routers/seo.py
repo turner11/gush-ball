@@ -135,8 +135,8 @@ def _attr(value: str) -> str:
 
 
 def _json_str(value: object) -> str:
-    # braces and "<" as JSON escapes: Caddy re-executes the include as a template and an HTML entity would not decode in <script>
-    return json.dumps(value, ensure_ascii=False).replace("<", "\\u003c").replace("{", "\\u007b").replace("}", "\\u007d")
+    # "<" and a "{{" template opener as JSON escapes: Caddy re-executes the include as a template and an HTML entity would not decode in <script>
+    return json.dumps(value, ensure_ascii=False).replace("<", "\\u003c").replace("{{", "{\\u007b")
 
 
 @router.get("/og", response_class=HTMLResponse)
