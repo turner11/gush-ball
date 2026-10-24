@@ -1,5 +1,9 @@
+import json
+from typing import Annotated
+from urllib.parse import urlsplit
+
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 ENV_EXAMPLE_SECRET = "replace-with-a-random-value-of-at-least-32-chars"
 
@@ -29,6 +33,9 @@ class Settings(BaseSettings):
     # Site origin used to build password-reset links and the Google redirect URI. Never derive it from
     # the Host header: that would allow reset-link poisoning.
     public_url: str = "http://localhost:5173"
+    # Club id -> the club's own origin (#485). The Host header is only matched against these values to pick a
+    # club; it is never echoed into a URL.
+    club_domains: Annotated[dict[int, str], NoDecode] = {}
 
     # Google sign-in is enabled only when both are set.
     google_client_id: str = ""
@@ -45,6 +52,21 @@ class Settings(BaseSettings):
     stats_url: str = ""
     # Google Sheet (headers only, shared "anyone with the link") that admins copy to start a game.
     stats_template_url: str = ""
+
+    @field_validator("club_domains", mode="before")
+    @classmethod
+    def parse_club_domains(cls, value: object) -> object:
+        if isinstance(value, str):
+            value = json.loads(value or "{}")
+        if not isinstance(value, dict):
+            return value
+        origins = {}
+        for club_id, origin in value.items():
+            parts = urlsplit(str(origin).rstrip("/"))
+            if parts.scheme not in ("http", "https") or not parts.netloc or parts.path or parts.query or parts.fragment:
+                raise ValueError(f"CLUB_DOMAINS[{club_id}]={origin!r} is not an origin like https://example.com")
+            origins[club_id] = str(origin).rstrip("/")
+        return origins
 
     @field_validator("session_secret")
     @classmethod

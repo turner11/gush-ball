@@ -14,6 +14,7 @@ import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useS
 import { apiFetch } from '../lib/api'
 import { backgroundSrc } from '../lib/backgrounds'
 import { pageTitle, setCanonical, setJsonLd, setMeta, sportsTeamJsonLd } from '../lib/head'
+import { clubUrl, hostClubId, mainOrigin, teamOrigin } from '../lib/site'
 import { onColor } from '../lib/teamColors'
 
 // Bound (not a static src) so the SFC compiler serves it from public/ as-is.
@@ -64,6 +65,11 @@ const mapsUrl = computed(() => {
 })
 const club = computed(() => clubs.value.find((c) => c.name === selectedTeam.value?.club))
 const clubPath = computed(() => club.value && '/clubs/' + teamSlug(club.value))
+// Team pages are canonical on their club's domain; everything else on the main site (#485).
+const pageOrigin = computed(() => (route.params.slug && selectedTeam.value ? teamOrigin(selectedTeam.value, clubs.value) : mainOrigin()))
+// On a club's own domain with no team chosen, the header brand is the club.
+const hostClub = computed(() => clubs.value.find((c) => String(c.id) === hostClubId()))
+const brand = computed(() => selectedTeam.value ?? (hostClub.value && { name: hostClub.value.name, name_en: hostClub.value.name_en, logo_url: teams.value.find((t) => t.club === hostClub.value.name && t.logo_url)?.logo_url }))
 const teamStyle = computed(() => {
   const team = selectedTeam.value
   const style = {}
@@ -83,16 +89,16 @@ watch(selectedTeam, () => {
   document.querySelector('link[rel="icon"]').href = selectedTeam.value.logo_url || LOGO_URL
 }, { immediate: true })
 // Crawler-facing head: description, canonical (query dropped), noindex on 404, SportsTeam on team home.
-watch([selectedTeam, clubPath, () => route.path, () => route.name], () => {
+watch([selectedTeam, clubPath, pageOrigin, () => route.path, () => route.name], () => {
   const noindex = route.meta.noindex
   setMeta('robots', noindex ? 'noindex' : null)
-  setCanonical(noindex ? null : location.origin + route.path)
-  if (route.name === 'club') return // ClubView owns the title, description and JSON-LD
+  if (['club', 'club-home'].includes(route.name)) return // ClubView owns the canonical, title, description and JSON-LD
+  if (route.name !== 'player') setCanonical(noindex ? null : pageOrigin.value + route.path) // PlayerView owns its canonical: its team is not selectedTeam
   const team = selectedTeam.value
   if (!team) return
   setMeta('description', route.meta.description?.(team.name))
   if (route.name === 'player') return // PlayerView owns the title and the Person JSON-LD
-  setJsonLd(route.name === 'team-home' ? sportsTeamJsonLd(team, location.origin + homePath.value, club.value && { name: club.value.name, url: location.origin + clubPath.value }) : null)
+  setJsonLd(route.name === 'team-home' ? sportsTeamJsonLd(team, pageOrigin.value + homePath.value, club.value && { name: club.value.name, url: clubUrl(club.value) }) : null)
   document.title = pageTitle(route.params.slug && route.meta.title ? `${route.meta.title} · ${team.name}` : team.name, team.name_en)
 }, { immediate: true })
 useTeamFromRoute(teams)
@@ -124,20 +130,20 @@ onMounted(async () => {
         <div class="mx-auto flex min-h-14 max-w-6xl items-center gap-3 px-4 py-1 sm:px-6 md:min-h-16">
           <RouterLink
             :to="homePath"
-            :aria-label="(selectedTeam?.name ?? 'GushBall') + ' — דף הבית'"
+            :aria-label="(brand?.name ?? 'GushBall') + ' — דף הבית'"
             class="flex min-h-11 min-w-0 items-center gap-2"
           >
             <!-- white tile: uploaded logos often carry their own white background -->
             <img
-              v-if="selectedTeam?.logo_url"
-              :src="selectedTeam.logo_url"
+              v-if="brand?.logo_url"
+              :src="brand.logo_url"
               alt=""
               class="size-9 shrink-0 rounded-lg bg-white object-contain p-0.5 md:size-10"
             />
             <img v-else :src="LOGO_URL" alt="GushBall" class="size-9 shrink-0 rounded md:size-10" />
-            <span v-if="selectedTeam" class="flex min-w-0 flex-col leading-tight">
-              <span class="text-balance font-extrabold">{{ selectedTeam.name }}</span>
-              <span v-if="selectedTeam.name_en" class="text-balance text-xs font-medium"><bdi lang="en">{{ selectedTeam.name_en }}</bdi></span>
+            <span v-if="brand" class="flex min-w-0 flex-col leading-tight">
+              <span class="text-balance font-extrabold">{{ brand.name }}</span>
+              <span v-if="brand.name_en" class="text-balance text-xs font-medium"><bdi lang="en">{{ brand.name_en }}</bdi></span>
             </span>
           </RouterLink>
           <FavoriteStar v-if="selectedTeam" :team-id="selectedTeam.id" :name="selectedTeam.name" class="max-sm:hidden" />

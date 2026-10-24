@@ -7,10 +7,11 @@ import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { splitGames } from '../lib/games'
-import { clubJsonLd, pageTitle, setJsonLd, setMeta } from '../lib/head'
+import { clubJsonLd, pageTitle, setCanonical, setJsonLd, setMeta } from '../lib/head'
 import { leagueKey } from '../lib/leagues'
 import { DEFAULT_PLAYER_PHOTO, onPlayerImgError } from '../lib/playerPhoto'
 import { matchRank } from '../lib/search'
+import { clubOrigin, clubUrl, hostClubId } from '../lib/site'
 import SearchInput from '../components/SearchInput.vue'
 import GameRow from '../components/GameRow.vue'
 import TeamCard from '../components/TeamCard.vue'
@@ -91,7 +92,7 @@ const teamOf = (g) => teams.value.find((t) => t.id === g.team_id) ?? null
 
 async function load() {
   editing.value = false
-  const slug = route.params.clubSlug
+  const slug = route.params.clubSlug // undefined on a club's own domain, where `/` is the club page
   loading.value = true
   error.value = false
   try {
@@ -105,7 +106,7 @@ async function load() {
     teams.value = teamList
     games.value = gameList
     leagues.value = leagueList
-    club.value = clubList.find((c) => teamSlug(c) === slug) ?? null
+    club.value = clubList.find((c) => (route.name === 'club-home' ? String(c.id) === hostClubId() : teamSlug(c) === slug)) ?? null
     setHead()
   } catch {
     if (slug === route.params.clubSlug) error.value = true
@@ -120,7 +121,8 @@ function setHead() {
   // ponytail: mirrors seo.py _page_tags (clubs branch); change both
   const names = clubTeams.value.map((t) => t.name).join(', ')
   setMeta('description', c && (names ? `הקבוצות של ${c.name}: ${names}.` : `מועדון ${c.name}.`))
-  setJsonLd(c && clubJsonLd(c, location.origin + route.path, clubTeams.value.map((t) => ({ name: t.name, url: location.origin + '/' + teamSlug(t) }))))
+  setCanonical(c ? clubUrl(c) : null)
+  setJsonLd(c && clubJsonLd(c, clubUrl(c), clubTeams.value.map((t) => ({ name: t.name, url: clubOrigin(c) + '/' + teamSlug(t) }))))
 }
 
 watch(() => route.params.clubSlug, load, { immediate: true })

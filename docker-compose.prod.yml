@@ -35,6 +35,7 @@ services:
       STATS_URL: ${STATS_URL:-}
       STATS_TEMPLATE_URL: ${STATS_TEMPLATE_URL:-}
       PUBLIC_URL: ${PUBLIC_URL:?}
+      CLUB_DOMAINS: ${CLUB_DOMAINS:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -63,6 +64,7 @@ services:
     # terminates TLS.
     environment:
       PUBLIC_URL: ${PUBLIC_URL:?}  # absolute og:image / robots.txt Sitemap (Caddy templates)
+      CLUB_DOMAINS: ${CLUB_DOMAINS:-}  # club-domains meta (Caddy template)
     depends_on:
       - backend
 

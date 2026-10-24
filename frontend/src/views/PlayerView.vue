@@ -11,8 +11,9 @@ import { canEditTeam, viewer } from '../composables/useAuth'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { gameDayLabel, scoringByPlayer } from '../lib/games'
-import { pageTitle, playerJsonLd, setJsonLd } from '../lib/head'
+import { pageTitle, playerJsonLd, setCanonical, setJsonLd } from '../lib/head'
 import { DEFAULT_PLAYER_PHOTO, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
+import { teamOrigin } from '../lib/site'
 
 const route = useRoute()
 const editing = ref(false)
@@ -101,12 +102,13 @@ watch(
     error.value = ''
     try {
       const p = await apiFetch(`/players/${id}`)
-      const [t, teamImages, teamVideos, teamPlayers, scorerRows] = await Promise.all([
+      const [t, teamImages, teamVideos, teamPlayers, scorerRows, clubList] = await Promise.all([
         apiFetch(`/teams/${p.team_id}`),
         apiFetch(`/teams/${p.team_id}/images`),
         apiFetch(`/teams/${p.team_id}/videos`),
         apiFetch(`/teams/${p.team_id}/players`),
         apiFetch(`/teams/${p.team_id}/games/scorers`),
+        apiFetch('/clubs').catch(() => []), // only feeds the canonical: don't blank the page without it
       ])
       if (id !== route.params.id) return // navigated away mid-load: don't clobber the new page's title/JSON-LD
       taggedImages.value = taggedNewestFirst(teamImages, p.id)
@@ -116,11 +118,14 @@ watch(
       player.value = p
       team.value = t
       document.title = pageTitle(`${p.name} · ${t.name}`, p.name_en)
-      setJsonLd(playerJsonLd(p, t, location.origin + route.path, `${location.origin}/${teamSlug(t)}`))
+      const origin = teamOrigin(t, clubList)
+      setCanonical(origin + route.path)
+      setJsonLd(playerJsonLd(p, t, origin + route.path, `${origin}/${teamSlug(t)}`))
     } catch (e) {
       if (id !== route.params.id) return
       player.value = null
       setJsonLd(null)
+      setCanonical(null)
       document.title = pageTitle('שחקן')
       error.value = e.status === 404 ? 'השחקן לא נמצא.' : 'שגיאה בטעינת השחקן, נסה שוב'
     } finally {

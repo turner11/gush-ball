@@ -1,10 +1,11 @@
 import html
+import json
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 from xml.sax.saxutils import escape
 
-from fastapi import APIRouter, Response
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Request, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from sqlalchemy import select
 
 from app.config import settings
@@ -23,19 +24,42 @@ def _url_slug(item: Team | Club) -> str:
     return slug or str(item.id)
 
 
+def _host_club(request: Request, db: DbSession) -> Club | None:
+    """The club whose own domain served this request. Host only selects an allowlist entry; it is never echoed."""
+    host = request.headers.get("host", "").lower()
+    club_id = next((cid for cid, origin in settings.club_domains.items() if urlsplit(origin).netloc.lower() == host), None)
+    return db.get(Club, club_id) if club_id is not None else None
+
+
+def _origin(club: Club | None) -> str:
+    return settings.club_domains[club.id] if club else settings.public_url.rstrip("/")
+
+
 @router.get("/sitemap.xml")
-def sitemap(db: DbSession) -> Response:
-    base = settings.public_url.rstrip("/")
+def sitemap(request: Request, db: DbSession) -> Response:
+    host_club = _host_club(request, db)
+    base = _origin(host_club)
+    domain_club_names = set(db.scalars(select(Club.name).where(Club.id.in_(settings.club_domains))))
+    teams = [t for t in db.scalars(select(Team).order_by(Team.id)) if (t.club == host_club.name if host_club else t.club not in domain_club_names)]
     paths: list[str] = []
-    for team in db.scalars(select(Team).order_by(Team.id)):
+    for team in teams:
         slug = _url_slug(team)
         paths += [slug, *(f"{slug}/{page}" for page in TEAM_PAGES)]
-    clubs_with_teams = select(Club).where(Club.name.in_(select(Team.club))).order_by(Club.id)
-    paths += [f"clubs/{_url_slug(club)}" for club in db.scalars(clubs_with_teams)]
-    paths += [f"players/{pid}" for pid in db.scalars(select(Player.id).where(Player.deleted_at.is_(None)).order_by(Player.id))]
+    if host_club:
+        paths.append("")
+    else:
+        clubs_with_teams = select(Club).where(Club.name.in_(select(Team.club)), Club.name.not_in(domain_club_names)).order_by(Club.id)
+        paths += [f"clubs/{_url_slug(club)}" for club in db.scalars(clubs_with_teams)]
+    live_players = select(Player.id).where(Player.deleted_at.is_(None), Player.team_id.in_([t.id for t in teams])).order_by(Player.id)
+    paths += [f"players/{pid}" for pid in db.scalars(live_players)]
     urls = "".join(f"<url><loc>{escape(f'{base}/{path}')}</loc></url>" for path in paths)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return Response(xml, media_type="application/xml")
+
+
+@router.get("/robots.txt", response_class=PlainTextResponse)
+def robots_txt(request: Request, db: DbSession) -> str:
+    return f"User-agent: *\nDisallow:\n\nSitemap: {_origin(_host_club(request, db))}/sitemap.xml\n"
 
 
 # ponytail: mirrors router/index.js meta (title, description); change both
@@ -68,6 +92,12 @@ def _club_for_slug(db: DbSession, slug: str) -> Club | None:
     return next((c for c in db.scalars(select(Club).order_by(Club.id)) if _url_slug(c) == slug), None)
 
 
+def _club_tags(db: DbSession, club: Club) -> tuple[str, str, str | None]:
+    teams = list(db.scalars(select(Team).where(Team.club == club.name).order_by(Team.id)))
+    description = f"הקבוצות של {club.name}: {', '.join(t.name for t in teams)}." if teams else f"מועדון {club.name}."
+    return _title(club.name, club.name_en), description, next((t.logo_url for t in teams if t.logo_url), None)
+
+
 def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
     """(title, description, image url) for a public page, or None when the path is not covered."""
     parts = [p for p in path.split("/") if p]
@@ -79,11 +109,7 @@ def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
         return _title(f"{player.name} · {player.team.name}", player.name_en), f"פרופיל {'מאמן' if player.is_coach else 'שחקן'} של {player.team.name}.", photo or player.team.logo_url
     if len(parts) == 2 and parts[0] == "clubs":
         club = _club_for_slug(db, parts[1])
-        if club is None:
-            return None
-        teams = list(db.scalars(select(Team).where(Team.club == club.name).order_by(Team.id)))
-        description = f"הקבוצות של {club.name}: {', '.join(t.name for t in teams)}." if teams else f"מועדון {club.name}."
-        return _title(club.name, club.name_en), description, next((t.logo_url for t in teams if t.logo_url), None)
+        return _club_tags(db, club) if club else None
     team = _team_for_slug(db, parts[0]) if parts and parts[0] not in ("admin", "join", "teams", "players", "clubs") else None
     if team is None:
         return None
@@ -108,16 +134,25 @@ def _attr(value: str) -> str:
     return html.escape(value, quote=True).replace("{", "&#123;").replace("}", "&#125;")
 
 
+def _json_str(value: object) -> str:
+    # braces and "<" as JSON escapes: Caddy re-executes the include as a template and an HTML entity would not decode in <script>
+    return json.dumps(value, ensure_ascii=False).replace("<", "\\u003c").replace("{", "\\u007b").replace("}", "\\u007d")
+
+
 @router.get("/og", response_class=HTMLResponse)
-def og_tags(db: DbSession, path: str = "") -> str:
+def og_tags(request: Request, db: DbSession, path: str = "") -> str:
     """Per-page title/description/og tags, spliced into index.html by Caddy; empty = keep the defaults."""
-    tags = _page_tags(db, path)
+    host_club = _host_club(request, db)
+    tags = _page_tags(db, path) or (_club_tags(db, host_club) if host_club else None)
     if tags is None:
         return ""
     title, description, image = tags
-    base = settings.public_url.rstrip("/")
+    base = _origin(host_club)
     image_url = urljoin(base + "/", image) if image else f"{base}/logo.jpg"
-    title, description, image_url = _attr(title), _attr(description), _attr(image_url)
+    site_name = host_club.name if host_club else "GushBall"
+    # ponytail: the GushBall site block mirrors the {{else}} fallback in index.html; change both
+    site_json = _json_str({"@context": "https://schema.org", "@type": "WebSite", "name": site_name, "url": f"{base}/"})
+    title, description, image_url, site_name = _attr(title), _attr(description), _attr(image_url), _attr(site_name)
     return "\n".join(
         [
             f"<title>{title}</title>",
@@ -125,5 +160,7 @@ def og_tags(db: DbSession, path: str = "") -> str:
             f'<meta property="og:title" content="{title}" />',
             f'<meta property="og:description" content="{description}" />',
             f'<meta property="og:image" content="{image_url}" />',
+            f'<meta property="og:site_name" content="{site_name}" />',
+            f'<script type="application/ld+json">{site_json}</script>',
         ]
     )

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import { useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
+import { hostClubId, toMainSite } from '../lib/site'
 
 const homeDescription = (team) => `האתר של ${team}: משחקים ותוצאות, טבלת הליגה, שחקנים, חדשות ומדיה.`
 const admin = (title) => ({ requiresAuth: true, layout: 'admin', title })
@@ -22,7 +23,10 @@ const router = createRouter({
   history: createWebHistory(),
   scrollBehavior: (to, from, saved) => saved ?? (to.hash ? { el: to.hash, top: 96 } : { top: 0 }),
   routes: [
-    { path: '/', name: 'home', component: () => import('../views/HomeView.vue'), beforeEnter: () => (useSelectedTeam().selectedTeamId.value ? true : { name: 'teams' }), meta: { description: homeDescription } },
+    // a club's own domain serves its club page at the root (#485)
+    hostClubId()
+      ? { path: '/', name: 'club-home', component: () => import('../views/ClubView.vue') }
+      : { path: '/', name: 'home', component: () => import('../views/HomeView.vue'), beforeEnter: () => (useSelectedTeam().selectedTeamId.value ? true : { name: 'teams' }), meta: { description: homeDescription } },
     { path: '/:slug/schedule', name: 'schedule', component: () => import('../views/ScheduleView.vue'), meta: { title: 'לוח משחקים', description: (team) => `לוח המשחקים והתוצאות של ${team}.` } },
     { path: '/:slug/games/:id', name: 'game', component: () => import('../views/GameView.vue'), meta: { title: 'משחק', description: (team) => `משחק של ${team}: תאריך, מקום ותוצאה.` } },
     { path: '/:slug/standings', name: 'standings', component: () => import('../views/StandingsView.vue'), meta: { title: 'טבלה', description: (team) => `טבלת הליגה והמיקום של ${team}.` } },
@@ -63,7 +67,14 @@ const router = createRouter({
   ],
 })
 
+// Sign-in, account and admin live on the main domain only: cookies, Google redirects and email links point there (#485).
+const mainSiteOnly = (to) => to.meta.requiresAuth || to.meta.requiresUser || to.name?.startsWith('admin-') || ['stats', 'playbook'].includes(to.name)
+
 router.beforeEach(async (to) => {
+  if (hostClubId() && mainSiteOnly(to)) {
+    toMainSite(to.fullPath)
+    return false
+  }
   if (!to.meta.requiresAuth && !to.meta.requiresUser) return true
 
   const { user, checked, checkSession } = useAuth()
