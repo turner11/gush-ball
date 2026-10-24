@@ -84,6 +84,21 @@ describe('ClubView', () => {
     vi.restoreAllMocks()
   })
 
+  it('a domain club gets canonical and JSON-LD urls on its domain', async () => {
+    const meta = document.createElement('meta')
+    meta.name = 'club-domains'
+    meta.content = JSON.stringify({ 5: 'https://mj.example' })
+    document.head.append(meta)
+    document.head.querySelector('link[rel="canonical"]')?.remove()
+    mockFetch(GAMES)
+    await mountIt()
+
+    expect(document.head.querySelector('link[rel="canonical"]').getAttribute('href')).toBe('https://mj.example/')
+    const ld = JSON.parse(document.head.querySelector('script[data-page]').textContent)
+    expect(ld.url).toBe('https://mj.example/')
+    expect(ld.member.map((m) => m.url)).toEqual(['https://mj.example/team_a', 'https://mj.example/team_b'])
+  })
+
   it('fetches the ±7-day window once', async () => {
     mockFetch(GAMES)
     await mountIt()

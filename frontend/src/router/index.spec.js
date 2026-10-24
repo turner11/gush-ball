@@ -207,4 +207,41 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.name).toBe('team-home')
     expect(router.currentRoute.value.params.slug).toBe('team_a')
   })
+
+  describe('on a club host (#485)', () => {
+    const setClubHost = () => {
+      const meta = document.createElement('meta')
+      meta.name = 'club-domains'
+      meta.content = JSON.stringify({ 7: location.origin })
+      document.head.append(meta)
+    }
+    afterEach(() => {
+      document.head.querySelectorAll('meta[name="club-domains"]').forEach((el) => el.remove())
+      vi.doUnmock('../lib/site.js')
+    })
+
+    it('/ resolves to the club page, not /teams', async () => {
+      setClubHost()
+      const { default: router } = await import('./index.js')
+
+      router.push('/')
+      await router.isReady()
+
+      expect(router.currentRoute.value.name).toBe('club-home')
+    })
+
+    it('account routes leave for the main site', async () => {
+      setClubHost()
+      const toMainSite = vi.fn()
+      vi.doMock('../lib/site.js', async (importOriginal) => ({ ...(await importOriginal()), toMainSite }))
+      const { default: router } = await import('./index.js')
+      await router.push('/')
+
+      for (const path of ['/admin/login', '/join', '/team_a/stats']) {
+        await router.push(path)
+        expect(toMainSite).toHaveBeenLastCalledWith(path)
+        expect(router.currentRoute.value.name).toBe('club-home')
+      }
+    })
+  })
 })

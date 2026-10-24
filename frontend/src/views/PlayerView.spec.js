@@ -33,7 +33,8 @@ const ROSTER = [
 const RESPONSES = {
   '/api/players/3': PLAYER,
   '/api/teams/1/players': ROSTER,
-  '/api/teams/1': { id: 1, name: 'קבוצה א', name_en: 'Team A' },
+  '/api/teams/1': { id: 1, name: 'קבוצה א', name_en: 'Team A', club: 'מכבי' },
+  '/api/clubs': [{ id: 5, name: 'מכבי', name_en: 'Maccabi' }],
   '/api/teams/1/games/scorers': [],
   '/api/teams/1/images': [
     { id: 10, title: 'אימון', url: '/t1.jpg', player_ids: [3] },
@@ -265,6 +266,21 @@ describe('PlayerView', () => {
     expect(ld.alternateName).toBe('Yossi Cohen')
     expect(ld.memberOf.url).toMatch(/\/team_a$/)
     expect(ld.image).toBe('/a.jpg')
+  })
+
+  it("a club-domain player's canonical and JSON-LD use the club domain", async () => {
+    const meta = document.createElement('meta')
+    meta.name = 'club-domains'
+    meta.content = JSON.stringify({ 5: 'https://mj.example' })
+    document.head.append(meta)
+    global.fetch = okFetch()
+    await mountAt('/players/3')
+    meta.remove()
+
+    expect(document.head.querySelector('link[rel="canonical"]').getAttribute('href')).toBe('https://mj.example/players/3')
+    const ld = JSON.parse(document.head.querySelector('script[data-page]').textContent)
+    expect(ld.url).toBe('https://mj.example/players/3')
+    expect(ld.memberOf.url).toBe('https://mj.example/team_a')
   })
 
   it.each([

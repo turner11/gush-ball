@@ -12,6 +12,7 @@ const TEAMS = [
     logo_url: 'https://cdn.example.com/logo-a.png',
     home_court_address: 'אולם הספורט, תל אביב',
     ibasketball_team_url: 'https://ibasketball.co.il/team/a/',
+    club: 'מכבי',
   },
   { id: 2, name: 'קבוצה ב', name_en: 'Team B', primary_color: '#1d428a', secondary_color: '#c8102e', background: 'hoop-2' },
   { id: 3, name: 'קבוצה ג', name_en: 'Team C', primary_color: null, secondary_color: null },
@@ -127,6 +128,58 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     expect(document.head.querySelector('link[rel="canonical"]').getAttribute('href')).toBe(`${location.origin}/team_a/schedule`)
+  })
+
+  describe('club domains (#485)', () => {
+    const CLUBS = [{ id: 7, name: 'מכבי', name_en: 'Maccabi' }]
+    const setSiteMeta = (name, content) => {
+      const el = document.createElement('meta')
+      el.name = name
+      el.content = content
+      document.head.append(el)
+    }
+    const canonical = () => document.head.querySelector('link[rel="canonical"]').getAttribute('href')
+
+    it('canonical of a club-domain team page points at the club domain', async () => {
+      mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/clubs': () => jsonRes(CLUBS) })
+      setSiteMeta('public-url', 'https://main.example')
+      setSiteMeta('club-domains', JSON.stringify({ 7: 'https://mj.example' }))
+
+      const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+      mount(DefaultLayout, { global: { plugins: [router] } })
+      await router.push('/team_a/schedule')
+      await flushPromises()
+
+      expect(canonical()).toBe('https://mj.example/team_a/schedule')
+    })
+
+    it('on a club host a non-club page canonicals to the main origin', async () => {
+      mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/clubs': () => jsonRes(CLUBS) })
+      setSiteMeta('public-url', 'https://main.example')
+      setSiteMeta('club-domains', JSON.stringify({ 7: location.origin }))
+
+      const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+      mount(DefaultLayout, { global: { plugins: [router] } })
+      await router.push('/teams')
+      await flushPromises()
+
+      expect(canonical()).toBe('https://main.example/teams')
+    })
+
+    it('on a club host with no selected team the header brand is the club', async () => {
+      localStorage.clear()
+      mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS), 'GET /api/clubs': () => jsonRes(CLUBS) })
+      setSiteMeta('club-domains', JSON.stringify({ 7: location.origin }))
+
+      const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+      const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+      await router.push('/')
+      await flushPromises()
+
+      const brand = wrapper.find('header a[aria-label]')
+      expect(brand.attributes('aria-label')).toBe('מכבי — דף הבית')
+      expect(brand.find('img').attributes('src')).toBe('https://cdn.example.com/logo-a.png')
+    })
   })
 
   it('not-found route sets robots noindex and removes canonical; navigating away clears noindex', async () => {
