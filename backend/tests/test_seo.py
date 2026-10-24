@@ -16,8 +16,8 @@ def public_url(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "public_url", "https://example.org")
 
 
-def _locs(client) -> list[str]:
-    response = client.get("/sitemap.xml")
+def _locs(client, host: str | None = None) -> list[str]:
+    response = client.get("/sitemap.xml", headers={"host": host} if host else {})
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/xml")
     return [loc.text for loc in ET.fromstring(response.content).findall("s:url/s:loc", NS)]
@@ -186,3 +186,76 @@ def test_og_escapes_html_and_template_braces(client, db_session: Session) -> Non
 )
 def test_title_drops_english_name_when_too_long(base: str, name_en: str | None, expected: str) -> None:
     assert _title(base, name_en) == expected
+
+
+@pytest.fixture()
+def club_domain(monkeypatch: pytest.MonkeyPatch, db_session: Session) -> dict:
+    club = Club(name="מכבי", name_en="Maccabi")
+    db_session.add(club)
+    db_session.add_all([Team(name="ילדים", slug="kids", name_en="MJ Kids", club="מכבי", logo_url="/uploads/x.png"), Team(name="אליזור", slug="eli", name_en="Elizur")])
+    db_session.commit()
+    kids = db_session.query(Team).filter_by(slug="kids").one()
+    player = Player(team_id=kids.id, name="דנה", jersey_number=1)
+    db_session.add(player)
+    db_session.commit()
+    monkeypatch.setattr(settings, "club_domains", {club.id: "https://mj.example"})
+    return {"club": club, "player": player}
+
+
+def test_sitemap_on_club_host_lists_only_club_pages_on_club_domain(client, club_domain) -> None:
+    locs = _locs(client, "mj.example")
+    expected = {"https://mj.example/", "https://mj.example/mj_kids", *(f"https://mj.example/mj_kids/{p}" for p in ("schedule", "standings", "roster", "media"))}
+    expected.add(f"https://mj.example/players/{club_domain['player'].id}")
+    assert set(locs) == expected
+
+
+def test_main_sitemap_leaves_out_club_domain_pages(client, club_domain) -> None:
+    locs = _locs(client, "example.org")
+    assert "https://example.org/elizur" in locs
+    assert not [loc for loc in locs if "mj_kids" in loc or "clubs/maccabi" in loc or f"players/{club_domain['player'].id}" in loc]
+
+
+def test_unlisted_host_gets_main_sitemap(client, club_domain) -> None:
+    locs = _locs(client, "evil.example")
+    assert locs == _locs(client, "example.org")
+    assert not [loc for loc in locs if "evil.example" in loc]
+
+
+@pytest.mark.parametrize(("host", "origin"), [("mj.example", "https://mj.example"), ("example.org", "https://example.org"), ("evil.example", "https://example.org")])
+def test_robots_names_the_host_sitemap(client, club_domain, host: str, origin: str) -> None:
+    response = client.get("/robots.txt", headers={"host": host})
+    assert response.status_code == 200
+    assert f"Sitemap: {origin}/sitemap.xml" in response.text
+
+
+def _og_host(client, path: str, host: str) -> str:
+    response = client.get("/og", params={"path": path}, headers={"host": host})
+    assert response.status_code == 200
+    return response.text
+
+
+def test_og_on_club_host_returns_club_tags_and_domain(client, club_domain) -> None:
+    body = _og_host(client, "/", "mj.example")
+    assert "<title>מכבי · Maccabi · כדורסל</title>" in body
+    assert '<meta property="og:site_name" content="מכבי" />' in body
+    assert '"url": "https://mj.example/"' in body
+    assert 'og:image" content="https://mj.example/uploads/x.png"' in body
+
+
+def test_og_on_club_host_uncovered_path_falls_back_to_club(client, club_domain) -> None:
+    assert "<title>מכבי · Maccabi · כדורסל</title>" in _og_host(client, "/teams", "mj.example")
+
+
+def test_og_main_host_page_carries_gushball_site_block(client, club_domain) -> None:
+    body = _og_host(client, "/elizur", "example.org")
+    assert '<meta property="og:site_name" content="GushBall" />' in body
+    assert '"url": "https://example.org/"' in body
+
+
+def test_og_site_json_ld_escapes_braces_and_script_close(client, club_domain, db_session: Session) -> None:
+    club_domain["club"].name = "{{x}}</script>"
+    db_session.query(Team).filter_by(slug="kids").one().club = "{{x}}</script>"
+    db_session.commit()
+    body = _og_host(client, "/", "mj.example")
+    assert "{{" not in body
+    assert body.count("</script>") == 1
