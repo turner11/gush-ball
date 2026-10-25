@@ -1,4 +1,4 @@
-"""CRUD for a team's five content resources (links/videos/images/posts/plays), plus a club's posts.
+"""CRUD for a team's five content resources (links/videos/images/posts/plays), plus a club's posts and images.
 
 The tables stay separate (see CLAUDE.md), but their routes are identical apart from the
 schemas, so they're registered once per resource by `_add_crud_routes` below. Plays' list is
@@ -22,7 +22,7 @@ from app.deps import (
     require_team_admin,
     require_team_member,
 )
-from app.models import ClubPost, TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
+from app.models import ClubImage, ClubPost, TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
 
 router = APIRouter(tags=["content"])
 
@@ -141,6 +141,30 @@ class TeamPostOut(PostOut):
 
 class ClubPostOut(PostOut):
     club_id: int
+
+
+# A club's images have no player tags (players belong to teams) and no home slideshow flag.
+class ClubImageCreate(BaseModel):
+    title: str
+    title_en: str | None = None
+    url: HttpUrl
+
+
+class ClubImageUpdate(BaseModel):
+    # omitted = unchanged; null -> 422 (NOT NULL column)
+    title: str = None
+    title_en: str | None = None
+    url: HttpUrl = None
+
+
+class ClubImageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    club_id: int
+    title: str
+    title_en: str | None
+    url: str
 
 
 class TeamPlayCreate(BaseModel):
@@ -292,6 +316,7 @@ _add_crud_routes(
 _add_crud_routes(
     "posts", ClubPost, PostCreate, PostUpdate, ClubPostOut, "Post not found", owner=CLUB, reorderable=True
 )
+_add_crud_routes("images", ClubImage, ClubImageCreate, ClubImageUpdate, ClubImageOut, "Image not found", owner=CLUB)
 _add_crud_routes(
     "plays",
     TeamPlay,

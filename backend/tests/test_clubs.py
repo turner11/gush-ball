@@ -226,3 +226,53 @@ def test_club_posts_404s(admin_client: TestClient, db_session: Session) -> None:
     post_id = admin_client.post(f"/clubs/{mine.id}/posts", json={"title": "t", "body": "b"}).json()["id"]
     assert admin_client.patch(f"/clubs/{other.id}/posts/{post_id}", json={"title": "x"}).status_code == 404
     assert admin_client.delete(f"/clubs/{other.id}/posts/{post_id}").status_code == 404
+
+
+def test_club_admin_crud_own_club_images(
+    club_admin_client: TestClient, db_session: Session, client: TestClient
+) -> None:
+    club = db_session.query(Club).filter_by(name="Gush").one_or_none() or _gush(db_session)
+    path = f"/clubs/{club.id}/images"
+
+    first = club_admin_client.post(path, json={"title": "One", "url": "https://cdn.example.com/1.jpg"})
+    assert first.status_code == 201
+    assert first.json() == {
+        "id": first.json()["id"],
+        "club_id": club.id,
+        "title": "One",
+        "title_en": None,
+        "url": "https://cdn.example.com/1.jpg",
+    }
+    second = club_admin_client.post(path, json={"title": "Two", "url": "https://cdn.example.com/2.jpg"}).json()
+    assert [i["title"] for i in club_admin_client.get(path).json()] == ["Two", "One"]
+    assert club_admin_client.patch(f"{path}/{second['id']}", json={"title": "Deux"}).json()["title"] == "Deux"
+    assert club_admin_client.delete(f"{path}/{second['id']}").status_code == 204
+
+    other = Club(name="Other")
+    db_session.add(other)
+    db_session.commit()
+    body = {"title": "t", "url": "https://cdn.example.com/x.jpg"}
+    assert club_admin_client.post(f"/clubs/{other.id}/images", json=body).status_code == 403
+    client.post("/auth/logout")
+    assert client.post(path, json=body).status_code == 401
+
+
+def test_club_images_denied_to_team_admin(
+    team_admin_client: TestClient, db_session: Session, sibling_team: Team
+) -> None:
+    club = _gush(db_session)
+    body = {"title": "t", "url": "https://cdn.example.com/x.jpg"}
+    assert team_admin_client.post(f"/clubs/{club.id}/images", json=body).status_code == 403
+
+
+def test_club_images_404s(admin_client: TestClient, db_session: Session) -> None:
+    mine, other = _gush(db_session), Club(name="Other")
+    db_session.add(other)
+    db_session.commit()
+    body = {"title": "t", "url": "https://cdn.example.com/x.jpg"}
+    assert admin_client.get("/clubs/9999/images").status_code == 404
+    assert admin_client.post("/clubs/9999/images", json=body).status_code == 404
+
+    image_id = admin_client.post(f"/clubs/{mine.id}/images", json=body).json()["id"]
+    assert admin_client.patch(f"/clubs/{other.id}/images/{image_id}", json={"title": "x"}).status_code == 404
+    assert admin_client.delete(f"/clubs/{other.id}/images/{image_id}").status_code == 404

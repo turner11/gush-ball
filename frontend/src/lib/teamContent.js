@@ -30,6 +30,16 @@ export const CONTENT_SECTIONS = {
       { key: 'hidden_from_home', label: 'הסתרה מתצוגת דף הבית', type: 'checkbox' },
     ],
   },
+  // A club's images: no player tags or home-slideshow flag (#497).
+  clubImages: {
+    resource: 'images',
+    heading: 'תמונות',
+    fields: [
+      { key: 'title', label: 'כותרת', type: 'text', required: true },
+      { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
+      { key: 'url', label: 'כתובת', type: 'url', required: true, upload: true, preview: true },
+    ],
+  },
   posts: {
     resource: 'posts',
     heading: 'עדכונים',

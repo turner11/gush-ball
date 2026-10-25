@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 from app.db import Base
 
 if TYPE_CHECKING:
-    from app.models.content import ClubPost
+    from app.models.content import ClubImage, ClubPost
 
 
 class Club(Base):
@@ -20,7 +20,7 @@ class Club(Base):
     name_en: Mapped[str | None] = mapped_column(String(120), default=None)
     ibasketball_url: Mapped[str | None] = mapped_column(String(500), unique=True, default=None)
     # shown on the club page (#451); edited as one form, so the lists are whole-list JSON
-    # ponytail: whole-list JSON, saved as one form; move to club_links/club_images tables if items ever need ids or tagging
+    # ponytail: whole-list JSON, saved as one form; move to a club_links table (like club_images) if items ever need ids or tagging
     about_title: Mapped[str | None] = mapped_column(String(200), default=None)
     about_title_en: Mapped[str | None] = mapped_column(String(200), default=None)
     about: Mapped[str | None] = mapped_column(Text, default=None)
@@ -34,6 +34,9 @@ class Club(Base):
         back_populates="club",
         cascade="all, delete-orphan",
         order_by="(ClubPost.pinned.desc(), ClubPost.sort_order.asc().nulls_first(), ClubPost.id.desc())",
+    )
+    images: Mapped[list["ClubImage"]] = relationship(
+        back_populates="club", cascade="all, delete-orphan", order_by="ClubImage.id.desc()"
     )
 
 
