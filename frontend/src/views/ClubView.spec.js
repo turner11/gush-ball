@@ -262,6 +262,18 @@ describe('ClubView', () => {
       expect(postLoads()).toBe(before + 1)
     })
 
+    it('entering the visitor preview while editing closes the editor and reloads posts', async () => {
+      const { previewMode } = await import('../composables/useAuth')
+      const w = await openEditor()
+      await flushPromises()
+      const postLoads = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/clubs/5/posts' && !o?.method).length
+      const before = postLoads()
+      previewMode.value = 'anonymous'
+      await flushPromises()
+      expect(w.find('#club-about-editor').exists()).toBe(false)
+      expect(postLoads()).toBe(before + 1)
+    })
+
     it('club admin edits about and officials inline and sees the result', async () => {
       const w = await openEditor()
       await w.get('#club-about-title').setValue('כותרת חדשה')

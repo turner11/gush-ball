@@ -47,7 +47,7 @@ const canEdit = computed(() => !previewMode.value && !!user.value && (fullAdmin.
 const editing = ref(false)
 const editToggle = ref(null)
 watch(canEdit, (can) => {
-  if (!can) editing.value = false
+  if (!can && editing.value) closeEditor()
 })
 function onSaved(updated) {
   club.value = updated
