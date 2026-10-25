@@ -449,13 +449,17 @@ def test_linked_user_loses_self_edit_after_leaving(
     mine = _player(db_session, own_team, user=user)
     image_id = client.post(f"/players/{mine.id}/images", json={"url": "https://x.test/a.png"}).json()["id"]
     video_id = client.post(f"/players/{mine.id}/videos", json=VIDEO).json()["id"]
+    private = [f"/teams/{own_team.id}/practices", f"/teams/{own_team.id}/plays"]
+    assert [client.get(url).status_code for url in private] == [200, 200]
     assert client.delete(f"/memberships/mine/{membership.id}").status_code == 204
+    assert [client.get(url).status_code for url in private] == [403, 403]
     assert client.patch(f"/teams/{own_team.id}/players/{mine.id}", json={"name": "New"}).status_code == 403
     assert client.post(f"/players/{mine.id}/images", json={"url": "https://x.test/b.png"}).status_code == 403
     assert client.delete(f"/players/{mine.id}/images/{image_id}").status_code == 403
     assert client.post(f"/players/{mine.id}/videos", json=VIDEO).status_code == 403
     assert client.delete(f"/players/{mine.id}/videos/{video_id}").status_code == 403
-    assert client.get("/auth/me").json()["player_ids"] == []
+    me = client.get("/auth/me").json()
+    assert (me["player_ids"], me["member_team_ids"]) == ([], [])
 
 
 def test_club_member_self_edits_linked_player(client: TestClient, db_session: Session, sibling_team: Team) -> None:

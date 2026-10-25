@@ -25,7 +25,8 @@ def _practice(db: Session, team: Team, starts_at: datetime, **kw: object) -> Pra
 def test_list_practices_access(who, expected, client, db_session, own_team, other_team, sibling_team) -> None:
     if who.startswith("player"):
         kind, target = who.split(":")
-        _login_linked(client, db_session, own_team if target == "own" else other_team, deleted=kind == "player-deleted")
+        team = own_team if target == "own" else other_team
+        _login_linked(client, db_session, team, deleted=kind == "player-deleted", club_member=kind == "player+club")
     else:
         _login_as(client, db_session, who, own_team, other_team)
 
