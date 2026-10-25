@@ -26,7 +26,7 @@ def test_list_practices_access(who, expected, client, db_session, own_team, othe
     if who.startswith("player"):
         kind, target = who.split(":")
         team = own_team if target == "own" else other_team
-        _login_linked(client, db_session, team, deleted=kind == "player-deleted", club_member=kind == "player+club")
+        _login_linked(client, db_session, team, deleted="deleted" in kind, club_member="club" in kind)
     else:
         _login_as(client, db_session, who, own_team, other_team)
 

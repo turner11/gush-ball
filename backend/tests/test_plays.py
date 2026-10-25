@@ -44,7 +44,7 @@ ACCESS = [
     ("full admin", 200),
     ("player:own", 403),
     ("player+club:own", 200),
-    ("player-deleted:own", 403),
+    ("player+club-deleted:own", 403),
     ("player:other", 403),
 ]
 
@@ -54,7 +54,7 @@ def test_list_plays_access(who, expected, client, db_session, own_team, other_te
     if who.startswith("player"):
         kind, target = who.split(":")
         team = own_team if target == "own" else other_team
-        _login_linked(client, db_session, team, deleted=kind == "player-deleted", club_member=kind == "player+club")
+        _login_linked(client, db_session, team, deleted="deleted" in kind, club_member="club" in kind)
     else:
         _login_as(client, db_session, who, own_team, other_team)
 
