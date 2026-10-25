@@ -76,7 +76,7 @@ onMounted(async () => {
       <h1 class="page-title">אזור ניהול</h1>
       <RouterLink to="/account" class="section-link">החשבון שלי</RouterLink>
     </div>
-    <nav class="grid grid-cols-2 gap-3" :class="fullAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
+    <nav class="grid grid-cols-2 gap-3" :class="!fullAdmin && managesClubs ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
       <RouterLink :to="base + '/admin/players'" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
         <span class="block font-extrabold">ניהול שחקנים</span>
