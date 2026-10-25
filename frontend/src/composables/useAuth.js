@@ -25,6 +25,8 @@ export const teamAdmin = (teamId) => !!user.value && (!user.value.team_ids || us
 export const previewMode = ref(null)
 export const canEditTeam = (teamId) => !previewMode.value && teamAdmin(teamId)
 export const clubAdmin = (club) => !!club && !!user.value?.clubs?.includes(club)
+// UI gate for the club-management pages: a full admin or the admin of at least one club.
+export const managesClubs = computed(() => fullAdmin.value || !!user.value?.clubs?.length)
 
 const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
 

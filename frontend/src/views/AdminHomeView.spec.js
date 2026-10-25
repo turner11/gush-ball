@@ -37,6 +37,7 @@ describe('AdminHomeView', () => {
         { path: '/admin/teams', name: 'admin-teams', component: { template: '<div/>' } },
         { path: '/admin/users', name: 'admin-users', component: { template: '<div/>' } },
         { path: '/admin/audit', name: 'admin-audit', component: { template: '<div/>' } },
+        { path: '/admin/clubs', name: 'admin-clubs', component: { template: '<div/>' } },
       ],
     })
   })
@@ -322,5 +323,21 @@ describe('AdminHomeView', () => {
     wrapper = mountFull(AdminHomeView)
     await flushPromises()
     expect(wrapper.text()).not.toContain('ניהול משתמשים')
+  })
+
+  it('clubs card shows for a full admin and a club admin, not a team admin', async () => {
+    mockSyncApis()
+    const auth = (await import('../composables/useAuth')).useAuth()
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const clubsCard = (wrapper) => wrapper.find('a[href="/admin/clubs"]')
+
+    auth.user.value = { username: 'a' }
+    expect(clubsCard(mountFull(AdminHomeView)).exists()).toBe(true)
+
+    auth.user.value = { username: 'c', team_ids: [1], clubs: ['גוש'] }
+    expect(clubsCard(mountFull(AdminHomeView)).exists()).toBe(true)
+
+    auth.user.value = { username: 't', team_id: 1, team_ids: [1], clubs: [] }
+    expect(clubsCard(mountFull(AdminHomeView)).exists()).toBe(false)
   })
 })

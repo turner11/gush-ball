@@ -15,7 +15,7 @@ import AppIcon from '../components/AppIcon.vue'
 import MembershipRequests from '../components/MembershipRequests.vue'
 import SyncFailures from '../components/SyncFailures.vue'
 import SyncStatus from '../components/SyncStatus.vue'
-import { fullAdmin, ownTeams, useAuth } from '../composables/useAuth'
+import { fullAdmin, managesClubs, ownTeams, useAuth } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
 
 // The slug (when present) scopes the players/games links to one team.
@@ -76,7 +76,7 @@ onMounted(async () => {
       <h1 class="page-title">אזור ניהול</h1>
       <RouterLink to="/account" class="section-link">החשבון שלי</RouterLink>
     </div>
-    <nav class="grid grid-cols-2 gap-3" :class="fullAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
+    <nav class="grid grid-cols-2 gap-3" :class="!fullAdmin && managesClubs ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
       <RouterLink :to="base + '/admin/players'" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
         <span class="block font-extrabold">ניהול שחקנים</span>
@@ -93,9 +93,18 @@ onMounted(async () => {
         <span class="block text-sm text-muted">טבלאות ליגה לפי ליגה</span>
       </RouterLink>
       <RouterLink :to="{ name: 'admin-teams' }" class="card space-y-2 transition hover:border-team">
-        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="shield" /></span>
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="grid" /></span>
         <span class="block font-extrabold">ניהול קבוצות</span>
         <span class="block text-sm text-muted">קבוצות, מיתוג ותוכן</span>
+      </RouterLink>
+      <RouterLink
+        v-if="managesClubs"
+        :to="{ name: 'admin-clubs' }"
+        class="card col-span-2 space-y-2 transition hover:border-team lg:col-span-1"
+      >
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="shield" /></span>
+        <span class="block font-extrabold">ניהול מועדונים</span>
+        <span class="block text-sm text-muted">פוסטים וקבוצות המועדון</span>
       </RouterLink>
       <RouterLink
         v-if="fullAdmin"
