@@ -48,8 +48,9 @@ const FGAMES = [
   { id: 21, team_id: 4, is_home: true, scheduled_at: '2026-03-14T19:00:00', status: 'scheduled', team_score: null, opponent_score: null, opponent: opp },
 ]
 
-function mockFetch(games, teams = TEAMS, leagues = []) {
+function mockFetch(games, teams = TEAMS, leagues = [], posts = []) {
   global.fetch = vi.fn((url) => {
+    if (String(url).endsWith('/posts')) return posts instanceof Error ? Promise.reject(posts) : Promise.resolve({ ok: true, status: 200, json: async () => posts })
     if (games instanceof Error) return Promise.reject(games)
     if (url === '/api/leagues') return leagues instanceof Error ? Promise.reject(leagues) : Promise.resolve({ ok: true, status: 200, json: async () => leagues })
     const body = String(url).startsWith('/api/games') ? games : url === '/api/clubs' ? CLUBS : teams
@@ -339,5 +340,21 @@ describe('ClubView', () => {
       const ld = JSON.parse(document.head.querySelector('script[data-page]').textContent)
       expect(ld.member).toHaveLength(4)
     })
+  })
+
+  it('shows the club posts with the pinned badge', async () => {
+    mockFetch(GAMES, TEAMS, [], [{ id: 1, club_id: 5, title: 'חדשות', body: 'גוף העדכון', pinned: true }])
+    const w = await mountIt()
+    expect(global.fetch.mock.calls.map((c) => c[0])).toContain('/api/clubs/5/posts')
+    expect(w.text()).toContain('חדשות')
+    expect(w.text()).toContain('גוף העדכון')
+    expect(w.text()).toContain('נעוץ')
+  })
+
+  it('a failed posts load keeps the page and shows an inline error', async () => {
+    mockFetch(GAMES, TEAMS, [], new Error('boom'))
+    const w = await mountIt()
+    expect(w.get('h1').text()).toBe('מכבי')
+    expect(w.get('[role="alert"]').text()).toContain('שגיאה בטעינת העדכונים')
   })
 })

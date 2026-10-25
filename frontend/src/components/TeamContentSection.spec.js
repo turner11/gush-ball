@@ -48,7 +48,7 @@ describe('TeamContentSection', () => {
     const { default: TeamContentSection } = await import('./TeamContentSection.vue')
     const fields = FIELDS.map((f) => (f.key === 'url' ? { ...f, upload: true } : f))
     const wrapper = mount(TeamContentSection, {
-      props: { teamId: 1, resource: 'links', heading: 'קישורים', fields },
+      props: { ownerId: 1, resource: 'links', heading: 'קישורים', fields },
     })
     await flushPromises()
 
@@ -73,7 +73,7 @@ describe('TeamContentSection', () => {
       { key: 'url', label: 'כתובת', type: 'url', required: true, upload: true, preview: true },
     ]
     const wrapper = mount(TeamContentSection, {
-      props: { teamId: 1, resource: 'images', heading: 'תמונות', fields },
+      props: { ownerId: 1, resource: 'images', heading: 'תמונות', fields },
     })
     await flushPromises()
 
@@ -93,7 +93,7 @@ describe('TeamContentSection', () => {
 
     const { default: TeamContentSection } = await import('./TeamContentSection.vue')
     const wrapper = mount(TeamContentSection, {
-      props: { teamId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
+      props: { ownerId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
     })
     await flushPromises()
 
@@ -115,7 +115,7 @@ describe('TeamContentSection', () => {
 
     const { default: TeamContentSection } = await import('./TeamContentSection.vue')
     const wrapper = mount(TeamContentSection, {
-      props: { teamId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
+      props: { ownerId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
       attachTo: document.body,
     })
     await flushPromises()
@@ -142,7 +142,7 @@ describe('TeamContentSection', () => {
 
     const { default: TeamContentSection } = await import('./TeamContentSection.vue')
     const wrapper = mount(TeamContentSection, {
-      props: { teamId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
+      props: { ownerId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
       attachTo: document.body,
     })
     await flushPromises()
@@ -159,7 +159,7 @@ describe('TeamContentSection', () => {
 
     const { default: TeamContentSection } = await import('./TeamContentSection.vue')
     const wrapper = mount(TeamContentSection, {
-      props: { teamId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
+      props: { ownerId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
       attachTo: document.body,
     })
     await flushPromises()
@@ -191,7 +191,7 @@ describe('TeamContentSection', () => {
       { key: 'player_ids', label: 'תיוג שחקנים', type: 'players' },
     ]
     const wrapper = mount(TeamContentSection, {
-      props: { teamId: 1, resource: 'images', heading: 'תמונות', fields },
+      props: { ownerId: 1, resource: 'images', heading: 'תמונות', fields },
     })
     await flushPromises()
     await wrapper.get('form').trigger('submit')
@@ -210,7 +210,7 @@ describe('TeamContentSection', () => {
     const mountPlays = async (extra) => {
       const { default: TeamContentSection } = await import('./TeamContentSection.vue')
       const wrapper = mount(TeamContentSection, {
-        props: { teamId: 1, resource: 'plays', heading: 'פלייבוק', fields: PLAY_FIELDS, ...extra },
+        props: { ownerId: 1, resource: 'plays', heading: 'פלייבוק', fields: PLAY_FIELDS, ...extra },
       })
       await flushPromises()
       return wrapper
@@ -250,7 +250,7 @@ describe('TeamContentSection', () => {
     })
     const { default: TeamContentSection } = await import('./TeamContentSection.vue')
     const wrapper = mount(TeamContentSection, {
-      props: { teamId: 1, resource: 'posts', heading: 'עדכונים', fields },
+      props: { ownerId: 1, resource: 'posts', heading: 'עדכונים', fields },
     })
     await flushPromises()
 
@@ -265,5 +265,44 @@ describe('TeamContentSection', () => {
 
     const post = global.fetch.mock.calls.find(([, o]) => o?.method === 'POST')
     expect(JSON.parse(post[1].body)).toEqual({ title: 'חדש', pinned: true })
+  })
+
+  it('owner="clubs" lists and creates against /api/clubs/:id/:resource', async () => {
+    mockFetch({
+      'GET /api/clubs/5/posts': () => jsonRes([]),
+      'POST /api/clubs/5/posts': () => jsonRes({ id: 1, title: 'חדש' }, 201),
+    })
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const fields = [{ key: 'title', label: 'כותרת', type: 'text', required: true }]
+    const wrapper = mount(TeamContentSection, {
+      props: { owner: 'clubs', ownerId: 5, resource: 'posts', heading: 'עדכונים', fields },
+    })
+    await flushPromises()
+
+    await wrapper.find('input[type="text"]').setValue('חדש')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(global.fetch.mock.calls.some(([url, o]) => url === '/api/clubs/5/posts' && o?.method === 'POST')).toBe(true)
+  })
+
+  it('move buttons do not cross the pinned boundary', async () => {
+    mockFetch({
+      'GET /api/teams/1/posts': () =>
+        jsonRes([
+          { id: 1, title: 'A', pinned: true },
+          { id: 2, title: 'B', pinned: false },
+        ]),
+    })
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const fields = [{ key: 'title', label: 'כותרת', type: 'text', required: true }]
+    const wrapper = mount(TeamContentSection, {
+      props: { ownerId: 1, resource: 'posts', heading: 'עדכונים', fields, reorderable: true },
+    })
+    await flushPromises()
+
+    const [first, second] = wrapper.findAll('li')
+    expect(first.find('[aria-label="הזזה למטה"]').attributes('disabled')).toBeDefined()
+    expect(second.find('[aria-label="הזזה למעלה"]').attributes('disabled')).toBeDefined()
   })
 })

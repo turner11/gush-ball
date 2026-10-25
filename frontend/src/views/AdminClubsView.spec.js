@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const CLUBS = [
@@ -16,14 +16,15 @@ function mockFetch(handlers) {
   })
 }
 
-async function mountSection() {
-  const { default: ClubsSection } = await import('./ClubsSection.vue')
-  const wrapper = mount(ClubsSection)
+async function mountSection(user = null) {
+  if (user) (await import('../composables/useAuth.js')).useAuth().user.value = user
+  const { default: AdminClubsView } = await import('./AdminClubsView.vue')
+  const wrapper = mount(AdminClubsView, { global: { stubs: { RouterLink: RouterLinkStub } } })
   await flushPromises()
   return wrapper
 }
 
-describe('ClubsSection', () => {
+describe('AdminClubsView', () => {
   beforeEach(() => vi.resetModules())
   afterEach(() => vi.restoreAllMocks())
 
@@ -110,5 +111,23 @@ describe('ClubsSection', () => {
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
     expect(wrapper.findAll('button').some((b) => b.text() === 'נסו שוב')).toBe(true)
+  })
+
+  it('a club admin sees only their clubs, without rename inputs, each with a manage link', async () => {
+    mockFetch({ 'GET /api/clubs': () => jsonRes(CLUBS) })
+    const wrapper = await mountSection({ team_ids: [1], clubs: ['גוש'] })
+
+    expect(wrapper.findAll('li')).toHaveLength(1)
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.text()).toContain('גוש')
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toEqual({ name: 'admin-club-edit', params: { id: 1 } })
+  })
+
+  it('a full admin sees every club with rename inputs and a manage link', async () => {
+    mockFetch({ 'GET /api/clubs': () => jsonRes(CLUBS) })
+    const wrapper = await mountSection()
+
+    expect(wrapper.findAll('form')).toHaveLength(2)
+    expect(wrapper.findAllComponents(RouterLinkStub)).toHaveLength(2)
   })
 })
