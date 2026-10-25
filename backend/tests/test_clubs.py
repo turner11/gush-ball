@@ -197,7 +197,7 @@ def test_club_admin_crud_own_club_posts(club_admin_client: TestClient, db_sessio
 
 
 def test_club_post_writes_scoped_to_club(
-    club_admin_client: TestClient, team_admin_client: TestClient, db_session: Session, client: TestClient
+    club_admin_client: TestClient, db_session: Session, client: TestClient
 ) -> None:
     other = Club(name="Other")
     db_session.add(other)
