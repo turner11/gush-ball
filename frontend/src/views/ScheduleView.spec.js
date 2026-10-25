@@ -121,7 +121,7 @@ describe('ScheduleView', () => {
 
       expect(global.fetch.mock.calls.some(([url]) => url.includes('/practices'))).toBe(false)
       expect(calendarHref(wrapper)).not.toContain('practices=1')
-      expect(wrapper.text()).not.toContain('אימונים קרובים')
+      expect(wrapper.findAll('h2').some((h) => h.text() === 'אימונים קרובים')).toBe(false)
     })
 
     it('anonymous preview hides practices; exiting loads them', async () => {
@@ -137,7 +137,7 @@ describe('ScheduleView', () => {
       const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
       await flushPromises()
       expect(global.fetch.mock.calls.some(([url]) => url.includes('/practices'))).toBe(false)
-      expect(wrapper.text()).not.toContain('אימונים קרובים')
+      expect(wrapper.findAll('h2').some((h) => h.text() === 'אימונים קרובים')).toBe(false)
       expect(calendarHref(wrapper)).not.toContain('practices=1')
 
       previewMode.value = null
@@ -458,12 +458,12 @@ describe('ScheduleView', () => {
         'GET /api/teams/1/practices': () => jsonRes([]),
       })
       const practiceGets = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/teams/1/practices' && !o?.method).length
-      expect(wrapper.text()).toContain('אימונים קרובים')
+      expect(wrapper.findAll('h2').some((h) => h.text() === 'אימונים קרובים')).toBe(true)
 
       await button(wrapper, 'עריכת אימונים').trigger('click')
       await flushPromises()
       expect(wrapper.findComponent({ name: 'PracticesAdmin' }).exists()).toBe(true)
-      expect(wrapper.text()).not.toContain('אימונים קרובים')
+      expect(wrapper.findAll('h2').some((h) => h.text() === 'אימונים קרובים')).toBe(false)
 
       const before = practiceGets()
       await button(wrapper, 'סיום עריכה').trigger('click')

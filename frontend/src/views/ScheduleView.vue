@@ -6,8 +6,10 @@ import CalendarSubscribe from '../components/CalendarSubscribe.vue'
 import GameForm from '../components/GameForm.vue'
 import GameRow from '../components/GameRow.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
+import PracticesAdmin from '../components/PracticesAdmin.vue'
 import PracticeRow from '../components/PracticeRow.vue'
 import { canEditTeam, teamMember, useAuth, viewer } from '../composables/useAuth'
+import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { splitGames } from '../lib/games'
@@ -107,6 +109,9 @@ async function loadPractices() {
 }
 
 watch([selectedTeamId, checked, viewer], loadPractices, { immediate: true })
+
+// Practice add/edit/cancel/delete reuse the admin component behind a toggle; closing reloads the read-only list.
+const { editing: editingPractices, toggleEl: practicesToggle, toggle: togglePractices } = useInlineEditor(canEdit, loadPractices)
 </script>
 
 <template>
@@ -130,13 +135,24 @@ watch([selectedTeamId, checked, viewer], loadPractices, { immediate: true })
           <template v-if="editingId === 'new'">סגירה</template>
           <template v-else><AppIcon name="plus" />הוספת משחק</template>
         </button>
+        <button
+          v-if="canEdit && isMember"
+          ref="practicesToggle"
+          type="button"
+          class="btn-secondary"
+          aria-controls="practices"
+          :aria-expanded="editingPractices"
+          @click="togglePractices"
+        >{{ editingPractices ? 'סיום עריכה' : 'עריכת אימונים' }}</button>
         <CalendarSubscribe :team-id="team.id" :practices="isMember" />
       </div>
     </div>
 
     <GameForm v-if="editingId === 'new'" id="add-game-form" class="card max-w-2xl" :team-id="team.id" @saved="onSaved" />
 
-    <section v-if="isMember" class="space-y-3">
+    <PracticesAdmin v-if="editingPractices && isMember" :key="team.id" :team="team" />
+
+    <section v-else-if="isMember" class="space-y-3">
       <h2 class="section-title">אימונים קרובים</h2>
       <div v-if="practicesLoading" class="space-y-3" aria-busy="true">
         <div class="skeleton h-12" />

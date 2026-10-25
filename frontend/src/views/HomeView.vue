@@ -8,13 +8,16 @@ import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import HomeSlideshow from '../components/HomeSlideshow.vue'
 import PlayerCard from '../components/PlayerCard.vue'
+import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
 import WikipediaCard from '../components/WikipediaCard.vue'
 import { canEditTeam } from '../composables/useAuth'
+import { useInlineEditor } from '../composables/useInlineEditor'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { gameAddress, played, splitGames } from '../lib/games'
+import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const team = ref(null)
 // Path strings, not named routes: this view also renders on the slug-less home route.
@@ -27,8 +30,11 @@ const players = ref([])
 const games = ref([])
 const loading = ref(false)
 
-// Entity properties (about, links, colors) are edited on the team manage page (#496).
+
+// Entity properties (about, links, colors) link to the team manage page (#496); posts are edited inline (#499).
 const canEdit = computed(() => !!team.value && canEditTeam(team.value.id))
+// ponytail: closing refetches all 7 resources; refetch only posts if that ever matters.
+const { editing: editingPosts, toggleEl: postsToggle, toggle: togglePosts } = useInlineEditor(canEdit, load)
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId, teamsLoaded } = useSelectedTeam()
@@ -160,12 +166,25 @@ const hasSocialEmbed = computed(
           <p v-else class="empty-state">עוד אין טקסט על הקבוצה.</p>
         </section>
 
-        <section v-if="topPost" class="space-y-3">
+        <section v-if="topPost || canEdit" class="space-y-3">
           <div class="section-header">
             <h2 class="section-title">עדכונים</h2>
-            <RouterLink :to="base + '/media'" class="section-link">כל העדכונים</RouterLink>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <RouterLink v-if="topPost" :to="base + '/media'" class="section-link">כל העדכונים</RouterLink>
+              <button
+                v-if="canEdit"
+                ref="postsToggle"
+                type="button"
+                class="btn-secondary"
+                aria-controls="home-posts-editor"
+                :aria-expanded="editingPosts"
+                @click="togglePosts"
+              >{{ editingPosts ? 'סיום עריכה' : 'עריכת עדכונים' }}</button>
+            </div>
           </div>
-          <PostCard :post="topPost" clamp />
+          <TeamContentSection v-if="editingPosts" id="home-posts-editor" :key="team.id" :owner-id="team.id" v-bind="CONTENT_SECTIONS.posts" />
+          <PostCard v-else-if="topPost" :post="topPost" clamp />
+          <p v-else class="empty-state">אין עדכונים עדיין.</p>
         </section>
 
         <section v-if="players.length" class="space-y-2">

@@ -13,6 +13,9 @@ import { apiFetch } from '../lib/api'
 import { BACKGROUND_PRESETS, backgroundSrc, isPresetBackground } from '../lib/backgrounds'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
 
+// Explicit list: CONTENT_SECTIONS also holds club-only sections (clubImages shares resource 'images').
+const TEAM_SECTIONS = ['links', 'videos', 'images', 'posts', 'plays'].map((k) => CONTENT_SECTIONS[k])
+
 const route = useRoute()
 const teamId = route.params.id
 
@@ -227,7 +230,7 @@ onMounted(() => Promise.all([load(), loadClubOptions()]))
       <!-- grid-cols-1 = minmax(0,1fr): an implicit track grows to fit a long truncated item and overflows the page -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <TeamContentSection
-          v-for="section in Object.values(CONTENT_SECTIONS)"
+          v-for="section in TEAM_SECTIONS"
           :key="section.resource"
           :owner-id="teamId"
           :resource="section.resource"
