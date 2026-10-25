@@ -1,9 +1,10 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { clubAdmin, fullAdmin, useAuth, previewMode } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
+import { useInlineEditor } from '../composables/useInlineEditor'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { splitGames } from '../lib/games'
@@ -44,17 +45,7 @@ const imagesError = ref(false)
 
 const { user } = useAuth()
 const canEdit = computed(() => !previewMode.value && !!user.value && (fullAdmin.value || clubAdmin(club.value?.name)))
-const editing = ref(false)
-const editToggle = ref(null)
-watch(canEdit, (can) => {
-  if (!can && editing.value) closeEditor()
-})
-async function closeEditor() {
-  editing.value = false
-  loadContent(route.params.clubSlug) // the editors may have changed them
-  await nextTick()
-  editToggle.value?.focus()
-}
+const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor(canEdit, () => loadContent(route.params.clubSlug)) // the editors may have changed them
 const hasAbout = computed(() => {
   const c = club.value
   return !!c && !!(c.about_title || c.about || c.about_images.length || c.about_links.length)
@@ -171,7 +162,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
         </div>
         <div class="flex flex-wrap gap-x-4 gap-y-2">
           <RouterLink v-if="canEdit" :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="btn-secondary">ניהול המועדון</RouterLink>
-          <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" aria-controls="club-posts-editor club-images-editor" :aria-expanded="editing" @click="editing ? closeEditor() : (editing = true)">{{ editing ? 'סיום עריכה' : 'עריכת עדכונים ותמונות' }}</button>
+          <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" aria-controls="club-posts-editor club-images-editor" :aria-expanded="editing" @click="toggleEditing">{{ editing ? 'סיום עריכה' : 'עריכת עדכונים ותמונות' }}</button>
           <a v-if="club.ibasketball_url" :href="club.ibasketball_url" target="_blank" rel="noopener noreferrer" class="section-link">המועדון ב-ibasketball</a>
         </div>
       </div>

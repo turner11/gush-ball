@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 
 import ImageLightbox from '../components/ImageLightbox.vue'
@@ -7,6 +7,7 @@ import PostCard from '../components/PostCard.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { canEditTeam } from '../composables/useAuth'
+import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
@@ -48,21 +49,7 @@ async function load() {
 watch(selectedTeamId, load, { immediate: true })
 
 const canEdit = computed(() => !!selectedTeamId.value && canEditTeam(selectedTeamId.value))
-const editing = ref(false)
-const editToggle = ref(null)
-
-async function toggleEditing() {
-  editing.value = !editing.value
-  if (editing.value) return
-  load() // show what the editors changed
-  await nextTick()
-  editToggle.value?.focus()
-}
-
-// Turning on the player preview (or switching to a team the user can't edit) closes the editors.
-watch(canEdit, (can) => {
-  if (!can) editing.value = false
-})
+const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor(canEdit, load) // closing shows what the editors changed
 
 const tabs = [
   { value: 'videos', label: 'סרטונים' },

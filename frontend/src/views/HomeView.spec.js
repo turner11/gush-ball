@@ -494,12 +494,35 @@ describe('HomeView', () => {
       expect(w.text()).not.toContain('צבעי הקבוצה')
     })
 
+    it('team admin edits posts inline on the home page, and closing reloads them (#499)', async () => {
+      await asTeamAdmin()
+      const w = await mountWithTeam(TEAM, { posts: [] })
+      const button = (t) => w.findAll('button').find((b) => b.text() === t)
+      const postGets = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/teams/1/posts' && !o?.method).length
+      expect(w.text()).toContain('אין עדכונים עדיין.')
+
+      const inPosts = () => w.findAll('section').find((x) => x.find('h2').text() === 'עדכונים')
+      expect(inPosts().findAll('button').map((b) => b.text())).toContain('עריכת עדכונים')
+      await button('עריכת עדכונים').trigger('click')
+      await flushPromises()
+      expect(inPosts().findAll('button').map((b) => b.text())).toContain('סיום עריכה')
+      expect(w.findAllComponents({ name: 'TeamContentSection' }).some((c) => c.props('resource') === 'posts')).toBe(true)
+      expect(w.findAll('h2').filter((h) => h.text() === 'עדכונים')).toHaveLength(1)
+
+      const before = postGets()
+      await button('סיום עריכה').trigger('click')
+      await flushPromises()
+      expect(postGets()).toBeGreaterThan(before)
+      expect(w.findComponent({ name: 'TeamContentSection' }).exists()).toBe(false)
+    })
+
     it('visitors and preview see no edit controls on the team home', async () => {
       const useAuth = await asTeamAdmin()
       useAuth().user.value = null
       let w = await mountWithTeam(TEAM)
       expect(w.text()).not.toContain('עריכה')
       expect(w.text()).not.toContain('עריכת קישורים')
+      expect(w.text()).not.toContain('עריכת עדכונים')
       const { previewMode } = await import('../composables/useAuth')
       useAuth().user.value = { id: 1, team_ids: [1] }
       previewMode.value = 'member'
@@ -507,6 +530,7 @@ describe('HomeView', () => {
       expect(w.text()).not.toContain('עריכה')
       expect(w.text()).not.toContain('עריכת קישורים')
       expect(w.text()).not.toContain('על הקבוצה')
+      expect(w.text()).not.toContain('עריכת עדכונים')
       previewMode.value = null
     })
   })

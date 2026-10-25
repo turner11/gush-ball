@@ -452,6 +452,26 @@ describe('ScheduleView', () => {
       expect(wrapper.text()).toContain('90 : 80')
     })
 
+    it('team admin edits practices inline from the schedule, and closing reloads them (#499)', async () => {
+      const wrapper = await mountWith({
+        'GET /api/auth/me': () => jsonRes({ username: 'a', team_ids: [1], member_team_ids: [1] }),
+        'GET /api/teams/1/practices': () => jsonRes([]),
+      })
+      const practiceGets = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/teams/1/practices' && !o?.method).length
+      expect(wrapper.findAll('h2').some((h) => h.text() === 'אימונים קרובים')).toBe(true)
+
+      await button(wrapper, 'עריכת אימונים').trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'PracticesAdmin' }).exists()).toBe(true)
+      expect(wrapper.findAll('h2').some((h) => h.text() === 'אימונים קרובים')).toBe(false)
+
+      const before = practiceGets()
+      await button(wrapper, 'סיום עריכה').trigger('click')
+      await flushPromises()
+      expect(practiceGets()).toBeGreaterThan(before)
+      expect(wrapper.findComponent({ name: 'PracticesAdmin' }).exists()).toBe(false)
+    })
+
     it('fans and "view as player" see no add or edit controls', async () => {
       const { previewMode } = await import('../composables/useAuth')
       mockFetch({
@@ -464,11 +484,13 @@ describe('ScheduleView', () => {
       await flushPromises()
       expect(button(fan, 'הוספת משחק')).toBeUndefined()
       expect(button(fan, 'עריכה')).toBeUndefined()
+      expect(button(fan, 'עריכת אימונים')).toBeUndefined()
 
       previewMode.value = 'member'
       const preview = await mountWith()
       expect(button(preview, 'הוספת משחק')).toBeUndefined()
       expect(button(preview, 'עריכה')).toBeUndefined()
+      expect(button(preview, 'עריכת אימונים')).toBeUndefined()
       previewMode.value = null
     })
   })
