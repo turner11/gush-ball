@@ -39,6 +39,7 @@ PlayerName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=
 
 _YOUTUBE_HOSTS = {"youtu.be", "youtube.com", "www.youtube.com", "m.youtube.com"}
 _YOUTUBE_ID = re.compile(r"[A-Za-z0-9_-]{11}")
+MAX_PLAYER_VIDEOS = 20
 
 
 def _require_youtube(url: HttpUrl) -> HttpUrl:
@@ -338,7 +339,10 @@ def delete_player_image(
 def add_player_video(
     player_id: int, payload: PlayerVideoCreate, db: DbSession, user: RequireUser
 ) -> PlayerVideo:
-    check_player_self_or_team_admin(db, user, _get_player_or_404(db, player_id))
+    player = _get_player_or_404(db, player_id)
+    check_player_self_or_team_admin(db, user, player)
+    if len(player.videos) >= MAX_PLAYER_VIDEOS:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"אפשר להוסיף עד {MAX_PLAYER_VIDEOS} סרטונים לשחקן")
     video = PlayerVideo(player_id=player_id, title=payload.title, title_en=payload.title_en, url=str(payload.url))
     db.add(video)
     db.commit()

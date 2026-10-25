@@ -221,7 +221,7 @@ const hasPlayers = computed(() => players.value?.length > 0)
 
     <div class="card space-y-3">
       <h2 class="section-title">מחיקת חשבון</h2>
-      <p class="text-sm text-muted">החשבון, החברויות שלו והקישור לשחקנים יוסרו לצמיתות.</p>
+      <p class="text-sm text-muted">החשבון, החברויות שלו והקישור לשחקנים יוסרו לצמיתות. שם המשתמש יישאר בהיסטוריית השינויים של תוכן שערכת.</p>
       <p v-if="deleteError" class="error-text" role="alert">{{ deleteError }}</p>
       <button type="button" :disabled="deleting" class="btn-danger w-full sm:w-auto" @click="confirmingDelete = true">
         מחיקת החשבון
@@ -230,7 +230,7 @@ const hasPlayers = computed(() => players.value?.length > 0)
 
     <ConfirmDialog
       v-model:open="confirmingDelete"
-      message="למחוק את החשבון לצמיתות? החברויות שלך יימחקו והקישור לשחקנים יוסר."
+      message="למחוק את החשבון לצמיתות? החברויות שלך יימחקו והקישור לשחקנים יוסר. שם המשתמש יישאר בהיסטוריית השינויים של תוכן שערכת."
       @confirm="deleteAccount"
     />
   </section>

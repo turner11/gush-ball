@@ -47,8 +47,8 @@ export const CONTENT_SECTIONS = {
     fields: [
       { key: 'title', label: 'כותרת', type: 'text', required: true },
       { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
-      { key: 'body', label: 'תוכן', type: 'textarea', required: true },
-      { key: 'body_en', label: 'תוכן (אנגלית)', type: 'textarea' },
+      { key: 'body', label: 'תוכן', type: 'textarea', required: true, maxlength: 20000 },
+      { key: 'body_en', label: 'תוכן (אנגלית)', type: 'textarea', maxlength: 20000 },
       { key: 'pinned', label: 'נעוץ', type: 'checkbox' },
     ],
   },
@@ -59,7 +59,7 @@ export const CONTENT_SECTIONS = {
     fields: [
       { key: 'title', label: 'כותרת', type: 'text', required: true },
       { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
-      { key: 'notes', label: 'הערות', type: 'textarea' },
+      { key: 'notes', label: 'הערות', type: 'textarea', maxlength: 2000 },
       { key: 'file_url', label: 'קובץ: תמונה, GIF, MP4 או PDF', type: 'url', upload: true, accept: 'image/*,video/mp4,application/pdf' },
       { key: 'url', label: 'או קישור חיצוני (FastDraw, YouTube…)', type: 'url' },
     ],

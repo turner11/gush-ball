@@ -14,13 +14,14 @@ router = APIRouter(prefix="/teams/{team_id}/practices", tags=["practices"])
 _MAX_SERIES_DAYS = 366  # caps the rows one request can create
 Duration = Annotated[int, Field(ge=15, le=480)]
 Location = Annotated[str | None, Field(max_length=300)]
+Notes = Annotated[str | None, Field(max_length=2000)]
 
 
 class PracticeCreate(BaseModel):
     starts_at: datetime
     duration_minutes: Duration = 90
     location: Location = None
-    notes: str | None = None
+    notes: Notes = None
     cancelled: bool = False
     repeat_weekly_until: date | None = None
 
@@ -30,7 +31,7 @@ class PracticeUpdate(BaseModel):
     starts_at: datetime = None
     duration_minutes: Duration = None
     location: Location = None
-    notes: str | None = None
+    notes: Notes = None
     cancelled: bool = None
 
 

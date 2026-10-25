@@ -171,7 +171,7 @@ async function onDeleteAll() {
         </div>
         <div>
           <label for="practice-notes" class="field-label">הערות</label>
-          <textarea id="practice-notes" v-model="form.notes" class="field-input"></textarea>
+          <textarea id="practice-notes" v-model="form.notes" maxlength="2000" class="field-input"></textarea>
         </div>
         <div v-if="!editing">
           <label for="practice-repeat" class="field-label">חזרה שבועית עד</label>
