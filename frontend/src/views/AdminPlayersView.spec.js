@@ -440,4 +440,29 @@ describe('AdminPlayersView', () => {
     await flushPromises()
     expect(patches[0]).not.toHaveProperty('user_id')
   })
+
+  it('saving a deep-linked (?edit=) linked player does not unlink the account (#496)', async () => {
+    const patches = []
+    global.fetch = vi.fn((url, options = {}) => {
+      const key = `${options.method || 'GET'} ${url}`
+      if (key === 'GET /api/teams') return Promise.resolve(jsonRes(TEAMS))
+      if (key === 'GET /api/teams/1/players') return Promise.resolve(jsonRes(PLAYERS))
+      if (key === 'GET /api/teams/1/players/linkable-users') return Promise.resolve(jsonRes([{ id: 5, username: 'dana' }]))
+      if (key === 'GET /api/teams/1/players/links') return Promise.resolve(jsonRes([{ player_id: 10, user_id: 5, username: 'dana' }]))
+      if (key === 'PATCH /api/teams/1/players/10') {
+        patches.push(JSON.parse(options.body))
+        return Promise.resolve(jsonRes(PLAYERS[0]))
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${key}`))
+    })
+    router.push('/1/admin/players?edit=10')
+    await router.isReady()
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patches[0]).not.toHaveProperty('user_id')
+  })
 })

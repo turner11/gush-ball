@@ -66,10 +66,12 @@ async function loadPlayers() {
     const loaded = await apiFetch(`/teams/${id}/players`)
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     players.value = loaded
-    // deep link from the player page (#496); re-checked per load since the layout may switch team after mount
+    await loadLinks(id)
+    if (id !== selectedTeamId.value) return
+    // deep link from the player page (#496); re-checked per load since the layout may switch team after mount.
+    // After loadLinks: startEdit reads the player's linked user, else saving would unlink the account.
     const linked = loaded.find((p) => p.id === Number(route.query.edit))
     if (linked) startEdit(linked)
-    await loadLinks(id)
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
