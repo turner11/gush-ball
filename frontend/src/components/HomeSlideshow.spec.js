@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import HomeSlideshow from './HomeSlideshow.vue'
@@ -29,6 +29,7 @@ describe('HomeSlideshow', () => {
 
   it('pause button stops rotation; no rotation or button with <=4 images', async () => {
     const w = mountIt(make(6))
+    await flushPromises()
     await w.get('button[aria-label="השהיית החלפת התמונות"]').trigger('click')
     const before = srcs(w)
     await vi.advanceTimersByTimeAsync(20000)
@@ -36,6 +37,7 @@ describe('HomeSlideshow', () => {
     expect(w.find('button[aria-label="הפעלת החלפת התמונות"]').exists()).toBe(true)
 
     const few = mountIt(make(4))
+    await flushPromises()
     expect(few.find('button[aria-label$="החלפת התמונות"]').exists()).toBe(false)
   })
 

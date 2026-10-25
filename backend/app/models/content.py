@@ -51,6 +51,7 @@ class TeamImage(Base):
     # Tagged Player.ids. ponytail: JSON has no portable SQL "contains"; filter in Python, or move to
     # JSONB @> / an association table if indexed lookup is ever needed.
     player_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
+    hidden_from_home: Mapped[bool] = mapped_column(default=False, server_default=false())
 
     team: Mapped["Team"] = relationship(back_populates="images")
 

@@ -27,6 +27,7 @@ export const CONTENT_SECTIONS = {
       { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
       { key: 'url', label: 'כתובת', type: 'url', required: true, upload: true },
       { key: 'player_ids', label: 'תיוג שחקנים', type: 'players' },
+      { key: 'hidden_from_home', label: 'הסתרה מתצוגת דף הבית', type: 'checkbox' },
     ],
   },
   posts: {

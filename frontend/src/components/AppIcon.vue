@@ -3,6 +3,8 @@ defineProps({ name: { type: String, required: true } })
 
 // Lucide-style paths, drawn by hand.
 const PATHS = {
+  pause: 'M6 4h4v16H6zM14 4h4v16h-4z',
+  play: 'M6 4l14 8-14 8z',
   chevron: 'M6 9l6 6 6-6',
   check: 'M20 6 9 17l-5-5',
   clipboard: 'M9 2h6v4H9zM16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2',

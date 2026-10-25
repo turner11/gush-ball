@@ -93,21 +93,3 @@ onBeforeUnmount(stopSlideshow)
     <p v-if="player" :class="compact ? 'mt-2.5 line-clamp-2 text-[11px]' : 'mt-3 text-sm'" class="font-bold leading-tight">{{ player.name }}</p>
   </component>
 </template>
-
-<style scoped>
-.slide-enter-active,
-.slide-leave-active {
-  transition: opacity 0.4s ease, scale 0.4s ease;
-}
-.slide-enter-from,
-.slide-leave-to {
-  opacity: 0;
-  scale: 1.05; /* not `transform`: the inline focus zoom owns that */
-}
-@media (prefers-reduced-motion: reduce) {
-  .slide-enter-active,
-  .slide-leave-active {
-    transition: none;
-  }
-}
-</style>

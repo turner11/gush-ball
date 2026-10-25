@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 
+import ImageLightbox from '../components/ImageLightbox.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { canEditTeam } from '../composables/useAuth'
@@ -12,6 +13,7 @@ import { CONTENT_SECTIONS } from '../lib/teamContent'
 const videos = ref([])
 const posts = ref([])
 const images = ref([])
+const lightbox = ref(null)
 const loading = ref(false)
 
 // DefaultLayout picks the default team; this view only follows the selection.
@@ -120,14 +122,15 @@ const tabs = [
         <TeamContentSection v-if="editing" :key="selectedTeamId" :team-id="selectedTeamId" v-bind="CONTENT_SECTIONS.images" />
         <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
         <div v-else-if="images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <a v-for="image in images" :key="image.id" :href="image.url" target="_blank" rel="noopener">
-            <figure class="space-y-1">
+          <figure v-for="(image, i) in images" :key="image.id" class="space-y-1">
+            <button type="button" class="block w-full cursor-zoom-in" :aria-label="`הגדלת תמונה: ${image.title}`" @click="lightbox.open(i, $event)">
               <img :src="image.url" :alt="image.title" loading="lazy" class="aspect-square w-full rounded-xl object-cover" />
-              <figcaption class="text-sm text-muted">{{ image.title }}</figcaption>
-            </figure>
-          </a>
+            </button>
+            <figcaption class="text-sm text-muted">{{ image.title }}</figcaption>
+          </figure>
         </div>
         <p v-else class="empty-state">אין פריטים עדיין.</p>
+        <ImageLightbox ref="lightbox" :images="images.map((i) => ({ url: i.url, alt: i.title }))" />
       </TabsContent>
     </TabsRoot>
   </section>

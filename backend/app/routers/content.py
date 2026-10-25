@@ -68,6 +68,18 @@ class TitledUrlOut(BaseModel):
     player_ids: list[int]
 
 
+class TeamImageCreate(TitledUrlCreate):
+    hidden_from_home: bool = False
+
+
+class TeamImageUpdate(TitledUrlUpdate):
+    hidden_from_home: bool = None  # null -> 422, like TeamPostUpdate.pinned
+
+
+class TeamImageOut(TitledUrlOut):
+    hidden_from_home: bool
+
+
 class TeamPostCreate(BaseModel):
     title: str
     title_en: str | None = None
@@ -219,7 +231,7 @@ _add_crud_routes(
     "videos", TeamVideo, TitledUrlCreate, TitledUrlUpdate, TitledUrlOut, "Video not found"
 )
 _add_crud_routes(
-    "images", TeamImage, TitledUrlCreate, TitledUrlUpdate, TitledUrlOut, "Image not found"
+    "images", TeamImage, TeamImageCreate, TeamImageUpdate, TeamImageOut, "Image not found"
 )
 _add_crud_routes("posts", TeamPost, TeamPostCreate, TeamPostUpdate, TeamPostOut, "Post not found")
 _add_crud_routes(

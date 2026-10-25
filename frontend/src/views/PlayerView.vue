@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-import AppIcon from '../components/AppIcon.vue'
+import ImageLightbox from '../components/ImageLightbox.vue'
 import LineChart from '../components/LineChart.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import PlayerProfileForm from '../components/PlayerProfileForm.vue'
@@ -66,33 +66,6 @@ const neighbours = computed(() => {
 })
 
 const lightbox = ref(null)
-const openIndex = ref(null)
-const current = computed(() => (openIndex.value == null ? null : images.value[openIndex.value]))
-let opener = null // the thumbnail that opened the dialog, refocused on close
-
-function openPhoto(index, event) {
-  opener = event.currentTarget
-  openIndex.value = index
-  lightbox.value.showModal()
-}
-
-function step(delta) {
-  const n = images.value.length
-  openIndex.value = (openIndex.value + delta + n) % n
-}
-
-function onLightboxKey(e) {
-  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-  const rtl = document.documentElement.dir === 'rtl'
-  step((e.key === 'ArrowLeft') === rtl ? 1 : -1)
-  e.preventDefault()
-}
-
-// Fires for Esc, the close button and dialog.close() alike. Explicit focus: Safari never focuses a clicked button.
-function onLightboxClose() {
-  openIndex.value = null
-  opener?.focus()
-}
 
 watch(
   () => route.params.id,
@@ -215,35 +188,13 @@ watch(
               type="button"
               class="card block w-full cursor-zoom-in overflow-hidden"
               :aria-label="`הגדלת תמונה: ${image.alt}`"
-              @click="openPhoto(index, $event)"
+              @click="lightbox.open(index, $event)"
             >
               <img :src="image.url" :alt="image.alt" loading="lazy" class="aspect-square w-full object-cover object-top" />
             </button>
           </li>
         </ul>
-        <dialog
-          ref="lightbox"
-          aria-label="תמונה בגודל מלא"
-          class="fixed inset-0 m-0 size-full max-h-none max-w-none border-0 bg-transparent p-0 text-white backdrop:bg-black/90"
-          @close="onLightboxClose"
-          @keydown="onLightboxKey"
-        >
-          <button type="button" class="btn-icon absolute end-2 top-2 z-10 bg-black/50" aria-label="סגירה" @click="lightbox.close()">
-            <AppIcon name="close" />
-          </button>
-          <img v-if="current" :src="current.url" :alt="current.alt" class="size-full object-contain p-4 sm:p-12" />
-          <template v-if="images.length > 1">
-            <button type="button" class="btn-icon absolute start-2 top-1/2 z-10 -translate-y-1/2 bg-black/50" aria-label="התמונה הקודמת" @click="step(-1)">
-              <AppIcon name="chevron" class="size-5 ltr:rotate-90 rtl:-rotate-90" />
-            </button>
-            <button type="button" class="btn-icon absolute end-2 top-1/2 z-10 -translate-y-1/2 bg-black/50" aria-label="התמונה הבאה" @click="step(1)">
-              <AppIcon name="chevron" class="size-5 ltr:-rotate-90 rtl:rotate-90" />
-            </button>
-            <p class="absolute inset-x-0 bottom-3 text-center text-sm font-semibold tabular-nums" aria-live="polite">
-              {{ openIndex + 1 }} / {{ images.length }}
-            </p>
-          </template>
-        </dialog>
+        <ImageLightbox ref="lightbox" :images="images" />
       </template>
       <div v-else-if="canEdit" class="empty-state space-y-3">
         <p>{{ isMine ? 'עדיין אין תמונות בפרופיל שלך.' : 'עדיין אין תמונות לשחקן.' }}</p>

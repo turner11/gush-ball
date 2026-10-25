@@ -7,6 +7,7 @@ import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import TeamColorFields from '../components/TeamColorFields.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
+import HomeSlideshow from '../components/HomeSlideshow.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import VideoCard from '../components/VideoCard.vue'
 import WikipediaCard from '../components/WikipediaCard.vue'
@@ -327,14 +328,7 @@ const hasSocialEmbed = computed(
           </ul>
         </section>
 
-        <section v-if="images.length" class="space-y-2">
-          <h2 class="section-title">תמונות</h2>
-          <div class="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            <a v-for="image in images" :key="image.id" :href="image.url" target="_blank" rel="noopener">
-              <img :src="image.url" :alt="image.title" loading="lazy" class="aspect-square w-full rounded-xl object-cover" />
-            </a>
-          </div>
-        </section>
+        <HomeSlideshow :key="team.id" :images="images" :media-to="base + '/media'" />
       </div>
 
       <aside v-if="hasSocial" class="min-w-0 space-y-4">
