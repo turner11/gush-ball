@@ -154,7 +154,7 @@ const hasSocialEmbed = computed(
         <section v-if="team.about || canEdit" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">על הקבוצה</h2>
-            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary" aria-label="עריכת הטקסט בניהול הקבוצה">עריכה</RouterLink>
+            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary">עריכה</RouterLink>
           </div>
           <div v-if="team.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
           <p v-else class="empty-state">עוד אין טקסט על הקבוצה.</p>
@@ -198,7 +198,7 @@ const hasSocialEmbed = computed(
         <section v-if="links.length || canEdit" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">קישורים</h2>
-            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary" aria-label="עריכת הקישורים בניהול הקבוצה">עריכת קישורים</RouterLink>
+            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary">עריכת קישורים</RouterLink>
           </div>
           <p v-if="!links.length" class="empty-state">אין קישורים עדיין.</p>
           <ul v-else class="flex flex-wrap gap-2">

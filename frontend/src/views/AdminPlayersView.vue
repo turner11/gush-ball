@@ -66,6 +66,9 @@ async function loadPlayers() {
     const loaded = await apiFetch(`/teams/${id}/players`)
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     players.value = loaded
+    // deep link from the player page (#496); re-checked per load since the layout may switch team after mount
+    const linked = loaded.find((p) => p.id === Number(route.query.edit))
+    if (linked) startEdit(linked)
     await loadLinks(id)
   } finally {
     if (id === selectedTeamId.value) loading.value = false
@@ -77,9 +80,6 @@ const route = useRoute()
 onMounted(async () => {
   teams.value = ownTeams(await apiFetch('/teams'))
   await loadPlayers()
-  // deep link from the player page (#496)
-  const linked = players.value.find((p) => p.id === Number(route.query.edit))
-  if (linked) startEdit(linked)
 })
 
 watch(selectedTeamId, loadPlayers)

@@ -81,6 +81,26 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('עריכת שחקן')
   })
 
+  it('?edit=<id> still opens the player when the team is switched after mount', async () => {
+    localStorage.setItem('gush-ball:selected-team-id', '2')
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'GET /api/teams/2/players': () => jsonRes([]),
+    })
+    router.push('/1/admin/players?edit=10')
+    await router.isReady()
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+    useSelectedTeam().selectedTeamId.value = '1' // what AdminLayout does from the slug
+    await flushPromises()
+
+    expect(wrapper.find('#player-name').element.value).toBe('יוסי')
+  })
+
   it('shows an empty state, not an empty table, when the team has no players', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
