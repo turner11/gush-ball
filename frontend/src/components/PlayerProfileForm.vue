@@ -5,18 +5,23 @@ import ImageUpload from './ImageUpload.vue'
 import PlayerVideosEditor from './PlayerVideosEditor.vue'
 import { apiFetch } from '../lib/api'
 
-const props = defineProps({ player: { type: Object, required: true } })
+const props = defineProps({
+  player: { type: Object, required: true },
+  withName: { type: Boolean, default: false }, // the name is a property: only the linked player edits it here (#496)
+})
 const emit = defineEmits(['saved', 'cancel'])
 
 const name = ref(props.player.name)
 const nameEn = ref(props.player.name_en ?? '')
 const nameInput = ref(null)
+const uploadWrap = ref(null)
 const saving = ref(false)
 const error = ref('')
 
-onMounted(() => nameInput.value?.focus())
+onMounted(() => (nameInput.value ?? uploadWrap.value?.querySelector('button, input'))?.focus())
 
 async function save() {
+  if (!props.withName) return
   saving.value = true
   error.value = ''
   try {
@@ -57,14 +62,16 @@ async function removeImage(image) {
   <form id="profile-form" class="card max-w-xl space-y-3" @submit.prevent="save">
     <p v-if="error" class="error-text" role="alert">{{ error }}</p>
 
-    <div>
-      <label for="profile-name" class="field-label">שם</label>
-      <input id="profile-name" ref="nameInput" v-model="name" type="text" required class="field-input" />
-    </div>
-    <div>
-      <label for="profile-name-en" class="field-label">שם באנגלית</label>
-      <input id="profile-name-en" v-model="nameEn" type="text" dir="ltr" class="field-input" />
-    </div>
+    <template v-if="withName">
+      <div>
+        <label for="profile-name" class="field-label">שם</label>
+        <input id="profile-name" ref="nameInput" v-model="name" type="text" required class="field-input" />
+      </div>
+      <div>
+        <label for="profile-name-en" class="field-label">שם באנגלית</label>
+        <input id="profile-name-en" v-model="nameEn" type="text" dir="ltr" class="field-input" />
+      </div>
+    </template>
 
     <div>
       <h2 class="field-label">תמונות</h2>
@@ -75,7 +82,7 @@ async function removeImage(image) {
         </li>
       </ul>
       <p v-else class="empty-state">אין תמונות עדיין</p>
-      <div class="mt-2"><ImageUpload label="העלאת תמונה" @uploaded="addImage" /></div>
+      <div ref="uploadWrap" class="mt-2"><ImageUpload label="העלאת תמונה" @uploaded="addImage" /></div>
     </div>
 
     <div>
@@ -84,8 +91,8 @@ async function removeImage(image) {
     </div>
 
     <div class="flex gap-2">
-      <button type="submit" class="btn-primary" :disabled="saving">{{ saving ? 'שומר…' : 'שמירה' }}</button>
-      <button type="button" class="btn-secondary" @click="emit('cancel')">ביטול</button>
+      <button v-if="withName" type="submit" class="btn-primary" :disabled="saving">{{ saving ? 'שומר…' : 'שמירה' }}</button>
+      <button type="button" class="btn-secondary" @click="emit('cancel')">{{ withName ? 'ביטול' : 'סגירה' }}</button>
     </div>
   </form>
 </template>

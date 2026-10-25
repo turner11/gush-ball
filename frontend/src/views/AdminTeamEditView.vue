@@ -66,8 +66,8 @@ const clubOptions = computed(() => [...new Set(allTeams.value.map((t) => t.club)
 const previewFailed = ref(false)
 const form = reactive({
   ...Object.fromEntries(GROUPS.flatMap((g) => g.fields).map((f) => [f.key, ''])),
-  primary_color: '#000000',
-  secondary_color: '#000000',
+  primary_color: '',
+  secondary_color: '',
   background: 'hoop-1',
 })
 

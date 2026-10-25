@@ -209,7 +209,7 @@ describe('ClubView', () => {
 
   it('shows the edit button to a club admin and full admin, never to anonymous or in preview', async () => {
     const { useAuth, previewMode } = await import('../composables/useAuth')
-    const editBtn = (w) => w.findAll('button').some((b) => b.text() === 'עריכת עמוד המועדון')
+    const editBtn = (w) => w.findAll('button').some((b) => b.text() === 'עריכת עדכונים')
     for (const [user, preview, shown] of [
       [{ team_ids: [1], clubs: ['מכבי'] }, null, true],
       [{ team_ids: [1], clubs: ['אחר'] }, null, false],
@@ -238,7 +238,7 @@ describe('ClubView', () => {
           : base(url, o),
       )
       const w = await mountIt()
-      await w.findAll('button').find((b) => b.text() === 'עריכת עמוד המועדון').trigger('click')
+      await w.findAll('button').find((b) => b.text() === 'עריכת עדכונים').trigger('click')
       return w
     }
     afterEach(async () => {
@@ -247,7 +247,7 @@ describe('ClubView', () => {
       previewMode.value = null
     })
 
-    it('the club page editor also manages posts, and closing it reloads them', async () => {
+    it('the club page edits posts inline, and closing reloads them', async () => {
       const { default: TeamContentSection } = await import('../components/TeamContentSection.vue')
       const w = await openEditor()
       await flushPromises()
@@ -270,30 +270,40 @@ describe('ClubView', () => {
       const before = postLoads()
       previewMode.value = 'anonymous'
       await flushPromises()
-      expect(w.find('#club-about-editor').exists()).toBe(false)
+      expect(w.find('#club-posts-editor').exists()).toBe(false)
       expect(postLoads()).toBe(before + 1)
     })
 
-    it('club admin edits about and officials inline and sees the result', async () => {
+    it('the club page never renders the about form; about and officials stay visible while editing posts', async () => {
       const w = await openEditor()
-      await w.get('#club-about-title').setValue('כותרת חדשה')
-      await w.get('#club-about-editor').trigger('submit')
       await flushPromises()
-
-      const [url, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PUT')
-      expect(url).toBe('/api/clubs/5/about')
-      expect(JSON.parse(options.body).officials).toHaveLength(2)
       expect(w.find('#club-about-editor').exists()).toBe(false)
-      expect(w.findAll('h2').map((h) => h.text())).toContain('כותרת חדשה')
+      expect(w.find('#club-posts-editor').exists()).toBe(true)
+      expect(w.text()).toContain('הסיפור שלנו')
+      expect(w.text()).toContain(CLUBS[0].officials[0].name)
+    })
+
+    it('"ניהול המועדון" links a club admin to /admin/clubs/5, and the empty-content prompt links there too', async () => {
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { team_ids: null }
+      const to = { name: 'admin-club-edit', params: { id: 5 } }
+      mockFetch(GAMES)
+      const w = await mountIt()
+      const link = w.findAllComponents(RouterLinkStub).find((l) => l.text() === 'ניהול המועדון')
+      expect(link.props('to')).toEqual(to)
+      mockFetch(GAMES)
+      const empty = await mountIt('/clubs/6')
+      const add = empty.findAllComponents(RouterLinkStub).find((l) => l.text() === 'הוספת תוכן')
+      expect(add.props('to')).toEqual({ ...to, params: { id: 6 } })
     })
 
     it('turning on the preview closes an open editor', async () => {
       const w = await openEditor()
-      expect(w.find('#club-about-editor').exists()).toBe(true)
+      expect(w.find('#club-posts-editor').exists()).toBe(true)
       const { previewMode } = await import('../composables/useAuth')
       previewMode.value = 'member'
       await nextTick()
-      expect(w.find('#club-about-editor').exists()).toBe(false)
+      expect(w.find('#club-posts-editor').exists()).toBe(false)
     })
   })
 

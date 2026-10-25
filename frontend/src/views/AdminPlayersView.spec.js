@@ -65,6 +65,42 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('7')
   })
 
+  it("?edit=<id> opens that player's edit form", async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+    })
+    router.push('/1/admin/players?edit=10')
+    await router.isReady()
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('#player-name').element.value).toBe('יוסי')
+    expect(wrapper.text()).toContain('עריכת שחקן')
+  })
+
+  it('?edit=<id> still opens the player when the team is switched after mount', async () => {
+    localStorage.setItem('gush-ball:selected-team-id', '2')
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'GET /api/teams/2/players': () => jsonRes([]),
+    })
+    router.push('/1/admin/players?edit=10')
+    await router.isReady()
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+    useSelectedTeam().selectedTeamId.value = '1' // what AdminLayout does from the slug
+    await flushPromises()
+
+    expect(wrapper.find('#player-name').element.value).toBe('יוסי')
+  })
+
   it('shows an empty state, not an empty table, when the team has no players', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
@@ -400,6 +436,31 @@ describe('AdminPlayersView', () => {
     const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
     await flushPromises()
     await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patches[0]).not.toHaveProperty('user_id')
+  })
+
+  it('saving a deep-linked (?edit=) linked player does not unlink the account (#496)', async () => {
+    const patches = []
+    global.fetch = vi.fn((url, options = {}) => {
+      const key = `${options.method || 'GET'} ${url}`
+      if (key === 'GET /api/teams') return Promise.resolve(jsonRes(TEAMS))
+      if (key === 'GET /api/teams/1/players') return Promise.resolve(jsonRes(PLAYERS))
+      if (key === 'GET /api/teams/1/players/linkable-users') return Promise.resolve(jsonRes([{ id: 5, username: 'dana' }]))
+      if (key === 'GET /api/teams/1/players/links') return Promise.resolve(jsonRes([{ player_id: 10, user_id: 5, username: 'dana' }]))
+      if (key === 'PATCH /api/teams/1/players/10') {
+        patches.push(JSON.parse(options.body))
+        return Promise.resolve(jsonRes(PLAYERS[0]))
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${key}`))
+    })
+    router.push('/1/admin/players?edit=10')
+    await router.isReady()
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(patches[0]).not.toHaveProperty('user_id')

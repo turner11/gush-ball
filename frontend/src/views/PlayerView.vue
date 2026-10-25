@@ -151,13 +151,14 @@ watch(
               aria-controls="profile-form"
               @click="editing = !editing"
             >
-              {{ isMine ? 'עריכת הפרופיל שלי' : 'עריכת שחקן' }}
+              {{ isMine ? 'עריכת הפרופיל שלי' : 'עריכת מדיה' }}
             </button>
+            <RouterLink v-if="canEditTeam(player.team_id)" :to="{ name: 'admin-players', params: { slug: String(player.team_id) }, query: { edit: player.id } }" class="btn-secondary">ניהול שחקן</RouterLink>
             <RouterLink :to="{ name: 'roster', params: { slug: String(player.team_id) } }" class="section-link">כל השחקנים של {{ team.name }}</RouterLink>
           </div>
         </div>
       </header>
-      <PlayerProfileForm v-if="canEdit && editing" :player="player" @saved="onSaved" @cancel="closeEditor" />
+      <PlayerProfileForm v-if="canEdit && editing" :player="player" :with-name="isMine" @saved="onSaved" @cancel="closeEditor" />
       <section v-if="scoring.length" class="card space-y-4">
         <h2 class="section-title">סטטיסטיקה</h2>
         <div class="grid grid-cols-3 gap-3">
