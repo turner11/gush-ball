@@ -8,6 +8,7 @@ import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { splitGames } from '../lib/games'
 import { clubJsonLd, pageTitle, setJsonLd, setMeta } from '../lib/head'
+import { CONTENT_SECTIONS } from '../lib/teamContent'
 import { leagueKey } from '../lib/leagues'
 import { DEFAULT_PLAYER_PHOTO, onPlayerImgError } from '../lib/playerPhoto'
 import { matchRank } from '../lib/search'
@@ -17,6 +18,7 @@ import TeamCard from '../components/TeamCard.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ClubAboutForm from '../components/ClubAboutForm.vue'
 import PostCard from '../components/PostCard.vue'
+import TeamContentSection from '../components/TeamContentSection.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 
 // "This week at the club": the games of every team in this club from the last 7 to the next 7 days (#326).
@@ -53,6 +55,7 @@ function onSaved(updated) {
 }
 async function closeEditor() {
   editing.value = false
+  loadPosts(route.params.clubSlug) // the posts editor may have changed them
   await nextTick()
   editToggle.value?.focus()
 }
@@ -171,7 +174,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
         </div>
         <div class="flex flex-wrap gap-x-4 gap-y-2">
           <RouterLink v-if="canEdit" :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">ניהול המועדון</RouterLink>
-          <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" aria-controls="club-about-editor" :aria-expanded="editing" @click="editing = !editing">{{ editing ? 'סיום עריכה' : 'עריכת עמוד המועדון' }}</button>
+          <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" aria-controls="club-about-editor" :aria-expanded="editing" @click="editing ? closeEditor() : (editing = true)">{{ editing ? 'סיום עריכה' : 'עריכת עמוד המועדון' }}</button>
           <a v-if="club.ibasketball_url" :href="club.ibasketball_url" target="_blank" rel="noopener noreferrer" class="section-link">המועדון ב-ibasketball</a>
         </div>
       </div>
@@ -192,7 +195,8 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           <ImageLightbox ref="lightbox" :images="club.about_images.map((i) => ({ url: i.url, alt: i.title || club.name }))" />
         </div>
       </section>
-      <section v-if="posts.length || postsError" class="space-y-3">
+      <TeamContentSection v-if="editing" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.posts" />
+      <section v-else-if="posts.length || postsError" class="space-y-3">
         <h2 class="section-title">עדכונים</h2>
         <p v-if="postsError" class="error-text" role="alert">שגיאה בטעינת העדכונים</p>
         <div v-else class="space-y-6">
