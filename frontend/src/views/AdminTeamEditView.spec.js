@@ -38,7 +38,7 @@ function jsonRes(body, status = 200) {
 }
 
 const CONTENT_HANDLERS = Object.fromEntries(
-  ['links', 'videos', 'images', 'posts', 'players', 'admins'].map((r) => [`GET /api/teams/1/${r}`, () => jsonRes([])]),
+  ['links', 'videos', 'images', 'posts', 'plays', 'players', 'admins'].map((r) => [`GET /api/teams/1/${r}`, () => jsonRes([])]),
 )
 
 describe('AdminTeamEditView', () => {
@@ -76,6 +76,15 @@ describe('AdminTeamEditView', () => {
     }
     expect(wrapper.find('#team-primary-color').element.value).toBe('#ff0000')
     expect(wrapper.find('#team-about').element.tagName).toBe('TEXTAREA')
+  })
+
+  it('renders each team content section once (#499)', async () => {
+    mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
+
+    const wrapper = await mountView()
+
+    const resources = wrapper.findAllComponents({ name: 'TeamContentSection' }).map((c) => c.props('resource'))
+    expect(resources).toEqual(['links', 'videos', 'images', 'posts', 'plays'])
   })
 
   it('saves about, sending null when cleared', async () => {
