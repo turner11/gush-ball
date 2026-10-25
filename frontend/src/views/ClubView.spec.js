@@ -192,6 +192,14 @@ describe('ClubView', () => {
     expect(w.get('img[alt="האולם"]').attributes('src')).toBe('https://cdn.example.com/a.jpg')
   })
 
+  it('clicking an about image opens the in-page viewer', async () => {
+    mockFetch(GAMES)
+    const w = await mountIt()
+    await w.get('button[aria-label="הגדלת תמונה: האולם"]').trigger('click')
+    expect(w.get('dialog').attributes('open')).toBeDefined()
+    expect(w.get('dialog img').attributes('src')).toBe('https://cdn.example.com/a.jpg')
+  })
+
   it('hides the about block when the club has no about content', async () => {
     mockFetch(GAMES)
     const w = await mountIt('/clubs/6')

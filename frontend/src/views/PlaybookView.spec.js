@@ -66,6 +66,15 @@ describe('PlaybookView', () => {
     }
   })
 
+  it('clicking an image play opens the in-page viewer', async () => {
+    mockFetch()
+    const wrapper = await mountView()
+    expect(wrapper.find('a[href="https://cdn/a.gif"]').exists()).toBe(false)
+    await wrapper.get('button[aria-label="הגדלת תמונה: GIF"]').trigger('click')
+    expect(wrapper.get('dialog').attributes('open')).toBeDefined()
+    expect(wrapper.get('dialog img').attributes('src')).toBe('https://cdn/a.gif')
+  })
+
   it('shows an empty state', async () => {
     mockFetch({ 'GET /api/teams/1/plays': () => jsonRes([]) })
     expect((await mountView()).text()).toContain('עדיין אין מהלכים')

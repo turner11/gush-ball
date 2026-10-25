@@ -151,6 +151,14 @@ describe('GameView', () => {
       expect(wrapper.find('img[src="https://cdn.example.com/a.jpg"]').attributes('alt')).toBe('חגיגה')
     })
 
+    it('(media) clicking an image opens the in-page viewer', async () => {
+      mockFetch(ok(withMedia))
+      const { wrapper } = await mountAt(true)
+      await wrapper.get('button[aria-label="הגדלת תמונה: חגיגה"]').trigger('click')
+      expect(wrapper.get('dialog').attributes('open')).toBeDefined()
+      expect(wrapper.get('dialog img').attributes('src')).toBe('https://cdn.example.com/a.jpg')
+    })
+
     it('hides the media card from visitors when both lists are empty', async () => {
       mockFetch(ok(GAME))
       const { wrapper } = await mountAt(true)
