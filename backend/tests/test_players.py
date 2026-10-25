@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.main import app
 from app.models import AdminUser, Membership, Player, PlayerImage, PlayerVideo, Team
+from app.routers import players
 from app.routers.players import ISRAEL, age_on
 from app.security import hash_password
 
@@ -392,6 +393,19 @@ def test_linked_user_manages_own_videos_only(client: TestClient, db_session: Ses
     db_session.commit()
     assert client.delete(f"/players/{mine.id}/videos/{teammate_video.id}").status_code == 404
     assert client.delete(f"/players/{mine.id}/videos/{created.json()['id']}").status_code == 204
+
+
+def test_player_videos_capped(client: TestClient, db_session: Session, own_team: Team) -> None:
+    user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
+    mine = _player(db_session, own_team, user=user)
+    db_session.add_all(
+        PlayerVideo(player_id=mine.id, title=f"V{i}", url=VIDEO["url"]) for i in range(players.MAX_PLAYER_VIDEOS)
+    )
+    db_session.commit()
+    assert client.post(f"/players/{mine.id}/videos", json=VIDEO).status_code == 409
+    first = db_session.query(PlayerVideo).filter_by(player_id=mine.id).first()
+    assert client.delete(f"/players/{mine.id}/videos/{first.id}").status_code == 204
+    assert client.post(f"/players/{mine.id}/videos", json=VIDEO).status_code == 201
 
 
 @pytest.mark.parametrize(

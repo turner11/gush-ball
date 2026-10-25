@@ -150,6 +150,18 @@ def test_og_game_title_names_opponent_and_final_score(client, db_session: Sessio
     assert _og(client, f"/other/games/{game.id}") == ""
 
 
+def test_og_game_needing_review_is_empty(client, db_session: Session) -> None:
+    team = _team(db_session)
+    opponent = Opponent(name="מכבי")
+    db_session.add(opponent)
+    db_session.commit()
+    game = Game(team_id=team.id, opponent_id=opponent.id, scheduled_at=datetime(2026, 1, 1, tzinfo=UTC), needs_review=True)
+    db_session.add(game)
+    db_session.commit()
+
+    assert _og(client, f"/elizur/games/{game.id}") == ""
+
+
 def test_og_club_page_title_lists_teams(client, db_session: Session) -> None:
     db_session.add(Club(name="אליצור", name_en="Elizur Club"))
     db_session.add_all([Team(name="בוגרים", slug="a", club="אליצור"), Team(name="נוער", slug="b", club="אליצור", logo_url="https://cdn.example/b.png")])

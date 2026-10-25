@@ -44,6 +44,14 @@ def _game_payload(**overrides: object) -> dict:
     return payload
 
 
+def test_game_description_capped(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+
+    response = admin_client.post(f"/teams/{team.id}/games", json=_game_payload(description="x" * 2001))
+
+    assert response.status_code == 422
+
+
 def test_create_game_as_admin_creates_new_opponent(admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
 
