@@ -316,6 +316,16 @@ describe('HomeView', () => {
     })
   })
 
+  it('renders the home slideshow with the full images list', async () => {
+    const images = [
+      { id: 1, title: 'a', url: '/a.jpg', player_ids: [], hidden_from_home: false },
+      { id: 2, title: 'b', url: '/b.jpg', player_ids: [], hidden_from_home: true },
+    ]
+    const wrapper = await mountWithTeam(TEAM, { images })
+    const { default: HomeSlideshow } = await import('../components/HomeSlideshow.vue')
+    expect(wrapper.findComponent(HomeSlideshow).props('images')).toEqual(images)
+  })
+
   it('passes the team images to the player cards', async () => {
     const images = [{ id: 1, url: '/t.jpg', player_ids: [1] }]
     const wrapper = await mountWithTeam(TEAM, {

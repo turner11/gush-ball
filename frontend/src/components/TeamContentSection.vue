@@ -105,6 +105,9 @@ onMounted(load)
         class="flex items-center justify-between gap-2 py-2"
       >
         <span class="flex min-w-0 items-center gap-2">
+          <template v-for="f in fields" :key="f.key">
+            <img v-if="f.preview && item[f.key]" :src="item[f.key]" alt="" loading="lazy" class="size-16 shrink-0 rounded-xl object-cover" />
+          </template>
           <span class="min-w-0 truncate">{{ fields.filter((f) => !['players', 'checkbox'].includes(f.type)).map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
           <template v-for="f in fields" :key="f.key">
             <span v-if="f.type === 'checkbox' && item[f.key]" class="badge badge-muted shrink-0">{{ f.label }}</span>
@@ -173,6 +176,8 @@ onMounted(load)
           class="field-input"
         />
         <ImageUpload v-if="field.upload" :accept="field.accept" @uploaded="(url) => (form[field.key] = url)" />
+        <!-- big enough to tell who is in the photo while tagging below -->
+        <img v-if="field.preview && form[field.key]" :src="form[field.key]" alt="תצוגה מקדימה" class="mt-2 max-h-72 w-full rounded-xl bg-raised object-contain" />
         </template>
       </div>
 

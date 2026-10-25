@@ -16,6 +16,7 @@ import GameRow from '../components/GameRow.vue'
 import TeamCard from '../components/TeamCard.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ClubAboutForm from '../components/ClubAboutForm.vue'
+import ImageLightbox from '../components/ImageLightbox.vue'
 
 // "This week at the club": the games of every team in this club from the last 7 to the next 7 days (#326).
 function day(offset) {
@@ -27,6 +28,7 @@ function day(offset) {
 const route = useRoute()
 const router = useRouter()
 const { selectedTeamId } = useSelectedTeam()
+const lightbox = ref(null)
 const loading = ref(true)
 const error = ref(false)
 const games = ref([])
@@ -164,9 +166,12 @@ watch(() => route.params.clubSlug, load, { immediate: true })
         </div>
         <div v-if="club.about_images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <figure v-for="(img, i) in club.about_images" :key="i" class="space-y-1">
-            <a :href="img.url" target="_blank" rel="noopener"><img :src="img.url" :alt="img.title || club.name" loading="lazy" class="aspect-square w-full rounded-xl object-cover" /></a>
+            <button type="button" class="block w-full cursor-zoom-in" :aria-label="`הגדלת תמונה: ${img.title || club.name}`" @click="lightbox.open(i, $event)">
+              <img :src="img.url" :alt="img.title || club.name" loading="lazy" class="aspect-square w-full rounded-xl object-cover" />
+            </button>
             <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>
           </figure>
+          <ImageLightbox ref="lightbox" :images="club.about_images.map((i) => ({ url: i.url, alt: i.title || club.name }))" />
         </div>
       </section>
       <section v-if="!editing && club.officials.length" class="space-y-3">

@@ -61,6 +61,33 @@ describe('TeamContentSection', () => {
     expect(wrapper.find('#links-url').element.value).toBe('https://cdn/x.png')
   })
 
+  it('field with preview:true shows a list thumbnail and a form preview, so tags can be picked by sight', async () => {
+    mockFetch({
+      'GET /api/teams/1/images': () => jsonRes([{ id: 5, title: 'משחק', url: 'https://cdn/old.png' }]),
+      'POST /api/uploads': () => jsonRes({ url: 'https://cdn/new.png' }),
+    })
+
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const fields = [
+      { key: 'title', label: 'כותרת', type: 'text', required: true },
+      { key: 'url', label: 'כתובת', type: 'url', required: true, upload: true, preview: true },
+    ]
+    const wrapper = mount(TeamContentSection, {
+      props: { teamId: 1, resource: 'images', heading: 'תמונות', fields },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('li img').attributes('src')).toBe('https://cdn/old.png')
+    expect(wrapper.find('form img').exists()).toBe(false)
+
+    const input = wrapper.find('input[type="file"]')
+    Object.defineProperty(input.element, 'files', { value: [new File(['a'], 'a.png', { type: 'image/png' })], configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.find('form img').attributes('src')).toBe('https://cdn/new.png')
+  })
+
   it('clicking מחיקה opens a confirmation dialog and does not call DELETE until confirmed', async () => {
     mockFetch({ 'GET /api/teams/1/links': () => jsonRes(LINKS) })
 

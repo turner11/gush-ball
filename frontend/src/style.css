@@ -270,3 +270,20 @@
     @apply overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
   }
 }
+
+/* Cross-fade for <Transition name="slide"> (PlayerCard hover slideshow, HomeSlideshow). */
+.slide-enter-active,
+.slide-leave-active {
+  transition: opacity 0.4s ease, scale 0.4s ease;
+}
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  scale: 1.05; /* not `transform`: the inline focus zoom owns that */
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-enter-active,
+  .slide-leave-active {
+    transition: none;
+  }
+}

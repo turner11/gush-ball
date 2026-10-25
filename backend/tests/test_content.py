@@ -380,3 +380,19 @@ def test_post_pinned_defaults_false_and_rejects_null(admin_client: TestClient, t
     assert created["pinned"] is False
     response = admin_client.patch(f"/teams/{team.id}/posts/{created['id']}", json={"pinned": None})
     assert response.status_code == 422
+
+
+def test_image_hidden_from_home_defaults_false_round_trips_and_rejects_null(
+    admin_client: TestClient, client: TestClient, team: Team
+) -> None:
+    url = f"/teams/{team.id}/images"
+    body = {"title": "t", "url": "https://img.example.com/a.jpg"}
+    assert admin_client.post(url, json=body).json()["hidden_from_home"] is False
+
+    hidden = admin_client.post(url, json={**body, "hidden_from_home": True}).json()
+    assert hidden["hidden_from_home"] is True
+    assert {i["id"]: i["hidden_from_home"] for i in client.get(url).json()}[hidden["id"]] is True
+
+    patched = admin_client.patch(f"{url}/{hidden['id']}", json={"hidden_from_home": False})
+    assert patched.json()["hidden_from_home"] is False
+    assert admin_client.patch(f"{url}/{hidden['id']}", json={"hidden_from_home": None}).status_code == 422

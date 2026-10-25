@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
+import ImageLightbox from '../components/ImageLightbox.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
@@ -18,6 +19,7 @@ const route = useRoute()
 const { selectedTeamId, teamsLoaded } = useSelectedTeam()
 const team = ref(null)
 const game = ref(null)
+const lightbox = ref(null)
 const loading = ref(true)
 const error = ref('')
 
@@ -31,6 +33,7 @@ const editingScorers = ref(false)
 const scorersToggle = ref(null)
 const editingMedia = ref(false)
 const mediaToggle = ref(null)
+const gameImages = computed(() => (game.value?.images ?? []).map((i) => ({ url: i.url, alt: i.title || `נגד ${game.value.opponent.name}` })))
 const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.images?.length))
 const address = computed(() => gameAddress(game.value, team.value))
 
@@ -175,9 +178,12 @@ watch(
         </ul>
         <div v-if="game.images?.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <figure v-for="(img, i) in game.images" :key="i" class="space-y-1">
-            <a :href="img.url" target="_blank" rel="noopener"><img :src="img.url" :alt="img.title || `נגד ${game.opponent.name}`" loading="lazy" class="aspect-square w-full rounded-xl object-cover" /></a>
+            <button type="button" class="block w-full cursor-zoom-in" :aria-label="`הגדלת תמונה: ${gameImages[i].alt}`" @click="lightbox.open(i, $event)">
+              <img :src="img.url" :alt="gameImages[i].alt" loading="lazy" class="aspect-square w-full rounded-xl object-cover" />
+            </button>
             <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>
           </figure>
+          <ImageLightbox ref="lightbox" :images="gameImages" />
         </div>
       </template>
       <p v-else class="empty-state">עדיין לא נוספו סרטונים או תמונות.</p>

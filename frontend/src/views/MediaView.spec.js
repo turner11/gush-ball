@@ -91,6 +91,15 @@ describe('MediaView', () => {
     expect(wrapper.findAll('img').map((i) => i.attributes('alt'))).toEqual(['תמונה ב', 'תמונה א'])
   })
 
+  it('clicking an image opens the in-page viewer, not a new tab', async () => {
+    const wrapper = await mountView()
+    await openTab(wrapper, 'תמונות')
+    expect(wrapper.find('a[target=_blank]').exists()).toBe(false)
+    await wrapper.get('button[aria-label="הגדלת תמונה: תמונה ב"]').trigger('click')
+    expect(wrapper.get('dialog').attributes('open')).toBeDefined()
+    expect(wrapper.get('dialog img').attributes('src')).toBe('https://img/b.jpg')
+  })
+
   it('shows an empty state for a tab with no items', async () => {
     const wrapper = await mountView({ videos: [] })
     expect(wrapper.find('.empty-state').exists()).toBe(true)

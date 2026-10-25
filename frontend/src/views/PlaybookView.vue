@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import ImageLightbox from '../components/ImageLightbox.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { canEditTeam, teamMember, useAuth, viewer } from '../composables/useAuth'
@@ -16,8 +17,13 @@ const { checked, checkSession } = useAuth()
 if (!checked.value) checkSession()
 
 const plays = ref([])
+const lightbox = ref(null)
 const loading = ref(false)
 const error = ref(false)
+
+// Image plays open in the in-page viewer; its index is into this filtered list.
+const imagePlays = computed(() => plays.value.filter((p) => playKind(p) === 'image'))
+const lightboxImages = computed(() => imagePlays.value.map((p) => ({ url: p.file_url, alt: p.title })))
 
 // Uploaded keys always end in an allow-listed extension (storage.py), so it tells the kinds apart.
 function playKind(play) {
@@ -88,9 +94,15 @@ watch(canEdit, (can) => {
       <li v-for="play in plays" :key="play.id" class="space-y-2">
         <VideoCard v-if="playKind(play) === 'link'" :video="play" />
         <template v-else>
-          <a v-if="playKind(play) === 'image'" :href="play.file_url" target="_blank" rel="noopener">
+          <button
+            v-if="playKind(play) === 'image'"
+            type="button"
+            class="block w-full cursor-zoom-in"
+            :aria-label="`הגדלת תמונה: ${play.title}`"
+            @click="lightbox.open(imagePlays.indexOf(play), $event)"
+          >
             <img :src="play.file_url" :alt="play.title" loading="lazy" class="w-full rounded-xl object-contain" />
-          </a>
+          </button>
           <video v-else-if="playKind(play) === 'video'" :src="play.file_url" :aria-label="play.title" controls preload="metadata" playsinline class="w-full rounded-xl" />
           <a v-else :href="play.file_url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">
             <span class="font-extrabold">{{ play.title }}</span><span class="badge badge-muted">PDF</span><AppIcon name="external" />
@@ -100,5 +112,6 @@ watch(canEdit, (can) => {
         <p v-if="play.notes" class="whitespace-pre-line text-muted">{{ play.notes }}</p>
       </li>
     </ul>
+    <ImageLightbox ref="lightbox" :images="lightboxImages" />
   </section>
 </template>
