@@ -6,12 +6,11 @@ import AppIcon from '../components/AppIcon.vue'
 import ErrorBoundary from '../components/ErrorBoundary.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
-import { fullAdmin, ownTeams, useAuth } from '../composables/useAuth'
+import { managesClubs, ownTeams, useAuth } from '../composables/useAuth'
 import { useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 
-const { logout, user } = useAuth()
-const showClubs = computed(() => fullAdmin.value || !!user.value?.clubs?.length)
+const { logout } = useAuth()
 const router = useRouter()
 const route = useRoute()
 
@@ -23,7 +22,7 @@ const tabItems = computed(() => [
   { to: base.value + '/admin/games', label: 'משחקים', icon: 'calendar' },
   { to: '/admin/standings', label: 'טבלה', icon: 'table' },
   { to: { name: 'admin-teams' }, label: 'קבוצות', icon: 'grid' },
-  ...(showClubs.value ? [{ to: { name: 'admin-clubs' }, label: 'מועדונים', icon: 'shield' }] : []),
+  ...(managesClubs.value ? [{ to: { name: 'admin-clubs' }, label: 'מועדונים', icon: 'shield' }] : []),
 ])
 
 // A team admin's list holds only their own team, so a foreign or unknown slug falls back to it (hence fallbackToFirst).
@@ -56,7 +55,7 @@ async function onLogout() {
             <li><RouterLink :to="base + '/admin/games'" active-class="font-bold" class="nav-link">משחקים</RouterLink></li>
             <li><RouterLink to="/admin/standings" active-class="font-bold" class="nav-link">טבלת ליגה</RouterLink></li>
             <li><RouterLink :to="{ name: 'admin-teams' }" active-class="font-bold" class="nav-link">קבוצות</RouterLink></li>
-            <li v-if="showClubs"><RouterLink :to="{ name: 'admin-clubs' }" active-class="font-bold" class="nav-link">מועדונים</RouterLink></li>
+            <li v-if="managesClubs"><RouterLink :to="{ name: 'admin-clubs' }" active-class="font-bold" class="nav-link">מועדונים</RouterLink></li>
           </ul>
         </nav>
         <RouterLink :to="base || '/'" class="nav-link ms-auto">לאתר</RouterLink>
