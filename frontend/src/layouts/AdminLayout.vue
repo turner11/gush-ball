@@ -22,7 +22,7 @@ const tabItems = computed(() => [
   { to: base.value + '/admin/players', label: 'שחקנים', icon: 'users' },
   { to: base.value + '/admin/games', label: 'משחקים', icon: 'calendar' },
   { to: '/admin/standings', label: 'טבלה', icon: 'table' },
-  { to: { name: 'admin-teams' }, label: 'קבוצות', icon: 'shield' },
+  { to: { name: 'admin-teams' }, label: 'קבוצות', icon: 'grid' },
   ...(showClubs.value ? [{ to: { name: 'admin-clubs' }, label: 'מועדונים', icon: 'shield' }] : []),
 ])
 

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
 
-from app.deps import DbSession, RequireAdmin, RequireAnyAdmin, check_club_scope
+from app.deps import DbSession, RequireAdmin, RequireAnyAdmin, check_club_scope, get_club_or_404
 from app.models import Club
 from app.routers.teams import About, ClubName, IbasketballUrl, Name, TitledImage, Url500
 
@@ -69,9 +69,7 @@ def list_clubs(db: DbSession) -> list[Club]:
 
 @router.patch("/{club_id}", response_model=ClubOut)
 def update_club(club_id: int, payload: ClubUpdate, _admin_id: RequireAdmin, db: DbSession) -> Club:
-    club = db.get(Club, club_id)
-    if club is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Club {club_id} not found")
+    club = get_club_or_404(db, club_id)
     updates = payload.model_dump(exclude_unset=True)
     if updates.get("ibasketball_url"):
         updates["ibasketball_url"] = str(updates["ibasketball_url"])
@@ -87,9 +85,7 @@ def update_club(club_id: int, payload: ClubUpdate, _admin_id: RequireAdmin, db: 
 
 @router.put("/{club_id}/about", response_model=ClubOut)
 def update_club_about(club_id: int, payload: ClubAboutUpdate, admin: RequireAnyAdmin, db: DbSession) -> Club:
-    club = db.get(Club, club_id)
-    if club is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Club {club_id} not found")
+    club = get_club_or_404(db, club_id)
     check_club_scope(db, admin, club.name)
     for field, value in payload.model_dump(mode="json").items():  # json mode: HttpUrl -> str; lists are reassigned
         setattr(club, field, value)
