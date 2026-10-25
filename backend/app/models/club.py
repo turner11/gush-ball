@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import JSON, String, Text, select
-from sqlalchemy.orm import Mapped, Session, mapped_column
+from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from app.db import Base
+
+if TYPE_CHECKING:
+    from app.models.content import ClubPost
 
 
 class Club(Base):
@@ -24,6 +29,12 @@ class Club(Base):
     about_links: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     # list order is the display order; no _en keys (JSON items gain them without a migration)
     officials: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+
+    posts: Mapped[list["ClubPost"]] = relationship(
+        back_populates="club",
+        cascade="all, delete-orphan",
+        order_by="(ClubPost.pinned.desc(), ClubPost.sort_order.asc().nulls_first(), ClubPost.id.desc())",
+    )
 
 
 def get_or_create_club(db: Session, name: str) -> Club:

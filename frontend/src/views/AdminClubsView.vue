@@ -1,6 +1,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
+import { clubAdmin, fullAdmin } from '../composables/useAuth'
 import { apiFetch } from '../lib/api'
 
 const clubs = ref(null) // null while loading
@@ -12,7 +14,7 @@ async function load() {
   try {
     const list = await apiFetch('/clubs')
     // `saved` holds the last stored values, so a row knows when it has unsaved changes.
-    clubs.value = list.map((c) => ({ ...c, name_en: c.name_en ?? '', ibasketball_url: c.ibasketball_url ?? '', saved: { ...c }, busy: false, status: '' }))
+    clubs.value = list.filter((c) => fullAdmin.value || clubAdmin(c.name)).map((c) => ({ ...c, name_en: c.name_en ?? '', ibasketball_url: c.ibasketball_url ?? '', saved: { ...c }, busy: false, status: '' }))
   } catch {
     loadFailed.value = true
   }
@@ -42,8 +44,9 @@ onMounted(load)
 </script>
 
 <template>
+  <div class="space-y-6">
+  <div class="page-header"><h1 class="page-title">ניהול מועדונים</h1></div>
   <section class="card space-y-3">
-    <h2 class="section-title">מועדונים</h2>
 
     <div v-if="loadFailed" class="space-y-2">
       <p class="error-text" role="alert">שגיאה בטעינת המועדונים</p>
@@ -54,11 +57,11 @@ onMounted(load)
       <div class="skeleton h-11"></div>
     </div>
     <p v-else-if="!clubs.length" class="empty-state">
-      אין מועדונים עדיין. מועדון נוצר כששומרים קבוצה עם שם מועדון, או בסנכרון.
+      {{ fullAdmin ? 'אין מועדונים עדיין. מועדון נוצר כששומרים קבוצה עם שם מועדון, או בסנכרון.' : 'אין מועדונים בניהולך.' }}
     </p>
     <ul v-else class="divide-y divide-line">
       <li v-for="c in clubs" :key="c.id" class="py-3">
-        <form class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-center" @submit.prevent="save(c)">
+        <form v-if="fullAdmin" class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-center" @submit.prevent="save(c)">
           <div class="min-w-0">
             <label :for="`club-name-${c.id}`" class="sr-only">שם המועדון</label>
             <input :id="`club-name-${c.id}`" v-model="c.name" type="text" required maxlength="120" class="field-input min-w-0 font-semibold" />
@@ -79,13 +82,21 @@ onMounted(load)
               class="field-input min-w-0 text-sm"
             />
           </div>
-          <button type="submit" class="btn-secondary w-full sm:w-auto" :disabled="c.busy || !isDirty(c)">שמירה</button>
+          <span class="flex gap-2">
+            <button type="submit" class="btn-secondary flex-1 sm:flex-none" :disabled="c.busy || !isDirty(c)">שמירה</button>
+            <RouterLink :to="{ name: 'admin-club-edit', params: { id: c.id } }" class="btn-ghost">ניהול</RouterLink>
+          </span>
           <p v-if="c.status === 'conflict'" class="error-text sm:col-span-4" role="alert">שם או קישור כבר בשימוש</p>
           <p v-else-if="c.status === 'invalid'" class="error-text sm:col-span-4" role="alert">קישור חייב להיות דף אגודה ב-ibasketball</p>
           <p v-else-if="c.status === 'error'" class="error-text sm:col-span-4" role="alert">השמירה נכשלה, נסו שוב</p>
           <span class="text-sm text-muted sm:col-span-4" aria-live="polite">{{ c.status === 'saved' ? 'נשמר' : '' }}</span>
         </form>
+        <div v-else class="flex items-center justify-between gap-2">
+          <span class="font-semibold">{{ c.name }}</span>
+          <RouterLink :to="{ name: 'admin-club-edit', params: { id: c.id } }" class="btn-ghost">ניהול</RouterLink>
+        </div>
       </li>
     </ul>
   </section>
+  </div>
 </template>

@@ -50,6 +50,8 @@ const router = createRouter({
     { path: '/admin/sentry-test', name: 'admin-sentry-test', component: { setup() { throw new Error('Sentry frontend test error') } }, meta: admin('בדיקת ניטור שגיאות') },
     { path: '/admin/standings', name: 'admin-standings', component: () => import('../views/AdminStandingsView.vue'), meta: admin('ניהול טבלה') },
     { path: '/admin/audit', name: 'admin-audit', component: () => import('../views/AdminAuditView.vue'), meta: admin('יומן שינויים') },
+    { path: '/admin/clubs', name: 'admin-clubs', component: () => import('../views/AdminClubsView.vue'), meta: admin('ניהול מועדונים') },
+    { path: '/admin/clubs/:id', name: 'admin-club-edit', component: () => import('../views/AdminClubEditView.vue'), meta: admin('ניהול מועדון') },
     { path: '/admin/teams', name: 'admin-teams', component: () => import('../views/AdminTeamsView.vue'), meta: admin('ניהול קבוצות') },
     { path: '/admin/users', name: 'admin-users', component: () => import('../views/AdminUsersView.vue'), meta: admin('ניהול משתמשים') },
     { path: '/admin/teams/import', name: 'admin-teams-import', component: () => import('../views/AdminClubImportView.vue'), meta: admin('ייבוא קבוצות מאגודה') },

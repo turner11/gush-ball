@@ -1,21 +1,47 @@
-"""CRUD for a team's five content resources (links/videos/images/posts/plays).
+"""CRUD for a team's five content resources (links/videos/images/posts/plays), plus a club's posts.
 
 The tables stay separate (see CLAUDE.md), but their routes are identical apart from the
 schemas, so they're registered once per resource by `_add_crud_routes` below. Plays' list is
-member-only (#439); the other four lists are public.
+member-only (#439); the other lists are public. Posts and plays are reorderable via `PUT .../order`.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from pydantic import BaseModel, ConfigDict, HttpUrl, model_validator
 from sqlalchemy.orm import Session
 
 from app.db import Base
-from app.deps import DbSession, RequireTeamAdmin, get_team_or_404, require_team_member
-from app.models import TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
+from app.deps import (
+    DbSession,
+    get_club_or_404,
+    get_team_or_404,
+    require_club_admin,
+    require_team_admin,
+    require_team_member,
+)
+from app.models import ClubPost, TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
 
 router = APIRouter(tags=["content"])
+
+
+@dataclass(frozen=True)
+class _Owner:
+    """What a content row belongs to: routes live at /{prefix}s/{prefix_id}/<resource>."""
+
+    prefix: str
+    get_or_404: Callable
+    require_admin: Callable
+
+    @property
+    def fk(self) -> str:
+        return f"{self.prefix}_id"
+
+
+TEAM = _Owner("team", get_team_or_404, require_team_admin)
+CLUB = _Owner("club", get_club_or_404, require_club_admin)
 
 
 class TeamLinkCreate(BaseModel):
@@ -80,7 +106,8 @@ class TeamImageOut(TitledUrlOut):
     hidden_from_home: bool
 
 
-class TeamPostCreate(BaseModel):
+# Team and club posts share their schemas; `sort_order` is only ever set via `PUT .../order`.
+class PostCreate(BaseModel):
     title: str
     title_en: str | None = None
     body: str
@@ -88,7 +115,7 @@ class TeamPostCreate(BaseModel):
     pinned: bool = False
 
 
-class TeamPostUpdate(BaseModel):
+class PostUpdate(BaseModel):
     # omitted = unchanged; null -> 422 (NOT NULL column)
     title: str = None
     title_en: str | None = None
@@ -97,16 +124,23 @@ class TeamPostUpdate(BaseModel):
     pinned: bool = None
 
 
-class TeamPostOut(BaseModel):
+class PostOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    team_id: int
     title: str
     title_en: str | None
     body: str
     body_en: str | None
     pinned: bool
+
+
+class TeamPostOut(PostOut):
+    team_id: int
+
+
+class ClubPostOut(PostOut):
+    club_id: int
 
 
 class TeamPlayCreate(BaseModel):
@@ -169,7 +203,7 @@ def _to_columns(data: dict) -> dict:
 
 def _check_player_ids(team, data: dict) -> None:
     # team.players includes soft-deleted rows, so already-tagged removed players stay valid.
-    if not set(data.get("player_ids", [])) <= {p.id for p in team.players}:
+    if "player_ids" in data and not set(data["player_ids"]) <= {p.id for p in team.players}:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown player_ids"
         )
@@ -183,46 +217,65 @@ def _add_crud_routes(
     out_schema: type[BaseModel],
     not_found: str,
     *,
+    owner: _Owner = TEAM,
+    reorderable: bool = False,
     read_dependencies: Sequence = (),
 ) -> None:
-    path = f"/teams/{{team_id}}/{resource}"
+    path = f"/{owner.prefix}s/{{{owner.fk}}}/{resource}"
+    OwnerId = Annotated[int, Path(alias=owner.fk)]
+    write = [Depends(owner.require_admin)]
 
-    def get_item_or_404(db: Session, team_id: int, item_id: int):
+    def get_item_or_404(db: Session, owner_id: int, item_id: int):
         item = db.get(model, item_id)
-        if item is None or item.team_id != team_id:
+        if item is None or getattr(item, owner.fk) != owner_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=not_found)
         return item
 
-    @router.post(path, response_model=out_schema, status_code=status.HTTP_201_CREATED)
-    def create(team_id: int, payload: create_schema, db: DbSession, _admin_id: RequireTeamAdmin):
+    @router.post(path, response_model=out_schema, status_code=status.HTTP_201_CREATED, dependencies=write)
+    def create(owner_id: OwnerId, payload: create_schema, db: DbSession):
         data = payload.model_dump()
-        _check_player_ids(get_team_or_404(db, team_id), data)
-        item = model(team_id=team_id, **_to_columns(data))
+        _check_player_ids(owner.get_or_404(db, owner_id), data)
+        item = model(**{owner.fk: owner_id}, **_to_columns(data))
         db.add(item)
         db.commit()
         db.refresh(item)
         return item
 
     @router.get(path, response_model=list[out_schema], dependencies=list(read_dependencies))
-    def list_items(team_id: int, db: DbSession):
-        return list(getattr(get_team_or_404(db, team_id), resource))
+    def list_items(owner_id: OwnerId, db: DbSession):
+        return list(getattr(owner.get_or_404(db, owner_id), resource))
 
-    @router.patch(path + "/{item_id}", response_model=out_schema)
-    def update(
-        team_id: int, item_id: int, payload: update_schema, db: DbSession, _admin_id: RequireTeamAdmin
-    ):
-        item = get_item_or_404(db, team_id, item_id)
+    if reorderable:
+
+        @router.put(path + "/order", response_model=list[out_schema], dependencies=write)
+        def reorder(owner_id: OwnerId, ids: list[int], db: DbSession):
+            parent = owner.get_or_404(db, owner_id)
+            by_id = {i.id: i for i in getattr(parent, resource)}
+            if sorted(ids) != sorted(by_id):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"ids must be exactly this {owner.prefix}'s {resource}",
+                )
+            for index, item_id in enumerate(ids):
+                by_id[item_id].sort_order = index
+            db.commit()
+            db.refresh(parent)
+            return list(getattr(parent, resource))
+
+    @router.patch(path + "/{item_id}", response_model=out_schema, dependencies=write)
+    def update(owner_id: OwnerId, item_id: int, payload: update_schema, db: DbSession):
+        item = get_item_or_404(db, owner_id, item_id)
         data = payload.model_dump(exclude_unset=True)
-        _check_player_ids(get_team_or_404(db, team_id), data)
+        _check_player_ids(owner.get_or_404(db, owner_id), data)
         for field, value in _to_columns(data).items():
             setattr(item, field, value)
         db.commit()
         db.refresh(item)
         return item
 
-    @router.delete(path + "/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-    def delete(team_id: int, item_id: int, db: DbSession, _admin_id: RequireTeamAdmin) -> None:
-        db.delete(get_item_or_404(db, team_id, item_id))
+    @router.delete(path + "/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=write)
+    def delete(owner_id: OwnerId, item_id: int, db: DbSession) -> None:
+        db.delete(get_item_or_404(db, owner_id, item_id))
         db.commit()
 
 
@@ -233,7 +286,12 @@ _add_crud_routes(
 _add_crud_routes(
     "images", TeamImage, TeamImageCreate, TeamImageUpdate, TeamImageOut, "Image not found"
 )
-_add_crud_routes("posts", TeamPost, TeamPostCreate, TeamPostUpdate, TeamPostOut, "Post not found")
+_add_crud_routes(
+    "posts", TeamPost, PostCreate, PostUpdate, TeamPostOut, "Post not found", reorderable=True
+)
+_add_crud_routes(
+    "posts", ClubPost, PostCreate, PostUpdate, ClubPostOut, "Post not found", owner=CLUB, reorderable=True
+)
 _add_crud_routes(
     "plays",
     TeamPlay,
@@ -241,20 +299,6 @@ _add_crud_routes(
     TeamPlayUpdate,
     TeamPlayOut,
     "Play not found",
+    reorderable=True,
     read_dependencies=[Depends(require_team_member)],
 )
-
-
-@router.put("/teams/{team_id}/plays/order", response_model=list[TeamPlayOut])
-def reorder_plays(team_id: int, ids: list[int], db: DbSession, _admin_id: RequireTeamAdmin):
-    team = get_team_or_404(db, team_id)
-    if sorted(ids) != sorted(p.id for p in team.plays):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="ids must be exactly this team's plays"
-        )
-    by_id = {p.id: p for p in team.plays}
-    for index, play_id in enumerate(ids):
-        by_id[play_id].sort_order = index
-    db.commit()
-    db.refresh(team)
-    return list(team.plays)

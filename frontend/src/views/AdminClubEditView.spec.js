@@ -33,7 +33,7 @@ describe('AdminClubEditView', () => {
 
     expect(w.get('h1').text()).toBe('מכבי')
     expect(global.fetch.mock.calls.map((c) => c[0])).toContain('/api/clubs/5/posts')
-    expect(w.text()).toContain('על המועדון')
+    expect(w.text()).toContain('טקסט')
     const tos = w.findAllComponents(RouterLinkStub).map((l) => l.props('to'))
     expect(tos).toContainEqual({ name: 'admin-team-edit', params: { id: 1 } })
     expect(tos).not.toContainEqual({ name: 'admin-team-edit', params: { id: 2 } })

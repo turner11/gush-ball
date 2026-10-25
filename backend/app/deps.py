@@ -7,7 +7,7 @@ from sqlalchemy import ColumnElement, Select, exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import AdminUser, Game, Membership, Player, Team
+from app.models import AdminUser, Club, Game, Membership, Player, Team
 from app.security import password_fingerprint
 
 DbSession = Annotated[Session, Depends(get_db)]
@@ -228,6 +228,12 @@ def require_team_admin(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> i
 RequireTeamAdmin = Annotated[int, Depends(require_team_admin)]
 
 
+def require_club_admin(club_id: int, admin: RequireAnyAdmin, db: DbSession) -> int:
+    """Full admin, or an admin of the club `club_id` (taken from the route's path param)."""
+    check_club_scope(db, admin, get_club_or_404(db, club_id).name)
+    return admin.id
+
+
 def can_view_stats(db: Session, user: AdminUser) -> bool:
     """Stats are for full admins and anyone holding an approved (member/admin) grant on any team or club (#249)."""
     if user.is_full_admin:
@@ -269,6 +275,13 @@ def get_team_or_404(db: Session, team_id: int) -> Team:
     if team is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Team {team_id} not found")
     return team
+
+
+def get_club_or_404(db: Session, club_id: int) -> Club:
+    club = db.get(Club, club_id)
+    if club is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Club {club_id} not found")
+    return club
 
 
 def get_game_or_404(db: Session, team_id: int, game_id: int) -> Game:
