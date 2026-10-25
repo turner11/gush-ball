@@ -76,7 +76,7 @@ watch(canEdit, (can) => {
       </button>
     </div>
 
-    <TeamContentSection v-if="editing && canEdit" :key="selectedTeamId" :team-id="selectedTeamId" v-bind="CONTENT_SECTIONS.plays" />
+    <TeamContentSection v-if="editing && canEdit" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.plays" />
     <div v-else-if="!checked || loading" class="grid gap-6 sm:grid-cols-2" aria-busy="true">
       <div class="skeleton h-44" />
       <div class="skeleton h-44" />

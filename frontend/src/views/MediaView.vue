@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 
 import ImageLightbox from '../components/ImageLightbox.vue'
+import PostCard from '../components/PostCard.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { canEditTeam } from '../composables/useAuth'
@@ -92,7 +93,7 @@ const tabs = [
       </TabsList>
 
       <TabsContent value="videos">
-        <TeamContentSection v-if="editing" :key="selectedTeamId" :team-id="selectedTeamId" v-bind="CONTENT_SECTIONS.videos" />
+        <TeamContentSection v-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.videos" />
         <div v-else-if="loading" class="space-y-3" aria-busy="true">
           <div class="skeleton h-32" />
           <div class="skeleton h-32" />
@@ -104,22 +105,16 @@ const tabs = [
       </TabsContent>
 
       <TabsContent value="posts">
-        <TeamContentSection v-if="editing" :key="selectedTeamId" :team-id="selectedTeamId" v-bind="CONTENT_SECTIONS.posts" />
+        <TeamContentSection v-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.posts" />
         <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
         <div v-else-if="posts.length" class="space-y-6">
-          <article v-for="post in posts" :key="post.id" class="card space-y-2">
-            <div class="flex items-center gap-2">
-              <h3 class="min-w-0 text-lg font-extrabold">{{ post.title }}</h3>
-              <span v-if="post.pinned" class="badge badge-muted shrink-0">נעוץ</span>
-            </div>
-            <p class="max-w-prose whitespace-pre-line text-muted">{{ post.body }}</p>
-          </article>
+          <PostCard v-for="post in posts" :key="post.id" :post="post" />
         </div>
         <p v-else class="empty-state">אין פריטים עדיין.</p>
       </TabsContent>
 
       <TabsContent value="images">
-        <TeamContentSection v-if="editing" :key="selectedTeamId" :team-id="selectedTeamId" v-bind="CONTENT_SECTIONS.images" />
+        <TeamContentSection v-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.images" />
         <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
         <div v-else-if="images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <figure v-for="(image, i) in images" :key="image.id" class="space-y-1">

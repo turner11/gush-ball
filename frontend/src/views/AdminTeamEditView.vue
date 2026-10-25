@@ -229,7 +229,7 @@ onMounted(() => Promise.all([load(), loadClubOptions()]))
         <TeamContentSection
           v-for="section in Object.values(CONTENT_SECTIONS)"
           :key="section.resource"
-          :team-id="teamId"
+          :owner-id="teamId"
           :resource="section.resource"
           :heading="section.heading"
           :fields="section.fields"

@@ -172,3 +172,57 @@ def test_club_about_rejects_bad_input(admin_client: TestClient, db_session: Sess
 
 def test_put_about_unknown_club_is_404(admin_client: TestClient) -> None:
     assert admin_client.put("/clubs/999/about", json={}).status_code == 404
+
+
+def _gush(db_session: Session) -> Club:
+    club = Club(name="Gush")
+    db_session.add(club)
+    db_session.commit()
+    return club
+
+
+def test_club_admin_crud_own_club_posts(club_admin_client: TestClient, db_session: Session) -> None:
+    club = db_session.query(Club).filter_by(name="Gush").one_or_none() or _gush(db_session)
+    path = f"/clubs/{club.id}/posts"
+
+    created = club_admin_client.post(path, json={"title": "News", "body": "Hello"})
+    assert created.status_code == 201
+    post_id = created.json()["id"]
+    assert club_admin_client.patch(f"{path}/{post_id}", json={"pinned": True}).json()["pinned"] is True
+
+    listed = club_admin_client.get(path).json()
+    assert [(p["id"], p["club_id"], p["pinned"]) for p in listed] == [(post_id, club.id, True)]
+    assert club_admin_client.delete(f"{path}/{post_id}").status_code == 204
+    assert club_admin_client.get(path).json() == []
+
+
+def test_club_post_writes_scoped_to_club(
+    club_admin_client: TestClient, db_session: Session, client: TestClient
+) -> None:
+    other = Club(name="Other")
+    db_session.add(other)
+    db_session.commit()
+    body = {"title": "t", "body": "b"}
+
+    assert club_admin_client.post(f"/clubs/{other.id}/posts", json=body).status_code == 403
+    client.post("/auth/logout")
+    assert client.post(f"/clubs/{other.id}/posts", json=body).status_code == 401
+
+
+def test_club_post_writes_denied_to_team_admin(
+    team_admin_client: TestClient, db_session: Session, sibling_team: Team
+) -> None:
+    club = _gush(db_session)
+    assert team_admin_client.post(f"/clubs/{club.id}/posts", json={"title": "t", "body": "b"}).status_code == 403
+
+
+def test_club_posts_404s(admin_client: TestClient, db_session: Session) -> None:
+    mine, other = _gush(db_session), Club(name="Other")
+    db_session.add(other)
+    db_session.commit()
+    assert admin_client.get("/clubs/9999/posts").status_code == 404
+    assert admin_client.post("/clubs/9999/posts", json={"title": "t", "body": "b"}).status_code == 404
+
+    post_id = admin_client.post(f"/clubs/{mine.id}/posts", json={"title": "t", "body": "b"}).json()["id"]
+    assert admin_client.patch(f"/clubs/{other.id}/posts/{post_id}", json={"title": "x"}).status_code == 404
+    assert admin_client.delete(f"/clubs/{other.id}/posts/{post_id}").status_code == 404

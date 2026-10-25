@@ -8,14 +8,15 @@ import ConfirmDialog from './ConfirmDialog.vue'
 import PlayerTagsInput from './PlayerTagsInput.vue'
 
 const props = defineProps({
-  teamId: { type: [String, Number], required: true },
+  owner: { type: String, default: 'teams' }, // 'teams' | 'clubs'
+  ownerId: { type: [String, Number], required: true },
   resource: { type: String, required: true },
   heading: { type: String, required: true },
   fields: { type: Array, required: true },
   reorderable: Boolean,
 })
 
-const { error, list, create, update, delete: destroy, reorder } = useTeamContent(props.resource)
+const { error, list, create, update, delete: destroy, reorder } = useTeamContent(props.resource, props.owner)
 
 const items = ref([])
 const blank = (field) => (field.type === 'players' ? [] : field.type === 'checkbox' ? false : '')
@@ -26,7 +27,7 @@ const editingId = ref(null)
 const pendingDeleteId = ref(null)
 
 async function load() {
-  items.value = (await list(props.teamId)) ?? []
+  items.value = (await list(props.ownerId)) ?? []
   loading.value = false
 }
 
@@ -49,13 +50,13 @@ async function onSubmit() {
       Object.entries(form).filter(([, value]) => value !== ''),
     )
     if (editingId.value) {
-      const updated = await update(props.teamId, editingId.value, payload)
+      const updated = await update(props.ownerId, editingId.value, payload)
       if (updated && !error.value) {
         await load() // the server order is the truth (e.g. pinned posts move up)
         resetForm()
       }
     } else {
-      const created = await create(props.teamId, payload)
+      const created = await create(props.ownerId, payload)
       if (created && !error.value) {
         await load()
         resetForm()
@@ -70,7 +71,7 @@ async function move(index, delta) {
   const next = [...items.value]
   ;[next[index], next[index + delta]] = [next[index + delta], next[index]]
   items.value = next
-  await reorder(props.teamId, next.map((item) => item.id))
+  await reorder(props.ownerId, next.map((item) => item.id))
   if (error.value) await load() // the server order is the truth
 }
 
@@ -81,7 +82,7 @@ function confirmDelete(itemId) {
 async function onDeleteConfirmed() {
   const itemId = pendingDeleteId.value
   pendingDeleteId.value = null
-  await destroy(props.teamId, itemId)
+  await destroy(props.ownerId, itemId)
   if (error.value) return
   items.value = items.value.filter((item) => item.id !== itemId)
   if (editingId.value === itemId) resetForm()
@@ -115,10 +116,10 @@ onMounted(load)
         </span>
         <span class="inline-flex shrink-0 gap-1">
           <template v-if="reorderable">
-            <button type="button" class="btn-ghost" aria-label="הזזה למעלה" :disabled="index === 0" @click="move(index, -1)">
+            <button type="button" class="btn-ghost" aria-label="הזזה למעלה" :disabled="index === 0 || items[index - 1].pinned !== item.pinned" @click="move(index, -1)">
               <AppIcon name="chevron" class="rotate-180" />
             </button>
-            <button type="button" class="btn-ghost" aria-label="הזזה למטה" :disabled="index === items.length - 1" @click="move(index, 1)">
+            <button type="button" class="btn-ghost" aria-label="הזזה למטה" :disabled="index === items.length - 1 || items[index + 1].pinned !== item.pinned" @click="move(index, 1)">
               <AppIcon name="chevron" />
             </button>
           </template>
@@ -151,7 +152,7 @@ onMounted(load)
     <form class="space-y-2" @submit.prevent="onSubmit">
       <p v-if="editingId" class="text-sm text-muted">עורך: {{ fields.filter((f) => f.type !== 'players').map((f) => form[f.key]).filter(Boolean)[0] }}</p>
       <div v-for="field in fields" :key="field.key">
-        <PlayerTagsInput v-if="field.type === 'players'" v-model="form[field.key]" :team-id="teamId" />
+        <PlayerTagsInput v-if="field.type === 'players'" v-model="form[field.key]" :team-id="ownerId" />
         <label v-else-if="field.type === 'checkbox'" class="flex min-h-11 items-center gap-2">
           <input v-model="form[field.key]" type="checkbox" class="size-5" />
           <span class="field-label">{{ field.label }}</span>

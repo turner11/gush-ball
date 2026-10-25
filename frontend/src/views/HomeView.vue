@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import PostCard from '../components/PostCard.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import TeamColorFields from '../components/TeamColorFields.vue'
@@ -278,13 +279,7 @@ const hasSocialEmbed = computed(
             <h2 class="section-title">עדכונים</h2>
             <RouterLink :to="base + '/media'" class="section-link">כל העדכונים</RouterLink>
           </div>
-          <article class="card space-y-1">
-            <div class="flex items-center gap-2">
-              <h3 class="min-w-0 text-lg font-extrabold">{{ topPost.title }}</h3>
-              <span v-if="topPost.pinned" class="badge badge-muted shrink-0">נעוץ</span>
-            </div>
-            <p class="line-clamp-6 max-w-prose whitespace-pre-line text-muted">{{ topPost.body }}</p>
-          </article>
+          <PostCard :post="topPost" clamp />
         </section>
 
         <section v-if="players.length" class="space-y-2">
@@ -319,7 +314,7 @@ const hasSocialEmbed = computed(
             <h2 class="section-title">קישורים</h2>
             <button v-if="canEdit" ref="linksToggle" type="button" class="btn-secondary" aria-controls="home-links-editor" :aria-expanded="editingLinks" @click="toggleLinks">{{ editingLinks ? 'סיום עריכה' : 'עריכת קישורים' }}</button>
           </div>
-          <TeamContentSection v-if="editingLinks" id="home-links-editor" :key="team.id" :team-id="team.id" v-bind="CONTENT_SECTIONS.links" />
+          <TeamContentSection v-if="editingLinks" id="home-links-editor" :key="team.id" :owner-id="team.id" v-bind="CONTENT_SECTIONS.links" />
           <p v-else-if="!links.length" class="empty-state">אין קישורים עדיין.</p>
           <ul v-else class="flex flex-wrap gap-2">
             <li v-for="link in links" :key="link.id">

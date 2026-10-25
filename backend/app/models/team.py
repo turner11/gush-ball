@@ -63,7 +63,7 @@ class Team(Base):
     posts: Mapped[list["TeamPost"]] = relationship(
         back_populates="team",
         cascade="all, delete-orphan",
-        order_by="(TeamPost.pinned.desc(), TeamPost.id.desc())",
+        order_by="(TeamPost.pinned.desc(), TeamPost.sort_order.asc().nulls_first(), TeamPost.id.desc())",
     )
     plays: Mapped[list["TeamPlay"]] = relationship(
         back_populates="team",

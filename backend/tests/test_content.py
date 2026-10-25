@@ -396,3 +396,43 @@ def test_image_hidden_from_home_defaults_false_round_trips_and_rejects_null(
     patched = admin_client.patch(f"{url}/{hidden['id']}", json={"hidden_from_home": False})
     assert patched.json()["hidden_from_home"] is False
     assert admin_client.patch(f"{url}/{hidden['id']}", json={"hidden_from_home": None}).status_code == 422
+
+
+@pytest.fixture()
+def club_id(db_session: Session) -> int:
+    from app.models import Club
+
+    club = Club(name="Gush")
+    db_session.add(club)
+    db_session.commit()
+    return club.id
+
+
+@pytest.fixture()
+def posts_path(request: pytest.FixtureRequest, team: Team, club_id: int) -> str:
+    return request.param.format(team=team.id, club=club_id)
+
+
+@pytest.mark.parametrize("posts_path", ["/teams/{team}/posts", "/clubs/{club}/posts"], indirect=True)
+def test_reorder_posts_pinned_first_new_on_top(admin_client: TestClient, posts_path: str) -> None:
+    def ids() -> list[int]:
+        return [p["id"] for p in admin_client.get(posts_path).json()]
+
+    a, b, c = (admin_client.post(posts_path, json={"title": t, "body": "x"}).json()["id"] for t in "abc")
+    assert admin_client.put(f"{posts_path}/order", json=[a, b, c]).status_code == 200
+    assert ids() == [a, b, c]
+    admin_client.patch(f"{posts_path}/{c}", json={"pinned": True})
+    assert ids() == [c, a, b]
+    d = admin_client.post(posts_path, json={"title": "d", "body": "x"}).json()["id"]
+    assert ids() == [c, d, a, b]
+
+
+def test_reorder_posts_rejects_foreign_or_missing_ids(admin_client: TestClient, team: Team, db_session: Session) -> None:
+    other = Team(name="Other", slug="other")
+    db_session.add(other)
+    db_session.commit()
+    path = f"/teams/{team.id}/posts"
+    a, b = (admin_client.post(path, json={"title": t, "body": "x"}).json()["id"] for t in "ab")
+    foreign = admin_client.post(f"/teams/{other.id}/posts", json={"title": "x", "body": "x"}).json()["id"]
+    for ids in ([a], [a, foreign], [a, a, b], [a, b, foreign]):
+        assert admin_client.put(f"{path}/order", json=ids).status_code == 422

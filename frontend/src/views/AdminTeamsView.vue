@@ -1,7 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 
-import ClubsSection from '../components/ClubsSection.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import FilterCombobox from '../components/FilterCombobox.vue'
 import SearchInput from '../components/SearchInput.vue'
@@ -141,8 +140,6 @@ onMounted(load)
         <button type="submit" :disabled="submitting" class="btn-primary w-full">יצירה</button>
       </form>
     </div>
-
-    <ClubsSection v-if="fullAdmin" />
 
     <ConfirmDialog
       :open="pendingDeleteId !== null"

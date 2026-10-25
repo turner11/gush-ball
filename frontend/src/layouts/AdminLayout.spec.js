@@ -23,6 +23,7 @@ async function mountAt(path, user = null) {
       { path: '/:slug/admin/games', name: 'admin-games', component: stub },
       { path: '/admin/standings', component: stub },
       { path: '/admin/teams', name: 'admin-teams', component: stub },
+      { path: '/admin/clubs', name: 'admin-clubs', component: stub },
       { path: '/admin/login', name: 'admin-login', component: stub },
     ],
   })
@@ -70,7 +71,7 @@ describe('AdminLayout nav', () => {
       .find('[data-testid="tab-bar"]')
       .findAll('a')
       .map((a) => a.attributes('href'))
-    expect(hrefs).toEqual(['/admin', '/admin/players', '/admin/games', '/admin/standings', '/admin/teams'])
+    expect(hrefs).toEqual(['/admin', '/admin/players', '/admin/games', '/admin/standings', '/admin/teams', '/admin/clubs'])
   })
 
   it('team admin also gets the standings link', async () => {
@@ -95,5 +96,11 @@ describe('AdminLayout nav', () => {
     const w = await mountAt('/admin')
     expect(w.find('a[href="#main"]').exists()).toBe(true)
     expect(w.find('main#main').exists()).toBe(true)
+  })
+
+  it('shows the clubs nav to full and club admins, not to team admins', async () => {
+    expect(link(await mountAt('/admin'), '/admin/clubs').exists()).toBe(true)
+    expect(link(await mountAt('/admin', { team_ids: [1], clubs: ['גוש'] }), '/admin/clubs').exists()).toBe(true)
+    expect(link(await mountAt('/admin', { team_ids: [1], clubs: [] }), '/admin/clubs').exists()).toBe(false)
   })
 })
