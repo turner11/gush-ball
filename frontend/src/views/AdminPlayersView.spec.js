@@ -65,6 +65,22 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('7')
   })
 
+  it("?edit=<id> opens that player's edit form", async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+    })
+    router.push('/1/admin/players?edit=10')
+    await router.isReady()
+
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('#player-name').element.value).toBe('יוסי')
+    expect(wrapper.text()).toContain('עריכת שחקן')
+  })
+
   it('shows an empty state, not an empty table, when the team has no players', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),

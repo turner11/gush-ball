@@ -1,13 +1,11 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import PostCard from '../components/PostCard.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
-import TeamColorFields from '../components/TeamColorFields.vue'
-import TeamContentSection from '../components/TeamContentSection.vue'
 import HomeSlideshow from '../components/HomeSlideshow.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import VideoCard from '../components/VideoCard.vue'
@@ -17,7 +15,6 @@ import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { gameAddress, played, splitGames } from '../lib/games'
-import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const team = ref(null)
 // Path strings, not named routes: this view also renders on the slug-less home route.
@@ -30,86 +27,13 @@ const players = ref([])
 const games = ref([])
 const loading = ref(false)
 
-// Inline editors for the about text, the colors and the links (#471); all close on a team switch or when the preview turns on.
+// Entity properties (about, links, colors) are edited on the team manage page (#496).
 const canEdit = computed(() => !!team.value && canEditTeam(team.value.id))
-const editingField = ref(null) // 'about' | 'colors' | null: the PATCH editors share one slot
-const editingLinks = ref(false)
-const aboutDraft = ref('')
-// The draft starts at the saved value (null for none; the picker then shows black), so only a real pick differs from it.
-const colorsDraft = ref({ primary: null, secondary: null })
-const colorsInitial = computed(() => ({
-  primary: team.value?.primary_color ?? null,
-  secondary: team.value?.secondary_color ?? null,
-}))
-const saving = ref(false)
-const saveError = ref(null)
-const linksToggle = ref(null)
-const closeEditors = () => {
-  editingField.value = null
-  editingLinks.value = false
-}
-watch(canEdit, (can) => {
-  if (!can) closeEditors()
-})
-
-function toggleEditor(field) {
-  editingField.value = editingField.value === field ? null : field
-  aboutDraft.value = team.value.about ?? ''
-  colorsDraft.value = { ...colorsInitial.value }
-  saveError.value = null
-}
-
-async function closeEditor() {
-  const field = editingField.value
-  editingField.value = null
-  await nextTick()
-  document.getElementById(`home-${field}-toggle`)?.focus()
-}
-
-async function saveTeam(body) {
-  if (!Object.keys(body).length) return closeEditor()
-  saving.value = true
-  saveError.value = null
-  try {
-    const saved = await apiFetch(`/teams/${team.value.id}`, { method: 'PATCH', body })
-    team.value = saved
-    // the layout's header reads its own copy of the team row
-    Object.assign(teams.value.find((t) => t.id === saved.id) ?? {}, saved)
-    await closeEditor()
-  } catch {
-    saveError.value = 'שגיאה בשמירה, נסו שוב'
-  } finally {
-    saving.value = false
-  }
-}
-
-const saveAbout = () => saveTeam({ about: aboutDraft.value.trim() || null })
-const saveColors = () =>
-  saveTeam({
-    ...(colorsDraft.value.primary !== colorsInitial.value.primary && { primary_color: colorsDraft.value.primary }),
-    ...(colorsDraft.value.secondary !== colorsInitial.value.secondary && { secondary_color: colorsDraft.value.secondary }),
-  })
-
-async function toggleLinks() {
-  if (!editingLinks.value) {
-    editingLinks.value = true
-    return
-  }
-  editingLinks.value = false
-  try {
-    links.value = await apiFetch(`/teams/${team.value.id}/links`)
-  } catch {
-    // keep the old list rather than blanking it
-  }
-  await nextTick()
-  linksToggle.value?.focus()
-}
 
 // DefaultLayout picks the default team; this view only follows the selection.
-const { selectedTeamId, teamsLoaded, teams } = useSelectedTeam()
+const { selectedTeamId, teamsLoaded } = useSelectedTeam()
 
 async function load() {
-  closeEditors()
   if (!selectedTeamId.value) {
     team.value = null
     links.value = []
@@ -230,48 +154,10 @@ const hasSocialEmbed = computed(
         <section v-if="team.about || canEdit" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">על הקבוצה</h2>
-            <button v-if="canEdit" id="home-about-toggle" type="button" class="btn-secondary" aria-controls="home-about-editor" :aria-expanded="editingField === 'about'" @click="toggleEditor('about')">{{ editingField === 'about' ? 'סגירה' : 'עריכה' }}</button>
+            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary" aria-label="עריכת הטקסט בניהול הקבוצה">עריכה</RouterLink>
           </div>
-          <form v-if="editingField === 'about'" id="home-about-editor" class="card space-y-3" @submit.prevent="saveAbout">
-            <div>
-              <label for="home-about" class="field-label">על הקבוצה</label>
-              <textarea id="home-about" v-model="aboutDraft" class="field-input" rows="6" maxlength="5000" />
-              <p class="mt-1 text-sm text-muted">השאירו ריק כדי להסתיר.</p>
-            </div>
-            <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
-            <div class="flex flex-wrap gap-3">
-              <button type="submit" class="btn-primary" :disabled="saving">שמירה</button>
-              <button type="button" class="btn-secondary" @click="closeEditor">ביטול</button>
-            </div>
-          </form>
-          <div v-else-if="team.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
+          <div v-if="team.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
           <p v-else class="empty-state">עוד אין טקסט על הקבוצה.</p>
-        </section>
-
-        <section v-if="canEdit" class="space-y-2">
-          <div class="section-header">
-            <h2 class="section-title">צבעי הקבוצה</h2>
-            <button id="home-colors-toggle" type="button" class="btn-secondary" aria-controls="home-colors-editor" :aria-expanded="editingField === 'colors'" @click="toggleEditor('colors')">{{ editingField === 'colors' ? 'סגירה' : 'עריכת צבעים' }}</button>
-          </div>
-          <form v-if="editingField === 'colors'" id="home-colors-editor" class="card space-y-3" @submit.prevent="saveColors">
-            <div class="grid gap-3 sm:grid-cols-2">
-              <TeamColorFields v-model:primary="colorsDraft.primary" v-model:secondary="colorsDraft.secondary" />
-            </div>
-            <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
-            <div class="flex flex-wrap gap-3">
-              <button type="submit" class="btn-primary" :disabled="saving">שמירה</button>
-              <button type="button" class="btn-secondary" @click="closeEditor">ביטול</button>
-            </div>
-          </form>
-          <div v-else class="flex flex-wrap items-center gap-3">
-            <template v-if="team.primary_color || team.secondary_color">
-              <span v-for="(c, i) in [team.primary_color, team.secondary_color].filter(Boolean)" :key="i" class="flex items-center gap-2">
-                <span class="size-11 rounded-lg border border-line" :style="{ backgroundColor: c }" aria-hidden="true" />
-                <span dir="ltr" class="text-sm tabular-nums">{{ c }}</span>
-              </span>
-            </template>
-            <span v-else class="text-muted">צבעי ברירת המחדל</span>
-          </div>
         </section>
 
         <section v-if="topPost" class="space-y-3">
@@ -312,10 +198,9 @@ const hasSocialEmbed = computed(
         <section v-if="links.length || canEdit" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">קישורים</h2>
-            <button v-if="canEdit" ref="linksToggle" type="button" class="btn-secondary" aria-controls="home-links-editor" :aria-expanded="editingLinks" @click="toggleLinks">{{ editingLinks ? 'סיום עריכה' : 'עריכת קישורים' }}</button>
+            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary" aria-label="עריכת הקישורים בניהול הקבוצה">עריכת קישורים</RouterLink>
           </div>
-          <TeamContentSection v-if="editingLinks" id="home-links-editor" :key="team.id" :owner-id="team.id" v-bind="CONTENT_SECTIONS.links" />
-          <p v-else-if="!links.length" class="empty-state">אין קישורים עדיין.</p>
+          <p v-if="!links.length" class="empty-state">אין קישורים עדיין.</p>
           <ul v-else class="flex flex-wrap gap-2">
             <li v-for="link in links" :key="link.id">
               <a :href="link.url" target="_blank" rel="noopener" class="btn-secondary gap-2">{{ link.label }}<AppIcon name="external" /></a>

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { ownTeams } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
@@ -71,9 +72,14 @@ async function loadPlayers() {
   }
 }
 
+const route = useRoute()
+
 onMounted(async () => {
   teams.value = ownTeams(await apiFetch('/teams'))
   await loadPlayers()
+  // deep link from the player page (#496)
+  const linked = players.value.find((p) => p.id === Number(route.query.edit))
+  if (linked) startEdit(linked)
 })
 
 watch(selectedTeamId, loadPlayers)

@@ -54,6 +54,7 @@ describe('HomeView', () => {
         { path: '/:slug/roster', component: { template: '<div/>' } },
         { path: '/:slug/games/:id', component: { template: '<div/>' } },
         { path: '/:slug/media', component: { template: '<div/>' } },
+        { path: '/admin/teams/:id', name: 'admin-team-edit', component: { template: '<div/>' } },
       ],
     })
   })
@@ -476,87 +477,21 @@ describe('HomeView', () => {
     expect(aside.text()).not.toContain('קישורים')
   })
 
-  describe('inline editing (#471)', () => {
+  describe('edit entry points (#496)', () => {
     const asTeamAdmin = async () => {
       const { useAuth } = await import('../composables/useAuth')
       useAuth().user.value = { id: 1, team_ids: [1] }
       return useAuth
     }
-    const button = (w, text) => w.findAll('button').find((b) => b.text() === text)
 
-    it('team admin edits the about text inline', async () => {
-      await asTeamAdmin()
-      const w = await mountWithTeam(TEAM, {
-        extra: { 'PATCH /api/teams/1': () => jsonRes({ ...TEAM, about: 'חדש' }) },
-      })
-      await button(w, 'עריכה').trigger('click')
-      await w.get('#home-about').setValue('חדש')
-      await w.get('#home-about-editor').trigger('submit')
-      await flushPromises()
-
-      const [, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
-      expect(JSON.parse(options.body)).toEqual({ about: 'חדש' })
-      expect(w.find('#home-about-editor').exists()).toBe(false)
-      expect(w.text()).toContain('חדש')
-    })
-
-    it('team admin opens the links editor, and closing reloads links', async () => {
+    it("team admin's about and links edit buttons link to the team manage page", async () => {
       await asTeamAdmin()
       const w = await mountWithTeam(TEAM, { links: LINKS })
-      await button(w, 'עריכת קישורים').trigger('click')
-      await flushPromises()
-      expect(w.findComponent({ name: 'TeamContentSection' }).props('resource')).toBe('links')
-      const linkGets = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/teams/1/links' && !o?.method).length
-      const before = linkGets()
-      await button(w, 'סיום עריכה').trigger('click')
-      await flushPromises()
-      expect(linkGets()).toBe(before + 1)
-    })
-
-    it("team admin saves team colors inline and the layout's team row follows", async () => {
-      await asTeamAdmin()
-      const { useSelectedTeam } = await import('../composables/useSelectedTeam')
-      useSelectedTeam().teams.value = [{ ...TEAM }]
-      const w = await mountWithTeam(TEAM, {
-        extra: { 'PATCH /api/teams/1': () => jsonRes({ ...TEAM, primary_color: '#123456' }) },
-      })
-      await button(w, 'עריכת צבעים').trigger('click')
-      await w.get('#team-primary-color').setValue('#123456')
-      await w.get('#home-colors-editor').trigger('submit')
-      await flushPromises()
-
-      const [, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
-      // only the changed field: an untouched secondary must not become the picker's black default
-      expect(JSON.parse(options.body)).toEqual({ primary_color: '#123456' })
-      expect(w.find('#home-colors-editor').exists()).toBe(false)
-      expect(useSelectedTeam().teams.value[0].primary_color).toBe('#123456')
-    })
-
-    it('a secondary-only color is saved, shown, and a picked black counts as a change', async () => {
-      await asTeamAdmin()
-      const w = await mountWithTeam(TEAM, {
-        extra: { 'PATCH /api/teams/1': () => jsonRes({ ...TEAM, secondary_color: '#000000' }) },
-      })
-      await button(w, 'עריכת צבעים').trigger('click')
-      await w.get('#team-secondary-color').setValue('#000000')
-      await w.get('#home-colors-editor').trigger('submit')
-      await flushPromises()
-
-      const [, options] = global.fetch.mock.calls.find(([, o]) => o?.method === 'PATCH')
-      expect(JSON.parse(options.body)).toEqual({ secondary_color: '#000000' })
-      expect(w.text()).not.toContain('צבעי ברירת המחדל')
-      expect(w.text()).toContain('#000000')
-    })
-
-    it('saving the colors untouched sends nothing and keeps a colorless team colorless', async () => {
-      await asTeamAdmin()
-      const w = await mountWithTeam(TEAM)
-      await button(w, 'עריכת צבעים').trigger('click')
-      await w.get('#home-colors-editor').trigger('submit')
-      await flushPromises()
-
-      expect(global.fetch.mock.calls.some(([, o]) => o?.method === 'PATCH')).toBe(false)
-      expect(w.find('#home-colors-editor').exists()).toBe(false)
+      const hrefs = ['עריכה', 'עריכת קישורים'].map((t) => w.findAll('a').find((a) => a.text() === t).attributes('href'))
+      expect(hrefs).toEqual(['/admin/teams/1', '/admin/teams/1'])
+      expect(w.find('#home-about-editor').exists()).toBe(false)
+      expect(w.findComponent({ name: 'TeamContentSection' }).exists()).toBe(false)
+      expect(w.text()).not.toContain('צבעי הקבוצה')
     })
 
     it('visitors and preview see no edit controls on the team home', async () => {
@@ -565,7 +500,6 @@ describe('HomeView', () => {
       let w = await mountWithTeam(TEAM)
       expect(w.text()).not.toContain('עריכה')
       expect(w.text()).not.toContain('עריכת קישורים')
-      expect(w.text()).not.toContain('צבעי הקבוצה')
       const { previewMode } = await import('../composables/useAuth')
       useAuth().user.value = { id: 1, team_ids: [1] }
       previewMode.value = 'member'
@@ -573,7 +507,6 @@ describe('HomeView', () => {
       expect(w.text()).not.toContain('עריכה')
       expect(w.text()).not.toContain('עריכת קישורים')
       expect(w.text()).not.toContain('על הקבוצה')
-      expect(w.text()).not.toContain('צבעי הקבוצה')
       previewMode.value = null
     })
   })

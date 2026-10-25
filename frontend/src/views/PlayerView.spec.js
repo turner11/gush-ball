@@ -45,6 +45,7 @@ async function mountAt(path, options = {}) {
     routes: [
       { path: '/players/:id', component: PlayerView },
       { path: '/:slug/roster', name: 'roster', component: { template: '<div/>' } },
+      { path: '/:slug/admin/players', name: 'admin-players', component: { template: '<div/>' } },
       { path: '/:slug', name: 'team-home', component: { template: '<div/>' } },
     ],
   })
@@ -380,14 +381,27 @@ describe('PlayerView', () => {
   })
 
   describe('team admin edit (#468)', () => {
-    const edit = (w) => w.findAll('button').find((b) => b.text() === 'עריכת שחקן')
+    const edit = (w) => w.findAll('button').find((b) => b.text() === 'עריכת מדיה')
 
-    it('team admin can edit a player they are not linked to', async () => {
+    it('team admin gets a manage link to /1/admin/players?edit=3 and a media-only inline form', async () => {
       global.fetch = okFetch()
       useAuth().user.value = { username: 'a', team_ids: [1], player_ids: [] }
       const wrapper = await mountAt('/players/3')
+      expect(wrapper.findAll('a').find((a) => a.text() === 'ניהול שחקן').attributes('href')).toBe('/1/admin/players?edit=3')
       await edit(wrapper).trigger('click')
       expect(wrapper.find('#profile-form').exists()).toBe(true)
+      expect(wrapper.find('#profile-name').exists()).toBe(false)
+      expect(wrapper.text()).toContain('תמונות')
+      expect(wrapper.text()).toContain('סרטונים')
+    })
+
+    it('preview hides the manage link', async () => {
+      global.fetch = okFetch()
+      const { previewMode } = await import('../composables/useAuth')
+      previewMode.value = 'member'
+      useAuth().user.value = { username: 'a', team_ids: [1], player_ids: [] }
+      expect((await mountAt('/players/3')).text()).not.toContain('ניהול שחקן')
+      previewMode.value = null
     })
 
     it("preview hides the admin edit but keeps a linked player's own edit", async () => {

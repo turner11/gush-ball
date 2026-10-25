@@ -96,6 +96,24 @@ describe('AdminTeamEditView', () => {
     expect(patchBody.about).toBeNull()
   })
 
+  it('saving a colorless team untouched sends no colors', async () => {
+    let patchBody
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ ...TEAM, primary_color: null }),
+      'PATCH /api/teams/1': (options) => {
+        patchBody = JSON.parse(options.body)
+        return jsonRes({ ...TEAM, ...patchBody })
+      },
+      ...CONTENT_HANDLERS,
+    })
+    const wrapper = await mountView()
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(patchBody).not.toHaveProperty('primary_color')
+    expect(patchBody).not.toHaveProperty('secondary_color')
+  })
+
   it('offers the scraper-suggested league URL and fills the field on "use it"', async () => {
     const SUGGESTED = 'https://ibasketball.co.il/league/2'
     mockFetch({ 'GET /api/teams/1': () => jsonRes({ ...TEAM, league_url_suggestion: SUGGESTED }), ...CONTENT_HANDLERS })

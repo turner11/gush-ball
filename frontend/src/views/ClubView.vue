@@ -16,7 +16,6 @@ import SearchInput from '../components/SearchInput.vue'
 import GameRow from '../components/GameRow.vue'
 import TeamCard from '../components/TeamCard.vue'
 import AppIcon from '../components/AppIcon.vue'
-import ClubAboutForm from '../components/ClubAboutForm.vue'
 import PostCard from '../components/PostCard.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
@@ -49,10 +48,6 @@ const editToggle = ref(null)
 watch(canEdit, (can) => {
   if (!can && editing.value) closeEditor()
 })
-function onSaved(updated) {
-  club.value = updated
-  closeEditor()
-}
 async function closeEditor() {
   editing.value = false
   loadPosts(route.params.clubSlug) // the posts editor may have changed them
@@ -173,13 +168,12 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           <p v-if="club.name_en" class="mt-1 text-lg font-semibold text-muted"><bdi lang="en">{{ club.name_en }}</bdi></p>
         </div>
         <div class="flex flex-wrap gap-x-4 gap-y-2">
-          <RouterLink v-if="canEdit" :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="section-link">ניהול המועדון</RouterLink>
-          <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" aria-controls="club-about-editor" :aria-expanded="editing" @click="editing ? closeEditor() : (editing = true)">{{ editing ? 'סיום עריכה' : 'עריכת עמוד המועדון' }}</button>
+          <RouterLink v-if="canEdit" :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="btn-secondary">ניהול המועדון</RouterLink>
+          <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" aria-controls="club-posts-editor" :aria-expanded="editing" @click="editing ? closeEditor() : (editing = true)">{{ editing ? 'סיום עריכה' : 'עריכת עדכונים' }}</button>
           <a v-if="club.ibasketball_url" :href="club.ibasketball_url" target="_blank" rel="noopener noreferrer" class="section-link">המועדון ב-ibasketball</a>
         </div>
       </div>
-      <ClubAboutForm v-if="editing" id="club-about-editor" :club="club" @saved="onSaved" @cancel="closeEditor" />
-      <section v-if="!editing && hasAbout" class="space-y-3">
+      <section v-if="hasAbout" class="space-y-3">
         <h2 class="section-title">{{ club.about_title || 'על המועדון' }}</h2>
         <div v-if="club.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ club.about }}</p></div>
         <div v-if="club.about_links.length" class="flex flex-wrap gap-2">
@@ -195,7 +189,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           <ImageLightbox ref="lightbox" :images="club.about_images.map((i) => ({ url: i.url, alt: i.title || club.name }))" />
         </div>
       </section>
-      <TeamContentSection v-if="editing" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.posts" />
+      <TeamContentSection v-if="editing" id="club-posts-editor" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.posts" />
       <section v-else-if="posts.length || postsError" class="space-y-3">
         <h2 class="section-title">עדכונים</h2>
         <p v-if="postsError" class="error-text" role="alert">שגיאה בטעינת העדכונים</p>
@@ -203,7 +197,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           <PostCard v-for="post in posts" :key="post.id" :post="post" />
         </div>
       </section>
-      <section v-if="!editing && club.officials.length" class="space-y-3">
+      <section v-if="club.officials.length" class="space-y-3">
         <h2 class="section-title">בעלי תפקידים</h2>
         <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <li v-for="(o, i) in club.officials" :key="i" class="card flex items-start gap-3">
@@ -216,7 +210,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
           </li>
         </ul>
       </section>
-      <p v-if="!editing && canEdit && !hasAbout && !club.officials.length" class="empty-state">עוד אין תוכן על המועדון. <button type="button" class="btn-primary" @click="editing = true">הוספת תוכן</button></p>
+      <p v-if="canEdit && !hasAbout && !club.officials.length" class="empty-state">עוד אין תוכן על המועדון. <RouterLink :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="btn-primary">הוספת תוכן</RouterLink></p>
       <div v-if="clubTeams.length > 1">
         <SearchInput id="club-team-search" ref="searchInput" v-model="query" label="חיפוש קבוצה או ליגה" class="w-full sm:w-80" />
         <p class="mt-2 text-sm text-muted" aria-live="polite">{{ shownTeams.length === 1 ? 'קבוצה אחת' : `${shownTeams.length} קבוצות` }}</p>
