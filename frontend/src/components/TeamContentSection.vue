@@ -93,7 +93,10 @@ onMounted(load)
 
 <template>
   <section class="card space-y-3">
-    <h2 class="section-title">{{ heading }}</h2>
+    <div class="section-header">
+      <h2 class="section-title">{{ heading }}</h2>
+      <slot name="actions" />
+    </div>
 
     <div v-if="loading" class="space-y-2" aria-hidden="true">
       <div class="skeleton h-11" />

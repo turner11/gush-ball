@@ -501,8 +501,11 @@ describe('HomeView', () => {
       const postGets = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/teams/1/posts' && !o?.method).length
       expect(w.text()).toContain('אין עדכונים עדיין.')
 
+      const inPosts = () => w.findAll('section').find((x) => x.find('h2').text() === 'עדכונים')
+      expect(inPosts().findAll('button').map((b) => b.text())).toContain('עריכת עדכונים')
       await button('עריכת עדכונים').trigger('click')
       await flushPromises()
+      expect(inPosts().findAll('button').map((b) => b.text())).toContain('סיום עריכה')
       expect(w.findAllComponents({ name: 'TeamContentSection' }).some((c) => c.props('resource') === 'posts')).toBe(true)
       expect(w.findAll('h2').filter((h) => h.text() === 'עדכונים')).toHaveLength(1)
 
