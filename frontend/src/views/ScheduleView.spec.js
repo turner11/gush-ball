@@ -121,7 +121,7 @@ describe('ScheduleView', () => {
 
       expect(global.fetch.mock.calls.some(([url]) => url.includes('/practices'))).toBe(false)
       expect(calendarHref(wrapper)).not.toContain('practices=1')
-      expect(wrapper.findAll('h2').some((h) => h.text() === 'אימונים קרובים')).toBe(false)
+      expect(wrapper.text()).not.toContain('אימונים קרובים')
     })
 
     it('anonymous preview hides practices; exiting loads them', async () => {
@@ -137,7 +137,7 @@ describe('ScheduleView', () => {
       const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
       await flushPromises()
       expect(global.fetch.mock.calls.some(([url]) => url.includes('/practices'))).toBe(false)
-      expect(wrapper.findAll('h2').some((h) => h.text() === 'אימונים קרובים')).toBe(false)
+      expect(wrapper.text()).not.toContain('אימונים קרובים')
       expect(calendarHref(wrapper)).not.toContain('practices=1')
 
       previewMode.value = null

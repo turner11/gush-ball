@@ -504,6 +504,7 @@ describe('HomeView', () => {
       await button('עריכת עדכונים').trigger('click')
       await flushPromises()
       expect(w.findAllComponents({ name: 'TeamContentSection' }).some((c) => c.props('resource') === 'posts')).toBe(true)
+      expect(w.findAll('h2').filter((h) => h.text() === 'עדכונים')).toHaveLength(1)
 
       const before = postGets()
       await button('סיום עריכה').trigger('click')
