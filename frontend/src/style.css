@@ -271,7 +271,7 @@
   }
 }
 
-/* Cross-fade for <Transition name="slide"> (PlayerCard hover slideshow, HomeSlideshow). */
+/* Cross-fade for <Transition name="slide"> (PlayerCard hover slideshow). */
 .slide-enter-active,
 .slide-leave-active {
   transition: opacity 0.4s ease, scale 0.4s ease;
@@ -284,6 +284,39 @@
 @media (prefers-reduced-motion: reduce) {
   .slide-enter-active,
   .slide-leave-active {
+    transition: none;
+  }
+}
+
+/* Bright-flash swap for <Transition name="flash"> (HomeSlideshow): the new image fades in from overexposed. */
+@keyframes flash-in {
+  from {
+    opacity: 0;
+    filter: brightness(3);
+  }
+  40% {
+    opacity: 1;
+    filter: brightness(2);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+.flash-enter-active {
+  animation: flash-in 0.7s ease-out;
+}
+.flash-leave-active {
+  transition: opacity 0.3s ease;
+}
+.flash-leave-to {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash-enter-active {
+    animation: none;
+  }
+  .flash-leave-active {
     transition: none;
   }
 }

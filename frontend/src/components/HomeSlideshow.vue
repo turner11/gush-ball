@@ -6,14 +6,19 @@ import AppIcon from './AppIcon.vue'
 import ImageLightbox from './ImageLightbox.vue'
 
 // The home "תמונות" section: SLOTS tiles that swap one at a time, cross-fading, through the images
-// the admin has not hidden from the home page. Clicking a tile opens the viewer over the whole pool.
+// the admin has not hidden from the home page, every 3s by default (build-time VITE_HOME_SLIDE_MS, min 1000). Clicking a tile opens the viewer over the whole pool.
 const props = defineProps({
   images: { type: Array, required: true }, // all of the team's images; hidden ones are filtered here
   mediaTo: { type: String, required: true },
 })
 
 const SLOTS = 4
-const ROTATE_MS = 5000
+const DEFAULT_ROTATE_MS = 3000
+function rotateMs() {
+  const ms = Number(import.meta.env.VITE_HOME_SLIDE_MS)
+  // ponytail: floor of 1000 ms stops 0/negative/typos from spinning setInterval (and keeps flashes under 3/s)
+  return Number.isFinite(ms) && ms >= 1000 ? ms : DEFAULT_ROTATE_MS
+}
 
 const pool = computed(() => props.images.filter((i) => !i.hidden_from_home).sort((a, b) => b.id - a.id))
 const rotates = computed(() => pool.value.length > SLOTS)
@@ -38,7 +43,7 @@ const reducedMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: redu
 onMounted(() => {
   if (!rotates.value || reducedMotion()) return
   rotating.value = true
-  timer = setInterval(rotate, ROTATE_MS)
+  timer = setInterval(rotate, rotateMs())
 })
 onBeforeUnmount(() => clearInterval(timer))
 </script>
@@ -67,7 +72,7 @@ onBeforeUnmount(() => clearInterval(timer))
         :aria-label="`הגדלת תמונה: ${image.title}`"
         @click="lightbox.open(pool.indexOf(image), $event)"
       >
-        <Transition name="slide">
+        <Transition name="flash">
           <img :key="image.id" :src="image.url" :alt="image.title" loading="lazy" class="absolute inset-0 size-full object-cover" />
         </Transition>
       </button>
