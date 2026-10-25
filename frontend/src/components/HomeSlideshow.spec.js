@@ -10,7 +10,10 @@ const mountIt = (images) => mount(HomeSlideshow, { props: { images, mediaTo: '/x
 
 describe('HomeSlideshow', () => {
   beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+  })
 
   it('shows at most 4 tiles, newest first, skipping hidden_from_home', () => {
     const w = mountIt([...make(5), img(6, { hidden_from_home: true })])
@@ -21,10 +24,28 @@ describe('HomeSlideshow', () => {
   it('rotates one tile per tick through the rest without duplicates', async () => {
     const w = mountIt(make(7))
     expect(srcs(w)).toEqual(['/i7.jpg', '/i6.jpg', '/i5.jpg', '/i4.jpg'])
-    await vi.advanceTimersByTimeAsync(5000)
+    await vi.advanceTimersByTimeAsync(2999)
+    expect(srcs(w)[0]).toBe('/i7.jpg')
+    await vi.advanceTimersByTimeAsync(1)
     expect(srcs(w)[0]).toBe('/i3.jpg')
-    await vi.advanceTimersByTimeAsync(15000)
+    await vi.advanceTimersByTimeAsync(9000)
     expect(new Set(srcs(w)).size).toBe(4)
+  })
+
+  it('VITE_HOME_SLIDE_MS sets the interval', async () => {
+    vi.stubEnv('VITE_HOME_SLIDE_MS', '1500')
+    const w = mountIt(make(7))
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(srcs(w)[0]).toBe('/i3.jpg')
+  })
+
+  it.each(['abc', '200'])('invalid or too-small VITE_HOME_SLIDE_MS (%s) falls back to the default', async (v) => {
+    vi.stubEnv('VITE_HOME_SLIDE_MS', v)
+    const w = mountIt(make(7))
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(srcs(w)[0]).toBe('/i7.jpg')
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(srcs(w)[0]).toBe('/i3.jpg')
   })
 
   it('pause button stops rotation; no rotation or button with <=4 images', async () => {
