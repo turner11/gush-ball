@@ -18,7 +18,7 @@ import TeamCard from '../components/TeamCard.vue'
 import AppIcon from '../components/AppIcon.vue'
 import PostCard from '../components/PostCard.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
-import ImageLightbox from '../components/ImageLightbox.vue'
+import ImageGallery from '../components/ImageGallery.vue'
 
 // "This week at the club": the games of every team in this club from the last 7 to the next 7 days (#326).
 function day(offset) {
@@ -30,7 +30,6 @@ function day(offset) {
 const route = useRoute()
 const router = useRouter()
 const { selectedTeamId } = useSelectedTeam()
-const lightbox = ref(null)
 const loading = ref(true)
 const error = ref(false)
 const games = ref([])
@@ -40,6 +39,8 @@ const searchInput = ref(null)
 const club = ref(null) // null = not found (once loaded)
 const posts = ref([])
 const postsError = ref(false)
+const images = ref([])
+const imagesError = ref(false)
 
 const { user } = useAuth()
 const canEdit = computed(() => !previewMode.value && !!user.value && (fullAdmin.value || clubAdmin(club.value?.name)))
@@ -50,7 +51,7 @@ watch(canEdit, (can) => {
 })
 async function closeEditor() {
   editing.value = false
-  loadPosts(route.params.clubSlug) // the posts editor may have changed them
+  loadContent(route.params.clubSlug) // the editors may have changed them
   await nextTick()
   editToggle.value?.focus()
 }
@@ -109,7 +110,7 @@ async function load() {
     games.value = gameList
     leagues.value = leagueList
     club.value = clubList.find((c) => teamSlug(c) === slug) ?? null
-    await loadPosts(slug)
+    await loadContent(slug)
     setHead()
   } catch {
     if (slug === route.params.clubSlug) error.value = true
@@ -118,17 +119,18 @@ async function load() {
   }
 }
 
-// Posts are a bonus fetch like /leagues: a failure shows an inline error, never a blank page.
-async function loadPosts(slug) {
+// Posts and images are bonus fetches like /leagues: each fails on its own with an inline error, never a blank page.
+async function loadContent(slug) {
   posts.value = []
+  images.value = []
   postsError.value = false
+  imagesError.value = false
   if (!club.value) return
-  try {
-    const list = await apiFetch(`/clubs/${club.value.id}/posts`)
-    if (slug === route.params.clubSlug) posts.value = list
-  } catch {
-    postsError.value = true
-  }
+  const base = `/clubs/${club.value.id}`
+  await Promise.all([
+    apiFetch(`${base}/posts`).then((list) => slug === route.params.clubSlug && (posts.value = list), () => (postsError.value = true)),
+    apiFetch(`${base}/images`).then((list) => slug === route.params.clubSlug && (images.value = list), () => (imagesError.value = true)),
+  ])
 }
 
 function setHead() {
@@ -169,7 +171,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
         </div>
         <div class="flex flex-wrap gap-x-4 gap-y-2">
           <RouterLink v-if="canEdit" :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="btn-secondary">ניהול המועדון</RouterLink>
-          <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" aria-controls="club-posts-editor" :aria-expanded="editing" @click="editing ? closeEditor() : (editing = true)">{{ editing ? 'סיום עריכה' : 'עריכת עדכונים' }}</button>
+          <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" aria-controls="club-posts-editor club-images-editor" :aria-expanded="editing" @click="editing ? closeEditor() : (editing = true)">{{ editing ? 'סיום עריכה' : 'עריכת עדכונים ותמונות' }}</button>
           <a v-if="club.ibasketball_url" :href="club.ibasketball_url" target="_blank" rel="noopener noreferrer" class="section-link">המועדון ב-ibasketball</a>
         </div>
       </div>
@@ -179,15 +181,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
         <div v-if="club.about_links.length" class="flex flex-wrap gap-2">
           <a v-for="(l, i) in club.about_links" :key="i" :href="l.url" target="_blank" rel="noopener" class="btn-secondary gap-2">{{ l.label }} <AppIcon name="external" /></a>
         </div>
-        <div v-if="club.about_images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <figure v-for="(img, i) in club.about_images" :key="i" class="space-y-1">
-            <button type="button" class="block w-full cursor-zoom-in" :aria-label="`הגדלת תמונה: ${img.title || club.name}`" @click="lightbox.open(i, $event)">
-              <img :src="img.url" :alt="img.title || club.name" loading="lazy" class="aspect-square w-full rounded-xl object-cover" />
-            </button>
-            <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>
-          </figure>
-          <ImageLightbox ref="lightbox" :images="club.about_images.map((i) => ({ url: i.url, alt: i.title || club.name }))" />
-        </div>
+        <ImageGallery v-if="club.about_images.length" :images="club.about_images" :fallback-alt="club.name" />
       </section>
       <TeamContentSection v-if="editing" id="club-posts-editor" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.posts" />
       <section v-else-if="posts.length || postsError" class="space-y-3">
@@ -196,6 +190,12 @@ watch(() => route.params.clubSlug, load, { immediate: true })
         <div v-else class="space-y-6">
           <PostCard v-for="post in posts" :key="post.id" :post="post" />
         </div>
+      </section>
+      <TeamContentSection v-if="editing" id="club-images-editor" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.clubImages" />
+      <section v-else-if="images.length || imagesError" class="space-y-3">
+        <h2 class="section-title">תמונות</h2>
+        <p v-if="imagesError" class="error-text" role="alert">שגיאה בטעינת התמונות</p>
+        <ImageGallery v-else :images="images" :fallback-alt="club.name" />
       </section>
       <section v-if="club.officials.length" class="space-y-3">
         <h2 class="section-title">בעלי תפקידים</h2>

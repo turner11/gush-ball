@@ -87,6 +87,18 @@ class ClubPost(_PostColumns, Base):
     club: Mapped["Club"] = relationship(back_populates="posts")
 
 
+class ClubImage(Base):
+    __tablename__ = "club_images"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    club_id: Mapped[int] = mapped_column(ForeignKey("clubs.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(200))
+    title_en: Mapped[str | None] = mapped_column(String(200), default=None)
+    url: Mapped[str] = mapped_column(String(500))
+
+    club: Mapped["Club"] = relationship(back_populates="images")
+
+
 class TeamPlay(Base):
     """A team-private play: an uploaded file (image/GIF/MP4/PDF) or an external link. Member-only reads (#439)."""
 

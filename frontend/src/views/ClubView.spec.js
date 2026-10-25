@@ -48,8 +48,9 @@ const FGAMES = [
   { id: 21, team_id: 4, is_home: true, scheduled_at: '2026-03-14T19:00:00', status: 'scheduled', team_score: null, opponent_score: null, opponent: opp },
 ]
 
-function mockFetch(games, teams = TEAMS, leagues = [], posts = []) {
+function mockFetch(games, teams = TEAMS, leagues = [], posts = [], images = []) {
   global.fetch = vi.fn((url) => {
+    if (String(url).endsWith('/images')) return images instanceof Error ? Promise.reject(images) : Promise.resolve({ ok: true, status: 200, json: async () => images })
     if (String(url).endsWith('/posts')) return posts instanceof Error ? Promise.reject(posts) : Promise.resolve({ ok: true, status: 200, json: async () => posts })
     if (games instanceof Error) return Promise.reject(games)
     if (url === '/api/leagues') return leagues instanceof Error ? Promise.reject(leagues) : Promise.resolve({ ok: true, status: 200, json: async () => leagues })
@@ -209,7 +210,7 @@ describe('ClubView', () => {
 
   it('shows the edit button to a club admin and full admin, never to anonymous or in preview', async () => {
     const { useAuth, previewMode } = await import('../composables/useAuth')
-    const editBtn = (w) => w.findAll('button').some((b) => b.text() === 'עריכת עדכונים')
+    const editBtn = (w) => w.findAll('button').some((b) => b.text() === 'עריכת עדכונים ותמונות')
     for (const [user, preview, shown] of [
       [{ team_ids: [1], clubs: ['מכבי'] }, null, true],
       [{ team_ids: [1], clubs: ['אחר'] }, null, false],
@@ -238,7 +239,7 @@ describe('ClubView', () => {
           : base(url, o),
       )
       const w = await mountIt()
-      await w.findAll('button').find((b) => b.text() === 'עריכת עדכונים').trigger('click')
+      await w.findAll('button').find((b) => b.text() === 'עריכת עדכונים ותמונות').trigger('click')
       return w
     }
     afterEach(async () => {
@@ -247,19 +248,24 @@ describe('ClubView', () => {
       previewMode.value = null
     })
 
-    it('the club page edits posts inline, and closing reloads them', async () => {
+    it('the club page edits posts and images inline, and closing reloads both', async () => {
       const { default: TeamContentSection } = await import('../components/TeamContentSection.vue')
       const w = await openEditor()
       await flushPromises()
-      const section = w.findComponent(TeamContentSection)
-      expect(section.props()).toMatchObject({ owner: 'clubs', ownerId: 5, resource: 'posts' })
+      const sections = w.findAllComponents(TeamContentSection)
+      expect(sections.map((s) => s.props())).toMatchObject([
+        { owner: 'clubs', ownerId: 5, resource: 'posts' },
+        { owner: 'clubs', ownerId: 5, resource: 'images' },
+      ])
+      const keys = sections[1].props('fields').map((f) => f.key)
+      expect(keys).toEqual(['title', 'title_en', 'url'])
 
-      const postLoads = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/clubs/5/posts' && !o?.method).length
-      const before = postLoads()
+      const loads = (u) => global.fetch.mock.calls.filter(([x, o]) => x === u && !o?.method).length
+      const before = [loads('/api/clubs/5/posts'), loads('/api/clubs/5/images')]
       await w.findAll('button').find((b) => b.text() === 'סיום עריכה').trigger('click')
       await flushPromises()
       expect(w.findComponent(TeamContentSection).exists()).toBe(false)
-      expect(postLoads()).toBe(before + 1)
+      expect([loads('/api/clubs/5/posts'), loads('/api/clubs/5/images')]).toEqual([before[0] + 1, before[1] + 1])
     })
 
     it('entering the visitor preview while editing closes the editor and reloads posts', async () => {
@@ -393,5 +399,27 @@ describe('ClubView', () => {
     const w = await mountIt()
     expect(w.get('h1').text()).toBe('מכבי')
     expect(w.get('[role="alert"]').text()).toContain('שגיאה בטעינת העדכונים')
+  })
+
+  it('shows the club image gallery and opens the viewer', async () => {
+    mockFetch(GAMES, TEAMS, [], [], [{ id: 1, club_id: 5, title: 'אימון', title_en: null, url: 'https://cdn.example.com/t.jpg' }])
+    const w = await mountIt()
+    expect(global.fetch.mock.calls.map((c) => c[0])).toContain('/api/clubs/5/images')
+    expect(w.findAll('h2').map((h) => h.text())).toContain('תמונות')
+    expect(w.get('img[alt="אימון"]').attributes('src')).toBe('https://cdn.example.com/t.jpg')
+    await w.get('button[aria-label="הגדלת תמונה: אימון"]').trigger('click')
+    expect(w.get('dialog img').attributes('src')).toBe('https://cdn.example.com/t.jpg')
+
+    mockFetch(GAMES)
+    const none = await mountIt('/clubs/6')
+    expect(none.findAll('h2').map((h) => h.text())).not.toContain('תמונות')
+  })
+
+  it('a failed images load keeps the page and shows an inline error', async () => {
+    mockFetch(GAMES, TEAMS, [], [{ id: 1, club_id: 5, title: 'חדשות', body: 'גוף', pinned: false }], new Error('boom'))
+    const w = await mountIt()
+    expect(w.get('h1').text()).toBe('מכבי')
+    expect(w.get('[role="alert"]').text()).toContain('שגיאה בטעינת התמונות')
+    expect(w.text()).toContain('חדשות')
   })
 })
