@@ -247,6 +247,33 @@ describe('ClubView', () => {
       previewMode.value = null
     })
 
+    it('the club page editor also manages posts, and closing it reloads them', async () => {
+      const { default: TeamContentSection } = await import('../components/TeamContentSection.vue')
+      const w = await openEditor()
+      await flushPromises()
+      const section = w.findComponent(TeamContentSection)
+      expect(section.props()).toMatchObject({ owner: 'clubs', ownerId: 5, resource: 'posts' })
+
+      const postLoads = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/clubs/5/posts' && !o?.method).length
+      const before = postLoads()
+      await w.findAll('button').find((b) => b.text() === 'סיום עריכה').trigger('click')
+      await flushPromises()
+      expect(w.findComponent(TeamContentSection).exists()).toBe(false)
+      expect(postLoads()).toBe(before + 1)
+    })
+
+    it('entering the visitor preview while editing closes the editor and reloads posts', async () => {
+      const { previewMode } = await import('../composables/useAuth')
+      const w = await openEditor()
+      await flushPromises()
+      const postLoads = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/clubs/5/posts' && !o?.method).length
+      const before = postLoads()
+      previewMode.value = 'anonymous'
+      await flushPromises()
+      expect(w.find('#club-about-editor').exists()).toBe(false)
+      expect(postLoads()).toBe(before + 1)
+    })
+
     it('club admin edits about and officials inline and sees the result', async () => {
       const w = await openEditor()
       await w.get('#club-about-title').setValue('כותרת חדשה')
