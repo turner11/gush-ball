@@ -147,7 +147,7 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('אין קבוצות במערכת עדיין')
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1', expect.anything())
   })
-  async function mountWithTeam(team, { links = [], players = [], games = [], videos = [], posts = [], images = [], extra = {} } = {}) {
+  async function mountWithTeam(team, { links = [], players = [], games = [], videos = [], posts = [], images = [], extra = {}, attachTo } = {}) {
     mockFetch({
       'GET /api/teams/1': () => jsonRes(team),
       'GET /api/teams/1/links': () => jsonRes(links),
@@ -159,7 +159,7 @@ describe('HomeView', () => {
       ...extra,
     })
     const { default: HomeView } = await import('./HomeView.vue')
-    const wrapper = mount(HomeView, { global: { plugins: [router] } })
+    const wrapper = mount(HomeView, { global: { plugins: [router] }, attachTo })
     await flushPromises()
     return wrapper
   }
@@ -579,6 +579,29 @@ describe('HomeView', () => {
       expect(w.text()).not.toContain('עריכת עדכונים')
       expect(w.text()).not.toContain('הוספת רשתות')
       previewMode.value = null
+    })
+
+    it('the posts toggle reports aria-expanded and keeps focus across open and close (#521)', async () => {
+      await asTeamAdmin()
+      const w = await mountWithTeam(TEAM, { attachTo: document.body })
+      const toggles = () => w.findAll('[aria-controls="home-posts-editor"]')
+      expect(toggles()).toHaveLength(1)
+      expect(toggles()[0].text()).toBe('עריכת עדכונים')
+      expect(toggles()[0].attributes('aria-expanded')).toBe('false')
+
+      await toggles()[0].trigger('click')
+      await flushPromises()
+      expect(toggles()).toHaveLength(1)
+      expect(toggles()[0].text()).toBe('סיום עריכה')
+      expect(toggles()[0].attributes('aria-expanded')).toBe('true')
+
+      await toggles()[0].trigger('click')
+      await flushPromises()
+      expect(toggles()).toHaveLength(1)
+      expect(toggles()[0].text()).toBe('עריכת עדכונים')
+      expect(toggles()[0].attributes('aria-expanded')).toBe('false')
+      expect(document.activeElement).toBe(toggles()[0].element)
+      w.unmount()
     })
   })
 })
