@@ -54,12 +54,26 @@ describe('LoginView', () => {
     expect(wrapper.find('a[href="/api/auth/google/login"]').exists()).toBe(true)
   })
 
+  const dividers = (wrapper) => wrapper.findAll('div').filter((d) => d.text() === 'או')
+
+  it('puts the Google link and an "or" divider above the password form', async () => {
+    const wrapper = await mountLogin('/admin/login', options({ google: true }))
+    const link = wrapper.find(GOOGLE_HREF).element
+    const form = wrapper.find('form').element
+    const [divider] = dividers(wrapper)
+    expect(divider).toBeDefined()
+    expect(link.compareDocumentPosition(divider.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(divider.element.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('hides the Google link when disabled or when the options fetch fails', async () => {
     let wrapper = await mountLogin('/admin/login', options({ google: false }))
     expect(wrapper.find('a[href="/api/auth/google/login"]').exists()).toBe(false)
+    expect(dividers(wrapper)).toHaveLength(0)
     vi.resetModules()
     wrapper = await mountLogin('/admin/login', () => Promise.reject(new Error('down')))
     expect(wrapper.find('a[href="/api/auth/google/login"]').exists()).toBe(false)
+    expect(dividers(wrapper)).toHaveLength(0)
   })
 
   it('shows the Google error alert for ?error=google', async () => {
