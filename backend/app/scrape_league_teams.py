@@ -1,8 +1,11 @@
-"""On-demand, cached list of a league's teams from ibasketball's SportsPress API (#350)."""
+"""On-demand, cached league data from ibasketball's SportsPress API: a league's teams (#350) and an opponent's
+played results in it (#537)."""
 
 import html
 import logging
 import time
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 from bbstats import http_url_or_none
@@ -11,12 +14,12 @@ from sqlalchemy.orm import Session
 
 from app.models import Team, TeamRequest
 from app.scrape_club import _team_code
-from app.scrape_games import BASE, ibasketball_url_or_none
+from app.scrape_games import BASE, home_away_scores, ibasketball_url_or_none
 
 log = logging.getLogger(__name__)
 TTL = 24 * 60 * 60
 FAIL_TTL = 60  # a failed fetch is remembered briefly so an ibasketball outage can't tie up every worker thread (#366)
-_cache: dict[int, tuple[float, list[dict] | None]] = {}  # None = recent failure
+_cache: dict[Any, tuple[float, Any]] = {}  # value None = recent failure
 
 
 def _fetch(league_ibasketball_id: int) -> list[dict]:
@@ -35,17 +38,26 @@ def _fetch(league_ibasketball_id: int) -> list[dict]:
     return resp.json()
 
 
-def _raw_teams(league_ibasketball_id: int) -> list[dict]:
-    cached = _cache.get(league_ibasketball_id)
+def _cached(key: Any, load: Callable[[], Any]) -> Any:
+    cached = _cache.get(key)
     if cached and time.monotonic() - cached[0] < (TTL if cached[1] is not None else FAIL_TTL):
         if cached[1] is None:
-            raise httpx.HTTPError(f"League {league_ibasketball_id}: ibasketball failed under {FAIL_TTL}s ago, not retrying yet")
+            raise httpx.HTTPError(f"{key}: ibasketball failed under {FAIL_TTL}s ago, not retrying yet")
         return cached[1]
     try:
-        fetched = _fetch(league_ibasketball_id)
+        value = load()
     except httpx.HTTPError:
-        _cache[league_ibasketball_id] = (time.monotonic(), None)
+        _cache[key] = (time.monotonic(), None)
         raise
+    _cache[key] = (time.monotonic(), value)
+    return value
+
+
+def _raw_teams(league_ibasketball_id: int) -> list[dict]:
+    return _cached(league_ibasketball_id, lambda: _parse_teams(_fetch(league_ibasketball_id)))
+
+
+def _parse_teams(fetched: list[dict]) -> list[dict]:
     rows = []
     for t in fetched:
         url = ibasketball_url_or_none(t["link"])
@@ -61,8 +73,49 @@ def _raw_teams(league_ibasketball_id: int) -> list[dict]:
             }
         )
     rows.sort(key=lambda r: r["name"])
-    _cache[league_ibasketball_id] = (time.monotonic(), rows)
     return rows
+
+
+def _fetch_opponent_events(team_url: str, league_ibasketball_id: int) -> tuple[int, list[dict]]:
+    """(SportsPress team id, that team's events in the league). No crawl delay, as in `_fetch`."""
+    slug = team_url.rstrip("/").rsplit("/", 1)[-1]
+    found = httpx.get(BASE + "/sportspress/v2/teams", params={"slug": slug, "_fields": "id"}, timeout=15)
+    found.raise_for_status()
+    if not found.json():
+        log.warning("No SportsPress team for %s", team_url)
+        return 0, []
+    sp_id = found.json()[0]["id"]
+    # ponytail: one page (per_page=100); a team plays far fewer league games
+    events = httpx.get(
+        BASE + "/sportspress/v2/events",
+        params={
+            "teams": sp_id,
+            "leagues": league_ibasketball_id,
+            "per_page": 100,
+            "_fields": "id,teams,main_results,date",
+        },
+        timeout=15,
+    )
+    events.raise_for_status()
+    return sp_id, events.json()
+
+
+def opponent_results(team_url: str, league_ibasketball_id: int) -> list[dict]:
+    """The opponent's played two-team league games, each as {scheduled_at, team_score, opponent_score} from the
+    opponent's side (`team_score` = the opponent's points), the shape `GameRead` has."""
+
+    def load() -> list[dict]:
+        sp_id, events = _fetch_opponent_events(team_url, league_ibasketball_id)
+        results = []
+        for event in events:
+            scores = home_away_scores(event)
+            if scores is None or len(event["teams"]) != 2 or sp_id not in event["teams"]:
+                continue
+            mine, theirs = scores if event["teams"][0] == sp_id else scores[::-1]
+            results.append({"scheduled_at": event["date"], "team_score": mine, "opponent_score": theirs})
+        return results
+
+    return _cached((league_ibasketball_id, team_url), load)
 
 
 def league_teams(db: Session, league_ibasketball_id: int) -> list[dict]:

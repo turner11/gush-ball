@@ -28,7 +28,13 @@ def fake_fetch(monkeypatch: pytest.MonkeyPatch) -> dict:
     return state
 
 
-def _setup(db: Session, *, league: bool = True, source_url: str | None = OPP_URL, needs_review: bool = False) -> Game:
+def _setup(
+    db: Session,
+    *,
+    league: bool = True,
+    source_url: str | None = OPP_URL,
+    needs_review: bool = False,
+) -> Game:
     team = Team(name="T", slug="t", ibasketball_league_url=LEAGUE_URL)
     opponent = Opponent(name="O", source_url=source_url)
     db.add_all([team, opponent])
@@ -55,7 +61,9 @@ def _event(date: str, teams: list[int], results: list | None) -> dict:
     return {"id": 1, "date": date, "teams": teams, "main_results": results}
 
 
-def test_opponent_results_are_from_the_opponents_side(client: TestClient, db_session: Session, fake_fetch: dict) -> None:
+def test_opponent_results_are_from_the_opponents_side(
+    client: TestClient, db_session: Session, fake_fetch: dict
+) -> None:
     game = _setup(db_session)
     fake_fetch["events"] = [
         _event("2026-01-02T18:00:00", [7, 8], ["80", "70"]),  # opponent (7) is home
@@ -83,7 +91,9 @@ def test_opponent_results_empty_without_source_url_and_no_fetch(
     assert fake_fetch["calls"] == 0
 
 
-def test_opponent_results_cached_per_league_and_opponent(client: TestClient, db_session: Session, fake_fetch: dict) -> None:
+def test_opponent_results_cached_per_league_and_opponent(
+    client: TestClient, db_session: Session, fake_fetch: dict
+) -> None:
     game = _setup(db_session)
     fake_fetch["events"] = [_event("2026-01-02T18:00:00", [7, 8], ["80", "70"])]
     assert client.get(_url(game)).status_code == 200

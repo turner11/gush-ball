@@ -11,31 +11,44 @@ import { teamRows } from '../lib/standings'
 const props = defineProps({
   team: { type: Object, required: true },
   opponent: { type: Object, required: true },
+  gameId: { type: Number, required: true },
 })
 
 const games = ref([])
 const rows = ref([])
+const oppResults = ref([])
+const oppFailed = ref(false)
 const loading = ref(true)
 const error = ref(false)
 
 async function load() {
-  const id = props.team.id
+  const { id } = props.team
+  const gameId = props.gameId
+  const current = () => id === props.team.id && gameId === props.gameId
   loading.value = true
   error.value = false
   try {
-    const loaded = await Promise.all([apiFetch(`/teams/${id}/games`), apiFetch('/standings')])
-    if (id !== props.team.id) return
+    // An ibasketball hiccup on the opponent's results only dashes its split; it never fails the widget.
+    const loaded = await Promise.all([
+      apiFetch(`/teams/${id}/games`),
+      apiFetch('/standings'),
+      apiFetch(`/teams/${id}/games/${gameId}/opponent-results`).catch(() => null),
+    ])
+    if (!current()) return
     ;[games.value, rows.value] = loaded
+    oppFailed.value = loaded[2] === null
+    oppResults.value = loaded[2] ?? []
   } catch {
-    if (id === props.team.id) error.value = true
+    if (current()) error.value = true
   } finally {
-    if (id === props.team.id) loading.value = false
+    if (current()) loading.value = false
   }
 }
-watch(() => props.team.id, load, { immediate: true })
+watch(() => [props.team.id, props.gameId], load, { immediate: true })
 
 const ours = computed(() => scoringTotals(games.value))
-// The opponent is not a Team: its only season data is its row in our league's table (overall pair; no W/L split).
+const theirs = computed(() => scoringTotals(oppResults.value))
+// The opponent is not a Team: its overall pair is its row in our league's table; its W/L split comes from its league results.
 const oppRow = computed(() => {
   const league = teamRows(rows.value, props.team)[0]?.league_name
   const inLeague = rows.value.filter((r) => r.league_name === league)
@@ -43,16 +56,22 @@ const oppRow = computed(() => {
 })
 const tableRows = computed(() => {
   const { all, W, L } = ours.value
-  const mine = (b, k) => formatAverage(b[k], b.n)
-  const opp = (k) => (oppRow.value ? formatAverage(oppRow.value[k === 'for' ? 'points_for' : 'points_against'], oppRow.value.played) : '—')
+  const avg = (b, k) => formatAverage(b[k], b.n)
+    const opp = (k) => (oppRow.value ? formatAverage(oppRow.value[k === 'for' ? 'points_for' : 'points_against'], oppRow.value.played) : '—')
   return [
-    { label: 'נקודות זכות', n: all.n, us: mine(all, 'for'), them: opp('for') },
-    { label: 'נקודות חובה', n: all.n, us: mine(all, 'against'), them: opp('against') },
-    { label: 'זכות בניצחונות', n: W.n, us: mine(W, 'for'), them: '—' },
-    { label: 'חובה בניצחונות', n: W.n, us: mine(W, 'against'), them: '—' },
-    { label: 'זכות בהפסדים', n: L.n, us: mine(L, 'for'), them: '—' },
-    { label: 'חובה בהפסדים', n: L.n, us: mine(L, 'against'), them: '—' },
+    { label: 'נקודות זכות', n: all.n, us: avg(all, 'for'), them: opp('for') },
+    { label: 'נקודות חובה', n: all.n, us: avg(all, 'against'), them: opp('against') },
+    { label: 'זכות בניצחונות', n: W.n, us: avg(W, 'for'), them: avg(theirs.value.W, 'for'), themN: theirs.value.W.n },
+    { label: 'חובה בניצחונות', n: W.n, us: avg(W, 'against'), them: avg(theirs.value.W, 'against'), themN: theirs.value.W.n },
+    { label: 'זכות בהפסדים', n: L.n, us: avg(L, 'for'), them: avg(theirs.value.L, 'for'), themN: theirs.value.L.n },
+    { label: 'חובה בהפסדים', n: L.n, us: avg(L, 'against'), them: avg(theirs.value.L, 'against'), themN: theirs.value.L.n },
   ]
+})
+
+const footnote = computed(() => {
+  if (oppFailed.value) return 'פירוט ניצחונות/הפסדים של היריבה לא זמין כרגע'
+  if (oppRow.value || oppResults.value.length) return 'נתוני היריבה מטבלת הליגה ומתוצאות משחקיה בליגה'
+  return 'אין נתוני טבלה ליריבה'
 })
 </script>
 
@@ -78,12 +97,14 @@ const tableRows = computed(() => {
               {{ r.label }}
             </th>
             <td class="px-2 py-2 text-lg font-black tabular-nums">{{ r.us }} <span class="text-xs font-normal text-muted">({{ r.n }} מש׳)</span></td>
-            <td class="px-2 py-2 text-lg font-black tabular-nums">{{ r.them }}</td>
+            <td class="px-2 py-2 text-lg font-black tabular-nums">
+              {{ r.them }} <span v-if="r.themN" class="text-xs font-normal text-muted">({{ r.themN }} מש׳)</span>
+            </td>
           </tr>
         </tbody>
       </table>
       <p class="text-xs text-muted">
-        {{ oppRow ? 'נתוני היריבה מטבלת הליגה; פירוט ניצחונות/הפסדים זמין לקבוצה בלבד' : 'אין נתוני טבלה ליריבה' }}
+        {{ footnote }}
       </p>
       <div class="space-y-3">
         <h3 class="font-bold">הקבוצה מול היריבות</h3>

@@ -281,6 +281,17 @@ def _fetch_opponents(events: list[dict[str, Any]], sp_id: int) -> dict[int, dict
     return by_id
 
 
+def home_away_scores(event: dict) -> tuple[int, int] | None:
+    """(home, away) points of a SportsPress event, or None when it has no result yet."""
+    main_results = event.get("main_results") or []
+    if len(main_results) != 2:
+        return None
+    try:
+        return int(main_results[0]), int(main_results[1])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"event {event['id']}: bad main_results {main_results!r}") from exc
+
+
 def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
     sp_team = _sp_team(team.ibasketball_team_url)
     sp_id = sp_team["id"]
@@ -321,15 +332,11 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
         is_home = event_teams[0] == sp_id
         opp_sp_id = event_teams[1] if is_home else event_teams[0]
 
-        main_results = event.get("main_results") or []
         # Results decide "played", not WP status: ibasketball leaves played games as "future" (#404).
-        is_final = len(main_results) == 2
-        if is_final:
+        scores = home_away_scores(event)
+        if scores is not None:
             game_status = GameStatus.FINAL
-            try:
-                home_score, away_score = int(main_results[0]), int(main_results[1])
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"event {event['id']}: bad main_results {main_results!r}") from exc
+            home_score, away_score = scores
             team_score = home_score if is_home else away_score
             opponent_score = away_score if is_home else home_score
         else:

@@ -37,7 +37,7 @@ describe('GameAverages', () => {
 
   it("shows the opponent's averages in wins and losses from its results", async () => {
     mockFetch(GAMES, ROWS, [game(80, 70, 1), game(90, 60, 2), game(50, 70, 3)])
-    const cells = (await mountIt()).findAll('tbody tr').map((tr) => tr.findAll('td')[1].text())
+    const cells = (await mountIt()).find('table').findAll('tbody tr').map((tr) => tr.findAll('td')[1].text())
     expect(cells.slice(2)).toEqual(['85.0 (2 מש׳)', '65.0 (2 מש׳)', '50.0 (1 מש׳)', '70.0 (1 מש׳)'])
   })
 

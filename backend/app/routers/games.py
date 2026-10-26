@@ -1,12 +1,15 @@
+import logging
 import re
 from datetime import date, datetime, time
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app import scrape_league_teams
 from app.deps import (
     DbSession,
     OptionalUser,
@@ -15,10 +18,11 @@ from app.deps import (
     get_game_or_404,
     get_team_or_404,
 )
-from app.models import Game, GameScorer, GameStatus, Player, get_or_create_opponent
+from app.models import Game, GameScorer, GameStatus, League, Player, get_or_create_opponent
 from app.routers.players import VideoTitle
 from app.routers.teams import TitledImage, Url500
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
 club_router = APIRouter(prefix="/games", tags=["games"])
 MAX_CLUB_WINDOW_DAYS = 31
@@ -253,6 +257,30 @@ def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> G
         videos=game.videos,
         images=game.images,
     )
+
+
+class OpponentResultOut(BaseModel):
+    scheduled_at: datetime
+    team_score: int
+    opponent_score: int
+
+
+@router.get("/{game_id}/opponent-results", response_model=list[OpponentResultOut])
+def get_opponent_results(
+    team_id: int, game_id: int, db: DbSession, user: OptionalUser
+) -> list[dict]:
+    """The opponent's played games in this team's league, for the game page's win/loss averages (#537)."""
+    game = get_game_or_404(db, team_id, game_id)
+    if game.needs_review and not can_write_team(db, user, team_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+    league = db.scalar(select(League).where(League.url == game.team.ibasketball_league_url))
+    if league is None or game.opponent.source_url is None:
+        return []
+    try:
+        return scrape_league_teams.opponent_results(game.opponent.source_url, league.ibasketball_id)
+    except (httpx.HTTPError, ValueError):
+        log.exception("Fetching opponent results for game %s failed", game_id)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "ibasketball unreachable") from None
 
 
 @router.put("/{game_id}/scorers", response_model=list[ScorerOut])
