@@ -63,9 +63,11 @@ class FakeApi:
     """Path-keyed fake for app.scrape_games._get_json. Records calls, no network/sleep."""
 
     def __init__(
-        self, events: list[dict], known_opponents: tuple[int, ...] = (OPP_SP_ID,), team_leagues: tuple[int, ...] = ()
+        self, events: list[dict], known_opponents: tuple[int, ...] = (OPP_SP_ID,), team_leagues: tuple[int, ...] = (),
+        by_month: dict[int, list[dict]] | None = None,
     ) -> None:
         self.events = events
+        self.by_month = by_month
         self.team_leagues = team_leagues
         self.known_opponents = known_opponents
         self.calls: list[tuple[str, dict]] = []
@@ -77,6 +79,8 @@ class FakeApi:
             return [_opponent_detail(i) for i in ids if i in self.known_opponents]
         if path == "/sportspress/v2/teams":
             return [{"id": OUR_SP_ID, "leagues": list(self.team_leagues)}]
+        if path == "/sportspress/v2/events" and "month" in params:
+            return self.by_month[params["month"]]
         if path == "/sportspress/v2/events":
             return self.events
         raise AssertionError(f"unexpected path {path}")
@@ -1436,3 +1440,43 @@ def test_sync_team_players_bad_dob_page_is_logged_and_skipped(
     assert dobs == {_url("a-1"): None, _url("b-2"): date(2008, 1, 23), _url("c-3"): None}
     assert _url("a-1") in caplog.text
     assert _url("c-3") in caplog.text
+
+
+def test_sync_imports_whole_season_scoped_to_current_leagues(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for league_id in (NEW_LEAGUE_ID, 120130, 555):
+        db_session.add(League(ibasketball_id=league_id, name="ליגה", url=f"{NEW_LEAGUE}{league_id}/", season=2026))
+    db_session.flush()
+    team = _make_team(db_session)
+    old_final = {**FINAL_EVENT_AWAY, "date": "2026-10-01T18:00:00"}
+    future = {**FUTURE_EVENT, "date": "2027-02-01T21:00:00"}
+    fake = FakeApi(
+        [], team_leagues=(119715, NEW_LEAGUE_ID, 120130), by_month={2026: [old_final], 2027: [future]}
+    )
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+
+    scrape_games.sync_team_games(db_session, team)
+
+    event_params = [c[1] for c in fake.calls if c[0] == "/sportspress/v2/events"]
+    assert [p["month"] for p in event_params] == [2026, 2027]
+    assert all(p["leagues"] == "120129,120130" and p["teams"] == OUR_SP_ID for p in event_params)
+    games = {g.source_event_id: g for g in db_session.query(Game)}
+    assert set(games) == {9001, 9002}
+    assert games[9002].status == GameStatus.FINAL
+
+
+def test_sync_without_current_league_falls_back_to_unscoped_feed(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    team = _make_team(db_session)
+    fake = FakeApi([FUTURE_EVENT], team_leagues=(119715,))
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+
+    with caplog.at_level("WARNING"):
+        scrape_games.sync_team_games(db_session, team)
+
+    event_params = [c[1] for c in fake.calls if c[0] == "/sportspress/v2/events"]
+    assert event_params == [{"teams": OUR_SP_ID, "per_page": 100}]
+    assert db_session.query(Game).count() == 1
+    assert any(r.levelname == "WARNING" and team.slug in r.getMessage() for r in caplog.records)
