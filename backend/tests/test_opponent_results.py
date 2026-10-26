@@ -11,15 +11,17 @@ from app.models import Game, GameStatus, League, Opponent, Team
 
 LEAGUE_URL = "https://ibasketball.co.il/league/x/"
 OPP_URL = "https://ibasketball.co.il/team/opp/"
+_real_fetch_opponent_events = scrape_league_teams._fetch_opponent_events
 
 
 @pytest.fixture(autouse=True)
 def fake_fetch(monkeypatch: pytest.MonkeyPatch) -> dict:
     scrape_league_teams._cache.clear()
-    state: dict[str, Any] = {"calls": 0, "events": [], "error": None}
+    state: dict[str, Any] = {"calls": 0, "events": [], "error": None, "season": None}
 
-    def fake(team_url: str, league_id: int) -> tuple[int, list[dict]]:
+    def fake(team_url: str, league_id: int, season: int) -> tuple[int, list[dict]]:
         state["calls"] += 1
+        state["season"] = season
         if state["error"]:
             raise state["error"]
         return 7, state["events"]
@@ -130,3 +132,33 @@ def test_opponent_results_404_for_unapproved_scraped_game_when_anonymous(
     game = _setup(db_session, needs_review=True)
     assert client.get(_url(game)).status_code == 404
     assert fake_fetch["calls"] == 0
+
+
+def test_opponent_results_passes_league_season(client: TestClient, db_session: Session, fake_fetch: dict) -> None:
+    game = _setup(db_session)
+    assert client.get(_url(game)).status_code == 200
+    assert fake_fetch["season"] == 2026
+
+
+def test_fetch_opponent_events_queries_both_season_years(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ibasketball hides events older than ~3 days unless `month` is set; a season spans two calendar years."""
+    event_calls: list[dict] = []
+    by_month = {
+        None: [_event("2027-03-01T18:00:00", [7, 8], None)],
+        2026: [_event("2026-10-20T18:00:00", [7, 8], ["75", "84"])],
+        2027: [_event("2027-02-01T18:00:00", [8, 7], ["60", "90"])],
+    }
+
+    def fake_get(url: str, params: dict, timeout: int) -> httpx.Response:
+        body: list = [{"id": 7}]
+        if url.endswith("/events"):
+            event_calls.append(params)
+            body = by_month[params.get("month")]
+        return httpx.Response(200, json=body, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(scrape_league_teams.httpx, "get", fake_get)
+    sp_id, events = _real_fetch_opponent_events(OPP_URL, 10, 2026)
+    assert sp_id == 7
+    assert [e["date"][:7] for e in events] == ["2026-10", "2027-02"]
+    assert [c["month"] for c in event_calls] == [2026, 2027]
+    assert all(c["leagues"] == 10 and c["teams"] == 7 for c in event_calls)
