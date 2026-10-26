@@ -1,6 +1,6 @@
 <script setup>
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, useId } from 'vue'
 
 import { apiUrl } from '../lib/api'
 import AppIcon from './AppIcon.vue'
@@ -10,6 +10,7 @@ const props = defineProps({ teamId: { type: Number, required: true }, practices:
 const feedUrl = computed(() => apiUrl(`/teams/${props.teamId}/calendar.ics${props.practices ? '?practices=1' : ''}`))
 const webcalUrl = computed(() => feedUrl.value.replace(/^https?:/, 'webcal:'))
 
+const noteId = useId()
 const copied = ref(false)
 const copyFailed = ref(false)
 
@@ -36,8 +37,8 @@ async function copy() {
           <DropdownMenuItem as-child>
             <a :href="webcalUrl" class="menu-item">הוספה ליומן במכשיר</a>
           </DropdownMenuItem>
-          <DropdownMenuItem class="menu-item" @select="copy">העתקת קישור ל-Google</DropdownMenuItem>
-          <p v-if="practices" class="px-3 py-1.5 text-xs text-muted">יומן Google מרענן מינויים רק כל כמה שעות, כך ששינוי של הרגע האחרון עשוי להופיע באיחור</p>
+          <DropdownMenuItem class="menu-item" :aria-describedby="practices ? noteId : undefined" @select="copy">העתקת קישור ל-Google</DropdownMenuItem>
+          <p v-if="practices" :id="noteId" class="px-3 py-1.5 text-xs text-muted">יומן Google מרענן מינויים רק כל כמה שעות, כך ששינוי של הרגע האחרון עשוי להופיע באיחור</p>
         </DropdownMenuContent>
       </DropdownMenuPortal>
     </DropdownMenuRoot>

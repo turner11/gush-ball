@@ -44,6 +44,8 @@ describe('CalendarSubscribe', () => {
     const { body } = await mountOpen({ practices: true })
     expect(body.get('[role=menuitem][href^="webcal:"]').attributes('href')).toBe(feedUrl.replace(/^https?:/, 'webcal:') + '?practices=1')
     expect(body.text()).toContain('יומן Google מרענן')
+    const note = body.findAll('p').find((p) => p.text().includes('יומן Google מרענן'))
+    expect(copyItem(body).attributes('aria-describedby')).toBe(note.attributes('id'))
   })
 
   it('copies the http feed URL and confirms', async () => {
