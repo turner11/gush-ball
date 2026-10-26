@@ -32,7 +32,7 @@ const navItems = computed(() => [
   { to: teamBase.value + '/standings', label: 'טבלה' },
   { to: teamBase.value + '/roster', label: 'שחקנים' },
   { to: teamBase.value + '/media', label: 'מדיה' },
-  { to: teamBase.value + '/stats', label: 'סטטיסטיקה' },
+  { to: teamBase.value + '/stats', label: 'נתונים' },
   ...(teamMember(selectedTeamId.value) ? [{ to: teamBase.value + '/playbook', label: 'פלייבוק' }] : []),
 ])
 

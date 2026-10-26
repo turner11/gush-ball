@@ -61,7 +61,7 @@ describe('DefaultLayout', () => {
         { path: '/', name: 'home', component: { template: '<div/>' } },
         { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { title: 'לוח', description: (t) => `לוח של ${t}` } },
         { path: '/clubs/:clubSlug', name: 'club', component: { template: '<div/>' } },
-        { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' } },
+        { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' }, meta: { title: 'נתונים' } },
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
         { path: '/teams', name: 'teams', component: { template: '<div/>' } },
         { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
@@ -513,6 +513,8 @@ describe('DefaultLayout', () => {
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a')
+    await flushPromises()
     await router.push('/team_a/stats')
     await flushPromises()
 
