@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
+import GameAverages from '../components/GameAverages.vue'
 import ImageGallery from '../components/ImageGallery.vue'
 import LoadError from '../components/LoadError.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
@@ -122,6 +123,8 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
       </dl>
       <GameStatsLink :game="game" class="btn-secondary" />
     </section>
+
+    <GameAverages :team="team" :opponent="game.opponent" />
 
     <section v-if="game.scorers?.length || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">

@@ -7,6 +7,8 @@ const props = defineProps({
   labels: { type: Array, required: true },
   series: { type: Array, required: true },
   ariaLabel: { type: String, required: true },
+  // 'W' | 'L' | null per label: draws a win/loss connector between series[0] and series[1] at that point.
+  outcomes: { type: Array, default: () => [] },
 })
 
 const W = 640
@@ -35,6 +37,12 @@ const lines = computed(() =>
     return { ...s, ...STYLE[s.emphasis ?? 'primary'], points, path: points.map((p) => `${p.x},${p.y}`).join(' ') }
   }),
 )
+
+const OUTCOME_LABEL = { W: 'ניצחון', L: 'הפסד' }
+const connectors = computed(() => {
+  const [a, b] = props.series
+  return props.outcomes.flatMap((o, i) => (o && a?.values[i] != null && b?.values[i] != null ? [{ i, x: x(i), y1: y(a.values[i]), y2: y(b.values[i]), cls: o === 'W' ? 'text-win' : 'text-loss' }] : []))
+})
 </script>
 
 <template>
@@ -49,6 +57,7 @@ const lines = computed(() =>
       <g class="fill-current text-muted" font-size="20" text-anchor="middle">
         <text v-for="i in shownLabels" :key="i" :x="x(i)" :y="H - 8">{{ labels[i] }}</text>
       </g>
+      <line v-for="c in connectors" :key="c.i" :class="c.cls" :x1="c.x" :x2="c.x" :y1="c.y1" :y2="c.y2" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity="0.5" />
       <g v-for="l in lines" :key="l.key" :class="l.cls" fill="none" stroke="currentColor">
         <polyline :class="l.cls" :points="l.path" :stroke-width="l.width" :stroke-dasharray="l.dash" stroke-linejoin="round" stroke-linecap="round" />
         <template v-if="l.emphasis !== 'muted'">
@@ -64,12 +73,14 @@ const lines = computed(() =>
         <tr>
           <th scope="col">משחק</th>
           <th v-for="s in series" :key="s.key" scope="col">{{ s.name }}</th>
+          <th v-if="outcomes.length" scope="col">תוצאה</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="(label, i) in labels" :key="i">
           <th scope="row">{{ label }}</th>
           <td v-for="s in series" :key="s.key">{{ s.values[i] ?? '' }}</td>
+          <td v-if="outcomes.length">{{ OUTCOME_LABEL[outcomes[i]] ?? '' }}</td>
         </tr>
       </tbody>
     </table>
