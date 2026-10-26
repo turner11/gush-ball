@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { formatDateTime, formatDuration, formatGameDate, signed, userLabel } from './format'
+import { formatAverage, formatDateTime, formatDuration, formatGameDate, signed, userLabel } from './format'
 
 const OPTS = { weekday: 'long', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }
 
@@ -61,5 +61,13 @@ describe('userLabel', () => {
 
   it('appends the username when they differ', () => {
     expect(userLabel({ username: 'dana2', display_name: 'Dana Cohen' })).toBe('Dana Cohen (dana2)')
+  })
+})
+
+describe('formatAverage', () => {
+  it('formats one decimal and dashes an empty count', () => {
+    expect(formatAverage(161, 2)).toBe('80.5')
+    expect(formatAverage(160, 2)).toBe('80.0')
+    expect(formatAverage(0, 0)).toBe('—')
   })
 })

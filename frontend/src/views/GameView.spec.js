@@ -23,6 +23,7 @@ function mockFetch(game) {
   global.fetch = vi.fn((url) => {
     if (url === '/api/teams/1') return Promise.resolve({ ok: true, status: 200, json: async () => TEAM })
     if (url === '/api/teams/1/games/5') return Promise.resolve(game)
+    if (url === '/api/teams/1/games' || url === '/api/standings') return Promise.resolve(ok([]))
     if (url === '/api/teams/1/players') return Promise.resolve(ok([]))
     return Promise.reject(new Error(`Unhandled fetch: ${url}`))
   })
@@ -73,6 +74,7 @@ describe('GameView', () => {
     const text = wrapper.text()
     expect(text).toContain('הפועל עבר')
     expect(text).toContain('70 : 80')
+    expect(text).toContain('ממוצעי נקודות')
     expect(text).toContain('משחק גמר מרגש')
     expect(wrapper.find('a[href*="google.com/maps"]').exists()).toBe(true)
   })

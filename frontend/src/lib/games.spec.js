@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { homeFirst, liveStatsUrl, played, result, sheetCopyUrl } from './games'
+import { homeFirst, liveStatsUrl, played, result, scoringAverages, sheetCopyUrl } from './games'
 
 describe('played', () => {
   it('needs both scores', () => {
@@ -78,5 +78,19 @@ describe('sheetCopyUrl', () => {
     expect(sheetCopyUrl('https://example.com/x')).toBeNull()
     expect(sheetCopyUrl('STATS_TEMPLATE_URL=https://docs.google.com/spreadsheets/d/ID')).toBeNull()
     expect(sheetCopyUrl('')).toBeNull()
+  })
+})
+
+describe('scoringAverages', () => {
+  it('totals played games overall and by result, ignoring unplayed ones', () => {
+    const g = (team_score, opponent_score) => ({ team_score, opponent_score })
+    const a = scoringAverages([g(80, 70), g(90, 60), g(50, 70), g(null, null)])
+    expect(a.all).toEqual({ n: 3, for: 220, against: 200 })
+    expect(a.W).toEqual({ n: 2, for: 170, against: 130 })
+    expect(a.L).toEqual({ n: 1, for: 50, against: 70 })
+  })
+  it('is all zeros for no games', () => {
+    const a = scoringAverages([])
+    expect([a.all.n, a.W.n, a.L.n]).toEqual([0, 0, 0])
   })
 })

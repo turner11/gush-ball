@@ -30,4 +30,18 @@ describe('LineChart', () => {
     expect(xs[0]).toBeGreaterThan(xs[1])
     expect(xs[1]).toBeGreaterThan(xs[2])
   })
+
+  it('draws a win/loss connector per outcome that has both values', () => {
+    const wrapper = mount(LineChart, { props: { ...props, outcomes: ['W', null, 'L'] } })
+    expect(wrapper.findAll('line.text-win')).toHaveLength(1)
+    expect(wrapper.findAll('line.text-loss')).toHaveLength(1)
+    expect(wrapper.find('table.sr-only').text()).toContain('ניצחון')
+    expect(wrapper.find('table.sr-only').text()).toContain('הפסד')
+  })
+
+  it('draws no connectors and no outcome column without outcomes', () => {
+    const wrapper = mount(LineChart, { props })
+    expect(wrapper.findAll('line.text-win, line.text-loss')).toHaveLength(0)
+    expect(wrapper.find('table.sr-only').text()).not.toContain('תוצאה')
+  })
 })
