@@ -1,6 +1,7 @@
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, Text, false
+from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -53,6 +54,8 @@ class TeamImage(Base):
     # JSONB @> / an association table if indexed lookup is ever needed.
     player_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
     hidden_from_home: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # NULL for images added before the audit log: no date is invented, they sort last.
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     team: Mapped["Team"] = relationship(back_populates="images")
 

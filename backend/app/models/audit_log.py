@@ -50,7 +50,7 @@ _AUDITED: dict[type, str] = {
 }
 _MAX_VALUE_CHARS = 200
 # Never diffed: id is the entity_id; stats_url is an admin-only sheet URL; has_stats is a read-only EXISTS.
-_SKIPPED_KEYS = {"id", "stats_url", "has_stats"}
+_SKIPPED_KEYS = {"id", "stats_url", "has_stats", "created_at"}
 
 
 def _team_id(session: Session, obj: Any) -> int | None:

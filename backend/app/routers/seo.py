@@ -14,7 +14,7 @@ from app.models import Club, Game, GameStatus, Opponent, Player, PlayerImage, Te
 router = APIRouter(tags=["seo"])
 
 # stats is members-only (#249) and noindexed, so it is not listed
-TEAM_PAGES = ("schedule", "standings", "roster", "media")
+TEAM_PAGES = ("schedule", "standings", "roster", "media", "posts")
 
 
 def _url_slug(item: Team | Club) -> str:
@@ -45,6 +45,7 @@ _PAGE_META = {
     "standings": ("טבלה", "טבלת הליגה והמיקום של {team}."),
     "roster": ("שחקנים", "סגל השחקנים של {team}."),
     "media": ("מדיה", "תמונות, סרטונים וקישורים של {team}."),
+    "posts": ("עדכונים", "העדכונים והחדשות של {team}."),
 }
 _GAME_DESCRIPTION = "משחק של {team}: תאריך, מקום ותוצאה."
 _TITLE_MAX = 60

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
+import { formatIsraelDay } from '../lib/format'
 import AppIcon from './AppIcon.vue'
 import ImageLightbox from './ImageLightbox.vue'
 
@@ -20,7 +21,22 @@ function rotateMs() {
   return Number.isFinite(ms) && ms >= 1000 ? ms : DEFAULT_ROTATE_MS
 }
 
-const pool = computed(() => props.images.filter((i) => !i.hidden_from_home).sort((a, b) => b.id - a.id))
+// The API sends newest first; shuffle each run of images from the same Israel day. Undated (legacy) images stay put.
+function shuffledWithinDays(images) {
+  const out = [...images]
+  const day = (i) => (i.created_at ? formatIsraelDay(i.created_at) : null)
+  for (let start = 0, end; start < out.length; start = end) {
+    end = start + 1
+    while (end < out.length && day(out[end]) !== null && day(out[end]) === day(out[start])) end++
+    for (let i = end - 1; i > start; i--) {
+      const j = start + Math.floor(Math.random() * (i - start + 1))
+      ;[out[i], out[j]] = [out[j], out[i]]
+    }
+  }
+  return out
+}
+
+const pool = computed(() => shuffledWithinDays(props.images.filter((i) => !i.hidden_from_home)))
 const rotates = computed(() => pool.value.length > SLOTS)
 const shown = ref(pool.value.slice(0, SLOTS))
 const rotating = ref(false) // false when there is nothing to rotate or the user prefers reduced motion
@@ -68,7 +84,7 @@ onBeforeUnmount(() => clearInterval(timer))
         v-for="(image, slot) in shown"
         :key="slot"
         type="button"
-        class="relative aspect-square cursor-zoom-in overflow-hidden rounded-xl bg-sunken"
+        class="relative aspect-square cursor-zoom-in overflow-hidden rounded-xl bg-sunken transition-[scale,box-shadow] hover:z-10 hover:scale-105 hover:shadow-card focus-visible:z-10 focus-visible:scale-105 motion-reduce:transition-none"
         :aria-label="`הגדלת תמונה: ${image.title}`"
         @click="lightbox.open(pool.indexOf(image), $event)"
       >

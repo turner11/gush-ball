@@ -70,6 +70,7 @@ describe('DefaultLayout', () => {
         { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
         { path: '/:slug/roster', name: 'roster', component: { template: '<div/>' } },
         { path: '/:slug/media', name: 'media', component: { template: '<div/>' } },
+        { path: '/:slug/posts', name: 'posts', component: { template: '<div/>' } },
         { path: '/gone/:rest(.*)*', name: 'not-found', component: { template: '<div/>' }, meta: { noindex: true } },
         { path: '/:slug', name: 'team-home', component: { template: '<div/>' }, meta: { description: (t) => `בית ${t}` } },
       ],
@@ -412,7 +413,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const nav = wrapper.find('[data-testid="top-nav"]').findAll('a').map((a) => a.attributes('href'))
-    expect(nav).toEqual(['/team_a/schedule', '/team_a/standings', '/team_a/roster', '/team_a/media', '/team_a/stats'])
+    expect(nav).toEqual(['/team_a/schedule', '/team_a/standings', '/team_a/roster', '/team_a/posts', '/team_a/media', '/team_a/stats'])
     const body = await openMenu(wrapper.find('button[aria-label$="תפריט חשבון"]'))
     expect(body.find('[role=menuitem][href="/team_a/admin"]').text()).toBe('ניהול')
   })

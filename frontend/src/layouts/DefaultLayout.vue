@@ -31,6 +31,7 @@ const navItems = computed(() => [
   ...(clubPath.value ? [{ to: clubPath.value, label: 'מועדון' }] : []),
   { to: teamBase.value + '/standings', label: 'טבלה' },
   { to: teamBase.value + '/roster', label: 'שחקנים' },
+  { to: teamBase.value + '/posts', label: 'עדכונים' },
   { to: teamBase.value + '/media', label: 'מדיה' },
   { to: teamBase.value + '/stats', label: 'נתונים' },
   ...(teamMember(selectedTeamId.value) ? [{ to: teamBase.value + '/playbook', label: 'פלייבוק' }] : []),
@@ -162,7 +163,7 @@ onMounted(async () => {
             <AppIcon name="grid" />
           </RouterLink>
           <nav v-if="selectedTeamId" data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden lg:block">
-            <ul class="flex gap-6">
+            <ul class="flex gap-4 xl:gap-6">
               <li>
                 <DropdownMenuRoot>
                   <DropdownMenuTrigger as-child>
