@@ -365,6 +365,7 @@ async function onDelete(game) {
     <a href="#game-form" class="fab lg:hidden" aria-label="הוספת משחק"><AppIcon name="plus" /></a>
 
     <ConfirmDialog
+      confirm-label="מחיקה"
       :open="pendingDelete !== null"
       :message="`למחוק את המשחק נגד ${pendingDelete?.opponent.name}?`"
       @update:open="(value) => !value && (pendingDelete = null)"

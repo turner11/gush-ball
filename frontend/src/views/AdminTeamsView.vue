@@ -142,6 +142,7 @@ onMounted(load)
     </div>
 
     <ConfirmDialog
+      confirm-label="מחיקה"
       :open="pendingDeleteId !== null"
       message="פעולה זו תמחק את הקבוצה וכל התוכן שלה (שחקנים, קישורים, משחקים וכו׳). להמשיך?"
       @update:open="(value) => !value && (pendingDeleteId = null)"

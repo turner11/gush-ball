@@ -157,6 +157,7 @@ onMounted(load)
     <p v-else class="empty-state">אין פריטים עדיין.</p>
 
     <ConfirmDialog
+      confirm-label="מחיקה"
       :open="pendingDeleteId !== null"
       message="למחוק פריט זה?"
       @update:open="(value) => !value && (pendingDeleteId = null)"

@@ -190,12 +190,14 @@ async function onDeleteAll() {
     </div>
 
     <ConfirmDialog
+      confirm-label="מחיקה"
       :open="pendingDelete !== null"
       message="למחוק את האימון?"
       @update:open="(value) => !value && (pendingDelete = null)"
       @confirm="onDelete(pendingDelete)"
     />
     <ConfirmDialog
+      confirm-label="מחיקה"
       :open="confirmingAll"
       :message="`למחוק ${upcoming.length} אימונים קרובים?`"
       @update:open="(value) => (confirmingAll = value)"

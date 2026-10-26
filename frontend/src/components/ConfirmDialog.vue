@@ -12,6 +12,7 @@ defineProps({
   open: { type: Boolean, default: false },
   message: { type: String, required: true },
   danger: { type: Boolean, default: true }, // false for a non-destructive confirm
+  confirmLabel: { type: String, default: 'אישור' },
 })
 
 const emit = defineEmits(['confirm', 'update:open'])
@@ -36,7 +37,7 @@ function onCancel() {
         <AlertDialogDescription>{{ message }}</AlertDialogDescription>
         <div class="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
           <button type="button" class="btn-secondary" @click="onCancel">ביטול</button>
-          <button type="button" :class="danger ? 'btn-danger' : 'btn-primary'" @click="onConfirm">אישור</button>
+          <button type="button" :class="danger ? 'btn-danger' : 'btn-primary'" @click="onConfirm">{{ confirmLabel }}</button>
         </div>
       </AlertDialogContent>
     </AlertDialogPortal>

@@ -62,4 +62,20 @@ describe('ConfirmDialog', () => {
     expect(confirmButton.classes()).toContain('btn-primary')
     expect(confirmButton.classes()).not.toContain('btn-danger')
   })
+
+  it('renders confirmLabel on the confirm button and emits confirm when it is clicked', async () => {
+    const wrapper = mount(ConfirmDialog, {
+      props: { open: true, message: 'למחוק?', confirmLabel: 'מחיקה' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const buttons = body().findAll('[role="alertdialog"] button')
+    expect(buttons.some((b) => b.text() === 'אישור')).toBe(false)
+    const confirmButton = buttons.find((b) => b.text() === 'מחיקה')
+    expect(confirmButton.classes()).toContain('btn-danger')
+    await confirmButton.trigger('click')
+
+    expect(wrapper.emitted('confirm')).toHaveLength(1)
+  })
 })

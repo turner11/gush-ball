@@ -106,7 +106,7 @@ describe('TeamAdminsSection', () => {
     expect(global.fetch).not.toHaveBeenCalledWith('/api/teams/1/admins/7?scope=team', expect.anything())
 
     await del().trigger('click')
-    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
+    await body().findAll('[role="alertdialog"] button').find((b) => b.text() === 'הסרה').trigger('click')
     await flushPromises()
     expect(global.fetch).toHaveBeenCalledWith('/api/teams/1/admins/7?scope=team', expect.objectContaining({ method: 'DELETE' }))
     expect(wrapper.text()).not.toContain('coach')
@@ -193,7 +193,7 @@ describe('TeamAdminsSection', () => {
 
     await wrapper.findAll('button').find((b) => b.text() === 'הסרה').trigger('click')
     expect(body().text()).toContain('החשבון עצמו לא יימחק')
-    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
+    await body().findAll('[role="alertdialog"] button').find((b) => b.text() === 'הסרה').trigger('click')
     await flushPromises()
 
     expect(global.fetch).toHaveBeenCalledWith('/api/teams/1/admins/8?scope=club', expect.objectContaining({ method: 'DELETE' }))

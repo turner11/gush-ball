@@ -257,6 +257,7 @@ async function onDelete(row) {
     <a v-if="!readOnly" href="#standing-form" class="fab lg:hidden" aria-label="הוספת שורה"><AppIcon name="plus" /></a>
 
     <ConfirmDialog
+      confirm-label="מחיקה"
       :open="pendingDelete !== null"
       :message="`למחוק את השורה של ${pendingDelete?.team_name}?`"
       @update:open="(value) => !value && (pendingDelete = null)"

@@ -153,6 +153,7 @@ onMounted(() => {
     </template>
 
     <ConfirmDialog
+      confirm-label="מחיקה"
       :open="pendingDelete !== null"
       :message="`למחוק את החשבון &quot;${pendingDelete ? userLabel(pendingDelete) : ''}&quot;? החשבון וכל החברויות שלו יימחקו לצמיתות.`"
       @update:open="(value) => !value && (pendingDelete = null)"

@@ -91,6 +91,7 @@ async function onLeaveConfirmed() {
     <RouterLink v-if="user?.can_view_stats" to="/stats" class="btn-primary w-full sm:w-auto">צפייה בסטטיסטיקה</RouterLink>
 
     <ConfirmDialog
+      :confirm-label="pendingLeave ? LEAVE_LABEL[pendingLeave.role] : undefined"
       :open="pendingLeave !== null"
       :message="pendingLeave ? (pendingLeave.role === 'pending' ? `לבטל את הבקשה ל${rowName(pendingLeave)}?` : `לעזוב את ${rowName(pendingLeave)}?`) : ''"
       @update:open="(v) => { if (!v) pendingLeave = null }"

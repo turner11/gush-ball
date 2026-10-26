@@ -191,6 +191,7 @@ const confirmMessage = computed(() => {
     <p v-if="status" class="text-sm text-muted" role="status">{{ status }}</p>
 
     <ConfirmDialog
+      :confirm-label="pendingDelete?.role === 'pending' ? 'דחייה' : 'הסרה'"
       :open="pendingDelete !== null"
       :message="confirmMessage"
       @update:open="(value) => !value && (pendingDelete = null)"
@@ -204,6 +205,7 @@ const confirmMessage = computed(() => {
       @confirm="onApproveTeamConfirmed"
     />
     <ConfirmDialog
+      confirm-label="דחייה"
       :open="pendingReject !== null"
       :message="pendingReject ? `לדחות את הבקשה של ${userLabel(pendingReject)} לקבוצה ${pendingReject.name}?` : ''"
       @update:open="(value) => !value && (pendingReject = null)"
