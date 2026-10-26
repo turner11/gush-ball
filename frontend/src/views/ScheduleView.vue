@@ -143,34 +143,37 @@ const { editing: editingPractices, toggleEl: practicesToggle, toggle: togglePrac
           <template v-if="editingId === 'new'">סגירה</template>
           <template v-else><AppIcon name="plus" />הוספת משחק</template>
         </button>
-        <button
-          v-if="canEdit && isMember"
-          ref="practicesToggle"
-          type="button"
-          class="btn-secondary"
-          aria-controls="practices"
-          :aria-expanded="editingPractices"
-          @click="togglePractices"
-        >{{ editingPractices ? 'סיום עריכה' : 'עריכת אימונים' }}</button>
         <CalendarSubscribe :team-id="team.id" :practices="isMember" />
       </div>
     </div>
 
     <GameForm v-if="editingId === 'new'" id="add-game-form" class="card max-w-2xl" :team-id="team.id" @saved="onSaved" @cancel="closeEditor" />
 
-    <PracticesAdmin v-if="editingPractices && isMember" :key="team.id" :team="team" />
-
-    <section v-else-if="isMember" class="space-y-3">
-      <h2 class="section-title">אימונים קרובים</h2>
-      <div v-if="practicesLoading" class="space-y-3" aria-busy="true">
-        <div class="skeleton h-12" />
-        <div class="skeleton h-12" />
+    <section v-if="isMember" class="space-y-3">
+      <div class="section-header">
+        <h2 v-if="!editingPractices" class="section-title">אימונים קרובים</h2>
+        <button
+          v-if="canEdit"
+          ref="practicesToggle"
+          type="button"
+          class="btn-secondary ms-auto"
+          aria-controls="practices"
+          :aria-expanded="editingPractices"
+          @click="togglePractices"
+        >{{ editingPractices ? 'סיום עריכה' : 'עריכת אימונים' }}</button>
       </div>
-      <p v-else-if="practicesError" class="error-text" role="alert">שגיאה בטעינת האימונים</p>
-      <ol v-else-if="upcomingPractices.length" class="card divide-y divide-line overflow-hidden p-0">
-        <PracticeRow v-for="practice in upcomingPractices" :key="practice.id" :practice="practice" />
-      </ol>
-      <p v-else class="empty-state">אין אימונים בשבועיים הקרובים</p>
+      <PracticesAdmin v-if="editingPractices" :key="team.id" :team="team" />
+      <template v-else>
+        <div v-if="practicesLoading" class="space-y-3" aria-busy="true">
+          <div class="skeleton h-12" />
+          <div class="skeleton h-12" />
+        </div>
+        <p v-else-if="practicesError" class="error-text" role="alert">שגיאה בטעינת האימונים</p>
+        <ol v-else-if="upcomingPractices.length" class="card divide-y divide-line overflow-hidden p-0">
+          <PracticeRow v-for="practice in upcomingPractices" :key="practice.id" :practice="practice" />
+        </ol>
+        <p v-else class="empty-state">אין אימונים בשבועיים הקרובים</p>
+      </template>
     </section>
 
     <div v-if="loading" class="space-y-3" aria-busy="true">
