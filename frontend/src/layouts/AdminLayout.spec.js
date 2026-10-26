@@ -23,7 +23,10 @@ async function mountAt(path, user = null) {
       { path: '/:slug/admin/games', name: 'admin-games', component: stub },
       { path: '/admin/standings', component: stub },
       { path: '/admin/teams', name: 'admin-teams', component: stub },
+      { path: '/admin/teams/:id', name: 'admin-team-edit', component: stub, meta: { parent: 'admin-teams' } },
       { path: '/admin/clubs', name: 'admin-clubs', component: stub },
+      { path: '/admin/clubs/:id', name: 'admin-club-edit', component: stub, meta: { parent: 'admin-clubs' } },
+      { path: '/admin/users', name: 'admin-users', component: stub, meta: { parent: 'admin-home' } },
       { path: '/admin/login', name: 'admin-login', component: stub },
     ],
   })
@@ -107,5 +110,34 @@ describe('AdminLayout nav', () => {
     expect(link(await mountAt('/admin'), '/admin/clubs').exists()).toBe(true)
     expect(link(await mountAt('/admin', { team_ids: [1], clubs: ['גוש'] }), '/admin/clubs').exists()).toBe(true)
     expect(link(await mountAt('/admin', { team_ids: [1], clubs: [] }), '/admin/clubs').exists()).toBe(false)
+  })
+
+  it('marks קבוצות current on a team edit page', async () => {
+    const w = await mountAt('/admin/teams/5')
+    const tab = w.find('[data-testid="tab-bar"] a[href="/admin/teams"]')
+    expect(link(w, '/admin/teams').attributes('data-current')).toBeDefined()
+    expect(link(w, '/admin/teams').attributes('aria-current')).toBe('true')
+    expect(tab.classes()).toContain('tab-active')
+    expect(tab.attributes('aria-current')).toBe('true')
+    expect(link(w, '/admin/players').attributes('data-current')).toBeUndefined()
+    expect(link(w, '/admin').attributes('data-current')).toBeUndefined()
+  })
+
+  it('marks מועדונים current on a club edit page', async () => {
+    const w = await mountAt('/admin/clubs/3')
+    expect(link(w, '/admin/clubs').attributes('data-current')).toBeDefined()
+    expect(w.find('[data-testid="tab-bar"] a[href="/admin/clubs"]').classes()).toContain('tab-active')
+  })
+
+  it('marks ראשי current on users', async () => {
+    const w = await mountAt('/admin/users')
+    expect(link(w, '/admin').attributes('data-current')).toBeDefined()
+  })
+
+  it('the section page itself keeps aria-current="page"', async () => {
+    const w = await mountAt('/admin/teams')
+    expect(link(w, '/admin/teams').attributes('aria-current')).toBe('page')
+    expect(link(w, '/admin/teams').attributes('data-current')).toBeUndefined()
+    expect(w.find('[data-testid="tab-bar"] a[href="/admin/teams"]').attributes('aria-current')).toBe('page')
   })
 })

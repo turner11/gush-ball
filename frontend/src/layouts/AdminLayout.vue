@@ -16,13 +16,16 @@ const route = useRoute()
 
 // Players and games are per team, so their URLs carry the slug; standings and teams are club-wide and stay bare.
 const base = computed(() => (route.params.slug ? '/' + route.params.slug : ''))
+// A sub-page (team edit, users, ...) names its parent section in route meta; that section's link reads as current.
+const isParent = (name) => route.meta.parent === name
+const parentAttrs = (name) => (isParent(name) ? { 'data-current': '', 'aria-current': 'true' } : {})
 const tabItems = computed(() => [
-  { to: base.value + '/admin', label: 'ראשי', icon: 'home', exact: true },
+  { to: base.value + '/admin', label: 'ראשי', icon: 'home', exact: true, current: isParent('admin-home') },
   { to: base.value + '/admin/players', label: 'שחקנים', icon: 'users' },
   { to: base.value + '/admin/games', label: 'משחקים', icon: 'calendar' },
   { to: '/admin/standings', label: 'טבלה', icon: 'table' },
-  { to: { name: 'admin-teams' }, label: 'קבוצות', icon: 'grid' },
-  ...(managesClubs.value ? [{ to: { name: 'admin-clubs' }, label: 'מועדונים', icon: 'shield' }] : []),
+  { to: { name: 'admin-teams' }, label: 'קבוצות', icon: 'grid', current: isParent('admin-teams') },
+  ...(managesClubs.value ? [{ to: { name: 'admin-clubs' }, label: 'מועדונים', icon: 'shield', current: isParent('admin-clubs') }] : []),
 ])
 
 // A team admin's list holds only their own team, so a foreign or unknown slug falls back to it (hence fallbackToFirst).
@@ -50,12 +53,12 @@ async function onLogout() {
         <RouterLink :to="base + '/admin'" class="inline-flex min-h-11 items-center font-black">ניהול</RouterLink>
         <nav aria-label="ניהול" class="ms-6 hidden md:block">
           <ul class="flex gap-5">
-            <li><RouterLink :to="base + '/admin'" class="nav-link">ראשי</RouterLink></li>
+            <li><RouterLink :to="base + '/admin'" class="nav-link" v-bind="parentAttrs('admin-home')">ראשי</RouterLink></li>
             <li><RouterLink :to="base + '/admin/players'" class="nav-link">שחקנים</RouterLink></li>
             <li><RouterLink :to="base + '/admin/games'" class="nav-link">משחקים</RouterLink></li>
             <li><RouterLink to="/admin/standings" class="nav-link">טבלת ליגה</RouterLink></li>
-            <li><RouterLink :to="{ name: 'admin-teams' }" class="nav-link">קבוצות</RouterLink></li>
-            <li v-if="managesClubs"><RouterLink :to="{ name: 'admin-clubs' }" class="nav-link">מועדונים</RouterLink></li>
+            <li><RouterLink :to="{ name: 'admin-teams' }" class="nav-link" v-bind="parentAttrs('admin-teams')">קבוצות</RouterLink></li>
+            <li v-if="managesClubs"><RouterLink :to="{ name: 'admin-clubs' }" class="nav-link" v-bind="parentAttrs('admin-clubs')">מועדונים</RouterLink></li>
           </ul>
         </nav>
         <RouterLink :to="base || '/'" class="nav-link ms-auto">לאתר</RouterLink>
