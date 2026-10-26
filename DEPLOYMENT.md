@@ -232,7 +232,7 @@ Lets admins open the BBStats Streamlit app from a game and start each game's she
 4. Set `STATS_URL` to the Community Cloud app URL (`https://<app>.streamlit.app`). *Why:* the live link opens it.
 5. Click **Redeploy**. *Why:* the backend reads both at start.
 6. Verify: log in, edit a game and click **גיליון חדש מתבנית**. Google's "Make a copy" page opens. Paste the copy's URL
-   and click **טען סטטיסטיקה**. You see "הקישור נשמר — הגיליון עדיין ריק" and the schedule card shows
+   and click **טעינת סטטיסטיקה**. You see "הקישור נשמר — הגיליון עדיין ריק" and the schedule card shows
    **סטטיסטיקה חיה**.
 
 ### 4.4 Email (SMTP)
