@@ -106,7 +106,7 @@ watch(() => route.params.id, load, { immediate: true })
 
 <template>
   <section class="space-y-6">
-    <h1 v-if="!player" class="sr-only">שחקן</h1>
+    <h1 v-if="loading || !player" class="sr-only">שחקן</h1>
     <div v-if="loading" class="card flex flex-col items-center gap-4 sm:flex-row sm:gap-8" aria-busy="true">
       <div class="skeleton size-28 rounded-full sm:size-40" />
       <div class="space-y-3">

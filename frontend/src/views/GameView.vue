@@ -80,7 +80,7 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
 </script>
 
 <template>
-  <h1 v-if="!game" class="sr-only">משחק</h1>
+  <h1 v-if="loading || !game" class="sr-only">משחק</h1>
   <div v-if="loading" class="mx-auto max-w-3xl space-y-6" aria-busy="true">
     <div class="skeleton h-48" />
     <div class="skeleton h-24" />
