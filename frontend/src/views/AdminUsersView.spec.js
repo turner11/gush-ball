@@ -129,6 +129,71 @@ describe('AdminUsersView', () => {
     expect(wrapper.text()).not.toContain('dana')
   })
 
+  describe('assign to team', () => {
+    const TEAMS = [
+      { id: 5, name: 'נוער', club: null, ibasketball_league_url: null },
+      { id: 6, name: 'בוגרים', club: null, ibasketball_league_url: null },
+    ]
+    const MEMBER = { team_id: 6, team_name: 'בוגרים', club: null, role: 'member' }
+    const mounted = async (put, dana = USERS[1]) => {
+      mockFetch({
+        'GET /api/users': () => jsonRes([USERS[0], dana]),
+        'GET /api/teams': () => jsonRes(TEAMS),
+        ...put,
+      })
+      const wrapper = await mountView()
+      const { default: FilterCombobox } = await import('../components/FilterCombobox.vue')
+      await wrapper.find('[aria-label="שיוך dana לקבוצה"]').trigger('click')
+      await flushPromises()
+      const combobox = () => wrapper.findAllComponents(FilterCombobox).find((c) => c.props('id') === 'assign-team-2')
+      const pick = async (value) => {
+        combobox().vm.$emit('update:modelValue', value)
+        await flushPromises()
+      }
+      const submit = async () => {
+        await wrapper.findAll('button').find((b) => b.text() === 'שיוך').trigger('click')
+        await flushPromises()
+      }
+      return { wrapper, combobox, pick, submit }
+    }
+
+    it('assigns a user to a team and shows the member badge', async () => {
+      const { wrapper, combobox, pick, submit } = await mounted({ 'PUT /api/users/2/teams/6': () => jsonRes(MEMBER) })
+      await pick('6')
+      await submit()
+
+      expect(global.fetch).toHaveBeenCalledWith('/api/users/2/teams/6', expect.objectContaining({ method: 'PUT' }))
+      expect(wrapper.text()).toContain('בוגרים · חבר')
+      expect(wrapper.text()).toContain('dana שויך/ה לקבוצה בוגרים')
+      expect(combobox()).toBeUndefined()
+    })
+
+    it('assigning a pending team replaces the pending badge and hides member teams', async () => {
+      const dana = { ...USERS[1], memberships: [USERS[1].memberships[0], MEMBER] }
+      const { wrapper, combobox, pick, submit } = await mounted(
+        { 'PUT /api/users/2/teams/5': () => jsonRes({ ...USERS[1].memberships[0], role: 'member' }) },
+        dana,
+      )
+      expect(combobox().props('options').map((o) => o.value)).toEqual(['5'])
+      await pick('5')
+      await submit()
+
+      expect(wrapper.text()).toContain('נוער · חבר')
+      expect(wrapper.text()).not.toContain('נוער · ממתין')
+    })
+
+    it('assign failure shows an error and keeps the panel open', async () => {
+      const { wrapper, combobox, pick, submit } = await mounted({
+        'PUT /api/users/2/teams/6': () => ({ ok: false, status: 500, statusText: 'x', json: async () => ({}) }),
+      })
+      await pick('6')
+      await submit()
+
+      expect(wrapper.find('[role="alert"]').text()).toContain('שגיאה בשיוך לקבוצה')
+      expect(combobox()).toBeDefined()
+    })
+  })
+
   it('non-full-admin sees the full-admin-only message and does not fetch /users', async () => {
     mockFetch({})
     const wrapper = await mountView({ username: 'x', team_ids: [1] })

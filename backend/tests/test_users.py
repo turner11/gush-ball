@@ -86,3 +86,59 @@ def test_check_not_last_full_admin(db_session: Session):
 
     _user(db_session, "second", full=True)
     assert check_not_last_full_admin(db_session, sole) is None
+
+
+def _memberships(db: Session, user_id: int, team_id: int) -> list[Membership]:
+    db.expire_all()
+    return list(db.scalars(select(Membership).where(Membership.user_id == user_id, Membership.team_id == team_id)))
+
+
+def test_full_admin_assigns_user_to_team_as_member(admin_client: TestClient, db_session: Session, own_team: Team):
+    player = _user(db_session, "fresh")
+
+    response = admin_client.put(f"/users/{player.id}/teams/{own_team.id}")
+
+    assert response.status_code == 200
+    assert response.json() == {"team_id": own_team.id, "team_name": "Own", "club": None, "role": "member"}
+    assert len(_memberships(db_session, player.id, own_team.id)) == 1
+    by_name = {r["username"]: r for r in admin_client.get("/users").json()}
+    assert by_name["fresh"]["memberships"] == [response.json()]
+
+
+@pytest.mark.parametrize(("before", "after"), [("pending", "member"), ("member", "member"), ("admin", "admin")])
+def test_assign_upserts_existing_row(
+    admin_client: TestClient, db_session: Session, own_team: Team, before: str, after: str
+):
+    player = _user(db_session, "existing")
+    row = Membership(user_id=player.id, team_id=own_team.id, role=before)
+    db_session.add(row)
+    db_session.commit()
+    row_id = row.id
+
+    response = admin_client.put(f"/users/{player.id}/teams/{own_team.id}")
+
+    assert response.status_code == 200
+    assert response.json()["role"] == after
+    rows = _memberships(db_session, player.id, own_team.id)
+    assert [(r.id, r.role) for r in rows] == [(row_id, after)]
+
+
+def test_assign_to_team_is_full_admin_only(client: TestClient, db_session: Session, own_team: Team, request):
+    player = _user(db_session, "target")
+    path = f"/users/{player.id}/teams/{own_team.id}"
+    assert client.put(path).status_code == 401
+    request.getfixturevalue("team_admin_client")
+    assert client.put(path).status_code == 403
+    client.post("/auth/logout")
+    request.getfixturevalue("club_admin_client")
+    assert client.put(path).status_code == 403
+    assert _memberships(db_session, player.id, own_team.id) == []
+
+
+def test_assign_to_team_unknown_user_or_team_is_404(admin_client: TestClient, db_session: Session, own_team: Team):
+    player = _user(db_session, "someone")
+
+    missing_user = admin_client.put(f"/users/9999/teams/{own_team.id}")
+    assert missing_user.status_code == 404
+    assert missing_user.json()["detail"] == "User 9999 not found"
+    assert admin_client.put(f"/users/{player.id}/teams/9999").status_code == 404

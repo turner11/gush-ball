@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.deps import DbSession, RequireAdmin, check_not_last_full_admin
+from app.deps import DbSession, RequireAdmin, check_not_last_full_admin, get_team_or_404
 from app.models import AdminUser, Membership, Team
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -43,6 +43,24 @@ def list_users(_admin_id: RequireAdmin, db: DbSession) -> list[UserOut]:
     return [
         UserOut(id=i, username=u, display_name=d, email=e, memberships=grants.get(i, [])) for i, u, d, e in users
     ]
+
+
+@router.put("/{user_id}/teams/{team_id}", response_model=UserMembershipOut)
+def assign_to_team(user_id: int, team_id: int, admin_id: RequireAdmin, db: DbSession) -> UserMembershipOut:
+    """Make the user a `member` of the team: creates the row or approves a pending one; never demotes an admin."""
+    team = get_team_or_404(db, team_id)
+    if db.get(AdminUser, user_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"User {user_id} not found")
+    row = db.scalar(select(Membership).where(Membership.user_id == user_id, Membership.team_id == team.id))
+    if row is None:
+        row = Membership(user_id=user_id, team_id=team.id, role="member")
+        db.add(row)
+    elif row.role == "pending":
+        row.role = "member"
+    # ponytail: a concurrent double PUT hits uq_memberships_user_team as a 500, harmless
+    db.commit()
+    log.info("assigned user id=%s to team id=%s as %s by admin_id=%s", user_id, team.id, row.role, admin_id)
+    return UserMembershipOut(team_id=team.id, team_name=team.name, club=None, role=row.role)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
