@@ -277,7 +277,7 @@ def get_opponent_results(
     if league is None or game.opponent.source_url is None:
         return []
     try:
-        return scrape_league_teams.opponent_results(game.opponent.source_url, league.ibasketball_id)
+        return scrape_league_teams.opponent_results(game.opponent.source_url, league.ibasketball_id, league.season)
     except (httpx.HTTPError, ValueError):
         log.exception("Fetching opponent results for game %s failed", game_id)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "ibasketball unreachable") from None
