@@ -50,12 +50,12 @@ async function onLogout() {
         <RouterLink :to="base + '/admin'" class="inline-flex min-h-11 items-center font-black">ניהול</RouterLink>
         <nav aria-label="ניהול" class="ms-6 hidden md:block">
           <ul class="flex gap-5">
-            <li><RouterLink :to="base + '/admin'" active-class="" exact-active-class="font-bold" class="nav-link">ראשי</RouterLink></li>
-            <li><RouterLink :to="base + '/admin/players'" active-class="font-bold" class="nav-link">שחקנים</RouterLink></li>
-            <li><RouterLink :to="base + '/admin/games'" active-class="font-bold" class="nav-link">משחקים</RouterLink></li>
-            <li><RouterLink to="/admin/standings" active-class="font-bold" class="nav-link">טבלת ליגה</RouterLink></li>
-            <li><RouterLink :to="{ name: 'admin-teams' }" active-class="font-bold" class="nav-link">קבוצות</RouterLink></li>
-            <li v-if="managesClubs"><RouterLink :to="{ name: 'admin-clubs' }" active-class="font-bold" class="nav-link">מועדונים</RouterLink></li>
+            <li><RouterLink :to="base + '/admin'" class="nav-link">ראשי</RouterLink></li>
+            <li><RouterLink :to="base + '/admin/players'" class="nav-link">שחקנים</RouterLink></li>
+            <li><RouterLink :to="base + '/admin/games'" class="nav-link">משחקים</RouterLink></li>
+            <li><RouterLink to="/admin/standings" class="nav-link">טבלת ליגה</RouterLink></li>
+            <li><RouterLink :to="{ name: 'admin-teams' }" class="nav-link">קבוצות</RouterLink></li>
+            <li v-if="managesClubs"><RouterLink :to="{ name: 'admin-clubs' }" class="nav-link">מועדונים</RouterLink></li>
           </ul>
         </nav>
         <RouterLink :to="base || '/'" class="nav-link ms-auto">לאתר</RouterLink>

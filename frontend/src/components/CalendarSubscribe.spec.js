@@ -13,7 +13,7 @@ describe('CalendarSubscribe', () => {
   it('links to the webcal feed', () => {
     const link = mount(CalendarSubscribe, { props: { teamId: 7 } }).get('a')
     expect(link.attributes('href')).toBe(feedUrl.replace(/^https?:/, 'webcal:'))
-    expect(link.text()).toContain('הוסף ליומן')
+    expect(link.text()).toContain('הוספה ליומן')
   })
 
   it('adds ?practices=1 and the Google refresh note when practices', () => {

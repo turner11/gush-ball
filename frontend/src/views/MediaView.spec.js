@@ -54,6 +54,28 @@ describe('MediaView', () => {
     expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['סרטונים', 'עדכונים', 'תמונות'])
   })
 
+  it('shows an inline error with retry when the load fails, and retrying loads the page', async () => {
+    let failing = true
+    global.fetch = vi.fn((url) => {
+      const kind = String(url).split('/').pop()
+      if (failing) return Promise.resolve({ ok: false, status: 500, json: async () => ({}) })
+      return Promise.resolve(jsonRes({ videos: VIDEOS, posts: POSTS, images: IMAGES }[kind]))
+    })
+    const { default: MediaView } = await import('./MediaView.vue')
+    const wrapper = mount(MediaView)
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.find('[role="tab"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('משהו השתבש')
+    failing = false
+    await wrapper.findAll('button').find((b) => b.text() === 'נסו שוב').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('חדש')
+  })
+
   it('renders the tabs root right-to-left', async () => {
     const wrapper = await mountView()
     expect(wrapper.find('[dir]').attributes('dir')).toBe('rtl')
@@ -102,7 +124,7 @@ describe('MediaView', () => {
 
   it('shows an empty state for a tab with no items', async () => {
     const wrapper = await mountView({ videos: [] })
-    expect(wrapper.find('.empty-state').exists()).toBe(true)
+    expect(wrapper.find('.empty-state').text()).toBe('אין סרטונים עדיין.')
   })
 
   it('ignores a late response for a team that is no longer selected', async () => {

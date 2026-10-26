@@ -24,7 +24,7 @@ const sides = computed(() => {
   <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
     <div class="min-w-0 space-y-1">
       <img v-if="sides[0].logo" :src="sides[0].logo" alt="" class="mx-auto size-12 object-contain" :class="large ? 'sm:size-24' : 'sm:size-14'" />
-      <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': large }"><a v-if="sides[0].url" :href="sides[0].url" target="_blank" rel="noopener" class="hover:underline">{{ sides[0].name }}</a
+      <p class="line-clamp-2 break-words text-balance text-sm font-bold" :class="{ 'sm:text-lg': large }"><a v-if="sides[0].url" :href="sides[0].url" target="_blank" rel="noopener" class="hover:underline">{{ sides[0].name }}</a
         ><template v-else>{{ sides[0].name }}</template></p>
     </div>
     <div class="space-y-1">
@@ -44,7 +44,7 @@ const sides = computed(() => {
     </div>
     <div class="min-w-0 space-y-1">
       <img v-if="sides[1].logo" :src="sides[1].logo" alt="" class="mx-auto size-12 object-contain" :class="large ? 'sm:size-24' : 'sm:size-14'" />
-      <p class="truncate text-sm font-bold" :class="{ 'sm:text-lg': large }"><a v-if="sides[1].url" :href="sides[1].url" target="_blank" rel="noopener" class="hover:underline">{{ sides[1].name }}</a
+      <p class="line-clamp-2 break-words text-balance text-sm font-bold" :class="{ 'sm:text-lg': large }"><a v-if="sides[1].url" :href="sides[1].url" target="_blank" rel="noopener" class="hover:underline">{{ sides[1].name }}</a
         ><template v-else>{{ sides[1].name }}</template></p>
     </div>
   </div>

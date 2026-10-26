@@ -78,7 +78,7 @@ describe('LineupStats', () => {
     await flushPromises()
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
 
-    await button(wrapper, 'נסה שוב').trigger('click')
+    await button(wrapper, 'נסו שוב').trigger('click')
     await flushPromises()
     expect(global.fetch).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('יוסי כהן')

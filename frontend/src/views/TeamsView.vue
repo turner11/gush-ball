@@ -10,6 +10,7 @@ import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { leagueKey } from '../lib/leagues'
 import { matchesQuery } from '../lib/search'
+import LoadError from '../components/LoadError.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -92,10 +93,7 @@ function clearSearch() {
       </div>
     </div>
 
-    <div v-if="failed" class="space-y-3">
-      <p class="error-text" role="alert">שגיאה בטעינת הליגות, נסה שוב</p>
-      <button type="button" class="btn-secondary" @click="load">נסה שוב</button>
-    </div>
+    <LoadError v-if="failed" message="שגיאה בטעינת הליגות" @retry="load" />
     <div v-else-if="teams === null" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
       <div v-for="n in 6" :key="n" class="skeleton h-16"></div>
     </div>

@@ -139,13 +139,13 @@ async function onDeleteAll() {
         <p v-else-if="listError" class="error-text" role="alert">{{ listError }}</p>
         <p v-else-if="!upcoming.length" class="empty-state">אין אימונים קרובים. הוסיפו אימון בטופס.</p>
         <template v-else>
-          <button type="button" class="btn-danger-ghost" @click="confirmingAll = true">מחק את כל האימונים הקרובים</button>
+          <button type="button" class="btn-danger-ghost" @click="confirmingAll = true">מחיקת כל האימונים הקרובים</button>
           <ol class="card divide-y divide-line overflow-hidden p-0">
             <PracticeRow v-for="practice in upcoming" :key="practice.id" :practice="practice">
               <template #actions>
-                <button type="button" class="btn-ghost" :aria-label="'ערוך את האימון ב' + formatDateTime(practice.starts_at)" @click="startEdit(practice)">ערוך</button>
-                <button type="button" class="btn-ghost" :aria-label="(practice.cancelled ? 'שחזר' : 'בטל') + ' את האימון ב' + formatDateTime(practice.starts_at)" @click="toggleCancelled(practice)">{{ practice.cancelled ? 'שחזר' : 'בטל אימון' }}</button>
-                <button type="button" class="btn-danger-ghost" :aria-label="'מחק את האימון ב' + formatDateTime(practice.starts_at)" @click="pendingDelete = practice">מחק</button>
+                <button type="button" class="btn-ghost" :aria-label="'עריכה: האימון ב' + formatDateTime(practice.starts_at)" @click="startEdit(practice)">עריכה</button>
+                <button type="button" class="btn-ghost" :aria-label="(practice.cancelled ? 'שחזור' : 'ביטול') + ': האימון ב' + formatDateTime(practice.starts_at)" @click="toggleCancelled(practice)">{{ practice.cancelled ? 'שחזור' : 'ביטול אימון' }}</button>
+                <button type="button" class="btn-danger-ghost" :aria-label="'מחיקה: האימון ב' + formatDateTime(practice.starts_at)" @click="pendingDelete = practice">מחיקה</button>
               </template>
             </PracticeRow>
           </ol>
@@ -154,7 +154,6 @@ async function onDeleteAll() {
 
       <form class="card space-y-3 lg:sticky lg:top-20" @submit.prevent="onSubmit">
         <h3 class="section-title">{{ editing ? 'עריכת אימון' : 'הוספת אימון' }}</h3>
-        <p v-if="error" class="error-text" role="alert">{{ error }}</p>
         <p v-if="added" role="status" class="text-sm">{{ added }}</p>
 
         <div>
@@ -182,6 +181,7 @@ async function onDeleteAll() {
           <span class="field-label">בוטל</span>
         </label>
 
+        <p v-if="error" class="error-text" role="alert">{{ error }}</p>
         <div class="flex gap-2">
           <button type="submit" class="btn-primary">{{ editing ? 'שמירה' : 'הוספה' }}</button>
           <button v-if="editing" type="button" class="btn-secondary" @click="resetForm">ביטול</button>

@@ -36,6 +36,8 @@ function mockFetch(handlers) {
   })
 }
 
+const FAIL = { ok: false, status: 500, json: async () => ({}) }
+
 function jsonRes(body, status = 200) {
   return { ok: true, status, json: async () => body }
 }
@@ -79,6 +81,32 @@ describe('HomeView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('אתר הליגה')
+    expect(wrapper.text()).toContain('עדכון עונה')
+  })
+
+  it('shows an inline error with retry when the load fails, and retrying loads the page', async () => {
+    let failing = true
+    mockFetch({
+      'GET /api/teams/1': () => (failing ? FAIL : jsonRes(TEAM)),
+      'GET /api/teams/1/links': () => jsonRes(LINKS),
+      'GET /api/teams/1/videos': () => jsonRes([]),
+      'GET /api/teams/1/images': () => jsonRes([]),
+      'GET /api/teams/1/posts': () => jsonRes(POSTS),
+      'GET /api/teams/1/players': () => jsonRes([]),
+      'GET /api/teams/1/games': () => jsonRes([]),
+    })
+
+    const { default: HomeView } = await import('./HomeView.vue')
+    const wrapper = mount(HomeView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('משהו השתבש')
+    failing = false
+    await wrapper.findAll('button').find((b) => b.text() === 'נסו שוב').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('עדכון עונה')
   })
 
@@ -487,7 +515,7 @@ describe('HomeView', () => {
     it("team admin's about and links edit buttons link to the team manage page", async () => {
       await asTeamAdmin()
       const w = await mountWithTeam(TEAM, { links: LINKS })
-      const hrefs = ['עריכה', 'עריכת קישורים'].map((t) => w.findAll('a').find((a) => a.text() === t).attributes('href'))
+      const hrefs = ['ניהול הקבוצה', 'ניהול קישורים'].map((t) => w.findAll('a').find((a) => a.text() === t).attributes('href'))
       expect(hrefs).toEqual(['/admin/teams/1', '/admin/teams/1'])
       expect(w.find('#home-about-editor').exists()).toBe(false)
       expect(w.findComponent({ name: 'TeamContentSection' }).exists()).toBe(false)
@@ -520,15 +548,15 @@ describe('HomeView', () => {
       const useAuth = await asTeamAdmin()
       useAuth().user.value = null
       let w = await mountWithTeam(TEAM)
-      expect(w.text()).not.toContain('עריכה')
-      expect(w.text()).not.toContain('עריכת קישורים')
+      expect(w.text()).not.toContain('ניהול הקבוצה')
+      expect(w.text()).not.toContain('ניהול קישורים')
       expect(w.text()).not.toContain('עריכת עדכונים')
       const { previewMode } = await import('../composables/useAuth')
       useAuth().user.value = { id: 1, team_ids: [1] }
       previewMode.value = 'member'
       w = await mountWithTeam(TEAM)
-      expect(w.text()).not.toContain('עריכה')
-      expect(w.text()).not.toContain('עריכת קישורים')
+      expect(w.text()).not.toContain('ניהול הקבוצה')
+      expect(w.text()).not.toContain('ניהול קישורים')
       expect(w.text()).not.toContain('על הקבוצה')
       expect(w.text()).not.toContain('עריכת עדכונים')
       previewMode.value = null

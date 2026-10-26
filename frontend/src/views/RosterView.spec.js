@@ -17,6 +17,8 @@ function mockFetch(handlers) {
   })
 }
 
+const FAIL = { ok: false, status: 500, json: async () => ({}) }
+
 function jsonRes(body, status = 200) {
   return { ok: true, status, json: async () => body }
 }
@@ -52,6 +54,27 @@ describe('RosterView', () => {
 
     expect(wrapper.text()).toContain('יוסי כהן')
     expect(wrapper.text()).toContain('7')
+  })
+
+  it('shows an inline error with retry when the load fails, and retrying loads the page', async () => {
+    let failing = true
+    mockFetch({
+      'GET /api/teams/1/players': () => (failing ? FAIL : jsonRes(PLAYERS)),
+      'GET /api/teams/1/images': () => jsonRes([]),
+    })
+
+    const { default: RosterView } = await import('./RosterView.vue')
+    const wrapper = mount(RosterView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('משהו השתבש')
+    failing = false
+    await wrapper.findAll('button').find((b) => b.text() === 'נסו שוב').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('יוסי כהן')
   })
 
   const COACH = { id: 9, team_id: 1, name: 'המאמן', name_en: null, jersey_number: null, is_coach: true, images: [] }
@@ -155,6 +178,25 @@ describe('RosterView', () => {
       expect(JSON.parse(options.body)).toMatchObject({ is_coach: true, jersey_number: null })
       expect(w.findAll('h2').map((h) => h.text())).toEqual(['מאמנים', 'שחקנים'])
       expect(w.find('#add-player-form').exists()).toBe(false)
+    })
+
+    it("the add form's ביטול closes it and returns focus to the add button", async () => {
+      await asTeamAdmin()
+      mockFetch({
+        'GET /api/teams/1/players': () => jsonRes(structuredClone(PLAYERS)),
+        'GET /api/teams/1/images': () => jsonRes([]),
+      })
+      const { default: RosterView } = await import('./RosterView.vue')
+      const w = mount(RosterView, { global: { plugins: [router] }, attachTo: document.body })
+      await flushPromises()
+
+      await button(w, 'הוספת שחקן').trigger('click')
+      await button(w, 'ביטול').trigger('click')
+      await flushPromises()
+
+      expect(w.find('#add-player-form').exists()).toBe(false)
+      expect(document.activeElement).toBe(button(w, 'הוספת שחקן').element)
+      w.unmount()
     })
 
     it('team admin edits a player inline and focus returns to the edit button', async () => {

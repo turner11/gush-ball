@@ -55,12 +55,12 @@ describe('PracticesAdmin', () => {
       'GET /api/teams/1/practices': () => jsonRes([row(1, 2)]),
       'PATCH /api/teams/1/practices/1': () => jsonRes(row(1, 2, { cancelled: true })),
     })
-    await wrapper.findAll('button').find((b) => b.text() === 'בטל אימון').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'ביטול אימון').trigger('click')
     await flushPromises()
 
     expect(bodyOf('/api/teams/1/practices/1', 'PATCH')).toEqual({ cancelled: true })
     expect(wrapper.text()).toContain('בוטל')
-    expect(wrapper.text()).toContain('שחזר')
+    expect(wrapper.text()).toContain('שחזור')
   })
 
   it('bulk delete asks for confirmation then calls DELETE upcoming and empties the list', async () => {
@@ -68,7 +68,7 @@ describe('PracticesAdmin', () => {
       'GET /api/teams/1/practices': () => jsonRes([row(1, 2), row(2, 9)]),
       'DELETE /api/teams/1/practices/upcoming': () => ({ ok: true, status: 204, json: async () => null }),
     })
-    await wrapper.findAll('button').find((b) => b.text() === 'מחק את כל האימונים הקרובים').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'מחיקת כל האימונים הקרובים').trigger('click')
     await flushPromises()
     const dialog = new DOMWrapper(document.body)
     expect(dialog.text()).toContain('למחוק 2 אימונים קרובים?')

@@ -4,6 +4,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { canEditTeam } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import AppIcon from '../components/AppIcon.vue'
+import LoadError from '../components/LoadError.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import PlayerForm from '../components/PlayerForm.vue'
 import { apiFetch } from '../lib/api'
@@ -19,6 +20,7 @@ const groups = computed(() =>
 )
 const teamImages = ref([])
 const loading = ref(false)
+const loadError = ref(false)
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
@@ -50,6 +52,7 @@ function onSaved(saved) {
 
 async function loadPlayers() {
   editingId.value = null
+  loadError.value = false
   if (!selectedTeamId.value) {
     players.value = []
     teamImages.value = []
@@ -66,6 +69,8 @@ async function loadPlayers() {
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     players.value = loaded
     teamImages.value = images
+  } catch {
+    if (id === selectedTeamId.value) loadError.value = true
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
@@ -92,11 +97,12 @@ watch(selectedTeamId, loadPlayers, { immediate: true })
       </button>
     </div>
 
-    <PlayerForm v-if="editingId === 'new'" id="add-player-form" class="card max-w-xl" :team-id="selectedTeamId" @saved="onSaved" />
+    <PlayerForm v-if="editingId === 'new'" id="add-player-form" class="card max-w-xl" :team-id="selectedTeamId" @saved="onSaved" @cancel="closeEditor" />
 
     <div v-if="loading" class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6" aria-busy="true">
       <div v-for="n in 5" :key="n" class="skeleton h-40" />
     </div>
+    <LoadError v-else-if="loadError" message="שגיאה בטעינת השחקנים" @retry="loadPlayers" />
     <template v-else-if="groups.length">
       <div v-for="group in groups" :key="group.title" class="space-y-4">
         <h2 v-if="groups.length > 1" class="section-title">{{ group.title }}</h2>

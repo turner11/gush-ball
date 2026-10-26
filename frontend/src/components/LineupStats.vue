@@ -4,6 +4,7 @@ import { ref, watch } from 'vue'
 import { apiFetch } from '../lib/api'
 import { signed } from '../lib/format'
 import PlayerCard from './PlayerCard.vue'
+import LoadError from './LoadError.vue'
 
 const props = defineProps({
   teamId: { type: Number, required: true },
@@ -77,10 +78,7 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
       </div>
     </div>
 
-    <div v-if="error" class="space-y-3">
-      <p class="error-text" role="alert">{{ error }}</p>
-      <button type="button" class="btn-secondary" @click="load">נסה שוב</button>
-    </div>
+    <LoadError v-if="error" :message="error" @retry="load" />
     <div v-else-if="loading && !lineups.length" class="space-y-4" aria-busy="true">
       <div class="skeleton h-44 md:h-32" />
       <div class="skeleton h-44 md:h-32" />

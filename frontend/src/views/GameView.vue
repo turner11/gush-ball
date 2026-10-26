@@ -1,8 +1,9 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-import ImageLightbox from '../components/ImageLightbox.vue'
+import ImageGallery from '../components/ImageGallery.vue'
+import LoadError from '../components/LoadError.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
@@ -10,6 +11,7 @@ import GameScoreboard from '../components/GameScoreboard.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { canEditTeam } from '../composables/useAuth'
+import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -19,67 +21,55 @@ const route = useRoute()
 const { selectedTeamId, teamsLoaded } = useSelectedTeam()
 const team = ref(null)
 const game = ref(null)
-const lightbox = ref(null)
 const loading = ref(true)
-const error = ref('')
+const notFound = ref(false)
+const loadError = ref(false)
 
 const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.params.slug } }))
 const canEdit = computed(() => !!game.value && canEditTeam(game.value.team_id))
-// Closes any open editor when the player preview turns on.
-watch(canEdit, (can) => {
-  if (!can) editingScorers.value = editingMedia.value = false
-})
-const editingScorers = ref(false)
-const scorersToggle = ref(null)
-const editingMedia = ref(false)
-const mediaToggle = ref(null)
-const gameImages = computed(() => (game.value?.images ?? []).map((i) => ({ url: i.url, alt: i.title || `נגד ${game.value.opponent.name}` })))
+const { editing: editingScorers, toggleEl: scorersToggle, toggle: toggleScorers } = useInlineEditor(canEdit)
+const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = useInlineEditor(canEdit)
 const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.images?.length))
 const address = computed(() => gameAddress(game.value, team.value))
 
-async function onScorersSaved(list) {
+function onScorersSaved(list) {
   game.value.scorers = list
-  editingScorers.value = false
-  await nextTick()
-  scorersToggle.value?.focus()
+  toggleScorers()
 }
 
-async function onMediaSaved(media) {
+function onMediaSaved(media) {
   game.value.videos = media.videos
   game.value.images = media.images
-  editingMedia.value = false
-  await nextTick()
-  mediaToggle.value?.focus()
+  toggleMedia()
 }
 
 // DefaultLayout resolves the slug to selectedTeamId; fetching before that would use a stale remembered team.
-watch(
-  [selectedTeamId, teamsLoaded, () => route.params.id],
-  async () => {
-    if (!teamsLoaded.value) return
-    if (!selectedTeamId.value) {
-      // /teams failed or is empty: nothing to fetch, so end loading instead of showing the skeleton forever
-      error.value = 'המשחק לא נמצא.'
-      loading.value = false
-      return
-    }
-    const id = selectedTeamId.value
-    loading.value = true
-    error.value = ''
-    try {
-      const loaded = await Promise.all([apiFetch(`/teams/${id}`), apiFetch(`/teams/${id}/games/${route.params.id}`)])
-      if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
-      ;[team.value, game.value] = loaded
-    } catch (e) {
-      if (id !== selectedTeamId.value) return
-      game.value = null
-      error.value = e.status === 404 ? 'המשחק לא נמצא.' : 'שגיאה בטעינת המשחק, נסה שוב'
-    } finally {
-      if (id === selectedTeamId.value) loading.value = false
-    }
-  },
-  { immediate: true },
-)
+async function load() {
+  if (!teamsLoaded.value) return
+  notFound.value = loadError.value = false
+  if (!selectedTeamId.value) {
+    // /teams failed or is empty: nothing to fetch, so end loading instead of showing the skeleton forever
+    notFound.value = true
+    loading.value = false
+    return
+  }
+  const id = selectedTeamId.value
+  loading.value = true
+  try {
+    const loaded = await Promise.all([apiFetch(`/teams/${id}`), apiFetch(`/teams/${id}/games/${route.params.id}`)])
+    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+    ;[team.value, game.value] = loaded
+  } catch (e) {
+    if (id !== selectedTeamId.value) return
+    game.value = null
+    if (e.status === 404) notFound.value = true
+    else loadError.value = true
+  } finally {
+    if (id === selectedTeamId.value) loading.value = false
+  }
+}
+
+watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: true })
 </script>
 
 <template>
@@ -88,10 +78,12 @@ watch(
     <div class="skeleton h-24" />
   </div>
 
-  <div v-else-if="error" class="mx-auto max-w-3xl space-y-3">
-    <p class="empty-state">{{ error }}</p>
+  <div v-else-if="notFound" class="mx-auto max-w-3xl space-y-3">
+    <p class="empty-state">המשחק לא נמצא.</p>
     <RouterLink :to="scheduleRoute" class="section-link">ללוח המשחקים</RouterLink>
   </div>
+
+  <LoadError v-else-if="loadError" class="mx-auto max-w-3xl" message="שגיאה בטעינת המשחק" @retry="load" />
 
   <div v-else-if="game" class="mx-auto max-w-3xl space-y-6">
     <header class="page-header">
@@ -135,9 +127,9 @@ watch(
           class="btn-secondary"
           aria-controls="game-scorers-editor"
           :aria-expanded="editingScorers"
-          @click="editingScorers = !editingScorers"
+          @click="toggleScorers"
         >
-          {{ editingScorers ? 'סגירה' : 'עריכת קלעים' }}
+          {{ editingScorers ? 'סיום עריכה' : 'עריכת קלעים' }}
         </button>
       </div>
       <GameScorersEditor v-if="editingScorers" id="game-scorers-editor" :team-id="game.team_id" :game-id="game.id" @saved="onScorersSaved" />
@@ -166,9 +158,9 @@ watch(
           class="btn-secondary"
           aria-controls="game-media-editor"
           :aria-expanded="editingMedia"
-          @click="editingMedia = !editingMedia"
+          @click="toggleMedia"
         >
-          {{ editingMedia ? 'סגירה' : 'עריכת מדיה' }}
+          {{ editingMedia ? 'סיום עריכה' : 'עריכת מדיה' }}
         </button>
       </div>
       <GameMediaEditor v-if="editingMedia" id="game-media-editor" :team-id="game.team_id" :game-id="game.id" @saved="onMediaSaved" />
@@ -176,15 +168,7 @@ watch(
         <ul v-if="game.videos?.length" class="grid gap-6 sm:grid-cols-2">
           <li v-for="(v, i) in game.videos" :key="i"><VideoCard :video="v" /></li>
         </ul>
-        <div v-if="game.images?.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <figure v-for="(img, i) in game.images" :key="i" class="space-y-1">
-            <button type="button" class="block w-full cursor-zoom-in" :aria-label="`הגדלת תמונה: ${gameImages[i].alt}`" @click="lightbox.open(i, $event)">
-              <img :src="img.url" :alt="gameImages[i].alt" loading="lazy" class="aspect-square w-full rounded-xl object-cover" />
-            </button>
-            <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>
-          </figure>
-          <ImageLightbox ref="lightbox" :images="gameImages" />
-        </div>
+        <ImageGallery v-if="game.images?.length" :images="game.images" :fallback-alt="'נגד ' + game.opponent.name" />
       </template>
       <p v-else class="empty-state">עדיין לא נוספו סרטונים או תמונות.</p>
     </section>

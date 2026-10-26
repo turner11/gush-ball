@@ -126,6 +126,10 @@ describe('GameView', () => {
       expect(wrapper.findComponent(GameScorersEditor).exists()).toBe(false)
       await wrapper.findAll('button').find((b) => b.text() === 'עריכת קלעים').trigger('click')
       expect(wrapper.findComponent(GameScorersEditor).exists()).toBe(true)
+      expect(wrapper.findAll('button').some((b) => b.text() === 'סיום עריכה')).toBe(true)
+      wrapper.findComponent(GameScorersEditor).vm.$emit('saved', [])
+      await flushPromises()
+      expect(wrapper.findComponent(GameScorersEditor).exists()).toBe(false)
     })
 
     it('non-admin sees no edit button', async () => {
@@ -174,6 +178,10 @@ describe('GameView', () => {
       expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(false)
       await wrapper.findAll('button').find((b) => b.text() === 'עריכת מדיה').trigger('click')
       expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(true)
+      expect(wrapper.findAll('button').some((b) => b.text() === 'סיום עריכה')).toBe(true)
+      wrapper.findComponent(GameMediaEditor).vm.$emit('saved', { videos: [], images: [] })
+      await flushPromises()
+      expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(false)
     })
 
     it('non-admin sees no edit button', async () => {
@@ -183,6 +191,17 @@ describe('GameView', () => {
       const { wrapper } = await mountAt(true)
       expect(wrapper.findAll('button').some((b) => b.text() === 'עריכת מדיה')).toBe(false)
     })
+  })
+
+  it('a failed load shows an error with retry, not not-found', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, statusText: 'Error', json: async () => ({}) }))
+    const { wrapper } = await mountAt(true)
+    expect(wrapper.find('[role="alert"]').text()).toContain('שגיאה בטעינת המשחק')
+    expect(wrapper.text()).not.toContain('המשחק לא נמצא')
+    mockFetch(ok(GAME))
+    await wrapper.findAll('button').find((b) => b.text() === 'נסו שוב').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('הפועל עבר')
   })
 
   it('preview hides the scorers and media edit buttons from a team admin (#468)', async () => {

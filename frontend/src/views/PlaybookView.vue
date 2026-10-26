@@ -11,6 +11,7 @@ import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
+import LoadError from '../components/LoadError.vue'
 
 const route = useRoute()
 const { selectedTeamId } = useSelectedTeam()
@@ -58,7 +59,7 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
   <section v-if="selectedTeamId" class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">פלייבוק</h1>
-      <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" :aria-pressed="editing" @click="toggleEditing">
+      <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" :aria-expanded="editing" @click="toggleEditing">
         {{ editing ? 'סיום עריכה' : 'עריכת מהלכים' }}
       </button>
     </div>
@@ -72,10 +73,7 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
       <p class="empty-state">הדף זמין לחברי הקבוצה בלבד</p>
       <RouterLink v-if="!viewer" :to="{ name: 'admin-login', query: { next: route.fullPath } }" class="btn-primary w-full sm:w-auto">כניסה / הרשמה</RouterLink>
     </div>
-    <div v-else-if="error" class="space-y-3">
-      <p class="error-text" role="alert">שגיאה בטעינת המהלכים</p>
-      <button type="button" class="btn-secondary" @click="load">נסו שוב</button>
-    </div>
+    <LoadError v-else-if="error" message="שגיאה בטעינת המהלכים" @retry="load" />
     <p v-else-if="!plays.length" class="empty-state">עדיין אין מהלכים</p>
     <ul v-else class="grid gap-6 sm:grid-cols-2">
       <li v-for="play in plays" :key="play.id" class="space-y-2">

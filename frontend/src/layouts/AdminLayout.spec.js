@@ -56,13 +56,18 @@ describe('AdminLayout nav', () => {
 
   it('marks the current section link active', async () => {
     const w = await mountAt('/team_a/admin/games')
-    expect(link(w, '/team_a/admin/games').classes()).toContain('font-bold')
-    expect(link(w, '/team_a/admin/players').classes()).not.toContain('font-bold')
+    expect(link(w, '/team_a/admin/games').classes()).toContain('router-link-exact-active')
+    expect(link(w, '/team_a/admin/players').classes()).not.toContain('router-link-exact-active')
+  })
+
+  it('marks ראשי current on the admin home', async () => {
+    const w = await mountAt('/team_a/admin')
+    expect(link(w, '/team_a/admin').classes()).toContain('router-link-exact-active')
   })
 
   it('does not mark the home link active on a sub-page', async () => {
     const w = await mountAt('/team_a/admin/players')
-    expect(link(w, '/team_a/admin').classes()).not.toContain('font-bold')
+    expect(link(w, '/team_a/admin').classes()).not.toContain('router-link-exact-active')
   })
 
   it('renders a mobile tab bar with every admin section', async () => {

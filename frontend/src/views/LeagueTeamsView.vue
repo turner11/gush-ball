@@ -8,6 +8,7 @@ import { useAuth, viewer } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import LoadError from '../components/LoadError.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -101,10 +102,7 @@ const empty = computed(() => data.value && !data.value.onSite.length && !data.va
       <p>הליגה לא נמצאה</p>
       <RouterLink :to="{ name: 'teams' }" class="btn-secondary mt-3">חזרה לקבוצות</RouterLink>
     </div>
-    <div v-else-if="errorStatus !== null" class="space-y-3">
-      <p class="error-text" role="alert">לא הצלחנו לטעון את קבוצות הליגה מאתר האיגוד</p>
-      <button type="button" class="btn-secondary" @click="load">נסה שוב</button>
-    </div>
+    <LoadError v-else-if="errorStatus !== null" message="לא הצלחנו לטעון את קבוצות הליגה מאתר האיגוד" @retry="load" />
     <div v-else-if="data === null" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-busy="true">
       <div v-for="n in 8" :key="n" class="skeleton h-36"></div>
     </div>

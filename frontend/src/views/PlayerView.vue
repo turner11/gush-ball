@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import ImageLightbox from '../components/ImageLightbox.vue'
 import LineChart from '../components/LineChart.vue'
+import LoadError from '../components/LoadError.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
@@ -33,7 +34,7 @@ async function closeEditor() {
 const player = ref(null)
 const team = ref(null)
 const loading = ref(true)
-const error = ref('')
+const notFound = ref(false)
 // Own first photo only: tagged team images aren't portraits and carry no face focus.
 const avatar = computed(() => player.value?.images?.[0])
 const taggedImages = ref([])
@@ -67,41 +68,40 @@ const neighbours = computed(() => {
 
 const lightbox = ref(null)
 
-watch(
-  () => route.params.id,
-  async (id) => {
-    loading.value = true
-    error.value = ''
-    try {
-      const p = await apiFetch(`/players/${id}`)
-      const [t, teamImages, teamVideos, teamPlayers, scorerRows] = await Promise.all([
-        apiFetch(`/teams/${p.team_id}`),
-        apiFetch(`/teams/${p.team_id}/images`),
-        apiFetch(`/teams/${p.team_id}/videos`),
-        apiFetch(`/teams/${p.team_id}/players`),
-        apiFetch(`/teams/${p.team_id}/games/scorers`),
-      ])
-      if (id !== route.params.id) return // navigated away mid-load: don't clobber the new page's title/JSON-LD
-      taggedImages.value = taggedNewestFirst(teamImages, p.id)
-      taggedVideos.value = taggedNewestFirst(teamVideos, p.id)
-      teammates.value = teamPlayers
-      scoring.value = scoringByPlayer(scorerRows).get(p.id) ?? []
-      player.value = p
-      team.value = t
-      document.title = pageTitle(`${p.name} · ${t.name}`, p.name_en)
-      setJsonLd(playerJsonLd(p, t, location.origin + route.path, `${location.origin}/${teamSlug(t)}`))
-    } catch (e) {
-      if (id !== route.params.id) return
-      player.value = null
-      setJsonLd(null)
-      document.title = pageTitle('שחקן')
-      error.value = e.status === 404 ? 'השחקן לא נמצא.' : 'שגיאה בטעינת השחקן, נסה שוב'
-    } finally {
-      if (id === route.params.id) loading.value = false
-    }
-  },
-  { immediate: true },
-)
+async function load() {
+  const id = route.params.id
+  loading.value = true
+  notFound.value = false
+  try {
+    const p = await apiFetch(`/players/${id}`)
+    const [t, teamImages, teamVideos, teamPlayers, scorerRows] = await Promise.all([
+      apiFetch(`/teams/${p.team_id}`),
+      apiFetch(`/teams/${p.team_id}/images`),
+      apiFetch(`/teams/${p.team_id}/videos`),
+      apiFetch(`/teams/${p.team_id}/players`),
+      apiFetch(`/teams/${p.team_id}/games/scorers`),
+    ])
+    if (id !== route.params.id) return // navigated away mid-load: don't clobber the new page's title/JSON-LD
+    taggedImages.value = taggedNewestFirst(teamImages, p.id)
+    taggedVideos.value = taggedNewestFirst(teamVideos, p.id)
+    teammates.value = teamPlayers
+    scoring.value = scoringByPlayer(scorerRows).get(p.id) ?? []
+    player.value = p
+    team.value = t
+    document.title = pageTitle(`${p.name} · ${t.name}`, p.name_en)
+    setJsonLd(playerJsonLd(p, t, location.origin + route.path, `${location.origin}/${teamSlug(t)}`))
+  } catch (e) {
+    if (id !== route.params.id) return
+    player.value = null
+    setJsonLd(null)
+    document.title = pageTitle('שחקן')
+    notFound.value = e.status === 404
+  } finally {
+    if (id === route.params.id) loading.value = false
+  }
+}
+
+watch(() => route.params.id, load, { immediate: true })
 </script>
 
 <template>
@@ -233,6 +233,10 @@ watch(
         </RouterLink>
       </nav>
     </template>
-    <p v-else class="empty-state">{{ error }}</p>
+    <template v-else-if="notFound">
+      <p class="empty-state">השחקן לא נמצא.</p>
+      <RouterLink :to="{ name: 'teams' }" class="section-link">לכל הקבוצות</RouterLink>
+    </template>
+    <LoadError v-else message="שגיאה בטעינת השחקן" @retry="load" />
   </section>
 </template>

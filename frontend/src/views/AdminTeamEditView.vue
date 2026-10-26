@@ -133,7 +133,10 @@ onMounted(() => Promise.all([load(), loadClubOptions()]))
 <template>
   <section class="space-y-8">
     <div class="page-header">
-      <h1 class="page-title">עריכת קבוצה</h1>
+      <div>
+        <p class="eyebrow">עריכת קבוצה</p>
+        <h1 class="page-title">{{ team?.name ?? 'עריכת קבוצה' }}</h1>
+      </div>
       <div class="flex gap-2">
         <RouterLink to="/admin/teams" class="section-link">→ כל הקבוצות</RouterLink>
         <RouterLink v-if="team" :to="'/' + teamSlug(team)" class="section-link">צפייה באתר</RouterLink>

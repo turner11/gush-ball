@@ -61,8 +61,6 @@ async function save() {
   <form class="space-y-3" @submit.prevent="save">
     <h2 class="section-title">{{ game ? 'עריכת משחק' : 'הוספת משחק' }}</h2>
 
-    <p v-if="error" class="error-text" role="alert">{{ error }}</p>
-
     <div>
       <label for="game-opponent-name" class="field-label">יריבה</label>
       <input id="game-opponent-name" v-model="form.opponent_name" type="text" required class="field-input" />
@@ -103,9 +101,11 @@ async function save() {
 
     <slot />
 
+    <p v-if="error" class="error-text" role="alert">{{ error }}</p>
+
     <div class="flex gap-2">
       <button type="submit" class="btn-primary" :disabled="saving">{{ game ? 'שמירה' : 'הוספה' }}</button>
-      <button v-if="game" type="button" class="btn-secondary" @click="emit('cancel')">ביטול</button>
+      <button type="button" class="btn-secondary" @click="emit('cancel')">ביטול</button>
     </div>
   </form>
 </template>

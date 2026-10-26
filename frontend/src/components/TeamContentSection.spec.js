@@ -61,6 +61,25 @@ describe('TeamContentSection', () => {
     expect(wrapper.find('#links-url').element.value).toBe('https://cdn/x.png')
   })
 
+  it('clicking עריכה fills the form and focuses its first field', async () => {
+    mockFetch({ 'GET /api/teams/1/links': () => jsonRes(LINKS) })
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const wrapper = mount(TeamContentSection, {
+      props: { ownerId: 1, resource: 'links', heading: 'קישורים', fields: FIELDS },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const edit = wrapper.findAll('button').find((b) => b.text() === 'עריכה')
+    expect(edit.attributes('aria-label')).toBe('עריכה: אתר הבית — https://example.com')
+    await edit.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('#links-label').element.value).toBe('אתר הבית')
+    expect(document.activeElement).toBe(wrapper.find('#links-label').element)
+    wrapper.unmount()
+  })
+
   it('field with preview:true shows a list thumbnail and a form preview, so tags can be picked by sight', async () => {
     mockFetch({
       'GET /api/teams/1/images': () => jsonRes([{ id: 5, title: 'משחק', url: 'https://cdn/old.png' }]),
