@@ -18,6 +18,7 @@ const games = ref([])
 const rows = ref([])
 const oppResults = ref([])
 const oppFailed = ref(false)
+const oppLoading = ref(true)
 const loading = ref(true)
 const error = ref(false)
 
@@ -26,18 +27,22 @@ async function load() {
   const gameId = props.gameId
   const current = () => id === props.team.id && gameId === props.gameId
   loading.value = true
+  oppLoading.value = true
   error.value = false
+  // The opponent's results come from ibasketball and can be slow: they load outside the gate, so only the split waits,
+  // and a failure there only dashes it; it never fails the widget.
+  apiFetch(`/teams/${id}/games/${gameId}/opponent-results`)
+    .then((r) => [r, false], () => [[], true])
+    .then(([r, failed]) => {
+      if (!current()) return
+      oppResults.value = r
+      oppFailed.value = failed
+      oppLoading.value = false
+    })
   try {
-    // An ibasketball hiccup on the opponent's results only dashes its split; it never fails the widget.
-    const loaded = await Promise.all([
-      apiFetch(`/teams/${id}/games`),
-      apiFetch('/standings'),
-      apiFetch(`/teams/${id}/games/${gameId}/opponent-results`).catch(() => null),
-    ])
+    const loaded = await Promise.all([apiFetch(`/teams/${id}/games`), apiFetch('/standings')])
     if (!current()) return
     ;[games.value, rows.value] = loaded
-    oppFailed.value = loaded[2] === null
-    oppResults.value = loaded[2] ?? []
   } catch {
     if (current()) error.value = true
   } finally {
@@ -57,14 +62,15 @@ const oppRow = computed(() => {
 const tableRows = computed(() => {
   const { all, W, L } = ours.value
   const avg = (b, k) => formatAverage(b[k], b.n)
-    const opp = (k) => (oppRow.value ? formatAverage(oppRow.value[k === 'for' ? 'points_for' : 'points_against'], oppRow.value.played) : '—')
+  const split = (b, k) => (oppLoading.value ? '…' : formatAverage(b[k], b.n))
+  const opp = (k) => (oppRow.value ? formatAverage(oppRow.value[k === 'for' ? 'points_for' : 'points_against'], oppRow.value.played) : '—')
   return [
     { label: 'נקודות זכות', n: all.n, us: avg(all, 'for'), them: opp('for') },
     { label: 'נקודות חובה', n: all.n, us: avg(all, 'against'), them: opp('against') },
-    { label: 'זכות בניצחונות', n: W.n, us: avg(W, 'for'), them: avg(theirs.value.W, 'for'), themN: theirs.value.W.n },
-    { label: 'חובה בניצחונות', n: W.n, us: avg(W, 'against'), them: avg(theirs.value.W, 'against'), themN: theirs.value.W.n },
-    { label: 'זכות בהפסדים', n: L.n, us: avg(L, 'for'), them: avg(theirs.value.L, 'for'), themN: theirs.value.L.n },
-    { label: 'חובה בהפסדים', n: L.n, us: avg(L, 'against'), them: avg(theirs.value.L, 'against'), themN: theirs.value.L.n },
+    { label: 'זכות בניצחונות', n: W.n, us: avg(W, 'for'), them: split(theirs.value.W, 'for'), themN: theirs.value.W.n },
+    { label: 'חובה בניצחונות', n: W.n, us: avg(W, 'against'), them: split(theirs.value.W, 'against'), themN: theirs.value.W.n },
+    { label: 'זכות בהפסדים', n: L.n, us: avg(L, 'for'), them: split(theirs.value.L, 'for'), themN: theirs.value.L.n },
+    { label: 'חובה בהפסדים', n: L.n, us: avg(L, 'against'), them: split(theirs.value.L, 'against'), themN: theirs.value.L.n },
   ]
 })
 

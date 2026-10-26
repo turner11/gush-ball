@@ -75,6 +75,19 @@ def test_opponent_results_are_from_the_opponents_side(
     assert [(r["team_score"], r["opponent_score"]) for r in body] == [(80, 70), (90, 60)]
 
 
+def test_opponent_results_skip_an_event_with_bad_main_results(
+    client: TestClient, db_session: Session, fake_fetch: dict
+) -> None:
+    game = _setup(db_session)
+    fake_fetch["events"] = [
+        _event("2026-01-02T18:00:00", [7, 8], ["80", "x"]),
+        _event("2026-01-09T18:00:00", [8, 7], ["60", "90"]),
+    ]
+    resp = client.get(_url(game))
+    assert resp.status_code == 200
+    assert [(r["team_score"], r["opponent_score"]) for r in resp.json()] == [(90, 60)]
+
+
 def test_opponent_results_empty_without_league_or_source_url_and_no_fetch(
     client: TestClient, db_session: Session, fake_fetch: dict
 ) -> None:

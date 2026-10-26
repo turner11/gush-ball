@@ -108,7 +108,11 @@ def opponent_results(team_url: str, league_ibasketball_id: int) -> list[dict]:
         sp_id, events = _fetch_opponent_events(team_url, league_ibasketball_id)
         results = []
         for event in events:
-            scores = home_away_scores(event)
+            try:
+                scores = home_away_scores(event)
+            except ValueError:
+                log.warning("Skipping opponent event with bad main_results: %r", event)
+                continue
             if scores is None or len(event["teams"]) != 2 or sp_id not in event["teams"]:
                 continue
             mine, theirs = scores if event["teams"][0] == sp_id else scores[::-1]

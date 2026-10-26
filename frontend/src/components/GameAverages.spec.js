@@ -50,6 +50,22 @@ describe('GameAverages', () => {
     expect(wrapper.text()).not.toContain('שגיאה בטעינת הממוצעים')
   })
 
+  it('shows our averages while the opponent results are still pending', async () => {
+    let release
+    global.fetch = vi.fn((url) => {
+      if (url === '/api/teams/1/games/9/opponent-results') return new Promise((resolve) => { release = () => resolve(ok([game(80, 70, 1)])) })
+      return Promise.resolve(ok(url === '/api/standings' ? ROWS : GAMES))
+    })
+    const wrapper = await mountIt()
+    const trs = wrapper.findAll('tbody tr')
+    expect(trs[2].findAll('td')[0].text()).toContain('85.0')
+    expect(trs[2].findAll('td')[1].text()).toBe('…')
+    expect(trs[0].findAll('td')[1].text()).toBe('75.0')
+    release()
+    await flushPromises()
+    expect(wrapper.findAll('tbody tr')[2].findAll('td')[1].text()).toBe('80.0 (1 מש׳)')
+  })
+
   it('dashes the opponent and explains when it has no standings row', async () => {
     mockFetch(GAMES, [ROWS[1]])
     const wrapper = await mountIt()
