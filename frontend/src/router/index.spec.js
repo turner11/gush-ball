@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+describe('router titles', () => {
+  it('names the stats route נתונים, matching the nav and the page h1', async () => {
+    vi.resetModules()
+    const { default: router } = await import('./index.js')
+    expect(router.resolve('/team_a/stats').meta.title).toBe('נתונים')
+  })
+})
+
 describe('router auth guard', () => {
   beforeEach(() => {
     localStorage.clear()

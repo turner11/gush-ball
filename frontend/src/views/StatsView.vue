@@ -99,7 +99,7 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
 <template>
   <section v-if="selectedTeamId" class="space-y-6">
     <div class="page-header">
-      <h1 class="page-title">סטטיסטיקה</h1>
+      <h1 class="page-title">נתונים</h1>
     </div>
 
     <div v-if="!checked" class="space-y-4" aria-busy="true">
