@@ -78,6 +78,22 @@ describe('AdminTeamEditView', () => {
     expect(wrapper.find('#team-about').element.tagName).toBe('TEXTAREA')
   })
 
+  it.each([
+    ['links', 'links-label'],
+    ['about', 'team-about'],
+  ])('a #%s hash scrolls to its section and focuses the first field (#514)', async (hash, fieldId) => {
+    Element.prototype.scrollIntoView = vi.fn()
+    mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
+    await router.push(`/admin/teams/1#${hash}`)
+    const { default: AdminTeamEditView } = await import('./AdminTeamEditView.vue')
+    const wrapper = mount(AdminTeamEditView, { global: { plugins: [router] }, attachTo: document.body })
+    await flushPromises()
+
+    expect(Element.prototype.scrollIntoView.mock.contexts[0].id).toBe(hash)
+    expect(document.activeElement.id).toBe(fieldId)
+    wrapper.unmount()
+  })
+
   it('the heading names the team being edited', async () => {
     mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
     const wrapper = await mountView()

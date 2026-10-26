@@ -516,7 +516,7 @@ describe('HomeView', () => {
       await asTeamAdmin()
       const w = await mountWithTeam(TEAM, { links: LINKS })
       const hrefs = ['ניהול הקבוצה', 'ניהול קישורים'].map((t) => w.findAll('a').find((a) => a.text() === t).attributes('href'))
-      expect(hrefs).toEqual(['/admin/teams/1', '/admin/teams/1'])
+      expect(hrefs).toEqual(['/admin/teams/1#about', '/admin/teams/1#links'])
       expect(w.find('#home-about-editor').exists()).toBe(false)
       expect(w.findComponent({ name: 'TeamContentSection' }).exists()).toBe(false)
       expect(w.text()).not.toContain('צבעי הקבוצה')

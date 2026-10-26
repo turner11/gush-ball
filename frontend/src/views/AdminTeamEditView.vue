@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import ImageUpload from '../components/ImageUpload.vue'
@@ -33,6 +33,7 @@ const GROUPS = [
     ],
   },
   {
+    id: 'about',
     legend: 'על הקבוצה',
     fields: [
       { key: 'about', label: 'על הקבוצה', type: 'textarea', hint: 'מוצג בעמוד הבית של הקבוצה. השאירו ריק כדי להסתיר.' },
@@ -82,6 +83,16 @@ async function load() {
     }
   }
   loading.value = false
+  if (team.value) await revealHashTarget()
+}
+
+// The router's scrollBehavior runs before the team has loaded, so scroll to and focus the #hash section here.
+async function revealHashTarget() {
+  await nextTick()
+  const target = document.getElementById(route.hash.slice(1))
+  if (!target) return
+  target.scrollIntoView({ block: 'start' })
+  target.querySelector('.field-input')?.focus({ preventScroll: true })
 }
 
 async function onSubmit() {
@@ -145,7 +156,7 @@ onMounted(() => Promise.all([load(), loadClubOptions()]))
 
     <template v-if="team">
       <form class="space-y-4" @submit.prevent="onSubmit">
-        <fieldset v-for="group in GROUPS" :key="group.legend" class="card space-y-3">
+        <fieldset v-for="group in GROUPS" :id="group.id" :key="group.legend" class="card scroll-mt-24 space-y-3">
           <legend class="section-title">{{ group.legend }}</legend>
           <div v-if="group.legend === 'פרטים'">
             <span class="field-label">מזהה (slug)</span>
@@ -234,7 +245,9 @@ onMounted(() => Promise.all([load(), loadClubOptions()]))
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <TeamContentSection
           v-for="section in TEAM_SECTIONS"
+          :id="section.resource"
           :key="section.resource"
+          class="scroll-mt-24"
           :owner-id="teamId"
           :resource="section.resource"
           :heading="section.heading"
