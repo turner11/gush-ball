@@ -8,6 +8,19 @@ describe('router titles', () => {
   })
 })
 
+describe('router admin parents', () => {
+  it('admin sub-pages name their parent section', async () => {
+    vi.resetModules()
+    const { default: router } = await import('./index.js')
+    const parent = (path) => router.resolve(path).meta.parent
+    for (const path of ['/admin/teams/5', '/admin/teams/import', '/admin/teams/batch']) expect(parent(path), path).toBe('admin-teams')
+    expect(parent('/admin/clubs/3')).toBe('admin-clubs')
+    expect(parent('/admin/users')).toBe('admin-home')
+    expect(parent('/admin/audit')).toBe('admin-home')
+    expect(parent('/admin/teams')).toBeUndefined()
+  })
+})
+
 describe('router auth guard', () => {
   beforeEach(() => {
     localStorage.clear()

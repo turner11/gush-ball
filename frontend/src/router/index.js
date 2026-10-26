@@ -4,7 +4,8 @@ import { useAuth } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 
 const homeDescription = (team) => `האתר של ${team}: משחקים ותוצאות, טבלת הליגה, שחקנים, חדשות ומדיה.`
-const admin = (title) => ({ requiresAuth: true, layout: 'admin', title })
+// parent: the nav section a sub-page belongs to, so the admin nav can highlight it.
+const admin = (title, parent) => ({ requiresAuth: true, layout: 'admin', title, parent })
 
 // Pre-#223 bare URLs (shared links) redirect to the remembered team's page, or to the picker when nothing is
 // remembered, so a team the visitor never chose is never persisted.
@@ -49,14 +50,14 @@ const router = createRouter({
     // ponytail: exists only to verify Sentry setup (#331); throws through AdminLayout -> ErrorBoundary.
     { path: '/admin/sentry-test', name: 'admin-sentry-test', component: { setup() { throw new Error('Sentry frontend test error') } }, meta: admin('בדיקת ניטור שגיאות') },
     { path: '/admin/standings', name: 'admin-standings', component: () => import('../views/AdminStandingsView.vue'), meta: admin('ניהול טבלה') },
-    { path: '/admin/audit', name: 'admin-audit', component: () => import('../views/AdminAuditView.vue'), meta: admin('יומן שינויים') },
+    { path: '/admin/audit', name: 'admin-audit', component: () => import('../views/AdminAuditView.vue'), meta: admin('יומן שינויים', 'admin-home') },
     { path: '/admin/clubs', name: 'admin-clubs', component: () => import('../views/AdminClubsView.vue'), meta: admin('ניהול מועדונים') },
-    { path: '/admin/clubs/:id', name: 'admin-club-edit', component: () => import('../views/AdminClubEditView.vue'), meta: admin('ניהול מועדון') },
+    { path: '/admin/clubs/:id', name: 'admin-club-edit', component: () => import('../views/AdminClubEditView.vue'), meta: admin('ניהול מועדון', 'admin-clubs') },
     { path: '/admin/teams', name: 'admin-teams', component: () => import('../views/AdminTeamsView.vue'), meta: admin('ניהול קבוצות') },
-    { path: '/admin/users', name: 'admin-users', component: () => import('../views/AdminUsersView.vue'), meta: admin('ניהול משתמשים') },
-    { path: '/admin/teams/import', name: 'admin-teams-import', component: () => import('../views/AdminClubImportView.vue'), meta: admin('ייבוא קבוצות מאגודה') },
-    { path: '/admin/teams/batch', name: 'admin-teams-batch-edit', component: () => import('../views/AdminTeamsBatchEditView.vue'), meta: admin('עריכת קבוצות') },
-    { path: '/admin/teams/:id', name: 'admin-team-edit', component: () => import('../views/AdminTeamEditView.vue'), meta: admin('עריכת קבוצה') },
+    { path: '/admin/users', name: 'admin-users', component: () => import('../views/AdminUsersView.vue'), meta: admin('ניהול משתמשים', 'admin-home') },
+    { path: '/admin/teams/import', name: 'admin-teams-import', component: () => import('../views/AdminClubImportView.vue'), meta: admin('ייבוא קבוצות מאגודה', 'admin-teams') },
+    { path: '/admin/teams/batch', name: 'admin-teams-batch-edit', component: () => import('../views/AdminTeamsBatchEditView.vue'), meta: admin('עריכת קבוצות', 'admin-teams') },
+    { path: '/admin/teams/:id', name: 'admin-team-edit', component: () => import('../views/AdminTeamEditView.vue'), meta: admin('עריכת קבוצה', 'admin-teams') },
     ...LEGACY_PATHS.map(([path, name]) => ({ path, redirect: () => {
       const slug = useSelectedTeam().selectedTeamId.value
       return slug ? { name, params: { slug } } : { name: 'teams' }
