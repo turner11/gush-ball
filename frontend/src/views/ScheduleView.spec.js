@@ -140,7 +140,7 @@ describe('ScheduleView', () => {
       'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
       'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME]),
     }
-    const calendarHref = (wrapper) => wrapper.findAll('a').find((a) => a.attributes('href').includes('calendar.ics')).attributes('href')
+    const feedHasPractices = (wrapper) => wrapper.findComponent({ name: 'CalendarSubscribe' }).props('practices')
 
     it('fetches and shows upcoming practices for a team member', async () => {
       mockFetch({
@@ -166,7 +166,7 @@ describe('ScheduleView', () => {
       await flushPromises()
 
       expect(global.fetch.mock.calls.some(([url]) => url.includes('/practices'))).toBe(false)
-      expect(calendarHref(wrapper)).not.toContain('practices=1')
+      expect(feedHasPractices(wrapper)).toBe(false)
       expect(wrapper.text()).not.toContain('אימונים קרובים')
     })
 
@@ -184,7 +184,7 @@ describe('ScheduleView', () => {
       await flushPromises()
       expect(global.fetch.mock.calls.some(([url]) => url.includes('/practices'))).toBe(false)
       expect(wrapper.text()).not.toContain('אימונים קרובים')
-      expect(calendarHref(wrapper)).not.toContain('practices=1')
+      expect(feedHasPractices(wrapper)).toBe(false)
 
       previewMode.value = null
       await flushPromises()
@@ -202,7 +202,7 @@ describe('ScheduleView', () => {
       const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
       await flushPromises()
 
-      expect(calendarHref(wrapper)).toMatch(/^webcal:.*calendar\.ics\?practices=1$/)
+      expect(feedHasPractices(wrapper)).toBe(true)
       expect(wrapper.text()).toContain('אין אימונים בשבועיים הקרובים')
     })
   })
@@ -465,6 +465,20 @@ describe('ScheduleView', () => {
       return wrapper
     }
     const button = (wrapper, text) => wrapper.findAll('button').find((b) => b.text().includes(text))
+
+    it('the header holds only the add button and calendar menu; the practices toggle sits in the practices section (#515)', async () => {
+      const wrapper = await mountWith({
+        'GET /api/auth/me': () => jsonRes({ username: 'a', team_ids: [1], member_team_ids: [1] }),
+        'GET /api/teams/1/practices': () => jsonRes([]),
+      })
+      const header = wrapper.get('.page-header')
+      const labels = header.findAll('button').map((b) => b.text())
+      expect(labels.some((l) => l.includes('הוספת משחק'))).toBe(true)
+      expect(labels.some((l) => l.includes('הוספה ליומן'))).toBe(true)
+      expect(header.text()).not.toContain('עריכת אימונים')
+      const section = wrapper.findAll('.section-header').find((h) => h.find('h2').text() === 'אימונים קרובים')
+      expect(section.text()).toContain('עריכת אימונים')
+    })
 
     it('team admin adds a game from the schedule and it appears under upcoming', async () => {
       const wrapper = await mountWith({ 'POST /api/teams/1/games': () => jsonRes(NEW_GAME, 201) })
