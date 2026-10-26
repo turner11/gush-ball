@@ -124,7 +124,10 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
       <GameStatsLink :game="game" class="btn-secondary" />
     </section>
 
-    <GameAverages :team="team" :opponent="game.opponent" :game-id="game.id" />
+    <section v-if="game.description" class="card space-y-2">
+      <h2 class="section-title">על המשחק</h2>
+      <p class="max-w-prose whitespace-pre-line">{{ game.description }}</p>
+    </section>
 
     <section v-if="game.scorers?.length || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">
@@ -153,10 +156,7 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
       <p v-else class="empty-state">עדיין לא הוזנו קלעים.</p>
     </section>
 
-    <section v-if="game.description" class="card space-y-2">
-      <h2 class="section-title">על המשחק</h2>
-      <p class="max-w-prose whitespace-pre-line">{{ game.description }}</p>
-    </section>
+    <GameAverages :team="team" :opponent="game.opponent" :game-id="game.id" />
 
     <section v-if="hasMedia || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">

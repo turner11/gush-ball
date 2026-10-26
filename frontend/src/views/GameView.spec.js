@@ -245,6 +245,16 @@ describe('GameView', () => {
     expect(wrapper.text()).toContain('הפועל עבר')
   })
 
+  it('orders the cards: about, scorers, stats, then media (#539)', async () => {
+    mockFetch(ok({
+      ...GAME,
+      scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
+      videos: [{ url: 'https://www.youtube.com/watch?v=abc123', title: 'תקציר', title_en: null }],
+    }))
+    const { wrapper } = await mountAt(true)
+    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['על המשחק', 'קלעים', 'ממוצעי נקודות', 'מדיה'])
+  })
+
   it('preview hides the scorers and media edit buttons from a team admin (#468)', async () => {
     mockFetch(ok({ ...GAME, scorers: [{ player_id: 2, name: 'x', points: 2 }], videos: [{ url: 'https://youtu.be/a', title: 't', title_en: null }] }))
     const { useAuth, previewMode } = await import('../composables/useAuth')
