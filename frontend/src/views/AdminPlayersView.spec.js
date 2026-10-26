@@ -238,7 +238,7 @@ describe('AdminPlayersView', () => {
     expect(JSON.parse(post[1].body)).toMatchObject({ is_coach: true, jersey_number: null })
   })
 
-  it('uploading a player image fills the image url input and הוסף תמונה posts it', async () => {
+  it('uploading a player image fills the image url input and הוספת תמונה posts it', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),
       'GET /api/teams/1/players': () => jsonRes(PLAYERS),
@@ -258,7 +258,7 @@ describe('AdminPlayersView', () => {
 
     expect(wrapper.find('input[type="url"]').element.value).toBe('https://cdn/p.png')
 
-    await wrapper.findAll('button').find((b) => b.text() === 'הוסף תמונה').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'הוספת תמונה').trigger('click')
     await flushPromises()
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/players/10/images',
@@ -278,7 +278,7 @@ describe('AdminPlayersView', () => {
     const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const editButton = wrapper.findAll('button').find((b) => b.text() === 'ערוך')
+    const editButton = wrapper.findAll('button').find((b) => b.text() === 'עריכה')
     await editButton.trigger('click')
     await wrapper.find('#player-jersey-number').setValue('23')
     expect(wrapper.find('#player-birth-date').element.value).toBe('')
@@ -306,7 +306,7 @@ describe('AdminPlayersView', () => {
 
     expect(wrapper.text()).toContain('יוסי')
 
-    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחק')
+    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחיקה')
     await deleteButton.trigger('click')
     await flushPromises()
 
@@ -325,7 +325,7 @@ describe('AdminPlayersView', () => {
     await flushPromises()
 
     await wrapper.find('input[placeholder="כתובת תמונה"]').setValue('https://example.com/x.png')
-    const addImageButton = wrapper.findAll('button').find((b) => b.text() === 'הוסף תמונה')
+    const addImageButton = wrapper.findAll('button').find((b) => b.text() === 'הוספת תמונה')
     await addImageButton.trigger('click')
     await flushPromises()
 
@@ -351,14 +351,14 @@ describe('AdminPlayersView', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('דני')
 
-    await wrapper.findAll('button').find((b) => b.text() === 'שחזר').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'שחזור').trigger('click')
     await flushPromises()
 
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/teams/1/players/11/restore',
       expect.objectContaining({ method: 'POST' }),
     )
-    expect(wrapper.findAll('button').some((b) => b.text() === 'שחזר')).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'שחזור')).toBe(false)
     expect(wrapper.findAll('tbody')[0].text()).toContain('דני')
   })
 
@@ -402,7 +402,7 @@ describe('AdminPlayersView', () => {
     await flushPromises()
     expect(wrapper.find('#player-user').exists()).toBe(false)
 
-    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
     const select = wrapper.find('#player-user')
     expect(select.text()).toContain('dana')
     await select.setValue('5')
@@ -410,7 +410,7 @@ describe('AdminPlayersView', () => {
     await flushPromises()
     expect(patches[0].user_id).toBe(5)
 
-    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
     await wrapper.find('#player-user').setValue('')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
@@ -435,7 +435,7 @@ describe('AdminPlayersView', () => {
     const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
     const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
     await flushPromises()
-    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(patches[0]).not.toHaveProperty('user_id')

@@ -41,8 +41,8 @@ const statsUrl = ref('')
 const statsMessage = ref(null)
 const confirming = ref(null) // null | 'replace' | 'delete'
 const CONFIRMS = {
-  replace: { text: 'למשחק זה כבר יש נתונים. לטעון מחדש ולהחליף אותם?', button: 'החלף', cls: 'btn-primary' },
-  delete: { text: 'למחוק את כל נתוני הסטטיסטיקה של המשחק? הקישור לגיליון יישמר.', button: 'מחק', cls: 'btn-danger' },
+  replace: { text: 'למשחק זה כבר יש נתונים. לטעון מחדש ולהחליף אותם?', button: 'החלפה', cls: 'btn-primary' },
+  delete: { text: 'למחוק את כל נתוני הסטטיסטיקה של המשחק? הקישור לגיליון יישמר.', button: 'מחיקה', cls: 'btn-danger' },
 }
 const templateCopyUrl = computed(() => sheetCopyUrl(user.value?.stats_template_url ?? ''))
 const loadButton = ref(null)
@@ -268,13 +268,13 @@ async function onDelete(game) {
               </p>
               <span class="flex flex-wrap gap-1">
                 <GameStatsLink :game="game" class="btn-ghost" />
-                <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
+                <button type="button" class="btn-ghost" @click="startEdit(game)">עריכה</button>
                 <button v-if="!game.scrape_suggestion" type="button" class="btn-ghost" @click="approveGame(game)">
-                  אשר
+                  אישור
                 </button>
                 <template v-else>
-                  <button type="button" class="btn-ghost" @click="acceptSuggestion(game)">קבל עדכון</button>
-                  <button type="button" class="btn-danger-ghost" @click="rejectSuggestion(game)">דחה</button>
+                  <button type="button" class="btn-ghost" @click="acceptSuggestion(game)">קבלת עדכון</button>
+                  <button type="button" class="btn-danger-ghost" @click="rejectSuggestion(game)">דחייה</button>
                 </template>
               </span>
             </li>
@@ -306,8 +306,8 @@ async function onDelete(game) {
                   class="btn-ghost"
                   :aria-label="'גיליון הסטטיסטיקה של המשחק נגד ' + game.opponent.name + ' (נפתח בלשונית חדשה)'"
                 >גיליון<AppIcon name="external" /></a>
-                <button type="button" class="btn-ghost" @click="startEdit(game)">ערוך</button>
-                <button type="button" class="btn-danger-ghost" @click="pendingDelete = game">מחק</button>
+                <button type="button" class="btn-ghost" @click="startEdit(game)">עריכה</button>
+                <button type="button" class="btn-danger-ghost" @click="pendingDelete = game">מחיקה</button>
               </template>
             </GameRow>
           </ol>
@@ -336,10 +336,10 @@ async function onDelete(game) {
             <a v-if="editing.stats_url" :href="editing.stats_url" target="_blank" rel="noopener" class="section-link">פתיחת הגיליון<AppIcon name="external" /></a>
             <a v-if="templateCopyUrl" :href="templateCopyUrl" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
           </div>
-          <p v-if="templateCopyUrl" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו טען. אחרי המשחק: טענו שוב.</p>
+          <p v-if="templateCopyUrl" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו על טעינת סטטיסטיקה. אחרי המשחק: טענו שוב.</p>
           <div class="flex flex-wrap gap-2">
-            <button ref="loadButton" type="button" class="btn-secondary" @click="requestLoadStats">טען סטטיסטיקה</button>
-            <button v-if="editing.has_stats" type="button" class="btn-danger-ghost" @click="confirming = 'delete'">מחק סטטיסטיקה</button>
+            <button ref="loadButton" type="button" class="btn-secondary" @click="requestLoadStats">טעינת סטטיסטיקה</button>
+            <button v-if="editing.has_stats" type="button" class="btn-danger-ghost" @click="confirming = 'delete'">מחיקת סטטיסטיקה</button>
           </div>
           <div v-if="confirming" role="alert" class="space-y-2 rounded-xl border border-warn/60 p-3">
             <p class="text-sm">{{ CONFIRMS[confirming].text }}</p>

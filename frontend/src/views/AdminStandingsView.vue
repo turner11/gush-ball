@@ -211,8 +211,8 @@ async function onDelete(row) {
                 <td v-for="field in tableFields" :key="field.key" :data-label="field.column">{{ row[field.key] }}</td>
                 <td v-if="!readOnly" class="justify-end">
                   <span class="inline-flex gap-1">
-                    <button type="button" class="btn-ghost" @click="startEdit(row)">ערוך</button>
-                    <button type="button" class="btn-danger-ghost" @click="pendingDelete = row">מחק</button>
+                    <button type="button" class="btn-ghost" @click="startEdit(row)">עריכה</button>
+                    <button type="button" class="btn-danger-ghost" @click="pendingDelete = row">מחיקה</button>
                   </span>
                 </td>
               </tr>

@@ -202,7 +202,7 @@ describe('AdminGamesView', () => {
     const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const editButton = wrapper.findAll('button').find((b) => b.text() === 'ערוך')
+    const editButton = wrapper.findAll('button').find((b) => b.text() === 'עריכה')
     await editButton.trigger('click')
     await wrapper.find('#game-status').setValue('final')
     await wrapper.find('#game-team-score').setValue('80')
@@ -232,7 +232,7 @@ describe('AdminGamesView', () => {
 
     expect(wrapper.text()).toContain('מכבי')
 
-    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחק')
+    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחיקה')
     await deleteButton.trigger('click')
     await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
     await flushPromises()
@@ -251,7 +251,7 @@ describe('AdminGamesView', () => {
     const wrapper = mount(AdminGamesView, { global: { plugins: [router] }, attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((b) => b.text() === 'מחק').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'מחיקה').trigger('click')
     await body().findAll('button').find((b) => b.text() === 'ביטול').trigger('click')
     await flushPromises()
 
@@ -303,7 +303,7 @@ describe('AdminGamesView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('הפועל ירושלים')
-    expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(true)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'אישור')).toBe(true)
   })
 
   it('editing a pending game via the shared edit button moves it into the main list, not pending', async () => {
@@ -330,7 +330,7 @@ describe('AdminGamesView', () => {
     const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const editButton = wrapper.findAll('button').find((b) => b.text() === 'ערוך')
+    const editButton = wrapper.findAll('button').find((b) => b.text() === 'עריכה')
     await editButton.trigger('click')
     await wrapper.find('#game-status').setValue('final')
     await wrapper.find('form').trigger('submit')
@@ -340,7 +340,7 @@ describe('AdminGamesView', () => {
       '/api/teams/1/games/300',
       expect.objectContaining({ method: 'PATCH' }),
     )
-    expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'אישור')).toBe(false)
     const rows = wrapper.findAll('ol > li')
     expect(rows[rows.length - 1].text()).toContain('הפועל ירושלים')
   })
@@ -369,7 +369,7 @@ describe('AdminGamesView', () => {
     const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const approveButton = wrapper.findAll('button').find((b) => b.text() === 'אשר')
+    const approveButton = wrapper.findAll('button').find((b) => b.text() === 'אישור')
     await approveButton.trigger('click')
     await flushPromises()
 
@@ -377,7 +377,7 @@ describe('AdminGamesView', () => {
       '/api/teams/1/games/300/approve',
       expect.objectContaining({ method: 'POST' }),
     )
-    expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'אישור')).toBe(false)
   })
 
   it('renders a scrape suggestion diff with accept/reject instead of approve', async () => {
@@ -404,9 +404,9 @@ describe('AdminGamesView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('90')
-    expect(wrapper.findAll('button').some((b) => b.text() === 'קבל עדכון')).toBe(true)
-    expect(wrapper.findAll('button').some((b) => b.text() === 'דחה')).toBe(true)
-    expect(wrapper.findAll('button').some((b) => b.text() === 'אשר')).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'קבלת עדכון')).toBe(true)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'דחייה')).toBe(true)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'אישור')).toBe(false)
   })
 
   it('accepting a suggestion POSTs to accept and removes it from pending', async () => {
@@ -434,7 +434,7 @@ describe('AdminGamesView', () => {
     const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const acceptButton = wrapper.findAll('button').find((b) => b.text() === 'קבל עדכון')
+    const acceptButton = wrapper.findAll('button').find((b) => b.text() === 'קבלת עדכון')
     await acceptButton.trigger('click')
     await flushPromises()
 
@@ -442,7 +442,7 @@ describe('AdminGamesView', () => {
       '/api/teams/1/games/300/suggestion/accept',
       expect.objectContaining({ method: 'POST' }),
     )
-    expect(wrapper.findAll('button').some((b) => b.text() === 'קבל עדכון')).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'קבלת עדכון')).toBe(false)
   })
 
   it('rejecting a suggestion POSTs to reject and removes it from pending', async () => {
@@ -470,7 +470,7 @@ describe('AdminGamesView', () => {
     const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const rejectButton = wrapper.findAll('button').find((b) => b.text() === 'דחה')
+    const rejectButton = wrapper.findAll('button').find((b) => b.text() === 'דחייה')
     await rejectButton.trigger('click')
     await flushPromises()
 
@@ -478,7 +478,7 @@ describe('AdminGamesView', () => {
       '/api/teams/1/games/300/suggestion/reject',
       expect.objectContaining({ method: 'POST' }),
     )
-    expect(wrapper.findAll('button').some((b) => b.text() === 'דחה')).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'דחייה')).toBe(false)
   })
 
   it('editing a game and clicking load stats POSTs the url and shows the count', async () => {
@@ -493,9 +493,9 @@ describe('AdminGamesView', () => {
     const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
     await flushPromises()
 
-    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
     await wrapper.find('#stats-url').setValue('http://s')
-    await wrapper.findAll('button').find((b) => b.text() === 'טען סטטיסטיקה').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'טעינת סטטיסטיקה').trigger('click')
     await flushPromises()
 
     const call = global.fetch.mock.calls.find(([u]) => u === '/api/teams/1/games/100/stats')
@@ -521,8 +521,8 @@ describe('AdminGamesView', () => {
     const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
     await flushPromises()
 
-    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
-    await wrapper.findAll('button').find((b) => b.text() === 'טען סטטיסטיקה').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'טעינת סטטיסטיקה').trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('Failed to load stats sheet: boom')
@@ -558,7 +558,7 @@ describe('AdminGamesView', () => {
     const names = () => wrapper.findAll('ol > li').map((li) => li.text().match(/ראשון|שני/)[0])
     expect(names()).toEqual(['ראשון', 'שני'])
 
-    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(names()).toEqual(['שני', 'ראשון'])
@@ -596,7 +596,7 @@ describe('AdminGamesView', () => {
       const { default: AdminGamesView } = await import('./AdminGamesView.vue')
       const wrapper = mount(AdminGamesView, { global: { plugins: [router] } })
       await flushPromises()
-      await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+      await wrapper.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
       return wrapper
     }
 
@@ -683,7 +683,7 @@ describe('AdminGamesView', () => {
     describe('deleting stats', () => {
       const DELETE = 'DELETE /api/teams/1/games/100/stats'
       const deleteCalls = () => global.fetch.mock.calls.filter(([, o]) => o?.method === 'DELETE')
-      const deleteButton = (wrapper) => wrapper.findAll('button').find((b) => b.text() === 'מחק סטטיסטיקה')
+      const deleteButton = (wrapper) => wrapper.findAll('button').find((b) => b.text() === 'מחיקת סטטיסטיקה')
 
       async function askToDelete() {
         const wrapper = await mountEditing(
@@ -706,9 +706,9 @@ describe('AdminGamesView', () => {
         expect(deleteCalls()).toHaveLength(0)
       })
 
-      it('confirming מחק deletes and hides the button', async () => {
+      it('confirming מחיקה deletes and hides the button', async () => {
         const wrapper = await askToDelete()
-        await alertButton(wrapper, 'מחק').trigger('click')
+        await alertButton(wrapper, 'מחיקה').trigger('click')
         await flushPromises()
 
         expect(deleteCalls()).toHaveLength(1)
@@ -726,7 +726,7 @@ describe('AdminGamesView', () => {
           { [POST]: () => jsonRes({ stats_url: SHEET, snapshots: 5 }) },
           { ...GAMES[0], has_stats: true, stats_url: SHEET },
         )
-        await wrapper.findAll('button').find((b) => b.text() === 'טען סטטיסטיקה').trigger('click')
+        await wrapper.findAll('button').find((b) => b.text() === 'טעינת סטטיסטיקה').trigger('click')
         return wrapper
       }
       const alertButton = (wrapper, label) => wrapper.findAll('[role="alert"] button').find((b) => b.text() === label)
@@ -742,13 +742,13 @@ describe('AdminGamesView', () => {
         expect(statsCalls()).toHaveLength(0)
       })
 
-      it('confirming החלף loads the sheet', async () => {
+      it('confirming החלפה loads the sheet', async () => {
         const wrapper = await askToReplace()
         const focus = vi.spyOn(HTMLElement.prototype, 'focus')
-        await alertButton(wrapper, 'החלף').trigger('click')
+        await alertButton(wrapper, 'החלפה').trigger('click')
         await flushPromises()
 
-        expect(focus.mock.contexts.some((el) => el.textContent === 'טען סטטיסטיקה')).toBe(true)
+        expect(focus.mock.contexts.some((el) => el.textContent === 'טעינת סטטיסטיקה')).toBe(true)
         focus.mockRestore()
 
         expect(statsCalls()).toHaveLength(1)
@@ -761,7 +761,7 @@ describe('AdminGamesView', () => {
         'POST /api/teams/1/games/100/stats': () => jsonRes({ stats_url: SHEET, snapshots: 0 }),
       })
       await wrapper.find('#stats-url').setValue(SHEET)
-      await wrapper.findAll('button').find((b) => b.text() === 'טען סטטיסטיקה').trigger('click')
+      await wrapper.findAll('button').find((b) => b.text() === 'טעינת סטטיסטיקה').trigger('click')
       await flushPromises()
 
       expect(wrapper.text()).toContain('הקישור נשמר')
@@ -799,7 +799,7 @@ describe('AdminGamesView', () => {
     await flushPromises()
     expect(wrapper.findComponent(GameScorersEditor).exists()).toBe(false)
 
-    await wrapper.findAll('button').find((b) => b.text() === 'ערוך').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
     await flushPromises()
 
     expect(wrapper.findComponent(GameScorersEditor).props()).toEqual({ teamId: '1', gameId: 100 })

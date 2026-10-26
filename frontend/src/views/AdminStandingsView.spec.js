@@ -153,7 +153,7 @@ describe('AdminStandingsView', () => {
     const wrapper = mount(AdminStandingsView, { global: { plugins: [router] } })
     await flushPromises()
 
-    const editButton = wrapper.findAll('button').find((b) => b.text() === 'ערוך')
+    const editButton = wrapper.findAll('button').find((b) => b.text() === 'עריכה')
     await editButton.trigger('click')
     await wrapper.find('#standing-played').setValue('11')
     await wrapper.find('#standing-won').setValue('9')
@@ -180,7 +180,7 @@ describe('AdminStandingsView', () => {
 
     expect(wrapper.text()).toContain('קבוצה א')
 
-    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחק')
+    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחיקה')
     await deleteButton.trigger('click')
     await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
     await flushPromises()
@@ -198,7 +198,7 @@ describe('AdminStandingsView', () => {
     const wrapper = mount(AdminStandingsView, { global: { plugins: [router] }, attachTo: document.body })
     await flushPromises()
 
-    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחק')
+    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחיקה')
     await deleteButton.trigger('click')
     await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
     await flushPromises()
@@ -258,8 +258,8 @@ describe('AdminStandingsView', () => {
     const wrapper = await asTeamAdmin('https://x.il/team/c/')
     expect(leagueBox(wrapper).props('options').map((o) => o.label)).toEqual(['ליגה ב'])
     const labels = wrapper.findAll('button').map((b) => b.text())
-    expect(labels).not.toContain('ערוך')
-    expect(labels).not.toContain('מחק')
+    expect(labels).not.toContain('עריכה')
+    expect(labels).not.toContain('מחיקה')
     expect(wrapper.find('form').exists()).toBe(false)
   })
 

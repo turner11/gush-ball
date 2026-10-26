@@ -220,22 +220,22 @@ async function deleteImage(player, image) {
                     <ul class="space-y-1">
                       <li v-for="image in player.images" :key="image.id" class="flex items-center gap-2 text-xs">
                         <img :src="image.url" alt="" class="size-10 rounded object-cover" />
-                        <button type="button" class="btn-danger-ghost" :aria-label="`הסר תמונה — ${player.name}`" @click="deleteImage(player, image)">
-                          הסר תמונה
+                        <button type="button" class="btn-danger-ghost" :aria-label="`הסרת תמונה — ${player.name}`" @click="deleteImage(player, image)">
+                          הסרת תמונה
                         </button>
                       </li>
                     </ul>
                     <div class="mt-1 flex gap-1">
                       <input v-model="newImageUrl[player.id]" type="url" placeholder="כתובת תמונה" :aria-label="`כתובת תמונה — ${player.name}`" class="field-input mt-0 w-40" />
-                      <button type="button" class="btn-ghost" @click="addImage(player)">הוסף תמונה</button>
+                      <button type="button" class="btn-ghost" @click="addImage(player)">הוספת תמונה</button>
                     </div>
                     <ImageUpload @uploaded="(url) => (newImageUrl[player.id] = url)" />
                   </div>
                 </td>
                 <td class="justify-end">
                   <span class="inline-flex gap-1">
-                    <button type="button" class="btn-ghost" @click="startEdit(player)">ערוך</button>
-                    <button type="button" class="btn-danger-ghost" @click="onDelete(player)">מחק</button>
+                    <button type="button" class="btn-ghost" @click="startEdit(player)">עריכה</button>
+                    <button type="button" class="btn-danger-ghost" @click="onDelete(player)">מחיקה</button>
                   </span>
                 </td>
               </tr>
@@ -256,7 +256,7 @@ async function deleteImage(player, image) {
                   <td class="py-2">{{ player.jersey_number }}</td>
                   <td class="py-2">{{ player.name }}</td>
                   <td class="py-2">
-                    <button type="button" class="btn-ghost" @click="onRestore(player)">שחזר</button>
+                    <button type="button" class="btn-ghost" @click="onRestore(player)">שחזור</button>
                   </td>
                 </tr>
               </tbody>
