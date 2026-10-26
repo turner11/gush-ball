@@ -36,6 +36,19 @@ export function result(game) {
   return a > b ? 'W' : 'L'
 }
 
+// Point totals and game counts over played games: overall and split by W / L. Display via formatAverage.
+export function scoringTotals(games) {
+  const sums = { all: { n: 0, for: 0, against: 0 }, W: { n: 0, for: 0, against: 0 }, L: { n: 0, for: 0, against: 0 } }
+  for (const g of games.filter(played)) {
+    for (const bucket of [sums.all, sums[result(g)]].filter(Boolean)) {
+      bucket.n += 1
+      bucket.for += g.team_score
+      bucket.against += g.opponent_score
+    }
+  }
+  return sums
+}
+
 // BBStats Streamlit link for an admin who can edit this game's team; null when any piece is missing.
 export function liveStatsUrl(game, user, origin = window.location.origin) {
   if (!user?.stats_app_url || !game.stats_url) return null

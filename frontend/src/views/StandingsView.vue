@@ -4,7 +4,7 @@ import { computed, ref, watch } from 'vue'
 import LoadError from '../components/LoadError.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
-import { signed } from '../lib/format'
+import { formatAverage, signed } from '../lib/format'
 import { teamRows } from '../lib/standings'
 
 const team = ref(null)
@@ -79,6 +79,8 @@ watch(selectedTeamId, load, { immediate: true })
               <th class="hidden px-2 py-2.5 sm:px-3 text-center sm:table-cell" title="נקודות זכות">נק' זכות</th>
               <th class="hidden px-2 py-2.5 sm:px-3 text-center sm:table-cell" title="נקודות חובה">נק' חובה</th>
               <th class="hidden px-2 py-2.5 sm:px-3 text-center sm:table-cell" title="הפרש">הפרש</th>
+              <th class="hidden px-2 py-2.5 sm:px-3 text-center sm:table-cell" title="ממוצע נקודות זכות למשחק">ממ׳ זכות</th>
+              <th class="hidden px-2 py-2.5 sm:px-3 text-center sm:table-cell" title="ממוצע נקודות חובה למשחק">ממ׳ חובה</th>
               <th class="px-2 py-2.5 sm:px-3 text-center" title="נקודות">נק׳</th>
             </tr>
           </thead>
@@ -101,6 +103,8 @@ watch(selectedTeamId, load, { immediate: true })
               <td class="hidden px-2 py-2.5 sm:px-3 text-center tabular-nums sm:table-cell">{{ row.points_for }}</td>
               <td class="hidden px-2 py-2.5 sm:px-3 text-center tabular-nums sm:table-cell">{{ row.points_against }}</td>
               <td class="hidden px-2 py-2.5 sm:px-3 text-center tabular-nums sm:table-cell"><span dir="ltr">{{ signed(row.points_for - row.points_against) }}</span></td>
+              <td class="hidden px-2 py-2.5 sm:px-3 text-center tabular-nums sm:table-cell">{{ formatAverage(row.points_for, row.played) }}</td>
+              <td class="hidden px-2 py-2.5 sm:px-3 text-center tabular-nums sm:table-cell">{{ formatAverage(row.points_against, row.played) }}</td>
               <td class="px-2 py-2.5 sm:px-3 text-center font-bold tabular-nums">{{ row.points }}</td>
             </tr>
           </tbody>

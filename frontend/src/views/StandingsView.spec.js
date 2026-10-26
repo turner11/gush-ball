@@ -96,6 +96,24 @@ describe('StandingsView', () => {
     expect(text).not.toContain('קבוצה ג')
   })
 
+  it('shows per-game averages in the full table', async () => {
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'GET /api/standings': () =>
+        jsonRes([
+          { ...ROWS[0], played: 2, points_for: 161, points_against: 150 },
+          { ...ROWS[1], played: 0, points_for: 0, points_against: 0 },
+        ]),
+    })
+    const { default: StandingsView } = await import('./StandingsView.vue')
+    const wrapper = mount(StandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+    const rows = wrapper.findAll('tbody tr')
+    expect(rows[0].text()).toContain('80.5')
+    expect(rows[0].text()).toContain('75.0')
+    expect(rows[1].text()).toContain('—')
+  })
+
   it('shows an inline error with retry when the load fails, and retrying loads the page', async () => {
     let failing = true
     mockFetch({

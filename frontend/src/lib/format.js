@@ -40,6 +40,9 @@ export function formatDuration(totalSeconds) {
   return new Intl.DurationFormat('he', { style: 'long' }).format({ hours, minutes, seconds: totalSeconds % 60 })
 }
 
+// Per-game average to one decimal; a dash when nothing was played.
+export const formatAverage = (total, count) => (count ? (total / count).toFixed(1) : '—')
+
 export const signed = (n) => (n > 0 ? `+${n}` : `${n}`)
 
 // Display names aren't unique, so a picker shows the login name too whenever it differs.

@@ -4,11 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import LineChart from '../components/LineChart.vue'
+import ScoreChart from '../components/ScoreChart.vue'
 import LineupStats from '../components/LineupStats.vue'
 import { previewMode, useAuth, viewer } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
-import { byDate, gameDayLabel, liveStatsUrl, played, scoringByPlayer } from '../lib/games'
+import { gameDayLabel, liveStatsUrl, scoringByPlayer } from '../lib/games'
 import LoadError from '../components/LoadError.vue'
 
 const route = useRoute()
@@ -64,11 +65,6 @@ function optionLabel(g) {
 
 // Season charts: oldest game first, independent of the ?game= picker.
 const teamName = computed(() => teams.value.find((t) => String(t.id) === String(selectedTeamId.value))?.name ?? 'הקבוצה')
-const scoredGames = computed(() => games.value.filter(played).sort(byDate))
-const scoreSeries = computed(() => [
-  { key: 'us', name: teamName.value, values: scoredGames.value.map((g) => g.team_score), emphasis: 'primary' },
-  { key: 'them', name: 'יריבות', values: scoredGames.value.map((g) => g.opponent_score), emphasis: 'secondary' },
-])
 const scorerGameIds = computed(() => [...new Set(scorerRows.value.map((r) => r.game_id))])
 const scorerLabels = computed(() => {
   const dateOf = new Map(scorerRows.value.map((r) => [r.game_id, r.scheduled_at]))
@@ -137,18 +133,7 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
         <div class="grid gap-4 lg:grid-cols-2">
           <div class="card space-y-3">
             <h3 class="font-bold">הקבוצה מול היריבות</h3>
-            <template v-if="scoredGames.length >= 2">
-              <ul class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-                <li v-for="s in scoreSeries" :key="s.key" class="flex items-center gap-2">
-                  <svg viewBox="0 0 24 4" class="w-6" aria-hidden="true" :class="s.emphasis === 'primary' ? 'text-team' : 'text-muted'">
-                    <line x1="0" y1="2" x2="24" y2="2" stroke="currentColor" stroke-width="3" :stroke-dasharray="s.emphasis === 'primary' ? null : '5 3'" />
-                  </svg>
-                  {{ s.name }}
-                </li>
-              </ul>
-              <LineChart :labels="scoredGames.map((g) => gameDayLabel(g.scheduled_at))" :series="scoreSeries" aria-label="תוצאות הקבוצה והיריבות לאורך העונה" />
-            </template>
-            <p v-else class="text-sm text-muted">הגרף יופיע אחרי שני משחקים עם תוצאה</p>
+            <ScoreChart :games="games" :team-name="teamName" />
           </div>
           <div class="card space-y-3">
             <h3 class="font-bold">נקודות לפי שחקן</h3>
