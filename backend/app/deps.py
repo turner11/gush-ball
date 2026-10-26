@@ -105,15 +105,15 @@ def can_write_team(db: Session, user: AdminUser | None, team_id: int) -> bool:
 def member_team_ids(db: Session, user: AdminUser) -> list[int] | None:
     """Teams whose private content (playbook #439, practices #440) the user may see: None = every team (full admin).
 
-    Admins (team, or club via the team's club), team-scoped member/admin grants, and live linked roster players.
-    A club-level member grant does not count."""
+    Admins (team, or club via the team's club), team-scoped member/admin grants, and linked roster players while the user holds a
+    member/admin grant covering that team (#365, #503). A club-level member grant does not count on its own."""
     admin_ids = admin_team_ids(db, user)
     if admin_ids is None:
         return None
     granted = select(Membership.team_id).where(
         Membership.user_id == user.id, Membership.role.in_(("member", "admin")), Membership.team_id.is_not(None)
     )
-    linked = select(Player.team_id).where(Player.user_id == user.id, Player.deleted_at.is_(None))
+    linked = select(Player.team_id).where(Player.id.in_(self_editable_player_ids(db, user)))
     return sorted({*admin_ids, *db.scalars(granted), *db.scalars(linked)})
 
 

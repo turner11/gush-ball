@@ -23,8 +23,9 @@ def _player(db: Session, team: Team, *, deleted: bool = False) -> Player:
     return player
 
 
-def _login_linked(client, db: Session, team: Team, *, deleted: bool = False) -> None:
-    _login_user(client, db, "viewer")
+def _login_linked(client, db: Session, team: Team, *, deleted: bool = False, club_member: bool = False) -> None:
+    grants = [Membership(role="member", club="Gush")] if club_member else []
+    _login_user(client, db, "viewer", *grants)
     user = db.query(AdminUser).filter_by(username="viewer").one()
     player = _player(db, team, deleted=deleted)
     player.user_id = user.id
@@ -41,8 +42,9 @@ ACCESS = [
     ("admin:own", 200),
     ("admin:club", 200),
     ("full admin", 200),
-    ("player:own", 200),
-    ("player-deleted:own", 403),
+    ("player:own", 403),
+    ("player+club:own", 200),
+    ("player+club-deleted:own", 403),
     ("player:other", 403),
 ]
 
@@ -51,7 +53,8 @@ ACCESS = [
 def test_list_plays_access(who, expected, client, db_session, own_team, other_team, sibling_team) -> None:
     if who.startswith("player"):
         kind, target = who.split(":")
-        _login_linked(client, db_session, own_team if target == "own" else other_team, deleted=kind == "player-deleted")
+        team = own_team if target == "own" else other_team
+        _login_linked(client, db_session, team, deleted="deleted" in kind, club_member="club" in kind)
     else:
         _login_as(client, db_session, who, own_team, other_team)
 
