@@ -823,6 +823,52 @@ describe('DefaultLayout', () => {
     wrapper.unmount()
   })
 
+  it('account menu links הצטרפות לקבוצה to /join for a user with no membership (#545)', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/auth/me': () => jsonRes({ username: 'p', display_name: 'p', is_admin: false, team_ids: [], memberships: [] }),
+    })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
+    await flushPromises()
+
+    const body = await openMenu(wrapper.find('header button[aria-label$="תפריט חשבון"]'))
+    expect(body.find('[role=menuitem][href="/join"]').text()).toBe('הצטרפות לקבוצה')
+    wrapper.unmount()
+  })
+
+  it('hides the join item once the user has any membership, even pending (#545)', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/auth/me': () => jsonRes({ username: 'p', display_name: 'p', is_admin: false, team_ids: [], memberships: [{ id: 1, team_id: 1, club: null, role: 'pending' }] }),
+    })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
+    await flushPromises()
+
+    const body = await openMenu(wrapper.find('header button[aria-label$="תפריט חשבון"]'))
+    expect(body.find('[role=menuitem][href="/join"]').exists()).toBe(false)
+    expect(body.find('[role=menuitem][href="/account"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('hides the join item for a full admin (#545)', async () => {
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/auth/me': () => jsonRes({ username: 'admin', display_name: 'admin', is_admin: true, team_ids: null, memberships: [] }),
+    })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] }, attachTo: document.body })
+    await flushPromises()
+
+    const body = await openMenu(wrapper.find('header button[aria-label$="תפריט חשבון"]'))
+    expect(body.find('[role=menuitem][href="/join"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('logout posts /auth/logout, swaps to the login link and stays on the page', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),

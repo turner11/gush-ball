@@ -8,7 +8,7 @@ import ErrorBoundary from '../components/ErrorBoundary.vue'
 import FavoriteStar from '../components/FavoriteStar.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
-import { previewMode, teamMember, useAuth } from '../composables/useAuth'
+import { fullAdmin, previewMode, teamMember, useAuth } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -235,6 +235,9 @@ onMounted(async () => {
                     </DropdownMenuItem>
                     <DropdownMenuItem v-if="previewMode" class="menu-item" @select="previewMode = null">חזרה לתצוגת מנהל</DropdownMenuItem>
                   </template>
+                  <DropdownMenuItem v-if="!fullAdmin && !user.memberships?.length" as-child>
+                    <RouterLink :to="{ name: 'join' }" class="menu-item">הצטרפות לקבוצה</RouterLink>
+                  </DropdownMenuItem>
                   <DropdownMenuItem as-child>
                     <RouterLink :to="{ name: 'account' }" class="menu-item">החשבון שלי</RouterLink>
                   </DropdownMenuItem>
