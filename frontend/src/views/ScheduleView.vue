@@ -78,7 +78,10 @@ async function loadGames() {
     team.value = loadedTeam
     games.value = loadedGames
   } catch {
-    if (id === selectedTeamId.value) loadError.value = true
+    if (id === selectedTeamId.value) {
+      loadError.value = true
+      team.value = null // don't leave the previous team's name and actions on screen
+    }
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }

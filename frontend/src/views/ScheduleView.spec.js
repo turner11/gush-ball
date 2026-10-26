@@ -109,6 +109,29 @@ describe('ScheduleView', () => {
     expect(wrapper.text()).toContain('מכבי עתיד')
   })
 
+  it('a failed team switch clears the previous team from the header and actions', async () => {
+    mockFetch({
+      'GET /api/auth/me': () => jsonRes({ username: 'a', team_ids: [1, 2] }),
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+      'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME]),
+      'GET /api/teams/2': () => FAIL,
+      'GET /api/teams/2/games': () => FAIL,
+    })
+    const { default: ScheduleView } = await import('./ScheduleView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('קבוצה א')
+    expect(wrapper.text()).toContain('הוספת משחק')
+
+    useSelectedTeam().selectedTeamId.value = '2'
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('קבוצה א')
+    expect(wrapper.text()).not.toContain('הוספת משחק')
+  })
+
   describe('practices', () => {
     const soon = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 19)
     const later = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 19)

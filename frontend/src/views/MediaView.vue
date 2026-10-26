@@ -66,7 +66,7 @@ const tabs = [
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">מדיה</h1>
-      <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" :aria-expanded="editing" @click="toggleEditing">
+      <button v-if="canEdit && !loadError" ref="editToggle" type="button" class="btn-secondary" :aria-expanded="editing" @click="toggleEditing">
         {{ editing ? 'סיום עריכה' : 'עריכת מדיה' }}
       </button>
     </div>
