@@ -24,6 +24,7 @@ function mockFetch(game) {
     if (url === '/api/teams/1') return Promise.resolve({ ok: true, status: 200, json: async () => TEAM })
     if (url === '/api/teams/1/games/5') return Promise.resolve(game)
     if (url === '/api/teams/1/games' || url === '/api/standings') return Promise.resolve(ok([]))
+    if (url === '/api/teams/1/games/5/opponent-results') return Promise.resolve(ok([]))
     if (url === '/api/teams/1/players') return Promise.resolve(ok([]))
     return Promise.reject(new Error(`Unhandled fetch: ${url}`))
   })

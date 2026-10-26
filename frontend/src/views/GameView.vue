@@ -124,7 +124,7 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
       <GameStatsLink :game="game" class="btn-secondary" />
     </section>
 
-    <GameAverages :team="team" :opponent="game.opponent" />
+    <GameAverages :team="team" :opponent="game.opponent" :game-id="game.id" />
 
     <section v-if="game.scorers?.length || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">
