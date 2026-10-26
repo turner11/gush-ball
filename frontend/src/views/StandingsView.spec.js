@@ -56,6 +56,8 @@ function mockFetch(handlers) {
   })
 }
 
+const FAIL = { ok: false, status: 500, json: async () => ({}) }
+
 function jsonRes(body, status = 200) {
   return { ok: true, status, json: async () => body }
 }
@@ -92,6 +94,27 @@ describe('StandingsView', () => {
     expect(text).toContain('קבוצה א')
     expect(text).toContain('קבוצה ב')
     expect(text).not.toContain('קבוצה ג')
+  })
+
+  it('shows an inline error with retry when the load fails, and retrying loads the page', async () => {
+    let failing = true
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes(TEAM),
+      'GET /api/standings': () => (failing ? FAIL : jsonRes(ROWS)),
+    })
+
+    const { default: StandingsView } = await import('./StandingsView.vue')
+    const wrapper = mount(StandingsView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('משהו השתבש')
+    failing = false
+    await wrapper.findAll('button').find((b) => b.text() === 'נסו שוב').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('קבוצה ב')
   })
 
   it('shows the own team summary: rank, record and points', async () => {

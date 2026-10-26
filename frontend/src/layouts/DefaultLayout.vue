@@ -215,7 +215,7 @@ onMounted(async () => {
                   :title="user.display_name"
                   class="btn-icon"
                 >
-                  <AppIcon name="users" />
+                  <AppIcon name="user" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuPortal>

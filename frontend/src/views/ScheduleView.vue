@@ -6,6 +6,7 @@ import CalendarSubscribe from '../components/CalendarSubscribe.vue'
 import GameForm from '../components/GameForm.vue'
 import GameRow from '../components/GameRow.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
+import LoadError from '../components/LoadError.vue'
 import PracticesAdmin from '../components/PracticesAdmin.vue'
 import PracticeRow from '../components/PracticeRow.vue'
 import { canEditTeam, teamMember, useAuth, viewer } from '../composables/useAuth'
@@ -25,6 +26,7 @@ const practicesLoading = ref(false)
 const PRACTICE_DAYS = 14 // a season of weekly practices must not bury the games; the calendar feed carries them all
 const team = ref(null)
 const loading = ref(false)
+const loadError = ref(false)
 
 // Inline add/edit (#471): editingId is null, 'new' or a game id, so one form is open at a time.
 const canEdit = computed(() => !!team.value && canEditTeam(team.value.id))
@@ -62,6 +64,7 @@ const sections = computed(() => [
 
 async function loadGames() {
   editingId.value = null
+  loadError.value = false
   if (!selectedTeamId.value) {
     games.value = []
     team.value = null
@@ -74,6 +77,11 @@ async function loadGames() {
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     team.value = loadedTeam
     games.value = loadedGames
+  } catch {
+    if (id === selectedTeamId.value) {
+      loadError.value = true
+      team.value = null // don't leave the previous team's name and actions on screen
+    }
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
@@ -120,7 +128,7 @@ const { editing: editingPractices, toggleEl: practicesToggle, toggle: togglePrac
       <div>
         <p class="eyebrow">{{ team?.name }}</p>
         <h1 class="page-title">לוח משחקים</h1>
-        <a v-if="team?.ibasketball_team_url" :href="team.ibasketball_team_url" target="_blank" rel="noopener" class="section-link">{{ team.name }}<AppIcon name="external" /></a>
+        <a v-if="team?.ibasketball_team_url" :href="team.ibasketball_team_url" target="_blank" rel="noopener noreferrer" aria-label="דף הקבוצה באיגוד (נפתח בלשונית חדשה)" class="section-link">דף הקבוצה באיגוד<AppIcon name="external" /></a>
       </div>
       <div v-if="team" class="flex flex-wrap items-center gap-2">
         <button
@@ -148,7 +156,7 @@ const { editing: editingPractices, toggleEl: practicesToggle, toggle: togglePrac
       </div>
     </div>
 
-    <GameForm v-if="editingId === 'new'" id="add-game-form" class="card max-w-2xl" :team-id="team.id" @saved="onSaved" />
+    <GameForm v-if="editingId === 'new'" id="add-game-form" class="card max-w-2xl" :team-id="team.id" @saved="onSaved" @cancel="closeEditor" />
 
     <PracticesAdmin v-if="editingPractices && isMember" :key="team.id" :team="team" />
 
@@ -170,6 +178,8 @@ const { editing: editingPractices, toggleEl: practicesToggle, toggle: togglePrac
       <div class="skeleton h-16" />
       <div class="skeleton h-16" />
     </div>
+
+    <LoadError v-else-if="loadError" message="שגיאה בטעינת המשחקים" @retry="loadGames" />
 
     <p v-else-if="!games.length" class="empty-state">אין משחקים עדיין.</p>
 

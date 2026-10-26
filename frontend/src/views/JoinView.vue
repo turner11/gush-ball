@@ -6,6 +6,7 @@ import { useAuth } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
+import LoadError from '../components/LoadError.vue'
 
 const { user, checkSession } = useAuth()
 const teamsApi = useTeams()
@@ -91,10 +92,7 @@ async function onSubmit() {
         <div class="skeleton h-11"></div>
         <div class="skeleton h-11"></div>
       </div>
-      <div v-else-if="teamsApi.error.value" class="space-y-2">
-        <p class="error-text" role="alert">{{ teamsApi.error.value }}</p>
-        <button type="button" class="btn-secondary" @click="loadTeams">נסו שוב</button>
-      </div>
+      <LoadError v-else-if="teamsApi.error.value" :message="teamsApi.error.value" @retry="loadTeams" />
       <p v-else-if="!teams.length" class="empty-state">אין קבוצות עדיין</p>
       <form v-else class="space-y-3" @submit.prevent="onSubmit">
         <fieldset v-if="hasClubs">

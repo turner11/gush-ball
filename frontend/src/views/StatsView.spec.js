@@ -201,7 +201,7 @@ describe('StatsView', () => {
     expect(wrapper.text()).toContain('שגיאה בטעינת הסטטיסטיקה')
 
     mockFetch()
-    await wrapper.findAll('button').find((b) => b.text() === 'נסה שוב').trigger('click')
+    await wrapper.findAll('button').find((b) => b.text() === 'נסו שוב').trigger('click')
     await flushPromises()
     expect(wrapper.find('select').exists()).toBe(true)
   })

@@ -134,8 +134,8 @@ describe('TeamsView', () => {
     mockApi([team(1, 'A', `${SEG}2026-7/`)], () => (calls++ ? ok(LEAGUES) : fail))
     const wrapper = await mountView()
 
-    expect(wrapper.find('[role="alert"]').text()).toBe('שגיאה בטעינת הליגות, נסה שוב')
-    await button(wrapper, 'נסה שוב').trigger('click')
+    expect(wrapper.find('[role="alert"]').text()).toBe('שגיאה בטעינת הליגות')
+    await button(wrapper, 'נסו שוב').trigger('click')
     await flushPromises()
     expect(hrefs(wrapper)).toEqual(['/teams/10'])
   })

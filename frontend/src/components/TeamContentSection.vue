@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 
 import { useTeamContent } from '../composables/useTeamContent'
 import AppIcon from './AppIcon.vue'
@@ -36,11 +36,20 @@ function resetForm() {
   for (const field of props.fields) form[field.key] = blank(field)
 }
 
-function onEdit(item) {
+const formEl = ref(null)
+
+async function onEdit(item) {
   editingId.value = item.id
   for (const field of props.fields) {
     form[field.key] = item[field.key] ?? blank(field)
   }
+  // the form sits below the whole list: focusing its first field scrolls it into view
+  await nextTick()
+  formEl.value?.querySelector('.field-input')?.focus()
+}
+
+function itemLabel(item) {
+  return props.fields.filter((f) => !['players', 'checkbox'].includes(f.type)).map((f) => item[f.key]).filter(Boolean).join(' — ')
 }
 
 async function onSubmit() {
@@ -112,7 +121,7 @@ onMounted(load)
           <template v-for="f in fields" :key="f.key">
             <img v-if="f.preview && item[f.key]" :src="item[f.key]" alt="" loading="lazy" class="size-16 shrink-0 rounded-xl object-cover" />
           </template>
-          <span class="min-w-0 truncate">{{ fields.filter((f) => !['players', 'checkbox'].includes(f.type)).map((f) => item[f.key]).filter(Boolean).join(' — ') }}</span>
+          <span class="min-w-0 truncate">{{ itemLabel(item) }}</span>
           <template v-for="f in fields" :key="f.key">
             <span v-if="f.type === 'checkbox' && item[f.key]" class="badge badge-muted shrink-0">{{ f.label }}</span>
           </template>
@@ -129,6 +138,7 @@ onMounted(load)
           <button
             type="button"
             class="btn-ghost"
+            :aria-label="'עריכה: ' + itemLabel(item)"
             @click="onEdit(item)"
           >
             עריכה
@@ -136,6 +146,7 @@ onMounted(load)
           <button
             type="button"
             class="btn-danger-ghost"
+            :aria-label="'מחיקה: ' + itemLabel(item)"
             @click="confirmDelete(item.id)"
           >
             מחיקה
@@ -152,7 +163,7 @@ onMounted(load)
       @confirm="onDeleteConfirmed"
     />
 
-    <form class="space-y-2" @submit.prevent="onSubmit">
+    <form ref="formEl" class="space-y-2" @submit.prevent="onSubmit">
       <p v-if="editingId" class="text-sm text-muted">עורך: {{ fields.filter((f) => f.type !== 'players').map((f) => form[f.key]).filter(Boolean)[0] }}</p>
       <div v-for="field in fields" :key="field.key">
         <PlayerTagsInput v-if="field.type === 'players'" v-model="form[field.key]" :team-id="ownerId" />

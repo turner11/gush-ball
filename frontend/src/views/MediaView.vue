@@ -2,7 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 
-import ImageLightbox from '../components/ImageLightbox.vue'
+import ImageGallery from '../components/ImageGallery.vue'
+import LoadError from '../components/LoadError.vue'
 import PostCard from '../components/PostCard.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
@@ -15,8 +16,8 @@ import { CONTENT_SECTIONS } from '../lib/teamContent'
 const videos = ref([])
 const posts = ref([])
 const images = ref([])
-const lightbox = ref(null)
 const loading = ref(false)
+const loadError = ref(false)
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
@@ -25,6 +26,7 @@ const { selectedTeamId } = useSelectedTeam()
 const newestFirst = (items) => [...items].sort((a, b) => b.id - a.id)
 
 async function load() {
+  loadError.value = false
   if (!selectedTeamId.value) {
     videos.value = posts.value = images.value = []
     return
@@ -41,6 +43,8 @@ async function load() {
     videos.value = newestFirst(v)
     posts.value = p
     images.value = newestFirst(i)
+  } catch {
+    if (id === selectedTeamId.value) loadError.value = true
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
@@ -62,12 +66,14 @@ const tabs = [
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">מדיה</h1>
-      <button v-if="canEdit" ref="editToggle" type="button" class="btn-secondary" :aria-pressed="editing" @click="toggleEditing">
+      <button v-if="canEdit && !loadError" ref="editToggle" type="button" class="btn-secondary" :aria-expanded="editing" @click="toggleEditing">
         {{ editing ? 'סיום עריכה' : 'עריכת מדיה' }}
       </button>
     </div>
 
-    <TabsRoot default-value="videos" dir="rtl" class="space-y-6">
+    <LoadError v-if="loadError" message="שגיאה בטעינת המדיה" @retry="load" />
+
+    <TabsRoot v-else default-value="videos" dir="rtl" class="space-y-6">
       <TabsList class="segmented">
         <TabsTrigger
           v-for="tab in tabs"
@@ -88,7 +94,7 @@ const tabs = [
         <ul v-else-if="videos.length" class="grid gap-6 sm:grid-cols-2">
           <li v-for="video in videos" :key="video.id"><VideoCard :video="video" /></li>
         </ul>
-        <p v-else class="empty-state">אין פריטים עדיין.</p>
+        <p v-else class="empty-state">אין סרטונים עדיין.</p>
       </TabsContent>
 
       <TabsContent value="posts">
@@ -97,22 +103,14 @@ const tabs = [
         <div v-else-if="posts.length" class="space-y-6">
           <PostCard v-for="post in posts" :key="post.id" :post="post" />
         </div>
-        <p v-else class="empty-state">אין פריטים עדיין.</p>
+        <p v-else class="empty-state">אין עדכונים עדיין.</p>
       </TabsContent>
 
       <TabsContent value="images">
         <TeamContentSection v-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.images" />
         <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
-        <div v-else-if="images.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <figure v-for="(image, i) in images" :key="image.id" class="space-y-1">
-            <button type="button" class="block w-full cursor-zoom-in" :aria-label="`הגדלת תמונה: ${image.title}`" @click="lightbox.open(i, $event)">
-              <img :src="image.url" :alt="image.title" loading="lazy" class="aspect-square w-full rounded-xl object-cover" />
-            </button>
-            <figcaption class="text-sm text-muted">{{ image.title }}</figcaption>
-          </figure>
-        </div>
-        <p v-else class="empty-state">אין פריטים עדיין.</p>
-        <ImageLightbox ref="lightbox" :images="images.map((i) => ({ url: i.url, alt: i.title }))" />
+        <ImageGallery v-else-if="images.length" :images="images" fallback-alt="תמונה של הקבוצה" />
+        <p v-else class="empty-state">אין תמונות עדיין.</p>
       </TabsContent>
     </TabsRoot>
   </section>

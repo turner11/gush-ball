@@ -7,6 +7,7 @@ import TeamContentSection from '../components/TeamContentSection.vue'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
+import LoadError from '../components/LoadError.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -47,10 +48,7 @@ onMounted(load)
       <div class="skeleton h-32" />
       <div class="skeleton h-32" />
     </div>
-    <div v-else-if="loadFailed" class="space-y-3">
-      <p class="error-text" role="alert">שגיאה בטעינת המועדון</p>
-      <button type="button" class="btn-secondary" @click="load">נסו שוב</button>
-    </div>
+    <LoadError v-else-if="loadFailed" message="שגיאה בטעינת המועדון" @retry="load" />
     <div v-else-if="!club" class="space-y-3">
       <p class="empty-state">המועדון לא נמצא.</p>
       <RouterLink :to="{ name: 'admin-clubs' }" class="btn-secondary">לכל המועדונים</RouterLink>
@@ -58,7 +56,7 @@ onMounted(load)
     <template v-else>
       <div class="page-header">
         <h1 class="page-title">{{ club.name }}</h1>
-        <RouterLink :to="'/clubs/' + teamSlug(club)" class="section-link">לעמוד המועדון</RouterLink>
+        <RouterLink :to="'/clubs/' + teamSlug(club)" class="section-link">צפייה באתר</RouterLink>
       </div>
       <!-- grid-cols-1 = minmax(0,1fr): an implicit track grows to fit a long truncated item and overflows the page -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">

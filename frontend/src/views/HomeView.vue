@@ -7,6 +7,7 @@ import PostCard from '../components/PostCard.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import HomeSlideshow from '../components/HomeSlideshow.vue'
+import LoadError from '../components/LoadError.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import VideoCard from '../components/VideoCard.vue'
@@ -29,6 +30,7 @@ const posts = ref([])
 const players = ref([])
 const games = ref([])
 const loading = ref(false)
+const loadError = ref(false)
 
 // Entity properties (about, links, colors) link to the team manage page (#496); posts are edited inline (#499).
 const canEdit = computed(() => !!team.value && canEditTeam(team.value.id))
@@ -39,6 +41,7 @@ const { editing: editingPosts, toggleEl: postsToggle, toggle: togglePosts } = us
 const { selectedTeamId, teamsLoaded } = useSelectedTeam()
 
 async function load() {
+  loadError.value = false
   if (!selectedTeamId.value) {
     team.value = null
     links.value = []
@@ -64,6 +67,8 @@ async function load() {
     ])
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     ;[team.value, links.value, videos.value, images.value, posts.value, players.value, games.value] = loaded
+  } catch {
+    if (id === selectedTeamId.value) loadError.value = true
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
@@ -134,6 +139,8 @@ const hasSocialEmbed = computed(
     <div class="skeleton h-32" />
   </section>
 
+  <LoadError v-else-if="loadError" message="שגיאה בטעינת דף הקבוצה" @retry="load" />
+
   <section v-else-if="team" class="space-y-10 sm:space-y-14">
     <!-- side-by-side only from lg; a fixed 20rem aside keeps the embeds secondary to the content -->
     <div class="grid gap-12" :class="{ 'lg:grid-cols-[1fr_20rem]': hasSocial }">
@@ -159,7 +166,7 @@ const hasSocialEmbed = computed(
         <section v-if="team.about || canEdit" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">על הקבוצה</h2>
-            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary">עריכה</RouterLink>
+            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary">ניהול הקבוצה</RouterLink>
           </div>
           <div v-if="team.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
           <p v-else class="empty-state">עוד אין טקסט על הקבוצה.</p>
@@ -226,7 +233,7 @@ const hasSocialEmbed = computed(
         <section v-if="links.length || canEdit" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">קישורים</h2>
-            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary">עריכת קישורים</RouterLink>
+            <RouterLink v-if="canEdit" :to="{ name: 'admin-team-edit', params: { id: team.id } }" class="btn-secondary">ניהול קישורים</RouterLink>
           </div>
           <p v-if="!links.length" class="empty-state">אין קישורים עדיין.</p>
           <ul v-else class="flex flex-wrap gap-2">

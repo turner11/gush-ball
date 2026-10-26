@@ -60,8 +60,6 @@ async function removeImage(image) {
 
 <template>
   <form id="profile-form" class="card max-w-xl space-y-3" @submit.prevent="save">
-    <p v-if="error" class="error-text" role="alert">{{ error }}</p>
-
     <template v-if="withName">
       <div>
         <label for="profile-name" class="field-label">שם</label>
@@ -89,6 +87,8 @@ async function removeImage(image) {
       <h2 class="field-label">סרטונים</h2>
       <PlayerVideosEditor :player="player" @change="(videos) => emit('saved', { ...player, videos })" />
     </div>
+
+    <p v-if="error" class="error-text" role="alert">{{ error }}</p>
 
     <div class="flex gap-2">
       <button v-if="withName" type="submit" class="btn-primary" :disabled="saving">{{ saving ? 'שומר…' : 'שמירה' }}</button>

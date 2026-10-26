@@ -9,6 +9,7 @@ import { previewMode, useAuth, viewer } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { byDate, gameDayLabel, liveStatsUrl, played, scoringByPlayer } from '../lib/games'
+import LoadError from '../components/LoadError.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -129,10 +130,7 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
       <div class="skeleton h-44" />
       <div class="skeleton h-44" />
     </div>
-    <div v-else-if="error" class="space-y-3">
-      <p class="error-text" role="alert">שגיאה בטעינת הסטטיסטיקה</p>
-      <button type="button" class="btn-secondary" @click="load">נסה שוב</button>
-    </div>
+    <LoadError v-else-if="error" message="שגיאה בטעינת הסטטיסטיקה" @retry="load" />
     <template v-else>
       <section class="space-y-4">
         <h2 class="section-title">נקודות לאורך העונה</h2>

@@ -20,6 +20,7 @@ import AppIcon from '../components/AppIcon.vue'
 import PostCard from '../components/PostCard.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import ImageGallery from '../components/ImageGallery.vue'
+import LoadError from '../components/LoadError.vue'
 
 // "This week at the club": the games of every team in this club from the last 7 to the next 7 days (#326).
 function day(offset) {
@@ -146,10 +147,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
       <div class="skeleton h-16" />
       <div class="skeleton h-16" />
     </div>
-    <div v-else-if="error" class="space-y-3">
-      <p class="error-text" role="alert">שגיאה בטעינת המועדון</p>
-      <button type="button" class="btn-secondary" @click="load">נסו שוב</button>
-    </div>
+    <LoadError v-else-if="error" message="שגיאה בטעינת המועדון" @retry="load" />
     <div v-else-if="!club" class="space-y-3">
       <p class="empty-state">המועדון לא נמצא.</p>
       <RouterLink :to="{ name: 'teams' }" class="btn-secondary">לכל הקבוצות</RouterLink>

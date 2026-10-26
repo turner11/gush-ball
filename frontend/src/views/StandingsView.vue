@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 
+import LoadError from '../components/LoadError.vue'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { signed } from '../lib/format'
@@ -9,6 +10,7 @@ import { teamRows } from '../lib/standings'
 const team = ref(null)
 const rows = ref([])
 const loading = ref(false)
+const loadError = ref(false)
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
@@ -20,6 +22,7 @@ const leagueRows = computed(() =>
 )
 
 async function load() {
+  loadError.value = false
   if (!selectedTeamId.value) {
     team.value = null
     rows.value = []
@@ -32,6 +35,8 @@ async function load() {
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     team.value = loadedTeam
     rows.value = loadedRows
+  } catch {
+    if (id === selectedTeamId.value) loadError.value = true
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
@@ -46,6 +51,11 @@ watch(selectedTeamId, load, { immediate: true })
       <div class="skeleton h-8 w-48" />
       <div class="skeleton h-64" />
     </div>
+
+    <template v-else-if="loadError">
+      <h1 class="page-title">טבלת הליגה</h1>
+      <LoadError message="שגיאה בטעינת הטבלה" @retry="load" />
+    </template>
 
     <template v-else-if="myRow">
       <div>

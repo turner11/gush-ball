@@ -41,6 +41,8 @@ function mockFetch(handlers) {
   })
 }
 
+const FAIL = { ok: false, status: 500, json: async () => ({}) }
+
 function jsonRes(body, status = 200) {
   return { ok: true, status, json: async () => body }
 }
@@ -84,6 +86,50 @@ describe('ScheduleView', () => {
     expect(upcomingIdx).toBeLessThan(pastIdx)
     expect(text).toContain(formatGameDate('2030-05-01T18:00:00').time)
     expect(text).not.toContain('2030-05-01T18:00:00')
+  })
+
+  it('shows an inline error with retry when the load fails, and retrying loads the page', async () => {
+    let failing = true
+    mockFetch({
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+      'GET /api/teams/1/games': () => (failing ? FAIL : jsonRes([FUTURE_GAME])),
+    })
+
+    const { default: ScheduleView } = await import('./ScheduleView.vue')
+    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('משהו השתבש')
+    failing = false
+    await wrapper.findAll('button').find((b) => b.text() === 'נסו שוב').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('מכבי עתיד')
+  })
+
+  it('a failed team switch clears the previous team from the header and actions', async () => {
+    mockFetch({
+      'GET /api/auth/me': () => jsonRes({ username: 'a', team_ids: [1, 2] }),
+      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+      'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME]),
+      'GET /api/teams/2': () => FAIL,
+      'GET /api/teams/2/games': () => FAIL,
+    })
+    const { default: ScheduleView } = await import('./ScheduleView.vue')
+    const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('קבוצה א')
+    expect(wrapper.text()).toContain('הוספת משחק')
+
+    useSelectedTeam().selectedTeamId.value = '2'
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('קבוצה א')
+    expect(wrapper.text()).not.toContain('הוספת משחק')
   })
 
   describe('practices', () => {
@@ -248,7 +294,7 @@ describe('ScheduleView', () => {
     await flushPromises()
 
     const link = wrapper.find('h1 + a')
-    expect(link.text()).toBe('קבוצה א')
+    expect(link.text()).toBe('דף הקבוצה באיגוד')
     expect(link.attributes('href')).toBe(url)
     expect(link.attributes('target')).toBe('_blank')
     expect(link.attributes('rel')).toContain('noopener')
@@ -406,7 +452,7 @@ describe('ScheduleView', () => {
     const ME = { username: 'a', team_ids: [1] }
     const NEW_GAME = { ...FUTURE_GAME, id: 3, opponent: { ...FUTURE_GAME.opponent, id: 7, name: 'בני חדש' } }
 
-    async function mountWith(extra = {}) {
+    async function mountWith(extra = {}, mountOptions = {}) {
       mockFetch({
         'GET /api/auth/me': () => jsonRes(ME),
         'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
@@ -414,7 +460,7 @@ describe('ScheduleView', () => {
         ...extra,
       })
       const { default: ScheduleView } = await import('./ScheduleView.vue')
-      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] }, ...mountOptions })
       await flushPromises()
       return wrapper
     }
@@ -432,6 +478,17 @@ describe('ScheduleView', () => {
       expect(JSON.parse(options.body).opponent_name).toBe('בני חדש')
       expect(wrapper.find('form').exists()).toBe(false)
       expect(wrapper.text()).toContain('בני חדש')
+    })
+
+    it("the add form's ביטול closes it and returns focus to the add button", async () => {
+      const wrapper = await mountWith({}, { attachTo: document.body })
+      await button(wrapper, 'הוספת משחק').trigger('click')
+      await button(wrapper, 'ביטול').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('#add-game-form').exists()).toBe(false)
+      expect(document.activeElement).toBe(button(wrapper, 'הוספת משחק').element)
+      wrapper.unmount()
     })
 
     it('team admin edits a game inline through the same PATCH, without touching stats_url', async () => {

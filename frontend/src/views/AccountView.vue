@@ -7,6 +7,7 @@ import MyMemberships from '../components/MyMemberships.vue'
 import { useAuth } from '../composables/useAuth'
 import { useTeams } from '../composables/useTeams'
 import { apiFetch } from '../lib/api'
+import LoadError from '../components/LoadError.vue'
 
 const router = useRouter()
 const { user } = useAuth()
@@ -201,10 +202,7 @@ const hasPlayers = computed(() => players.value?.length > 0)
         <div class="skeleton h-11"></div>
         <div class="skeleton h-11"></div>
       </div>
-      <div v-else-if="playersError" class="space-y-2">
-        <p class="error-text" role="alert">{{ playersError }}</p>
-        <button type="button" class="btn-secondary" @click="loadPlayers">נסו שוב</button>
-      </div>
+      <LoadError v-else-if="playersError" :message="playersError" @retry="loadPlayers" />
       <p v-else-if="!hasPlayers" class="empty-state">
         אין שחקן מקושר לחשבון. מנהל הקבוצה יכול לקשר אותך לשחקן בסגל
       </p>

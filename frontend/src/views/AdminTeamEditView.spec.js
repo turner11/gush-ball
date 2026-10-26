@@ -78,6 +78,12 @@ describe('AdminTeamEditView', () => {
     expect(wrapper.find('#team-about').element.tagName).toBe('TEXTAREA')
   })
 
+  it('the heading names the team being edited', async () => {
+    mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
+    const wrapper = await mountView()
+    expect(wrapper.get('h1').text()).toBe('קבוצה א')
+  })
+
   it('renders each team content section once (#499)', async () => {
     mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
 

@@ -44,6 +44,7 @@ async function mountAt(path, options = {}) {
     history: createWebHistory(),
     routes: [
       { path: '/players/:id', component: PlayerView },
+      { path: '/teams', name: 'teams', component: { template: '<div/>' } },
       { path: '/:slug/roster', name: 'roster', component: { template: '<div/>' } },
       { path: '/:slug/admin/players', name: 'admin-players', component: { template: '<div/>' } },
       { path: '/:slug', name: 'team-home', component: { template: '<div/>' } },
@@ -298,7 +299,13 @@ describe('PlayerView', () => {
     expect((await mountAt('/players/9')).text()).toContain('השחקן לא נמצא')
     expect(document.head.querySelector('script[data-page]')).toBeNull()
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, statusText: 'Error', json: async () => ({}) }))
-    expect((await mountAt('/players/9')).text()).toContain('שגיאה בטעינת השחקן')
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.find('[role="alert"]').text()).toContain('שגיאה בטעינת השחקן')
+    global.fetch = okFetch()
+    await wrapper.findAll('button').find((b) => b.text() === 'נסו שוב').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.find('h1').exists()).toBe(true)
   })
 
   it('"כל השחקנים" links to the player own team roster', async () => {
