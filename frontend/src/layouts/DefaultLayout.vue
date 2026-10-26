@@ -163,7 +163,7 @@ onMounted(async () => {
             <AppIcon name="grid" />
           </RouterLink>
           <nav v-if="selectedTeamId" data-testid="top-nav" aria-label="ראשי" class="ms-auto hidden lg:block">
-            <ul class="flex gap-6">
+            <ul class="flex gap-4 xl:gap-6">
               <li>
                 <DropdownMenuRoot>
                   <DropdownMenuTrigger as-child>
