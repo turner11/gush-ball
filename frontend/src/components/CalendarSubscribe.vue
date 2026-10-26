@@ -1,4 +1,5 @@
 <script setup>
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref } from 'vue'
 
 import { apiUrl } from '../lib/api'
@@ -26,9 +27,20 @@ async function copy() {
 
 <template>
   <div class="flex flex-wrap items-center gap-2">
-    <a :href="webcalUrl" class="btn-secondary"><AppIcon name="calendar" />הוספה ליומן</a>
-    <button type="button" class="btn-ghost" @click="copy">העתקת קישור ל-Google</button>
-    <p v-if="practices" class="basis-full text-sm text-muted">יומן Google מרענן מינויים רק כל כמה שעות, כך ששינוי של הרגע האחרון עשוי להופיע באיחור</p>
+    <DropdownMenuRoot>
+      <DropdownMenuTrigger as-child>
+        <button type="button" class="btn-secondary"><AppIcon name="calendar" />הוספה ליומן<AppIcon name="chevron" class="size-4" /></button>
+      </DropdownMenuTrigger>
+      <DropdownMenuPortal>
+        <DropdownMenuContent align="start" :side-offset="4" class="menu-content max-w-xs">
+          <DropdownMenuItem as-child>
+            <a :href="webcalUrl" class="menu-item">הוספה ליומן במכשיר</a>
+          </DropdownMenuItem>
+          <DropdownMenuItem class="menu-item" @select="copy">העתקת קישור ל-Google</DropdownMenuItem>
+          <p v-if="practices" class="px-3 py-1.5 text-xs text-muted">יומן Google מרענן מינויים רק כל כמה שעות, כך ששינוי של הרגע האחרון עשוי להופיע באיחור</p>
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
+    </DropdownMenuRoot>
     <p v-if="copied" role="status" aria-live="polite" class="basis-full text-sm text-muted">הקישור הועתק</p>
     <p v-else-if="copyFailed" role="status" aria-live="polite" class="basis-full text-sm text-muted">
       לא ניתן להעתיק, העתיקו ידנית:
