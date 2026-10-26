@@ -67,7 +67,7 @@ class FakeApi:
         by_month: dict[int, list[dict]] | None = None,
     ) -> None:
         self.events = events
-        self.by_month = by_month
+        self.by_month = {2026: events} if by_month is None else by_month  # 2026 = season of test Leagues
         self.team_leagues = team_leagues
         self.known_opponents = known_opponents
         self.calls: list[tuple[str, dict]] = []
@@ -80,7 +80,7 @@ class FakeApi:
         if path == "/sportspress/v2/teams":
             return [{"id": OUR_SP_ID, "leagues": list(self.team_leagues)}]
         if path == "/sportspress/v2/events" and "month" in params:
-            return self.by_month[params["month"]]
+            return self.by_month.get(params["month"], [])
         if path == "/sportspress/v2/events":
             return self.events
         raise AssertionError(f"unexpected path {path}")

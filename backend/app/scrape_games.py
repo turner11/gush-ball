@@ -292,6 +292,27 @@ def home_away_scores(event: dict) -> tuple[int, int] | None:
         raise ValueError(f"event {event['id']}: bad main_results {main_results!r}") from exc
 
 
+def _fetch_team_events(db: Session, team: Team, sp_team: dict[str, Any]) -> list[dict[str, Any]]:
+    # ponytail: single page (100) per call; follow X-WP-TotalPages if a team ever exceeds it. ibasketball hides
+    # events older than ~3 days unless `month` is set, and a season spans two calendar years.
+    sp_id = sp_team["id"]
+    leagues = list(db.scalars(select(League).where(League.ibasketball_id.in_(sp_team.get("leagues", [])))))
+    if not leagues:
+        log.warning(
+            "Team %s: no current-season League among SportsPress leagues %s; unscoped events feed (last ~3 days only)",
+            team.slug,
+            sp_team.get("leagues"),
+        )
+        return _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)
+    league_ids = ",".join(str(i) for i in sorted(lg.ibasketball_id for lg in leagues))
+    years = sorted({y for lg in leagues for y in (lg.season, lg.season + 1)})
+    return [
+        event
+        for year in years
+        for event in _get_json("/sportspress/v2/events", teams=sp_id, leagues=league_ids, month=year, per_page=100)
+    ]
+
+
 def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
     sp_team = _sp_team(team.ibasketball_team_url)
     sp_id = sp_team["id"]
@@ -306,8 +327,7 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
             if link is not None:
                 team.club = _page_club(db, team.club, *link) or team.club
 
-    # ponytail: single page (100); follow X-WP-TotalPages if a team ever exceeds it
-    events = _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)
+    events = _fetch_team_events(db, team, sp_team)
 
     # Games whose event left the feed: the league re-publishes a schedule under new event ids.
     feed_ids = {e["id"] for e in events}
