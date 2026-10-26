@@ -81,6 +81,20 @@ async function onSubmit() {
     <h1 class="page-title text-center">כניסה</h1>
     <p v-if="googleEnabled" class="text-center text-sm text-muted">שחקנים: היכנסו עם Google כדי להירשם ולבקש הצטרפות לקבוצה</p>
 
+    <!-- Opens a popup; the href is the full-page fallback when popups are blocked. -->
+    <a v-if="googleEnabled" href="/api/auth/google/login" class="btn-secondary w-full" @click="openGooglePopup">
+      כניסה עם Google
+    </a>
+    <p v-if="googleWaiting" class="text-sm text-muted text-center" role="status">ממתין לכניסה בחלון Google…</p>
+    <p v-if="route.query.error === 'google'" class="error-text" role="alert">
+      הכניסה עם Google נכשלה, נסו שוב
+    </p>
+    <div v-if="googleEnabled" class="flex items-center gap-3 text-sm text-muted">
+      <span class="h-px flex-1 bg-line" aria-hidden="true" />
+      או
+      <span class="h-px flex-1 bg-line" aria-hidden="true" />
+    </div>
+
     <form class="space-y-3" @submit.prevent="onSubmit">
       <div>
         <label for="username" class="field-label">שם משתמש או אימייל</label>
@@ -117,15 +131,6 @@ async function onSubmit() {
       <RouterLink :to="{ name: 'admin-reset-password' }" class="section-link">שכחתי סיסמה</RouterLink>
       <RouterLink :to="{ name: 'admin-signup', query: next ? { next } : {} }" class="section-link">אין לך חשבון? הרשמה</RouterLink>
     </div>
-
-    <!-- Opens a popup; the href is the full-page fallback when popups are blocked. -->
-    <a v-if="googleEnabled" href="/api/auth/google/login" class="btn-secondary w-full" @click="openGooglePopup">
-      כניסה עם Google
-    </a>
-    <p v-if="googleWaiting" class="text-sm text-muted text-center" role="status">ממתין לכניסה בחלון Google…</p>
-    <p v-if="route.query.error === 'google'" class="error-text" role="alert">
-      הכניסה עם Google נכשלה, נסו שוב
-    </p>
     </div>
   </section>
 </template>
