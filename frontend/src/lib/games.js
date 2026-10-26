@@ -37,7 +37,7 @@ export function result(game) {
 }
 
 // Point totals and game counts over played games: overall and split by W / L. Display via formatAverage.
-export function scoringAverages(games) {
+export function scoringTotals(games) {
   const sums = { all: { n: 0, for: 0, against: 0 }, W: { n: 0, for: 0, against: 0 }, L: { n: 0, for: 0, against: 0 } }
   for (const g of games.filter(played)) {
     for (const bucket of [sums.all, sums[result(g)]].filter(Boolean)) {

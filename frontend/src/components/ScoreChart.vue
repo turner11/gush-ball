@@ -27,7 +27,7 @@ const scoreSeries = computed(() => [
       </li>
       <li v-for="o in [{ cls: 'text-win', label: 'ניצחון' }, { cls: 'text-loss', label: 'הפסד' }]" :key="o.label" class="flex items-center gap-2">
         <svg viewBox="0 0 24 4" class="w-6" aria-hidden="true" :class="o.cls">
-          <line x1="2" y1="2" x2="22" y2="2" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity="0.5" />
+          <line x1="2" y1="2" x2="22" y2="2" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
         </svg>
         {{ o.label }}
       </li>

@@ -57,7 +57,7 @@ const connectors = computed(() => {
       <g class="fill-current text-muted" font-size="20" text-anchor="middle">
         <text v-for="i in shownLabels" :key="i" :x="x(i)" :y="H - 8">{{ labels[i] }}</text>
       </g>
-      <line v-for="c in connectors" :key="c.i" :class="c.cls" :x1="c.x" :x2="c.x" :y1="c.y1" :y2="c.y2" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity="0.5" />
+      <line v-for="c in connectors" :key="c.i" :class="c.cls" :x1="c.x" :x2="c.x" :y1="c.y1" :y2="c.y2" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
       <g v-for="l in lines" :key="l.key" :class="l.cls" fill="none" stroke="currentColor">
         <polyline :class="l.cls" :points="l.path" :stroke-width="l.width" :stroke-dasharray="l.dash" stroke-linejoin="round" stroke-linecap="round" />
         <template v-if="l.emphasis !== 'muted'">

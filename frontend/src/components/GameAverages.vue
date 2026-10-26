@@ -5,7 +5,7 @@ import LoadError from './LoadError.vue'
 import ScoreChart from './ScoreChart.vue'
 import { apiFetch } from '../lib/api'
 import { formatAverage } from '../lib/format'
-import { scoringAverages } from '../lib/games'
+import { scoringTotals } from '../lib/games'
 import { teamRows } from '../lib/standings'
 
 const props = defineProps({
@@ -34,7 +34,7 @@ async function load() {
 }
 watch(() => props.team.id, load, { immediate: true })
 
-const ours = computed(() => scoringAverages(games.value))
+const ours = computed(() => scoringTotals(games.value))
 // The opponent is not a Team: its only season data is its row in our league's table (overall pair; no W/L split).
 const oppRow = computed(() => {
   const league = teamRows(rows.value, props.team)[0]?.league_name
@@ -75,9 +75,9 @@ const tableRows = computed(() => {
         <tbody>
           <tr v-for="r in tableRows" :key="r.label" class="table-body-row">
             <th scope="row" class="px-2 py-2 text-start font-normal text-muted">
-              {{ r.label }} <span class="text-xs">({{ r.n }} מש׳)</span>
+              {{ r.label }}
             </th>
-            <td class="px-2 py-2 text-lg font-black tabular-nums">{{ r.us }}</td>
+            <td class="px-2 py-2 text-lg font-black tabular-nums">{{ r.us }} <span class="text-xs font-normal text-muted">({{ r.n }} מש׳)</span></td>
             <td class="px-2 py-2 text-lg font-black tabular-nums">{{ r.them }}</td>
           </tr>
         </tbody>
