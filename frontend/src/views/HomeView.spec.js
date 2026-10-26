@@ -544,6 +544,23 @@ describe('HomeView', () => {
       expect(w.findComponent({ name: 'TeamContentSection' }).exists()).toBe(false)
     })
 
+    it('team admin with no social links gets an add-social-links link in the aside (#520)', async () => {
+      await asTeamAdmin()
+      const w = await mountWithTeam(TEAM)
+      const aside = w.find('aside')
+      expect(aside.exists()).toBe(true)
+      expect(aside.find('.empty-state').exists()).toBe(true)
+      expect(aside.findAll('a').find((a) => a.text() === 'הוספת רשתות').attributes('href')).toBe('/admin/teams/1#social')
+      expect(w.html()).toContain('lg:grid-cols-[1fr_20rem]')
+    })
+
+    it('team admin with social links sees the links, not the empty state (#520)', async () => {
+      await asTeamAdmin()
+      const w = await mountWithTeam({ ...TEAM, facebook_url: 'https://www.facebook.com/gushclub' })
+      expect(w.find('aside').find('.empty-state').exists()).toBe(false)
+      expect(w.text()).not.toContain('הוספת רשתות')
+    })
+
     it('visitors and preview see no edit controls on the team home', async () => {
       const useAuth = await asTeamAdmin()
       useAuth().user.value = null
@@ -551,6 +568,7 @@ describe('HomeView', () => {
       expect(w.text()).not.toContain('ניהול הקבוצה')
       expect(w.text()).not.toContain('ניהול קישורים')
       expect(w.text()).not.toContain('עריכת עדכונים')
+      expect(w.text()).not.toContain('הוספת רשתות')
       const { previewMode } = await import('../composables/useAuth')
       useAuth().user.value = { id: 1, team_ids: [1] }
       previewMode.value = 'member'
@@ -559,6 +577,7 @@ describe('HomeView', () => {
       expect(w.text()).not.toContain('ניהול קישורים')
       expect(w.text()).not.toContain('על הקבוצה')
       expect(w.text()).not.toContain('עריכת עדכונים')
+      expect(w.text()).not.toContain('הוספת רשתות')
       previewMode.value = null
     })
   })

@@ -28,4 +28,11 @@ describe('design tokens', () => {
     expect(Object.keys(nonSpec).length).toBeGreaterThan(0)
     for (const [path, src] of Object.entries(nonSpec)) expect(src, path).not.toContain('נסה שוב')
   })
+
+  it('the active tab indicator uses currentColor, never the raw team colour (#520)', () => {
+    // a light or dark team colour measures about 1.01:1 on `raised` in one of the two modes
+    const tabBar = sources['./components/TabBar.vue']
+    expect(tabBar).toContain('after:bg-current')
+    expect(tabBar).not.toMatch(/after:bg-team/)
+  })
 })

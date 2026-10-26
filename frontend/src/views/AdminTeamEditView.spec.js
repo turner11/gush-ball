@@ -81,6 +81,7 @@ describe('AdminTeamEditView', () => {
   it.each([
     ['links', 'links-label'],
     ['about', 'team-about'],
+    ['social', 'team-facebook_url'],
   ])('a #%s hash scrolls to its section and focuses the first field (#514)', async (hash, fieldId) => {
     Element.prototype.scrollIntoView = vi.fn()
     mockFetch({ 'GET /api/teams/1': () => jsonRes(TEAM), ...CONTENT_HANDLERS })
