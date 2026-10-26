@@ -210,7 +210,7 @@ const hasSocialEmbed = computed(
         <section v-if="videos.length" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">סרטונים</h2>
-            <RouterLink :to="base + '/media'" class="section-link">כל הסרטונים</RouterLink>
+            <RouterLink :to="base + '/media?tab=videos'" class="section-link">כל הסרטונים</RouterLink>
           </div>
           <ul class="grid gap-6 sm:grid-cols-2">
             <li v-for="video in latestVideos" :key="video.id">

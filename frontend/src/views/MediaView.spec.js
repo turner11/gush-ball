@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { routeLocationKey } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const VIDEOS = [
@@ -15,7 +16,7 @@ function jsonRes(body) {
   return { ok: true, status: 200, json: async () => body }
 }
 
-async function mountView({ videos = VIDEOS, images = IMAGES } = {}) {
+async function mountView({ videos = VIDEOS, images = IMAGES, query = {} } = {}) {
   const data = { videos, images, players: [] }
   global.fetch = vi.fn((url) => {
     const kind = String(url).split('/').pop()
@@ -23,7 +24,7 @@ async function mountView({ videos = VIDEOS, images = IMAGES } = {}) {
     return Promise.resolve(jsonRes(data[kind]))
   })
   const { default: MediaView } = await import('./MediaView.vue')
-  const wrapper = mount(MediaView)
+  const wrapper = mount(MediaView, { global: { provide: { [routeLocationKey]: { query } } } })
   await flushPromises()
   return wrapper
 }
@@ -48,6 +49,11 @@ describe('MediaView', () => {
   it('renders images first, then videos', async () => {
     const wrapper = await mountView()
     expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['תמונות', 'סרטונים'])
+  })
+
+  it('opens on the videos tab for ?tab=videos', async () => {
+    const wrapper = await mountView({ query: { tab: 'videos' } })
+    expect(wrapper.find('[role="tab"][data-state="active"]').text()).toBe('סרטונים')
   })
 
   it('shows an inline error with retry when the load fails, and retrying loads the page', async () => {

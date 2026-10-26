@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
+import { useRoute } from 'vue-router'
 
 import ImageGallery from '../components/ImageGallery.vue'
 import LoadError from '../components/LoadError.vue'
@@ -51,6 +52,8 @@ watch(selectedTeamId, load, { immediate: true })
 const canEdit = computed(() => !!selectedTeamId.value && canEditTeam(selectedTeamId.value))
 const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor(canEdit, load) // closing shows what the editors changed
 
+// The home page's "all videos" link opens ?tab=videos.
+const defaultTab = useRoute()?.query.tab === 'videos' ? 'videos' : 'images'
 const tabs = [
   { value: 'images', label: 'תמונות' },
   { value: 'videos', label: 'סרטונים' },
@@ -68,7 +71,7 @@ const tabs = [
 
     <LoadError v-if="loadError" message="שגיאה בטעינת המדיה" @retry="load" />
 
-    <TabsRoot v-else default-value="images" dir="rtl" class="space-y-6">
+    <TabsRoot v-else :default-value="defaultTab" dir="rtl" class="space-y-6">
       <TabsList class="segmented">
         <TabsTrigger
           v-for="tab in tabs"
