@@ -7,6 +7,7 @@ member-only (#439); the other lists are public. Posts and plays are reorderable 
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
@@ -104,6 +105,7 @@ class TeamImageUpdate(TitledUrlUpdate):
 
 class TeamImageOut(TitledUrlOut):
     hidden_from_home: bool
+    created_at: datetime | None
 
 
 PostBody = Annotated[str, StringConstraints(max_length=20000)]

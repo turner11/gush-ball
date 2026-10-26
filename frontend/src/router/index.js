@@ -29,6 +29,7 @@ const router = createRouter({
     { path: '/:slug/standings', name: 'standings', component: () => import('../views/StandingsView.vue'), meta: { title: 'טבלה', description: (team) => `טבלת הליגה והמיקום של ${team}.` } },
     { path: '/:slug/roster', name: 'roster', component: () => import('../views/RosterView.vue'), meta: { title: 'שחקנים', description: (team) => `סגל השחקנים של ${team}.` } },
     { path: '/players/:id', name: 'player', component: () => import('../views/PlayerView.vue'), meta: { title: 'שחקן', description: () => 'פרופיל שחקן.' } },
+    { path: '/:slug/posts', name: 'posts', component: () => import('../views/PostsView.vue'), meta: { title: 'עדכונים', description: (team) => `העדכונים והחדשות של ${team}.` } },
     { path: '/:slug/media', name: 'media', component: () => import('../views/MediaView.vue'), meta: { title: 'מדיה', description: (team) => `תמונות, סרטונים וקישורים של ${team}.` } },
     { path: '/clubs/:clubSlug', name: 'club', component: () => import('../views/ClubView.vue') }, // not `slug`: useTeamFromRoute would treat it as a team; ClubView owns its head
     { path: '/:slug/club', redirect: { name: 'team-home' } }, // the pre-#372 club-week URL
