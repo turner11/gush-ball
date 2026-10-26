@@ -73,6 +73,11 @@ describe('StatsView', () => {
     return mountView()
   }
 
+  it('titles the page נתונים', async () => {
+    const wrapper = await mountAt()
+    expect(wrapper.find('h1').text()).toBe('נתונים')
+  })
+
   it('picker lists "all games" plus only has_stats games, newest first', async () => {
     const wrapper = await mountAt()
     const options = wrapper.findAll('option')

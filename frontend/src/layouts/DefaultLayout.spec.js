@@ -508,15 +508,19 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('select').exists()).toBe(false)
   })
 
-  it('nav links סטטיסטיקה to the stats page', async () => {
+  it('top nav and tab bar both name the stats page נתונים, and so does the document title', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a/stats')
     await flushPromises()
 
-    const a = wrapper.findAll('a').find((x) => x.text() === 'סטטיסטיקה')
-    expect(a.attributes('href')).toBe('/team_a/stats')
+    for (const id of ['top-nav', 'tab-bar']) {
+      const a = wrapper.find(`[data-testid="${id}"]`).findAll('a').find((x) => x.attributes('href') === '/team_a/stats')
+      expect(a.text()).toBe('נתונים')
+    }
+    expect(document.title.startsWith('נתונים · קבוצה א')).toBe(true)
   })
 
   it('nav links מדיה to the media page', async () => {
