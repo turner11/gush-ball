@@ -22,4 +22,10 @@ describe('design tokens', () => {
     expect(css).not.toMatch(small)
     for (const [path, src] of Object.entries(sources)) expect(src, path).not.toMatch(small)
   })
+
+  it('no source file uses the singular "נסה שוב" (copy uses the plural "נסו שוב", #509)', () => {
+    const nonSpec = import.meta.glob(['./**/*.{vue,js}', '!./**/*.spec.js'], { query: '?raw', import: 'default', eager: true })
+    expect(Object.keys(nonSpec).length).toBeGreaterThan(0)
+    for (const [path, src] of Object.entries(nonSpec)) expect(src, path).not.toContain('נסה שוב')
+  })
 })

@@ -276,7 +276,7 @@ describe('AdminGamesView', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('שגיאה בשמירת המשחק, נסה שוב')
+    expect(wrapper.text()).toContain('שגיאה בשמירת המשחק, נסו שוב')
     expect(wrapper.text()).not.toContain('קבוצת רפאים')
   })
 

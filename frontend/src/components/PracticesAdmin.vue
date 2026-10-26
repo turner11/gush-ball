@@ -10,7 +10,7 @@ import PracticeRow from './PracticeRow.vue'
 const props = defineProps({ team: { type: Object, required: true } })
 
 const base = `/teams/${props.team.id}/practices`
-const SAVE_ERROR = 'שגיאה בשמירת האימון, נסה שוב'
+const SAVE_ERROR = 'שגיאה בשמירת האימון, נסו שוב'
 
 function emptyForm() {
   return { starts_at: '', duration_minutes: 90, location: props.team.home_court_address ?? '', notes: '', repeat_weekly_until: '', cancelled: false }

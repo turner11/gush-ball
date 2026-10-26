@@ -28,10 +28,10 @@ async function onSubmit() {
     }
     done.value = true
   } catch (err) {
-    if (err.status === 429) error.value = 'יותר מדי בקשות, נסה שוב מאוחר יותר'
+    if (err.status === 429) error.value = 'יותר מדי בקשות, נסו שוב מאוחר יותר'
     else if (err.status === 400 && token.value) error.value = 'הקישור אינו תקף או שפג תוקפו'
     else if (err.status === 503) error.value = 'איפוס סיסמה אינו זמין כרגע, פנו למנהל האתר'
-    else error.value = 'שגיאת התחברות, נסה שוב'
+    else error.value = 'שגיאת התחברות, נסו שוב'
   } finally {
     submitting.value = false
   }

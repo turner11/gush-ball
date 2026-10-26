@@ -25,7 +25,7 @@ async function add() {
     url.value = ''
   } catch (e) {
     if (e.status === 409) error.value = e.message
-    else error.value = e.status === 422 ? 'קישור יוטיוב לא תקין (youtube.com / youtu.be)' : 'שגיאה בהוספת סרטון, נסה שוב'
+    else error.value = e.status === 422 ? 'קישור יוטיוב לא תקין (youtube.com / youtu.be)' : 'שגיאה בהוספת סרטון, נסו שוב'
   } finally {
     adding.value = false
   }
@@ -37,7 +37,7 @@ async function remove(video) {
     await apiFetch(`/players/${props.player.id}/videos/${video.id}`, { method: 'DELETE' })
     emit('change', props.player.videos.filter((v) => v.id !== video.id))
   } catch {
-    error.value = 'שגיאה במחיקת הסרטון, נסה שוב'
+    error.value = 'שגיאה במחיקת הסרטון, נסו שוב'
   }
 }
 </script>

@@ -71,7 +71,7 @@ async function onAssign() {
     assignUserId.value = ''
     await loadAdmins()
   } catch {
-    assignError.value = 'שגיאה בשיוך המנהל, נסה שוב'
+    assignError.value = 'שגיאה בשיוך המנהל, נסו שוב'
   } finally {
     assigning.value = false
   }
@@ -94,7 +94,7 @@ async function onSubmit() {
     loadUsers()
   } catch (err) {
     // Only the duplicate username/email 409 carries a message worth showing.
-    error.value = err.status === 409 ? err.message : 'שגיאה ביצירת המנהל, נסה שוב'
+    error.value = err.status === 409 ? err.message : 'שגיאה ביצירת המנהל, נסו שוב'
   } finally {
     submitting.value = false
   }
@@ -107,7 +107,7 @@ async function onDeleteConfirmed() {
     await apiFetch(`${base}/${id}?scope=${grantScope}`, { method: 'DELETE' })
     admins.value = admins.value.filter((a) => !(a.id === id && scopeOf(a) === grantScope))
   } catch {
-    error.value = 'שגיאה בהסרת המנהל, נסה שוב'
+    error.value = 'שגיאה בהסרת המנהל, נסו שוב'
   }
 }
 </script>

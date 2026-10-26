@@ -203,7 +203,7 @@ describe('AdminStandingsView', () => {
     await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('שגיאה במחיקת השורה, נסה שוב')
+    expect(wrapper.text()).toContain('שגיאה במחיקת השורה, נסו שוב')
     expect(wrapper.text()).toContain('קבוצה א')
   })
   async function mountView() {
@@ -272,7 +272,7 @@ describe('AdminStandingsView', () => {
   it('a failed initial load shows an error', async () => {
     mockFetch({ 'GET /api/standings': () => errorRes() })
     const wrapper = await mountView()
-    expect(wrapper.text()).toContain('שגיאה בטעינת הטבלה, נסה שוב')
+    expect(wrapper.text()).toContain('שגיאה בטעינת הטבלה, נסו שוב')
   })
 
   const LEAGUE_URL = 'https://x.il/league/77/'

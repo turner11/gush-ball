@@ -196,7 +196,7 @@ async function approveGame(game) {
     })
     replaceGame(approved)
   } catch {
-    error.value = 'שגיאה באישור המשחק, נסה שוב'
+    error.value = 'שגיאה באישור המשחק, נסו שוב'
   }
 }
 
@@ -209,7 +209,7 @@ async function acceptSuggestion(game) {
     )
     replaceGame(updated)
   } catch {
-    error.value = 'שגיאה בעדכון המשחק, נסה שוב'
+    error.value = 'שגיאה בעדכון המשחק, נסו שוב'
   }
 }
 
@@ -221,7 +221,7 @@ async function rejectSuggestion(game) {
     })
     pendingGames.value = pendingGames.value.filter((g) => g.id !== game.id)
   } catch {
-    error.value = 'שגיאה בעדכון המשחק, נסה שוב'
+    error.value = 'שגיאה בעדכון המשחק, נסו שוב'
   }
 }
 
@@ -232,7 +232,7 @@ async function onDelete(game) {
     await apiFetch(`/teams/${selectedTeamId.value}/games/${game.id}`, { method: 'DELETE' })
     games.value = games.value.filter((g) => g.id !== game.id)
   } catch {
-    error.value = 'שגיאה במחיקת המשחק, נסה שוב'
+    error.value = 'שגיאה במחיקת המשחק, נסו שוב'
   }
 }
 </script>

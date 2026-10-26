@@ -9,28 +9,28 @@ export function useTeamContent(resource, owner = 'teams') {
   const error = ref(null)
 
   const list = (ownerId) =>
-    tryApiFetch(error, 'שגיאה בטעינת התוכן, נסה שוב', `/${owner}/${ownerId}/${resource}`)
+    tryApiFetch(error, 'שגיאה בטעינת התוכן, נסו שוב', `/${owner}/${ownerId}/${resource}`)
 
   const create = (ownerId, payload) =>
-    tryApiFetch(error, 'שגיאה בהוספת התוכן, נסה שוב', `/${owner}/${ownerId}/${resource}`, {
+    tryApiFetch(error, 'שגיאה בהוספת התוכן, נסו שוב', `/${owner}/${ownerId}/${resource}`, {
       method: 'POST',
       body: payload,
     })
 
   const update = (ownerId, itemId, payload) =>
-    tryApiFetch(error, 'שגיאה בעדכון התוכן, נסה שוב', `/${owner}/${ownerId}/${resource}/${itemId}`, {
+    tryApiFetch(error, 'שגיאה בעדכון התוכן, נסו שוב', `/${owner}/${ownerId}/${resource}/${itemId}`, {
       method: 'PATCH',
       body: payload,
     })
 
   const destroy = (ownerId, itemId) =>
-    tryApiFetch(error, 'שגיאה במחיקת התוכן, נסה שוב', `/${owner}/${ownerId}/${resource}/${itemId}`, {
+    tryApiFetch(error, 'שגיאה במחיקת התוכן, נסו שוב', `/${owner}/${ownerId}/${resource}/${itemId}`, {
       method: 'DELETE',
     })
 
   // Only resources with a /order route (plays, posts) support this: ids = the full list in the new order.
   const reorder = (ownerId, ids) =>
-    tryApiFetch(error, 'שגיאה בשינוי הסדר, נסה שוב', `/${owner}/${ownerId}/${resource}/order`, {
+    tryApiFetch(error, 'שגיאה בשינוי הסדר, נסו שוב', `/${owner}/${ownerId}/${resource}/order`, {
       method: 'PUT',
       body: ids,
     })
