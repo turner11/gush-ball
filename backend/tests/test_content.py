@@ -398,6 +398,17 @@ def test_image_hidden_from_home_defaults_false_round_trips_and_rejects_null(
     assert admin_client.patch(f"{url}/{hidden['id']}", json={"hidden_from_home": None}).status_code == 422
 
 
+def test_images_list_newest_first_undated_last(admin_client: TestClient, client: TestClient, team: Team, db_session: Session) -> None:
+    url = f"/teams/{team.id}/images"
+    ids = [admin_client.post(url, json={"title": t, "url": "https://img.example.com/a.jpg"}).json() for t in "abc"]
+    assert all(i["created_at"] for i in ids)
+    older, newer, undated = (i["id"] for i in ids)
+    for image_id, when in ((older, datetime(2026, 1, 1, tzinfo=UTC)), (newer, datetime(2026, 2, 1, tzinfo=UTC)), (undated, None)):
+        db_session.get(TeamImage, image_id).created_at = when
+    db_session.commit()
+    assert [i["id"] for i in client.get(url).json()] == [newer, older, undated]
+
+
 @pytest.fixture()
 def club_id(db_session: Session) -> int:
     from app.models import Club

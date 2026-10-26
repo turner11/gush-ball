@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import HomeSlideshow from './HomeSlideshow.vue'
 
 const img = (id, extra = {}) => ({ id, title: `t${id}`, url: `/i${id}.jpg`, hidden_from_home: false, ...extra })
-const make = (n) => Array.from({ length: n }, (_, k) => img(k + 1))
+const make = (n) => Array.from({ length: n }, (_, k) => img(n - k)) // API order: newest (highest id) first
 const srcs = (w) => w.findAll('button[aria-label^="הגדלת"] img').map((i) => i.attributes('src'))
 const mountIt = (images) => mount(HomeSlideshow, { props: { images, mediaTo: '/x/media' }, global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } } })
 
@@ -19,6 +19,28 @@ describe('HomeSlideshow', () => {
     const w = mountIt([...make(5), img(6, { hidden_from_home: true })])
     expect(srcs(w)).toEqual(['/i5.jpg', '/i4.jpg', '/i3.jpg', '/i2.jpg'])
     expect(mountIt([img(1, { hidden_from_home: true })]).find('section').exists()).toBe(false)
+  })
+
+  it('keeps newer days first and shuffles only within a day', () => {
+    const images = [
+      img(4, { created_at: '2026-05-02T10:00:00Z' }),
+      img(3, { created_at: '2026-05-02T09:00:00Z' }),
+      img(2, { created_at: '2026-05-01T10:00:00Z' }),
+      img(1, { created_at: '2026-05-01T09:00:00Z' }),
+    ]
+    const run = (random) => {
+      const spy = vi.spyOn(Math, 'random').mockReturnValue(random)
+      const ids = srcs(mountIt(images))
+      spy.mockRestore()
+      return ids
+    }
+    const low = run(0)
+    const high = run(0.99)
+    for (const ids of [low, high]) {
+      expect(ids.slice(0, 2).sort()).toEqual(['/i3.jpg', '/i4.jpg'])
+      expect(ids.slice(2).sort()).toEqual(['/i1.jpg', '/i2.jpg'])
+    }
+    expect(low).not.toEqual(high)
   })
 
   it('rotates one tile per tick through the rest without duplicates', async () => {

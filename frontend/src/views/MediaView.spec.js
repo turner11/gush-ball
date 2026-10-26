@@ -6,21 +6,17 @@ const VIDEOS = [
   { id: 3, title: 'חדש', url: 'https://youtu.be/v3' },
   { id: 2, title: 'אמצע', url: 'https://youtu.be/v2' },
 ]
-const POSTS = [
-  { id: 2, title: 'פוסט חדש', body: 'גוף חדש' },
-  { id: 1, title: 'פוסט ישן', body: 'גוף ישן' },
-]
 const IMAGES = [
-  { id: 1, title: 'תמונה א', url: 'https://img/a.jpg' },
-  { id: 2, title: 'תמונה ב', url: 'https://img/b.jpg' },
+  { id: 1, title: 'תמונה חדשה', url: 'https://img/a.jpg' },
+  { id: 2, title: 'תמונה ישנה', url: 'https://img/b.jpg' },
 ]
 
 function jsonRes(body) {
   return { ok: true, status: 200, json: async () => body }
 }
 
-async function mountView({ videos = VIDEOS, posts = POSTS, images = IMAGES } = {}) {
-  const data = { videos, posts, images, players: [] }
+async function mountView({ videos = VIDEOS, images = IMAGES } = {}) {
+  const data = { videos, images, players: [] }
   global.fetch = vi.fn((url) => {
     const kind = String(url).split('/').pop()
     if (!(kind in data)) return Promise.reject(new Error(`Unhandled fetch: ${url}`))
@@ -49,9 +45,9 @@ describe('MediaView', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders videos, posts and images tabs', async () => {
+  it('renders images first, then videos', async () => {
     const wrapper = await mountView()
-    expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['סרטונים', 'עדכונים', 'תמונות'])
+    expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['תמונות', 'סרטונים'])
   })
 
   it('shows an inline error with retry when the load fails, and retrying loads the page', async () => {
@@ -59,7 +55,7 @@ describe('MediaView', () => {
     global.fetch = vi.fn((url) => {
       const kind = String(url).split('/').pop()
       if (failing) return Promise.resolve({ ok: false, status: 500, json: async () => ({}) })
-      return Promise.resolve(jsonRes({ videos: VIDEOS, posts: POSTS, images: IMAGES }[kind]))
+      return Promise.resolve(jsonRes({ videos: VIDEOS, images: IMAGES }[kind]))
     })
     const { default: MediaView } = await import('./MediaView.vue')
     const wrapper = mount(MediaView)
@@ -73,7 +69,7 @@ describe('MediaView', () => {
     await flushPromises()
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('חדש')
+    expect(wrapper.text()).toContain('תמונה חדשה')
   })
 
   it('renders the tabs root right-to-left', async () => {
@@ -81,50 +77,29 @@ describe('MediaView', () => {
     expect(wrapper.find('[dir]').attributes('dir')).toBe('rtl')
   })
 
-  it('shows all videos newest first on the default tab', async () => {
+  it('shows videos newest first on the videos tab', async () => {
     const wrapper = await mountView()
+    await openTab(wrapper, 'סרטונים')
     expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['חדש', 'אמצע', 'ישן'])
   })
 
-  it('shows all posts on the posts tab', async () => {
+  it('keeps the API order for images on the default tab and never fetches posts', async () => {
     const wrapper = await mountView()
-    await openTab(wrapper, 'עדכונים')
-    expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['פוסט חדש', 'פוסט ישן'])
-    expect(wrapper.text()).toContain('גוף חדש')
-    expect(wrapper.text()).toContain('גוף ישן')
-  })
-
-  it('keeps the API order for posts and badges pinned ones', async () => {
-    const posts = [
-      { id: 1, title: 'נעוץ א', body: 'x', pinned: true },
-      { id: 2, title: 'חדש ב', body: 'y', pinned: false },
-    ]
-    const wrapper = await mountView({ posts })
-    await openTab(wrapper, 'עדכונים')
-    expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['נעוץ א', 'חדש ב'])
-    const articles = wrapper.findAll('article')
-    expect(articles[0].text()).toContain('נעוץ')
-    expect(articles[1].find('.badge').exists()).toBe(false)
-  })
-
-  it('shows all images on the images tab', async () => {
-    const wrapper = await mountView()
-    await openTab(wrapper, 'תמונות')
-    expect(wrapper.findAll('img').map((i) => i.attributes('alt'))).toEqual(['תמונה ב', 'תמונה א'])
+    expect(wrapper.findAll('img').map((i) => i.attributes('alt'))).toEqual(['תמונה חדשה', 'תמונה ישנה'])
+    expect(global.fetch.mock.calls.map(([u]) => String(u)).some((u) => u.endsWith('/posts'))).toBe(false)
   })
 
   it('clicking an image opens the in-page viewer, not a new tab', async () => {
     const wrapper = await mountView()
-    await openTab(wrapper, 'תמונות')
     expect(wrapper.find('a[target=_blank]').exists()).toBe(false)
-    await wrapper.get('button[aria-label="הגדלת תמונה: תמונה ב"]').trigger('click')
+    await wrapper.get('button[aria-label="הגדלת תמונה: תמונה חדשה"]').trigger('click')
     expect(wrapper.get('dialog').attributes('open')).toBeDefined()
-    expect(wrapper.get('dialog img').attributes('src')).toBe('https://img/b.jpg')
+    expect(wrapper.get('dialog img').attributes('src')).toBe('https://img/a.jpg')
   })
 
   it('shows an empty state for a tab with no items', async () => {
-    const wrapper = await mountView({ videos: [] })
-    expect(wrapper.find('.empty-state').text()).toBe('אין סרטונים עדיין.')
+    const wrapper = await mountView({ images: [] })
+    expect(wrapper.find('.empty-state').text()).toBe('אין תמונות עדיין.')
   })
 
   it('ignores a late response for a team that is no longer selected', async () => {
@@ -132,8 +107,8 @@ describe('MediaView', () => {
     const first = new Promise((r) => (resolveFirst = r))
     global.fetch = vi.fn((url) => {
       const [, , , team, kind] = String(url).split('/')
-      if (team === '1') return kind === 'videos' ? first : Promise.resolve(jsonRes([]))
-      return Promise.resolve(jsonRes(kind === 'videos' ? [{ id: 9, title: 'סרטון קבוצה ב', url: 'https://youtu.be/b' }] : []))
+      if (team === '1') return kind === 'images' ? first : Promise.resolve(jsonRes([]))
+      return Promise.resolve(jsonRes(kind === 'images' ? [{ id: 9, title: 'תמונת קבוצה ב', url: 'https://img/b2.jpg' }] : []))
     })
     const { default: MediaView } = await import('./MediaView.vue')
     const { useSelectedTeam } = await import('../composables/useSelectedTeam')
@@ -141,11 +116,11 @@ describe('MediaView', () => {
     await flushPromises()
     useSelectedTeam().selectedTeamId.value = '2'
     await flushPromises()
-    resolveFirst(jsonRes(VIDEOS))
+    resolveFirst(jsonRes(IMAGES))
     await flushPromises()
 
-    expect(wrapper.text()).toContain('סרטון קבוצה ב')
-    expect(wrapper.text()).not.toContain('חדש')
+    expect(wrapper.text()).toContain('תמונת קבוצה ב')
+    expect(wrapper.text()).not.toContain('תמונה חדשה')
   })
 
   describe('inline editing (#468)', () => {

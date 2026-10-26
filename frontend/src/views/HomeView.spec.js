@@ -56,6 +56,7 @@ describe('HomeView', () => {
         { path: '/:slug/roster', component: { template: '<div/>' } },
         { path: '/:slug/games/:id', component: { template: '<div/>' } },
         { path: '/:slug/media', component: { template: '<div/>' } },
+        { path: '/:slug/posts', component: { template: '<div/>' } },
         { path: '/admin/teams/:id', name: 'admin-team-edit', component: { template: '<div/>' } },
       ],
     })
@@ -172,7 +173,7 @@ describe('HomeView', () => {
 
     const hrefOf = (text) => wrapper.findAll('a').find((a) => a.text() === text).attributes('href')
     expect(hrefOf('לכל הסגל')).toBe('/elizur/roster')
-    expect(hrefOf('כל העדכונים')).toBe('/elizur/media')
+    expect(hrefOf('כל העדכונים')).toBe('/elizur/posts')
   })
 
   it('embeds the Facebook page plugin when facebook_url is set', async () => {
