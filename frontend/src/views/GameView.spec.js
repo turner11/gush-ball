@@ -132,12 +132,31 @@ describe('GameView', () => {
       expect(wrapper.findComponent(GameScorersEditor).exists()).toBe(false)
     })
 
+    it('announces the save after the editor closes', async () => {
+      mockFetch(ok(withScorers))
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      const { wrapper } = await mountAt(true)
+      const { default: GameScorersEditor } = await import('../components/GameScorersEditor.vue')
+      const note = () => wrapper.get('[data-test="scorers-saved"]')
+      expect(note().text()).toBe('')
+      const toggle = () => wrapper.findAll('button').find((b) => b.text() === 'עריכת קלעים')
+      await toggle().trigger('click')
+      wrapper.findComponent(GameScorersEditor).vm.$emit('saved', [])
+      await flushPromises()
+      expect(wrapper.findComponent(GameScorersEditor).exists()).toBe(false)
+      expect(note().text()).toBe('הקלעים נשמרו')
+      await toggle().trigger('click')
+      expect(note().text()).toBe('')
+    })
+
     it('non-admin sees no edit button', async () => {
       mockFetch(ok(withScorers))
       const { useAuth } = await import('../composables/useAuth')
       useAuth().user.value = { id: 2, team_ids: [] }
       const { wrapper } = await mountAt(true)
       expect(wrapper.findAll('button').some((b) => b.text() === 'עריכת קלעים')).toBe(false)
+      expect(wrapper.find('[data-test="scorers-saved"]').exists()).toBe(false)
     })
   })
 
@@ -184,12 +203,31 @@ describe('GameView', () => {
       expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(false)
     })
 
+    it('announces the save after the editor closes', async () => {
+      mockFetch(ok(withMedia))
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      const { wrapper } = await mountAt(true)
+      const { default: GameMediaEditor } = await import('../components/GameMediaEditor.vue')
+      const note = () => wrapper.get('[data-test="media-saved"]')
+      expect(note().text()).toBe('')
+      const toggle = () => wrapper.findAll('button').find((b) => b.text() === 'עריכת מדיה')
+      await toggle().trigger('click')
+      wrapper.findComponent(GameMediaEditor).vm.$emit('saved', { videos: [], images: [] })
+      await flushPromises()
+      expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(false)
+      expect(note().text()).toBe('המדיה נשמרה')
+      await toggle().trigger('click')
+      expect(note().text()).toBe('')
+    })
+
     it('non-admin sees no edit button', async () => {
       mockFetch(ok(withMedia))
       const { useAuth } = await import('../composables/useAuth')
       useAuth().user.value = { id: 2, team_ids: [] }
       const { wrapper } = await mountAt(true)
       expect(wrapper.findAll('button').some((b) => b.text() === 'עריכת מדיה')).toBe(false)
+      expect(wrapper.find('[data-test="media-saved"]').exists()).toBe(false)
     })
   })
 
