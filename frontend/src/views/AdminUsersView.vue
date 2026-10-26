@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import FilterCombobox from '../components/FilterCombobox.vue'
@@ -79,6 +79,48 @@ async function onDeleteConfirmed() {
   }
 }
 
+const assignFor = ref(null) // id of the user whose assign panel is open
+const assignTeamId = ref('')
+const assigning = ref(false)
+const assignError = ref(null)
+const status = ref(null)
+
+// A pending team stays listed: assigning it is the approve path.
+const assignOptions = (u) => {
+  const taken = new Set(u.memberships.filter((m) => m.team_id && m.role !== 'pending').map((m) => m.team_id))
+  return teams.value.filter((t) => !taken.has(t.id)).map((t) => ({ value: String(t.id), label: t.name }))
+}
+
+async function openAssign(u) {
+  assignFor.value = u.id
+  assignTeamId.value = ''
+  assignError.value = null
+  status.value = null
+  await nextTick()
+  document.getElementById(`assign-team-${u.id}`)?.focus()
+}
+
+function closeAssign(u) {
+  assignFor.value = null
+  nextTick(() => document.getElementById(`assign-toggle-${u.id}`)?.focus())
+}
+
+async function onAssign(u) {
+  assigning.value = true
+  assignError.value = null
+  try {
+    const m = await apiFetch(`/users/${u.id}/teams/${assignTeamId.value}`, { method: 'PUT' })
+    const i = u.memberships.findIndex((x) => x.team_id === m.team_id)
+    if (i === -1) u.memberships.push(m)
+    else u.memberships[i] = m
+    status.value = `${userLabel(u)} שויך/ה לקבוצה ${m.team_name}`
+    closeAssign(u)
+  } catch {
+    assignError.value = 'שגיאה בשיוך לקבוצה, נסו שוב'
+  }
+  assigning.value = false
+}
+
 onMounted(() => {
   if (fullAdmin.value) load()
 })
@@ -120,19 +162,41 @@ onMounted(() => {
         />
         <SearchInput id="admin-user-search" ref="searchInput" v-model="query" label="חיפוש משתמש" />
       </div>
+      <p v-if="status" class="text-sm text-muted" role="status">{{ status }}</p>
       <ul v-if="shownUsers.length" class="card divide-y divide-line p-0">
         <li v-for="u in shownUsers" :key="u.id" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
           <span class="font-semibold" dir="auto">{{ userLabel(u) }}</span>
           <span class="text-sm text-muted" :dir="u.email ? 'ltr' : undefined">{{ u.email ?? 'ללא אימייל' }}</span>
-          <button
-            v-if="u.username !== user?.username"
-            type="button"
-            class="btn-danger-ghost ms-auto"
-            :aria-label="`מחיקת ${userLabel(u)}`"
-            @click="pendingDelete = u"
-          >
-            מחיקה
-          </button>
+          <div v-if="u.username !== user?.username" class="ms-auto flex gap-2">
+            <button
+              v-if="teams.length"
+              :id="`assign-toggle-${u.id}`"
+              type="button"
+              class="btn-secondary"
+              :aria-label="`שיוך ${userLabel(u)} לקבוצה`"
+              :aria-expanded="assignFor === u.id"
+              :aria-controls="`assign-panel-${u.id}`"
+              @click="assignFor === u.id ? closeAssign(u) : openAssign(u)"
+            >
+              שיוך לקבוצה
+            </button>
+            <button type="button" class="btn-danger-ghost" :aria-label="`מחיקת ${userLabel(u)}`" @click="pendingDelete = u">
+              מחיקה
+            </button>
+          </div>
+          <div v-if="assignFor === u.id" :id="`assign-panel-${u.id}`" class="basis-full py-2">
+            <p v-if="!assignOptions(u).length" class="text-sm text-muted">המשתמש כבר חבר בכל הקבוצות</p>
+            <div v-else class="grid gap-2 sm:grid-cols-[16rem_auto_auto] sm:items-end">
+              <FilterCombobox :id="`assign-team-${u.id}`" v-model="assignTeamId" label="קבוצה" :options="assignOptions(u)" />
+              <div class="flex gap-2">
+                <button type="button" class="btn-primary" :disabled="!assignTeamId || assigning" @click="onAssign(u)">
+                  {{ assigning ? 'משייך…' : 'שיוך' }}
+                </button>
+                <button type="button" class="btn-secondary" @click="closeAssign(u)">ביטול</button>
+              </div>
+            </div>
+            <p v-if="assignError" class="error-text mt-2" role="alert">{{ assignError }}</p>
+          </div>
           <ul v-if="u.memberships.length" class="flex basis-full flex-wrap gap-1">
             <li v-for="(m, i) in u.memberships" :key="i" class="badge-muted">{{ badge(m) }}</li>
           </ul>
