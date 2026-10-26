@@ -182,26 +182,29 @@ watch(() => route.params.id, load, { immediate: true })
           :aria-label="`נקודות של ${player.name} לאורך העונה`"
         />
       </section>
-      <template v-if="images.length">
-        <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          <li v-for="(image, index) in images" :key="image.key">
-            <button
-              type="button"
-              class="card block w-full cursor-zoom-in overflow-hidden"
-              :aria-label="`הגדלת תמונה: ${image.alt}`"
-              @click="lightbox.open(index, $event)"
-            >
-              <img :src="image.url" :alt="image.alt" loading="lazy" class="aspect-square w-full object-cover object-top" />
-            </button>
-          </li>
-        </ul>
-        <ImageLightbox ref="lightbox" :images="images" />
-      </template>
-      <div v-else-if="canEdit" class="empty-state space-y-3">
-        <p>{{ isMine ? 'עדיין אין תמונות בפרופיל שלך.' : 'עדיין אין תמונות לשחקן.' }}</p>
-        <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת תמונות</button>
-      </div>
-      <p v-else class="text-sm text-muted">אין תמונות עדיין.</p>
+      <section class="space-y-2">
+        <h2 class="section-title">תמונות</h2>
+        <template v-if="images.length">
+          <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            <li v-for="(image, index) in images" :key="image.key">
+              <button
+                type="button"
+                class="card block w-full cursor-zoom-in overflow-hidden"
+                :aria-label="`הגדלת תמונה: ${image.alt}`"
+                @click="lightbox.open(index, $event)"
+              >
+                <img :src="image.url" :alt="image.alt" loading="lazy" class="aspect-square w-full object-cover object-top" />
+              </button>
+            </li>
+          </ul>
+          <ImageLightbox ref="lightbox" :images="images" />
+        </template>
+        <div v-else-if="canEdit" class="empty-state space-y-3">
+          <p>{{ isMine ? 'עדיין אין תמונות בפרופיל שלך.' : 'עדיין אין תמונות לשחקן.' }}</p>
+          <button v-if="!editing" type="button" class="btn-primary" aria-controls="profile-form" @click="editing = true">הוספת תמונות</button>
+        </div>
+        <p v-else class="text-sm text-muted">אין תמונות עדיין.</p>
+      </section>
       <section v-if="videos.length || canEdit" class="space-y-2">
         <h2 class="section-title">סרטונים</h2>
         <ul v-if="videos.length" class="grid gap-6 sm:grid-cols-2">

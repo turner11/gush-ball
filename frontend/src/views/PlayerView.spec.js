@@ -139,6 +139,12 @@ describe('PlayerView', () => {
     expect((await mountAt('/players/3')).find('header').text()).not.toContain('#')
   })
 
+  it('photos block has a "תמונות" h2 like the other sections', async () => {
+    global.fetch = okFetch()
+    const wrapper = await mountAt('/players/3')
+    expect(wrapper.findAll('h2').map((h) => h.text())).toContain('תמונות')
+  })
+
   it('links the team name and logo to the team hub', async () => {
     global.fetch = okFetch()
     const link = (await mountAt('/players/3')).findAll('a').find((a) => a.text() === 'קבוצה א')
@@ -358,6 +364,7 @@ describe('PlayerView', () => {
       for (const me of [{ username: 'a', player_ids: [4], team_ids: [] }, null]) {
         await signIn(me, EMPTY)
         const wrapper = await mountAt('/players/3')
+        expect(wrapper.findAll('h2').map((h) => h.text())).toContain('תמונות')
         expect(wrapper.text()).toContain('אין תמונות עדיין')
         expect(buttonNamed(wrapper, 'הוספת תמונות')).toBeUndefined()
         expect(buttonNamed(wrapper, 'הוספת סרטון')).toBeUndefined()
