@@ -76,8 +76,8 @@ def _parse_teams(fetched: list[dict]) -> list[dict]:
     return rows
 
 
-def _fetch_opponent_events(team_url: str, league_ibasketball_id: int) -> tuple[int, list[dict]]:
-    """(SportsPress team id, that team's events in the league). No crawl delay, as in `_fetch`."""
+def _fetch_opponent_events(team_url: str, league_ibasketball_id: int, season: int) -> tuple[int, list[dict]]:
+    """(SportsPress team id, that team's events in the league season). No crawl delay, as in `_fetch`."""
     slug = team_url.rstrip("/").rsplit("/", 1)[-1]
     found = httpx.get(BASE + "/sportspress/v2/teams", params={"slug": slug, "_fields": "id"}, timeout=15)
     found.raise_for_status()
@@ -85,27 +85,32 @@ def _fetch_opponent_events(team_url: str, league_ibasketball_id: int) -> tuple[i
         log.warning("No SportsPress team for %s", team_url)
         return 0, []
     sp_id = found.json()[0]["id"]
-    # ponytail: one page (per_page=100); a team plays far fewer league games
-    events = httpx.get(
-        BASE + "/sportspress/v2/events",
-        params={
-            "teams": sp_id,
-            "leagues": league_ibasketball_id,
-            "per_page": 100,
-            "_fields": "id,teams,main_results,date",
-        },
-        timeout=15,
-    )
-    events.raise_for_status()
-    return sp_id, events.json()
+    # ponytail: ibasketball hides events older than ~3 days unless `month` is set; a season spans two calendar
+    # years. One page per year (per_page=100); a team plays far fewer league games.
+    events: list[dict] = []
+    for year in (season, season + 1):
+        page = httpx.get(
+            BASE + "/sportspress/v2/events",
+            params={
+                "teams": sp_id,
+                "leagues": league_ibasketball_id,
+                "month": year,
+                "per_page": 100,
+                "_fields": "id,teams,main_results,date",
+            },
+            timeout=15,
+        )
+        page.raise_for_status()
+        events += page.json()
+    return sp_id, events
 
 
-def opponent_results(team_url: str, league_ibasketball_id: int) -> list[dict]:
+def opponent_results(team_url: str, league_ibasketball_id: int, season: int) -> list[dict]:
     """The opponent's played two-team league games, each as {scheduled_at, team_score, opponent_score} from the
     opponent's side (`team_score` = the opponent's points), the shape `GameRead` has."""
 
     def load() -> list[dict]:
-        sp_id, events = _fetch_opponent_events(team_url, league_ibasketball_id)
+        sp_id, events = _fetch_opponent_events(team_url, league_ibasketball_id, season)
         results = []
         for event in events:
             try:
