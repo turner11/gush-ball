@@ -24,6 +24,7 @@ const router = createRouter({
   scrollBehavior: (to, from, saved) => saved ?? (to.hash ? { el: to.hash, top: 96 } : { top: 0 }),
   routes: [
     { path: '/', name: 'home', component: () => import('../views/HomeView.vue'), beforeEnter: () => (useSelectedTeam().selectedTeamId.value ? true : { name: 'teams' }), meta: { description: homeDescription } },
+    { path: '/accessibility', name: 'accessibility', component: () => import('../views/AccessibilityView.vue'), meta: { title: 'הצהרת נגישות' } }, // owns its head (DefaultLayout skips it)
     { path: '/:slug/schedule', name: 'schedule', component: () => import('../views/ScheduleView.vue'), meta: { title: 'לוח משחקים', description: (team) => `לוח המשחקים והתוצאות של ${team}.` } },
     { path: '/:slug/games/:id', name: 'game', component: () => import('../views/GameView.vue'), meta: { title: 'משחק', description: (team) => `משחק של ${team}: תאריך, מקום ותוצאה.` } },
     { path: '/:slug/standings', name: 'standings', component: () => import('../views/StandingsView.vue'), meta: { title: 'טבלה', description: (team) => `טבלת הליגה והמיקום של ${team}.` } },

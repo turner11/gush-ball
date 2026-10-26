@@ -27,7 +27,7 @@ describe('PostsView', () => {
   it('keeps the API order and badges pinned posts', async () => {
     const wrapper = await mountView()
     expect(wrapper.find('h1').text()).toBe('עדכונים')
-    expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['נעוץ א', 'חדש ב'])
+    expect(wrapper.findAll('article h2').map((h) => h.text())).toEqual(['נעוץ א', 'חדש ב'])
     const articles = wrapper.findAll('article')
     expect(articles[0].text()).toContain('נעוץ')
     expect(articles[1].find('.badge').exists()).toBe(false)

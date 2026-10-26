@@ -98,6 +98,7 @@ const empty = computed(() => data.value && !data.value.onSite.length && !data.va
   <div>
     <RouterLink :to="{ name: 'teams' }" class="section-link mb-3 inline-block">→ חזרה לקבוצות</RouterLink>
 
+    <h1 v-if="!data" class="sr-only">ליגה</h1>
     <div v-if="errorStatus === 404" class="empty-state">
       <p>הליגה לא נמצאה</p>
       <RouterLink :to="{ name: 'teams' }" class="btn-secondary mt-3">חזרה לקבוצות</RouterLink>

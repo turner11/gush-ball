@@ -42,7 +42,8 @@ const shown = ref(pool.value.slice(0, SLOTS))
 const rotating = ref(false) // false when there is nothing to rotate or the user prefers reduced motion
 const paused = ref(false)
 const lightbox = ref(null)
-const lightboxImages = computed(() => pool.value.map((i) => ({ url: i.url, alt: i.title })))
+const altOf = (image) => image.title || 'תמונה של הקבוצה' // titles may be ''
+const lightboxImages = computed(() => pool.value.map((i) => ({ url: i.url, alt: altOf(i) })))
 
 // Replace the oldest tile round-robin, so the visible set is a sliding window over the pool: no image shows twice.
 let next = SLOTS
@@ -85,11 +86,11 @@ onBeforeUnmount(() => clearInterval(timer))
         :key="slot"
         type="button"
         class="relative aspect-square cursor-zoom-in overflow-hidden rounded-xl bg-sunken transition-[scale,box-shadow] hover:z-10 hover:scale-105 hover:shadow-card focus-visible:z-10 focus-visible:scale-105 motion-reduce:transition-none"
-        :aria-label="`הגדלת תמונה: ${image.title}`"
+        :aria-label="`הגדלת תמונה: ${altOf(image)}`"
         @click="lightbox.open(pool.indexOf(image), $event)"
       >
         <Transition name="flash">
-          <img :key="image.id" :src="image.url" :alt="image.title" loading="lazy" class="absolute inset-0 size-full object-cover" />
+          <img :key="image.id" :src="image.url" :alt="altOf(image)" loading="lazy" class="absolute inset-0 size-full object-cover" />
         </Transition>
       </button>
     </div>

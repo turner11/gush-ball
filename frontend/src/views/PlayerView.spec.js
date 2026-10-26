@@ -166,6 +166,16 @@ describe('PlayerView', () => {
     ])
   })
 
+  it("a tagged team image without a title uses the player's name as alt", async () => {
+    global.fetch = vi.fn((url) =>
+      Promise.resolve({ ok: true, status: 200, json: async () => (url === '/api/teams/1/images' ? [{ id: 10, title: '', url: '/t1.jpg', player_ids: [3] }] : RESPONSES[url]) }),
+    )
+    const wrapper = await mountAt('/players/3')
+
+    expect(wrapper.find('img[src="/t1.jpg"]').attributes('alt')).toBe('יוסי כהן')
+    expect(wrapper.find('button[aria-label="הגדלת תמונה: יוסי כהן"] img[src="/t1.jpg"]').exists()).toBe(true)
+  })
+
   describe('teammate nav (#384)', () => {
     const NAV = 'nav[aria-label="ניווט בין שחקני הקבוצה"]'
     const links = async (id) => {

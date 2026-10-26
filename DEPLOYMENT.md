@@ -154,6 +154,7 @@ A Coolify "resource" is one deployable app. This one tells Coolify where the cod
 | `SENTRY_TRACES_SAMPLE_RATE` | Optional, share of public read requests traced (default 1.0, all). Writes and scrapes are always traced. Lower it if Sentry's span usage nears the plan quota. |
 | `VITE_SENTRY_DSN` | Optional, frontend error reporting (see §10). Must be available at **build** time. |
 | `VITE_HOME_SLIDE_MS` | Optional, milliseconds between home-page image swaps (default 3000, minimum 1000). Must be available at **build** time (Coolify *Build time*), and a change needs a redeploy. |
+| `VITE_CONTACT_EMAIL` | Optional, public contact email on the accessibility statement (mailto). Must be available at **build** time (Coolify *Build time*), and a change needs a redeploy. Unset = the statement shows a fallback line. Never commit the real address. |
 | `ENABLE_DOCS` | **Leave unset** in prod (keeps `/api/docs` and `/api/openapi.json` off). |
 
 `backend/.env.example` is the **local-dev** template; don't use it for prod.

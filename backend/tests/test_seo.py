@@ -198,3 +198,7 @@ def test_og_escapes_html_and_template_braces(client, db_session: Session) -> Non
 )
 def test_title_drops_english_name_when_too_long(base: str, name_en: str | None, expected: str) -> None:
     assert _title(base, name_en) == expected
+
+
+def test_sitemap_lists_accessibility_statement(client) -> None:
+    assert "https://example.org/accessibility" in _locs(client)

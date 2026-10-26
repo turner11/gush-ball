@@ -88,7 +88,7 @@ watch([selectedTeam, clubPath, () => route.path, () => route.name], () => {
   const noindex = route.meta.noindex
   setMeta('robots', noindex ? 'noindex' : null)
   setCanonical(noindex ? null : location.origin + route.path)
-  if (route.name === 'club') return // ClubView owns the title, description and JSON-LD
+  if (['club', 'accessibility'].includes(route.name)) return // these views own the title, description and JSON-LD
   const team = selectedTeam.value
   if (!team) return
   setMeta('description', route.meta.description?.(team.name))
@@ -281,11 +281,16 @@ onMounted(async () => {
       <h1 class="sr-only">{{ selectedTeam.name }}</h1>
     </section>
 
-    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-10 lg:pb-12">
+    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-10 sm:px-6 sm:pt-10">
       <ErrorBoundary>
         <RouterView />
       </ErrorBoundary>
     </main>
+
+    <!-- carries the TabBar clearance, so the last content and this link both sit above the fixed bar -->
+    <footer class="mx-auto w-full max-w-6xl border-t border-line px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-6">
+      <RouterLink :to="{ name: 'accessibility' }" class="section-link">הצהרת נגישות</RouterLink>
+    </footer>
 
     <!-- lg, not md: 7 public links crowd the md header (#341) -->
     <TabBar v-if="selectedTeamId" :items="tabItems" class="lg:hidden" />

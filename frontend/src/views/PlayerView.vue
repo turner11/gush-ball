@@ -56,7 +56,7 @@ const taggedNewestFirst = (items, playerId) =>
 // The player's own photos first, then team images they're tagged in.
 const images = computed(() => [
   ...(player.value?.images ?? []).map((i) => ({ key: `p${i.id}`, url: i.url, alt: player.value.name })),
-  ...taggedImages.value.map((i) => ({ key: `t${i.id}`, url: i.url, alt: i.title })),
+  ...taggedImages.value.map((i) => ({ key: `t${i.id}`, url: i.url, alt: i.title || player.value.name })),
 ])
 
 // API roster order (number, then name), the same order RosterView renders: deliberately not re-sorted.
@@ -106,6 +106,7 @@ watch(() => route.params.id, load, { immediate: true })
 
 <template>
   <section class="space-y-6">
+    <h1 v-if="loading || !player" class="sr-only">שחקן</h1>
     <div v-if="loading" class="card flex flex-col items-center gap-4 sm:flex-row sm:gap-8" aria-busy="true">
       <div class="skeleton size-28 rounded-full sm:size-40" />
       <div class="space-y-3">

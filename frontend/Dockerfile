@@ -9,6 +9,7 @@ COPY . .
 # After npm ci so the deps cache survives. Vite inlines VITE_* from the process env.
 ARG VITE_SENTRY_DSN
 ARG VITE_HOME_SLIDE_MS
+ARG VITE_CONTACT_EMAIL
 ARG SOURCE_COMMIT
 ENV VITE_SENTRY_RELEASE=$SOURCE_COMMIT
 RUN npm run build

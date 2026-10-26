@@ -1,7 +1,8 @@
 <script setup>
 import AppIcon from './AppIcon.vue'
 
-defineProps({ video: { type: Object, required: true } })
+// level: the heading level, so a card nests under whatever heading its page has
+defineProps({ video: { type: Object, required: true }, level: { type: Number, default: 3 } })
 
 function youtubeId(url) {
   try {
@@ -30,6 +31,6 @@ function youtubeId(url) {
       class="aspect-video w-full rounded-2xl border-0 bg-black"
     ></iframe>
     <a v-else :href="video.url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">{{ video.title }}<AppIcon name="external" /></a>
-    <h3 v-if="youtubeId(video.url)" class="font-bold">{{ video.title }}</h3>
+    <component :is="'h' + level" v-if="youtubeId(video.url)" class="font-bold">{{ video.title }}</component>
   </article>
 </template>

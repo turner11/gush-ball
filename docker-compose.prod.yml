@@ -58,6 +58,7 @@ services:
         SOURCE_COMMIT: ${SOURCE_COMMIT:-}
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
         VITE_HOME_SLIDE_MS: ${VITE_HOME_SLIDE_MS:-}
+        VITE_CONTACT_EMAIL: ${VITE_CONTACT_EMAIL:-}
     restart: unless-stopped
     logging: *logging
     # No published ports: Coolify's proxy routes the domain to this container's port 80 and

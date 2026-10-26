@@ -21,6 +21,12 @@ describe('HomeSlideshow', () => {
     expect(mountIt([img(1, { hidden_from_home: true })]).find('section').exists()).toBe(false)
   })
 
+  it('an untitled image gets a fallback alt and button label', () => {
+    const w = mountIt([img(1, { title: '' })])
+    expect(w.find('img[alt="תמונה של הקבוצה"]').exists()).toBe(true)
+    expect(w.find('button').attributes('aria-label')).toBe('הגדלת תמונה: תמונה של הקבוצה')
+  })
+
   it('keeps newer days first and shuffles only within a day', () => {
     const images = [
       img(4, { created_at: '2026-05-02T10:00:00Z' }),

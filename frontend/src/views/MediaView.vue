@@ -97,7 +97,7 @@ const tabs = [
           <div class="skeleton h-32" />
         </div>
         <ul v-else-if="videos.length" class="grid gap-6 sm:grid-cols-2">
-          <li v-for="video in videos" :key="video.id"><VideoCard :video="video" /></li>
+          <li v-for="video in videos" :key="video.id"><VideoCard :video="video" :level="2" /></li>
         </ul>
         <p v-else class="empty-state">אין סרטונים עדיין.</p>
       </TabsContent>

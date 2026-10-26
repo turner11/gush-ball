@@ -201,8 +201,8 @@ describe('router auth guard', () => {
   it('every public route except not-found/login/reset has a description; not-found is noindex', async () => {
     const { default: router } = await import('./index.js')
 
-    // club: ClubView sets its own title/description/JSON-LD
-    const skip = ['not-found', 'admin-login', 'admin-reset-password', 'admin-signup', 'admin-verify-email', 'join', 'account', 'club']
+    // club, accessibility: the view sets its own title/description/JSON-LD
+    const skip = ['not-found', 'admin-login', 'admin-reset-password', 'admin-signup', 'admin-verify-email', 'join', 'account', 'club', 'accessibility']
     const publicRoutes = router.getRoutes().filter((r) => !r.meta.requiresAuth && !r.redirect && !skip.includes(r.name))
     expect(publicRoutes.length).toBeGreaterThan(0)
     for (const r of publicRoutes) {

@@ -65,6 +65,7 @@ describe('DefaultLayout', () => {
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
         { path: '/teams', name: 'teams', component: { template: '<div/>' } },
         { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
+        { path: '/accessibility', name: 'accessibility', component: { template: '<div/>' }, meta: { title: 'הצהרת נגישות' } },
         { path: '/join', name: 'join', component: { template: '<div/>' } },
         { path: '/account', name: 'account', component: { template: '<div/>' } },
         { path: '/admin/login', name: 'admin-login', component: { template: '<div/>' } },
@@ -105,6 +106,31 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     expect(wrapper.find('header a[href="/teams"]').attributes('aria-label')).toBe('כל הקבוצות')
+  })
+
+  it('footer links to the accessibility statement', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a/schedule')
+    await flushPromises()
+
+    const link = wrapper.find('footer a')
+    expect(link.attributes('href')).toBe('/accessibility')
+    expect(link.text()).toBe('הצהרת נגישות')
+  })
+
+  it('the accessibility statement keeps its own title once teams load', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+    await router.push('/accessibility')
+    document.title = 'הצהרת נגישות' // what the view sets
+
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    mount(DefaultLayout, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(document.title).toBe('הצהרת נגישות')
   })
 
   it('teams icon stays visible on desktop when no team is selected', async () => {
@@ -674,16 +700,6 @@ describe('DefaultLayout', () => {
 
     expect(brand.find('img[src="/logo.jpg"]').exists()).toBe(true)
     expect(brand.text()).toContain('קבוצה ב')
-  })
-
-  it('has no footer', async () => {
-    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
-
-    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
-    const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
-    await flushPromises()
-
-    expect(wrapper.find('footer').exists()).toBe(false)
   })
 
   it('hero renders only on home routes, outside the sticky header', async () => {
