@@ -236,7 +236,7 @@ def _roll_league(db: Session, team: Team, league_ids: list[int]) -> None:
 def _resolve_opponent(db: Session, data: dict[str, Any]) -> Opponent:
     name = html.unescape(data["title"]["rendered"])
     opponent = get_or_create_opponent(db, name)
-    opponent.source_url = http_url_or_none(data["link"])  # the link is the source id: newest published link wins
+    opponent.source_url = ibasketball_url_or_none(data["link"])  # the link is the source id: newest published link wins
     if opponent.logo_url is None:
         media = data.get("_embedded", {}).get("wp:featuredmedia") or []
         opponent.logo_url = http_url_or_none(media[0]["source_url"]) if media else None

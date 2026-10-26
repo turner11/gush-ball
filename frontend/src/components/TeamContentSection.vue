@@ -169,6 +169,7 @@ onMounted(load)
           :id="`${resource}-${field.key}`"
           v-model="form[field.key]"
           :required="field.required"
+          :maxlength="field.maxlength"
           class="field-input"
         />
         <input

@@ -24,7 +24,8 @@ async function add() {
     title.value = ''
     url.value = ''
   } catch (e) {
-    error.value = e.status === 422 ? 'קישור יוטיוב לא תקין (youtube.com / youtu.be)' : 'שגיאה בהוספת סרטון, נסה שוב'
+    if (e.status === 409) error.value = e.message
+    else error.value = e.status === 422 ? 'קישור יוטיוב לא תקין (youtube.com / youtu.be)' : 'שגיאה בהוספת סרטון, נסה שוב'
   } finally {
     adding.value = false
   }

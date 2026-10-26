@@ -68,6 +68,11 @@ def test_create_play_with_file_url_and_with_link(admin_client: TestClient, own_t
     assert [p["title"] for p in admin_client.get(_plays(own_team)).json()] == ["A", "B"]
 
 
+def test_play_notes_capped(admin_client: TestClient, own_team: Team) -> None:
+    response = admin_client.post(_plays(own_team), json={"title": "A", "url": LINK, "notes": "x" * 2001})
+    assert response.status_code == 422
+
+
 @pytest.mark.parametrize("sources", [{"file_url": FILE, "url": LINK}, {}])
 def test_create_play_requires_exactly_one_source(sources, admin_client: TestClient, own_team: Team) -> None:
     assert admin_client.post(_plays(own_team), json={"title": "A", **sources}).status_code == 422

@@ -98,7 +98,7 @@ async function save() {
 
     <div>
       <label for="game-description" class="field-label">תיאור</label>
-      <textarea id="game-description" v-model="form.description" class="field-input"></textarea>
+      <textarea id="game-description" v-model="form.description" maxlength="2000" class="field-input"></textarea>
     </div>
 
     <slot />

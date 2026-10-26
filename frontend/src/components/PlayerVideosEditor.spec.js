@@ -41,6 +41,15 @@ describe('PlayerVideosEditor', () => {
     expect(wrapper.emitted('change')[0][0]).toEqual([])
   })
 
+  it('shows the server message on 409 (video cap)', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 409, json: async () => ({ detail: 'עד 20' }) }))
+    const wrapper = mountEditor()
+    await fillAndAdd(wrapper)
+
+    expect(wrapper.find('[role="alert"]').text()).toContain('עד 20')
+    expect(wrapper.emitted('change')).toBeUndefined()
+  })
+
   it('shows the YouTube-only error on 422 and emits nothing', async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 422, json: async () => ({}) }))
     const wrapper = mountEditor()

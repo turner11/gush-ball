@@ -436,3 +436,11 @@ def test_reorder_posts_rejects_foreign_or_missing_ids(admin_client: TestClient, 
     foreign = admin_client.post(f"/teams/{other.id}/posts", json={"title": "x", "body": "x"}).json()["id"]
     for ids in ([a], [a, foreign], [a, a, b], [a, b, foreign]):
         assert admin_client.put(f"{path}/order", json=ids).status_code == 422
+
+
+@pytest.mark.parametrize("posts_path", ["/teams/{team}/posts", "/clubs/{club}/posts"], indirect=True)
+def test_post_body_capped(admin_client: TestClient, posts_path: str) -> None:
+    assert admin_client.post(posts_path, json={"title": "t", "body": "x" * 20001}).status_code == 422
+    created = admin_client.post(posts_path, json={"title": "t", "body": "x" * 20000})
+    assert created.status_code == 201
+    assert admin_client.patch(f"{posts_path}/{created.json()['id']}", json={"body_en": "x" * 20001}).status_code == 422

@@ -23,6 +23,7 @@ router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
 club_router = APIRouter(prefix="/games", tags=["games"])
 MAX_CLUB_WINDOW_DAYS = 31
 
+Description = Annotated[str | None, Field(max_length=2000)]
 OpponentName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 
 
@@ -33,7 +34,7 @@ class GameCreate(BaseModel):
     status: GameStatus = GameStatus.SCHEDULED
     team_score: int | None = None
     opponent_score: int | None = None
-    description: str | None = None
+    description: Description = None
 
 
 class GameUpdate(BaseModel):
@@ -44,7 +45,7 @@ class GameUpdate(BaseModel):
     status: GameStatus = None
     team_score: int | None = None
     opponent_score: int | None = None
-    description: str | None = None
+    description: Description = None
     stats_url: str | None = None
 
 

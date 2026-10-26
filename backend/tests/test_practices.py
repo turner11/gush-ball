@@ -42,6 +42,12 @@ def test_create_practice_weekly_creates_one_row_per_week(admin_client, own_team)
     assert len(admin_client.get(_url(own_team)).json()) == 3
 
 
+def test_practice_notes_capped(admin_client, own_team) -> None:
+    response = admin_client.post(_url(own_team), json={"starts_at": "2026-03-20T18:00:00", "notes": "x" * 2001})
+
+    assert response.status_code == 422
+
+
 def test_create_practice_single_returns_list_of_one(admin_client, own_team) -> None:
     response = admin_client.post(_url(own_team), json={"starts_at": "2026-03-20T18:00:00", "location": "Gym"})
 

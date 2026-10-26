@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
-from pydantic import BaseModel, ConfigDict, HttpUrl, model_validator
+from pydantic import BaseModel, ConfigDict, HttpUrl, StringConstraints, model_validator
 from sqlalchemy.orm import Session
 
 from app.db import Base
@@ -106,12 +106,16 @@ class TeamImageOut(TitledUrlOut):
     hidden_from_home: bool
 
 
+PostBody = Annotated[str, StringConstraints(max_length=20000)]
+Notes = Annotated[str, StringConstraints(max_length=2000)]
+
+
 # Team and club posts share their schemas; `sort_order` is only ever set via `PUT .../order`.
 class PostCreate(BaseModel):
     title: str
     title_en: str | None = None
-    body: str
-    body_en: str | None = None
+    body: PostBody
+    body_en: PostBody | None = None
     pinned: bool = False
 
 
@@ -119,8 +123,8 @@ class PostUpdate(BaseModel):
     # omitted = unchanged; null -> 422 (NOT NULL column)
     title: str = None
     title_en: str | None = None
-    body: str = None
-    body_en: str | None = None
+    body: PostBody = None
+    body_en: PostBody | None = None
     pinned: bool = None
 
 
@@ -170,7 +174,7 @@ class ClubImageOut(BaseModel):
 class TeamPlayCreate(BaseModel):
     title: str
     title_en: str | None = None
-    notes: str | None = None
+    notes: Notes | None = None
     file_url: HttpUrl | None = None
     url: HttpUrl | None = None
 
@@ -185,7 +189,7 @@ class TeamPlayUpdate(BaseModel):
     # omitted = unchanged; null -> 422 (NOT NULL column)
     title: str = None
     title_en: str | None = None
-    notes: str | None = None
+    notes: Notes | None = None
     file_url: HttpUrl | None = None
     url: HttpUrl | None = None
 

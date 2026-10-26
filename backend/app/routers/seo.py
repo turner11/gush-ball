@@ -94,7 +94,7 @@ def _page_tags(db: DbSession, path: str) -> tuple[str, str, str | None] | None:
         return _title(f"{title} · {team.name}", team.name_en), description.format(team=team.name), team.logo_url
     if len(parts) == 3 and parts[1] == "games" and parts[2].isdigit():
         game = db.get(Game, int(parts[2]))
-        if game is None or game.team_id != team.id:
+        if game is None or game.team_id != team.id or game.needs_review:
             return None
         opponent = db.get(Opponent, game.opponent_id)
         scored = game.status == GameStatus.FINAL and game.team_score is not None and game.opponent_score is not None

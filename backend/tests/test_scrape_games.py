@@ -1190,6 +1190,20 @@ def test_sync_drops_non_http_opponent_link_and_logo(
     assert db_session.query(Game).filter_by(source_event_id=9002).one()
 
 
+def test_sync_drops_non_ibasketball_opponent_link(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, page_calls: list[str]
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setitem(OPPONENT_DETAIL, "link", "https://evil.example/team/x/")
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FINAL_EVENT_AWAY]))
+
+    scrape_games.sync_team_games(db_session, team)
+
+    assert db_session.query(Opponent).one().source_url is None
+    assert "https://evil.example/team/x/" not in page_calls
+    assert db_session.query(Game).filter_by(source_event_id=9002).one()
+
+
 def test_sync_ignores_non_http_club_link(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     team = _make_team(db_session)
     bad_club = CLUB_HTML.replace(CLUB_URL, "javascript:alert(1)")

@@ -44,7 +44,9 @@ jobs:
         env:
           DB: ${{ job.services.db.id }}
         run: |
-          docker exec -i "$DB" pg_restore -U gush_ball -d gush_ball --no-owner --exit-on-error < newest.dump
+          # stderr stays out of the log: this repo is public and Postgres DETAIL lines quote row values.
+          docker exec -i "$DB" pg_restore -U gush_ball -d gush_ball --no-owner --exit-on-error < newest.dump 2> restore.err \
+            || { echo "::error::restore failed ($(wc -l < restore.err) error lines, not printed: public logs)"; exit 1; }
           teams=$(docker exec "$DB" psql -U gush_ball -d gush_ball -tAc 'select count(*) from teams')
           games=$(docker exec "$DB" psql -U gush_ball -d gush_ball -tAc 'select count(*) from games')
           echo "restored: $teams teams, $games games"
