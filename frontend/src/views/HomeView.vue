@@ -119,6 +119,7 @@ function firstPathSegment(url) {
 const instagramUsername = computed(() => firstPathSegment(team.value?.instagram_url))
 const twitterHandle = computed(() => firstPathSegment(team.value?.twitter_url))
 
+const showAside = computed(() => hasSocial.value || canEdit.value)
 const hasSocial = computed(() => {
   const t = team.value
   return !!(t && (t.facebook_url || t.instagram_url || t.youtube_url || t.tiktok_url || t.twitter_url || t.wikipedia_url))
@@ -143,7 +144,7 @@ const hasSocialEmbed = computed(
 
   <section v-else-if="team" class="space-y-10 sm:space-y-14">
     <!-- side-by-side only from lg; a fixed 20rem aside keeps the embeds secondary to the content -->
-    <div class="grid gap-12" :class="{ 'lg:grid-cols-[1fr_20rem]': hasSocial }">
+    <div class="grid gap-12" :class="{ 'lg:grid-cols-[1fr_20rem]': showAside }">
       <!-- min-w-0: without it the player carousel's width stretches this track and overflows the page -->
       <div class="min-w-0 space-y-10 sm:space-y-14">
         <div v-if="nextGame || lastGame" class="grid gap-3 sm:gap-4" :class="{ 'sm:grid-cols-2': !lone }">
@@ -246,7 +247,8 @@ const hasSocialEmbed = computed(
         <HomeSlideshow :key="team.id" :images="images" :media-to="base + '/media'" />
       </div>
 
-      <aside v-if="hasSocial" class="min-w-0 space-y-4">
+      <aside v-if="showAside" class="min-w-0 space-y-4">
+        <template v-if="hasSocial">
         <div class="flex flex-wrap gap-2">
           <a v-if="team.facebook_url" :href="team.facebook_url" target="_blank" rel="noopener" class="btn-secondary">פייסבוק</a>
           <a v-if="team.instagram_url" :href="team.instagram_url" target="_blank" rel="noopener" class="btn-secondary">אינסטגרם</a>
@@ -286,6 +288,14 @@ const hasSocialEmbed = computed(
               class="h-[400px] w-full rounded-2xl border border-line"
             ></iframe>
           </div>
+        </section>
+        </template>
+        <section v-else class="space-y-2">
+          <div class="section-header">
+            <h2 class="section-title">ברשתות</h2>
+            <RouterLink :to="{ name: 'admin-team-edit', params: { id: team.id }, hash: '#social' }" class="btn-secondary">הוספת רשתות</RouterLink>
+          </div>
+          <p class="empty-state">אין קישורים לרשתות חברתיות עדיין.</p>
         </section>
       </aside>
     </div>

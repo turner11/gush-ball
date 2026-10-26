@@ -42,6 +42,7 @@ const GROUPS = [
   },
   { legend: 'מיתוג', fields: [{ key: 'logo_url', label: 'כתובת לוגו', type: 'url' }] },
   {
+    id: 'social',
     legend: 'רשתות חברתיות',
     fields: [
       { key: 'facebook_url', label: 'פייסבוק', type: 'url', hint: 'הפוסטים מוצגים רק מדף פייסבוק ציבורי, ללא הגבלת גיל או מדינה.' },

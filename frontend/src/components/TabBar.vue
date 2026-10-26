@@ -20,7 +20,7 @@ defineProps({ items: { type: Array, required: true } })
           exact-active-class="tab-active"
           :class="{ 'tab-active': item.current }"
           v-bind="item.current ? { 'aria-current': 'true' } : {}"
-          class="relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold text-muted [&.tab-active]:text-ink [&.tab-active]:after:absolute [&.tab-active]:after:top-0 [&.tab-active]:after:h-[3px] [&.tab-active]:after:w-8 [&.tab-active]:after:rounded-b-full [&.tab-active]:after:bg-team"
+          class="relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold text-muted [&.tab-active]:text-ink [&.tab-active]:after:absolute [&.tab-active]:after:top-0 [&.tab-active]:after:h-[3px] [&.tab-active]:after:w-8 [&.tab-active]:after:rounded-b-full [&.tab-active]:after:bg-current"
         >
           <AppIcon :name="item.icon" />
           <span>{{ item.label }}</span>
