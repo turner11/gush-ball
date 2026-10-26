@@ -134,6 +134,7 @@ async function onDeleteConfirmed() {
     <p v-else class="empty-state">אין מנהלים עדיין.</p>
 
     <ConfirmDialog
+      confirm-label="הסרה"
       :open="pendingDelete !== null"
       message="להסיר את הרשאת הניהול? החשבון עצמו לא יימחק."
       @update:open="(value) => !value && (pendingDelete = null)"

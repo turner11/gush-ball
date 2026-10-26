@@ -227,6 +227,7 @@ const hasPlayers = computed(() => players.value?.length > 0)
     </div>
 
     <ConfirmDialog
+      confirm-label="מחיקה"
       v-model:open="confirmingDelete"
       message="למחוק את החשבון לצמיתות? החברויות שלך יימחקו והקישור לשחקנים יוסר. שם המשתמש יישאר בהיסטוריית השינויים של תוכן שערכת."
       @confirm="deleteAccount"

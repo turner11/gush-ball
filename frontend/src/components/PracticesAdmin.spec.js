@@ -74,7 +74,7 @@ describe('PracticesAdmin', () => {
     expect(dialog.text()).toContain('למחוק 2 אימונים קרובים?')
     expect(global.fetch.mock.calls.some(([, o]) => o?.method === 'DELETE')).toBe(false)
 
-    await dialog.findAll('button').find((b) => b.text() === 'אישור').trigger('click')
+    await dialog.findAll('[role="alertdialog"] button').find((b) => b.text() === 'מחיקה').trigger('click')
     await flushPromises()
 
     expect(global.fetch).toHaveBeenCalledWith('/api/teams/1/practices/upcoming', expect.objectContaining({ method: 'DELETE' }))

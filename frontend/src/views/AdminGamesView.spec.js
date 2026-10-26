@@ -234,7 +234,7 @@ describe('AdminGamesView', () => {
 
     const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחיקה')
     await deleteButton.trigger('click')
-    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
+    await body().findAll('[role="alertdialog"] button').find((b) => b.text() === 'מחיקה').trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('מכבי')

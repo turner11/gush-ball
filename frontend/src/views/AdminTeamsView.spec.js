@@ -109,7 +109,7 @@ describe('AdminTeamsView', () => {
     const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'מחיקה')
     await deleteButton.trigger('click')
 
-    const confirmButton = body().findAll('button').find((b) => b.text() === 'אישור')
+    const confirmButton = body().findAll('[role="alertdialog"] button').find((b) => b.text() === 'מחיקה')
     await confirmButton.trigger('click')
     await flushPromises()
 
@@ -152,7 +152,7 @@ describe('AdminTeamsView', () => {
     await flushPromises()
 
     await wrapper.findAll('button').find((b) => b.text() === 'מחיקה').trigger('click')
-    await body().findAll('button').find((b) => b.text() === 'אישור').trigger('click')
+    await body().findAll('[role="alertdialog"] button').find((b) => b.text() === 'מחיקה').trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('קבוצה א')
