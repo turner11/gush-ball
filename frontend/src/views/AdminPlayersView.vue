@@ -127,7 +127,7 @@ async function onDelete(player) {
     await apiFetch(`/teams/${selectedTeamId.value}/players/${player.id}`, { method: 'DELETE' })
     players.value = players.value.filter((p) => p.id !== player.id)
   } catch {
-    error.value = 'שגיאה במחיקת השחקן, נסה שוב'
+    error.value = 'שגיאה במחיקת השחקן, נסו שוב'
   }
 }
 
@@ -140,7 +140,7 @@ async function toggleDeleted() {
   try {
     deletedPlayers.value = await apiFetch(`/teams/${selectedTeamId.value}/players/deleted`)
   } catch {
-    error.value = 'שגיאה בטעינת השחקנים שנמחקו, נסה שוב'
+    error.value = 'שגיאה בטעינת השחקנים שנמחקו, נסו שוב'
   }
 }
 
@@ -153,7 +153,7 @@ async function onRestore(player) {
     deletedPlayers.value = deletedPlayers.value.filter((p) => p.id !== player.id)
     players.value.push(restored)
   } catch {
-    error.value = 'שגיאה בשחזור השחקן, נסה שוב'
+    error.value = 'שגיאה בשחזור השחקן, נסו שוב'
   }
 }
 
@@ -166,7 +166,7 @@ async function addImage(player) {
     player.images.push(image)
     newImageUrl.value[player.id] = ''
   } catch {
-    error.value = 'שגיאה בהוספת תמונה, נסה שוב'
+    error.value = 'שגיאה בהוספת תמונה, נסו שוב'
   }
 }
 
@@ -176,7 +176,7 @@ async function deleteImage(player, image) {
     await apiFetch(`/players/${player.id}/images/${image.id}`, { method: 'DELETE' })
     player.images = player.images.filter((i) => i.id !== image.id)
   } catch {
-    error.value = 'שגיאה במחיקת התמונה, נסה שוב'
+    error.value = 'שגיאה במחיקת התמונה, נסו שוב'
   }
 }
 </script>

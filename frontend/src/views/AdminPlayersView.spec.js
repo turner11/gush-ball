@@ -329,7 +329,7 @@ describe('AdminPlayersView', () => {
     await addImageButton.trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('שגיאה בהוספת תמונה, נסה שוב')
+    expect(wrapper.text()).toContain('שגיאה בהוספת תמונה, נסו שוב')
     expect(wrapper.findAll('li')).toHaveLength(0)
   })
 

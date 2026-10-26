@@ -74,6 +74,6 @@ describe('PasswordResetView', () => {
 
     const text = wrapper.find('[role="alert"]').text()
     expect(text).toContain('אינו זמין')
-    expect(text).not.toContain('נסה שוב')
+    expect(text).not.toContain('נסו שוב')
   })
 })

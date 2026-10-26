@@ -87,7 +87,7 @@ async function loadRows() {
       apiFetch('/teams').catch(() => []), // fail-soft: only the sort and the sync button need it
     ])
   } catch {
-    loadError.value = 'שגיאה בטעינת הטבלה, נסה שוב'
+    loadError.value = 'שגיאה בטעינת הטבלה, נסו שוב'
   } finally {
     loading.value = false
   }
@@ -152,7 +152,7 @@ async function onSubmit() {
     selectedLeague.value = payload.league_name
     resetForm()
   } catch {
-    error.value = 'שגיאה בשמירת השורה, נסה שוב'
+    error.value = 'שגיאה בשמירת השורה, נסו שוב'
   }
 }
 
@@ -163,7 +163,7 @@ async function onDelete(row) {
     await apiFetch(`/standings/${row.id}`, { method: 'DELETE' })
     rows.value = rows.value.filter((r) => r.id !== row.id)
   } catch {
-    error.value = 'שגיאה במחיקת השורה, נסה שוב'
+    error.value = 'שגיאה במחיקת השורה, נסו שוב'
   }
 }
 </script>

@@ -31,7 +31,7 @@ async function save() {
     })
     emit('saved', { ...updated, images: props.player.images, videos: props.player.videos })
   } catch {
-    error.value = 'שגיאה בשמירת הפרופיל, נסה שוב'
+    error.value = 'שגיאה בשמירת הפרופיל, נסו שוב'
   } finally {
     saving.value = false
   }
@@ -43,7 +43,7 @@ async function addImage(url) {
     const image = await apiFetch(`/players/${props.player.id}/images`, { method: 'POST', body: { url } })
     emit('saved', { ...props.player, images: [...props.player.images, image] })
   } catch {
-    error.value = 'שגיאה בהוספת תמונה, נסה שוב'
+    error.value = 'שגיאה בהוספת תמונה, נסו שוב'
   }
 }
 
@@ -53,7 +53,7 @@ async function removeImage(image) {
     await apiFetch(`/players/${props.player.id}/images/${image.id}`, { method: 'DELETE' })
     emit('saved', { ...props.player, images: props.player.images.filter((i) => i.id !== image.id) })
   } catch {
-    error.value = 'שגיאה במחיקת התמונה, נסה שוב'
+    error.value = 'שגיאה במחיקת התמונה, נסו שוב'
   }
 }
 </script>

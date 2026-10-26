@@ -50,7 +50,7 @@ async function save() {
     }
     emit('saved', saved)
   } catch {
-    error.value = 'שגיאה בשמירת המשחק, נסה שוב'
+    error.value = 'שגיאה בשמירת המשחק, נסו שוב'
   } finally {
     saving.value = false
   }

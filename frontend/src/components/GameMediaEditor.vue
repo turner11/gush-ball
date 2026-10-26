@@ -46,7 +46,7 @@ async function onSubmit() {
     justSaved.value = true
   } catch (e) {
     saveError.value =
-      e.status === 422 ? 'יש שדה לא תקין (קישור או אורך טקסט)' : e.status === 403 ? 'אין הרשאה' : 'שגיאה בשמירת המדיה, נסה שוב'
+      e.status === 422 ? 'יש שדה לא תקין (קישור או אורך טקסט)' : e.status === 403 ? 'אין הרשאה' : 'שגיאה בשמירת המדיה, נסו שוב'
   } finally {
     saving.value = false
   }
@@ -58,7 +58,7 @@ async function onSubmit() {
     <div class="skeleton h-11" />
     <div class="skeleton h-11" />
   </div>
-  <p v-else-if="loadError" class="error-text" role="alert">שגיאה בטעינת המשחק, נסה שוב</p>
+  <p v-else-if="loadError" class="error-text" role="alert">שגיאה בטעינת המשחק, נסו שוב</p>
   <form v-else class="space-y-6" @submit.prevent="onSubmit">
     <fieldset class="space-y-3">
       <legend class="section-title">סרטונים</legend>

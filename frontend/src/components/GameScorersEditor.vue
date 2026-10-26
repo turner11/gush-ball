@@ -53,7 +53,7 @@ async function onSubmit() {
     emit('saved', await apiFetch(`/teams/${props.teamId}/games/${props.gameId}/scorers`, { method: 'PUT', body }))
     justSaved.value = true
   } catch (e) {
-    saveError.value = e.status === 422 ? 'נקודות לא תקינות (0 עד 200)' : 'שגיאה בשמירת הקלעים, נסה שוב'
+    saveError.value = e.status === 422 ? 'נקודות לא תקינות (0 עד 200)' : 'שגיאה בשמירת הקלעים, נסו שוב'
   } finally {
     saving.value = false
   }
@@ -65,7 +65,7 @@ async function onSubmit() {
     <div class="skeleton h-11" />
     <div class="skeleton h-11" />
   </div>
-  <p v-else-if="loadError" class="error-text" role="alert">שגיאה בטעינת הסגל, נסה שוב</p>
+  <p v-else-if="loadError" class="error-text" role="alert">שגיאה בטעינת הסגל, נסו שוב</p>
   <div v-else-if="!rows.length" class="empty-state space-y-2">
     <p>אין שחקנים בסגל.</p>
     <RouterLink :to="{ name: 'admin-players', params: { slug: route.params.slug } }" class="section-link">לניהול השחקנים</RouterLink>

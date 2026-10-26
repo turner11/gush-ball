@@ -28,7 +28,7 @@ export const clubAdmin = (club) => !!club && !!user.value?.clubs?.includes(club)
 // UI gate for the club-management pages: a full admin or the admin of at least one club.
 export const managesClubs = computed(() => fullAdmin.value || !!user.value?.clubs?.length)
 
-const CONNECTION_ERROR = 'שגיאת התחברות, נסה שוב'
+const CONNECTION_ERROR = 'שגיאת התחברות, נסו שוב'
 
 // A team or club admin only sees their own teams in admin pickers (the server enforces the real scope).
 // Ordered like every team list: member teams, then admin teams, then favourites, then by name. Returns a new array.
@@ -78,7 +78,7 @@ export function useAuth() {
       user.value = null
       previewMode.value = null
     } catch {
-      error.value = 'שגיאת התנתקות, נסה שוב'
+      error.value = 'שגיאת התנתקות, נסו שוב'
     }
   }
 
