@@ -11,11 +11,15 @@ const row = (league_name, team_name, played, points_for, points_against) => ({ i
 const ROWS = [row('B', 'הפועל עבר', 2, 10, 10), row('A', 'קבוצה א', 3, 220, 200), row('A', 'הפועל עבר', 2, 150, 130)]
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
-function mockFetch(games, rows) {
-  global.fetch = vi.fn((url) => Promise.resolve(ok(url === '/api/standings' ? rows : games)))
+const failed = { ok: false, status: 502, json: async () => ({}) }
+function mockFetch(games, rows, oppResults = []) {
+  global.fetch = vi.fn((url) => {
+    if (url === '/api/teams/1/games/9/opponent-results') return Promise.resolve(oppResults === null ? failed : ok(oppResults))
+    return Promise.resolve(ok(url === '/api/standings' ? rows : games))
+  })
 }
 async function mountIt() {
-  const wrapper = mount(GameAverages, { props: { team: TEAM, opponent: OPP } })
+  const wrapper = mount(GameAverages, { props: { team: TEAM, opponent: OPP, gameId: 9 } })
   await flushPromises()
   return wrapper
 }
@@ -29,6 +33,21 @@ describe('GameAverages', () => {
     const text = wrapper.find('table').text()
     for (const v of ['73.3', '66.7', '85.0', '50.0', '75.0', '65.0']) expect(text).toContain(v)
     expect(wrapper.findAll('tbody tr')[0].findAll('td')[1].text()).toBe('75.0') // league B's 5.0 is ignored
+  })
+
+  it("shows the opponent's averages in wins and losses from its results", async () => {
+    mockFetch(GAMES, ROWS, [game(80, 70, 1), game(90, 60, 2), game(50, 70, 3)])
+    const cells = (await mountIt()).findAll('tbody tr').map((tr) => tr.findAll('td')[1].text())
+    expect(cells.slice(2)).toEqual(['85.0 (2 מש׳)', '65.0 (2 מש׳)', '50.0 (1 מש׳)', '70.0 (1 מש׳)'])
+  })
+
+  it('keeps our averages and dashes the opponent split when its results fail', async () => {
+    mockFetch(GAMES, ROWS, null)
+    const wrapper = await mountIt()
+    expect(wrapper.findAll('tbody tr')[2].findAll('td')[0].text()).toContain('85.0')
+    expect(wrapper.findAll('tbody tr')[2].findAll('td')[1].text()).toBe('—')
+    expect(wrapper.text()).toContain('לא זמין כרגע')
+    expect(wrapper.text()).not.toContain('שגיאה בטעינת הממוצעים')
   })
 
   it('dashes the opponent and explains when it has no standings row', async () => {
