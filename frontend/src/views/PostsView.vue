@@ -55,7 +55,7 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
     <TeamContentSection v-else-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.posts" />
     <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
     <div v-else-if="posts.length" class="space-y-6">
-      <PostCard v-for="post in posts" :key="post.id" :post="post" />
+      <PostCard v-for="post in posts" :key="post.id" :post="post" :level="2" />
     </div>
     <p v-else class="empty-state">אין עדכונים עדיין.</p>
   </section>

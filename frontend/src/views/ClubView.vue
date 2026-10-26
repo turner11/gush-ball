@@ -139,6 +139,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
 
 <template>
   <section class="space-y-6">
+    <h1 v-if="!club" class="sr-only">מועדון</h1>
     <div v-if="loading" class="space-y-3" aria-busy="true">
       <div class="skeleton h-12" />
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">

@@ -86,7 +86,7 @@ describe('MediaView', () => {
   it('shows videos newest first on the videos tab', async () => {
     const wrapper = await mountView()
     await openTab(wrapper, 'סרטונים')
-    expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['חדש', 'אמצע', 'ישן'])
+    expect(wrapper.findAll('article h2').map((h) => h.text())).toEqual(['חדש', 'אמצע', 'ישן'])
   })
 
   it('keeps the API order for images on the default tab and never fetches posts', async () => {
