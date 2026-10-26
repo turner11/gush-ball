@@ -102,9 +102,8 @@ onMounted(load)
 
 <template>
   <section class="card space-y-3">
-    <div class="section-header">
+    <div v-if="heading" class="section-header">
       <h2 class="section-title">{{ heading }}</h2>
-      <slot name="actions" />
     </div>
 
     <div v-if="loading" class="space-y-2" aria-hidden="true">

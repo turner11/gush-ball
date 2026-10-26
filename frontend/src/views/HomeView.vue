@@ -173,23 +173,10 @@ const hasSocialEmbed = computed(
           <p v-else class="empty-state">עוד אין טקסט על הקבוצה.</p>
         </section>
 
-        <TeamContentSection v-if="editingPosts" id="home-posts-editor" :key="team.id" :owner-id="team.id" v-bind="CONTENT_SECTIONS.posts">
-          <template #actions>
-            <button
-              v-if="canEdit"
-              ref="postsToggle"
-              type="button"
-              class="btn-secondary"
-              aria-controls="home-posts-editor"
-              :aria-expanded="editingPosts"
-              @click="togglePosts"
-            >{{ editingPosts ? 'סיום עריכה' : 'עריכת עדכונים' }}</button>
-          </template>
-        </TeamContentSection>
-        <section v-else-if="topPost || canEdit" class="space-y-3">
+        <section v-if="topPost || canEdit" class="space-y-3">
           <div class="section-header">
             <h2 class="section-title">עדכונים</h2>
-            <RouterLink v-if="topPost" :to="base + '/media'" class="section-link">כל העדכונים</RouterLink>
+            <RouterLink v-if="topPost && !editingPosts" :to="base + '/media'" class="section-link">כל העדכונים</RouterLink>
             <button
               v-if="canEdit"
               ref="postsToggle"
@@ -200,7 +187,8 @@ const hasSocialEmbed = computed(
               @click="togglePosts"
             >{{ editingPosts ? 'סיום עריכה' : 'עריכת עדכונים' }}</button>
           </div>
-          <PostCard v-if="topPost" :post="topPost" clamp />
+          <TeamContentSection v-if="editingPosts" id="home-posts-editor" :key="team.id" :owner-id="team.id" v-bind="CONTENT_SECTIONS.posts" heading="" />
+          <PostCard v-else-if="topPost" :post="topPost" clamp />
           <p v-else class="empty-state">אין עדכונים עדיין.</p>
         </section>
 
