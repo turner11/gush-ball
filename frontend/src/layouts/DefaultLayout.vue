@@ -88,7 +88,7 @@ watch([selectedTeam, clubPath, () => route.path, () => route.name], () => {
   const noindex = route.meta.noindex
   setMeta('robots', noindex ? 'noindex' : null)
   setCanonical(noindex ? null : location.origin + route.path)
-  if (['club', 'accessibility'].includes(route.name)) return // these views own the title, description and JSON-LD
+  if (['club', 'accessibility', 'about'].includes(route.name)) return // these views own the title, description and JSON-LD
   const team = selectedTeam.value
   if (!team) return
   setMeta('description', route.meta.description?.(team.name))
@@ -288,7 +288,8 @@ onMounted(async () => {
     </main>
 
     <!-- carries the TabBar clearance, so the last content and this link both sit above the fixed bar -->
-    <footer class="mx-auto w-full max-w-6xl border-t border-line px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-6">
+    <footer class="mx-auto w-full max-w-6xl border-t border-line px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-6 flex flex-wrap gap-x-6">
+      <RouterLink :to="{ name: 'about' }" class="section-link">אודות</RouterLink>
       <RouterLink :to="{ name: 'accessibility' }" class="section-link">הצהרת נגישות</RouterLink>
     </footer>
 

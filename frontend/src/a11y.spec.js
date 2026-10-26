@@ -76,6 +76,7 @@ describe('accessibility (IS 5568 AA)', () => {
 
   it.each([
     '/accessibility',
+    '/about',
     '/team_a',
     '/team_a/schedule',
     '/team_a/games/1',
