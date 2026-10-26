@@ -76,7 +76,7 @@ onMounted(async () => {
       <h1 class="page-title">אזור ניהול</h1>
       <RouterLink to="/account" class="section-link">החשבון שלי</RouterLink>
     </div>
-    <nav class="grid grid-cols-2 gap-3" :class="!fullAdmin && managesClubs ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
+    <nav class="grid grid-cols-2 gap-3 max-lg:[&>:last-child:nth-child(odd)]:col-span-2" :class="!fullAdmin && managesClubs ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
       <RouterLink :to="base + '/admin/players'" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
         <span class="block font-extrabold">ניהול שחקנים</span>
@@ -100,7 +100,7 @@ onMounted(async () => {
       <RouterLink
         v-if="managesClubs"
         :to="{ name: 'admin-clubs' }"
-        class="card col-span-2 space-y-2 transition hover:border-team lg:col-span-1"
+        class="card space-y-2 transition hover:border-team"
       >
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="shield" /></span>
         <span class="block font-extrabold">ניהול מועדונים</span>
@@ -109,7 +109,7 @@ onMounted(async () => {
       <RouterLink
         v-if="fullAdmin"
         :to="{ name: 'admin-users' }"
-        class="card col-span-2 space-y-2 transition hover:border-team lg:col-span-1"
+        class="card space-y-2 transition hover:border-team"
       >
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="user" /></span>
         <span class="block font-extrabold">ניהול משתמשים</span>
@@ -118,7 +118,7 @@ onMounted(async () => {
       <RouterLink
         v-if="fullAdmin"
         :to="{ name: 'admin-audit' }"
-        class="card col-span-2 space-y-2 transition hover:border-team lg:col-span-1"
+        class="card space-y-2 transition hover:border-team"
       >
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="history" /></span>
         <span class="block font-extrabold">יומן שינויים</span>
