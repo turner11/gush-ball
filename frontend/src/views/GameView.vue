@@ -32,14 +32,20 @@ const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = us
 const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.images?.length))
 const address = computed(() => gameAddress(game.value, team.value))
 
+const saved = ref(null) // 'scorers' | 'media': which save to confirm (the editor unmounts on save)
+watch(editingScorers, (open) => open && (saved.value = null))
+watch(editingMedia, (open) => open && (saved.value = null))
+
 function onScorersSaved(list) {
   game.value.scorers = list
+  saved.value = 'scorers'
   toggleScorers()
 }
 
 function onMediaSaved(media) {
   game.value.videos = media.videos
   game.value.images = media.images
+  saved.value = 'media'
   toggleMedia()
 }
 
@@ -118,8 +124,9 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
     </section>
 
     <section v-if="game.scorers?.length || canEdit" class="card space-y-3">
-      <div class="section-header">
+      <div class="section-header flex-wrap">
         <h2 class="section-title">קלעים</h2>
+        <p v-if="canEdit" aria-live="polite" data-test="scorers-saved" class="ms-auto text-sm text-muted">{{ saved === 'scorers' ? 'הקלעים נשמרו' : '' }}</p>
         <button
           v-if="canEdit"
           ref="scorersToggle"
@@ -149,8 +156,9 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
     </section>
 
     <section v-if="hasMedia || canEdit" class="card space-y-3">
-      <div class="section-header">
+      <div class="section-header flex-wrap">
         <h2 class="section-title">מדיה</h2>
+        <p v-if="canEdit" aria-live="polite" data-test="media-saved" class="ms-auto text-sm text-muted">{{ saved === 'media' ? 'המדיה נשמרה' : '' }}</p>
         <button
           v-if="canEdit"
           ref="mediaToggle"
