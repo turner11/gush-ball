@@ -17,6 +17,7 @@ import httpx
 import numpy as np
 from bbstats import http_url_or_none
 from bs4 import BeautifulSoup
+from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -35,6 +36,7 @@ from app.models import (
     get_or_create_club,
     get_or_create_opponent,
 )
+from app.storage import upload_file
 
 BASE = "https://ibasketball.co.il/wp-json"
 IBASKETBALL_HOSTS = {"ibasketball.co.il", "www.ibasketball.co.il"}
@@ -54,9 +56,10 @@ NO_IMAGE_MARKER = "player-no-image"  # ibasketball's m-/f- silhouette; not a rea
 
 log = logging.getLogger(__name__)
 
-# ponytail: calibration knobs for the avatar framing; NULL player_images.focus_x to re-detect after tuning
+# ponytail: calibration knobs for the avatar framing; NULL player_images.avatar_url to re-detect after tuning
 FACE_SHARE = 0.5  # face width as a fraction of the circle
 MAX_ZOOM = 3.0
+AVATAR_PX = 400  # copy size: the circle is <= 160 CSS px, so this stays sharp up to DPR 2.5
 HAIR_SHIFT = 0.1  # centre moves up by this fraction of face height so hair is framed
 _CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
@@ -124,6 +127,31 @@ def _largest_face(gray) -> tuple[int, int, int, int] | None:
     if len(faces) == 0:
         return None
     return tuple(int(v) for v in max(faces, key=lambda f: f[2] * f[3]))
+
+
+def avatar_crop(data: bytes, focus: tuple[float, float, float]) -> bytes | None:
+    """WebP of the square window the CSS circle shows for `focus`, area-downsampled (the browser's one-step
+    shrink of a 1080 px photo is what looks grainy); None if undecodable."""
+    if not data:
+        return None
+    raw = np.frombuffer(data, np.uint8)
+    img = cv2.imdecode(raw, cv2.IMREAD_UNCHANGED)
+    if img is None:
+        return None
+    if img.ndim != 3 or img.shape[2] != 4:  # decode again for colour: applies EXIF rotation like the browser
+        img = cv2.imdecode(raw, cv2.IMREAD_COLOR)
+        if img is None:
+            return None
+    fx, fy, zoom = focus
+    h, w = img.shape[:2]
+    side = min(w, h) / zoom
+    x0 = round(fx / 100 * (w - side))
+    y0 = round(fy / 100 * (h - side))
+    size = max(1, min(AVATAR_PX, round(side)))
+    window = img[y0 : y0 + round(side), x0 : x0 + round(side)]
+    square = cv2.resize(window, (size, size), interpolation=cv2.INTER_AREA)
+    ok, webp = cv2.imencode(".webp", square, [cv2.IMWRITE_WEBP_QUALITY, 85])
+    return webp.tobytes() if ok else None
 
 
 def face_focus(data: bytes) -> tuple[float, float, float]:
@@ -597,7 +625,7 @@ def sync_team_players(db: Session, team: Team) -> int:
         .where(
             Player.team_id == team.id,
             Player.deleted_at.is_(None),
-            PlayerImage.focus_x.is_(None),
+            PlayerImage.avatar_url.is_(None),
         )
     ).all()
     for image in unfocused:
@@ -610,8 +638,20 @@ def sync_team_players(db: Session, team: Team) -> int:
             log.warning("Could not fetch player image %s", image.url, exc_info=True)
             continue
         x, y, zoom = face_focus(data)
+        crop = avatar_crop(data, (x, y, zoom))
+        avatar_url = image.url  # no copy possible (undecodable/oversized): stored so it isn't refetched nightly
+        if crop is not None:
+            try:
+                avatar_url = upload_file(crop, "image/webp")
+            except HTTPException:
+                log.warning("Could not store avatar copy of player image %s (%s)", image.id, image.url, exc_info=True)
+                continue  # row stays NULL, retried next sync
         # Core UPDATE: a row set-main (#557) deleted mid-fetch matches 0 rows instead of failing the team's sync
-        db.execute(update(PlayerImage).where(PlayerImage.id == image.id).values(focus_x=x, focus_y=y, zoom=zoom))
+        db.execute(
+            update(PlayerImage)
+            .where(PlayerImage.id == image.id)
+            .values(focus_x=x, focus_y=y, zoom=zoom, avatar_url=avatar_url)
+        )
 
     db.commit()
     return count

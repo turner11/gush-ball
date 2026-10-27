@@ -1518,3 +1518,117 @@ def test_sync_without_current_league_falls_back_to_unscoped_feed(
     assert event_params == [{"teams": OUR_SP_ID, "per_page": 100}]
     assert db_session.query(Game).count() == 1
     assert any(r.levelname == "WARNING" and team.slug in r.getMessage() for r in caplog.records)
+
+
+def _png(img: np.ndarray) -> bytes:
+    return cv2.imencode(".png", img)[1].tobytes()
+
+
+def _decode_webp(data: bytes) -> np.ndarray:
+    return cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_UNCHANGED)
+
+
+def test_avatar_crop_frames_the_focus_window() -> None:
+    img = np.full((1600, 800, 3), (0, 0, 255), np.uint8)
+    img[300:700, 200:600] = (255, 0, 0)  # focus (50, 25, 2.0): side 400 at x 200, y 300
+
+    out = _decode_webp(scrape_games.avatar_crop(_png(img), (50.0, 25.0, 2.0)))
+
+    assert out.shape == (400, 400, 3)
+    assert out.reshape(-1, 3).mean(axis=0)[0] > 240  # all blue (BGR), no red border
+
+
+def test_avatar_crop_keeps_alpha_and_never_upscales() -> None:
+    img = np.full((300, 300, 4), 200, np.uint8)
+
+    out = _decode_webp(scrape_games.avatar_crop(_png(img), (50.0, 0.0, 1.0)))
+
+    assert out.shape == (300, 300, 4)
+
+
+def test_avatar_crop_rejects_undecodable() -> None:
+    assert scrape_games.avatar_crop(b"", (50.0, 0.0, 1.0)) is None
+    assert scrape_games.avatar_crop(b"not an image", (50.0, 0.0, 1.0)) is None
+
+
+def _avatar_setup(db_session: Session, monkeypatch: pytest.MonkeyPatch, crop, upload):
+    monkeypatch.setattr(settings, "object_storage_public_url", "https://cdn")
+    team = _make_team(db_session)
+    player = Player(team_id=team.id, name="איתי ורולקר")
+    player.images.append(PlayerImage(url="https://cdn/admin.png"))
+    db_session.add(player)
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+    fetched: list[str] = []
+    monkeypatch.setattr(scrape_games, "_get_image", lambda url: fetched.append(url) or b"x")
+    monkeypatch.setattr(scrape_games, "face_focus", lambda data: (40.0, 30.0, 1.5))
+    monkeypatch.setattr(scrape_games, "avatar_crop", crop)
+    monkeypatch.setattr(scrape_games, "upload_file", upload)
+    return team, fetched
+
+
+def _avatars(db: Session) -> dict[str, str | None]:
+    return {i.url: i.avatar_url for i in db.query(PlayerImage)}
+
+
+def test_sync_team_players_stores_avatar_copy_once(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    uploads: list[tuple] = []
+
+    def upload(data: bytes, content_type: str) -> str:
+        uploads.append((data, content_type))
+        return "https://cdn/av.webp"
+
+    team, fetched = _avatar_setup(db_session, monkeypatch, lambda d, f: b"w", upload)
+
+    scrape_games.sync_team_players(db_session, team)
+
+    assert set(_avatars(db_session).values()) == {"https://cdn/av.webp"}
+    assert {u[1] for u in uploads} == {"image/webp"}
+    scrape_games.sync_team_players(db_session, team)
+    assert len(fetched) == 2
+
+
+def test_sync_team_players_backfills_avatar_for_already_focused_image(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team, fetched = _avatar_setup(
+        db_session, monkeypatch, lambda d, f: b"w", lambda d, c: "https://cdn/av.webp"
+    )
+    for image in db_session.query(PlayerImage):
+        image.focus_x, image.focus_y, image.zoom = 1.0, 2.0, 1.0
+    db_session.commit()
+
+    scrape_games.sync_team_players(db_session, team)
+
+    assert _avatars(db_session)["https://cdn/admin.png"] == "https://cdn/av.webp"
+    assert "https://cdn/admin.png" in fetched
+
+
+def test_sync_team_players_avatar_falls_back_to_url_when_uncroppable(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team, fetched = _avatar_setup(db_session, monkeypatch, lambda d, f: None, lambda d, c: "unused")
+
+    scrape_games.sync_team_players(db_session, team)
+    scrape_games.sync_team_players(db_session, team)
+
+    assert _avatars(db_session)["https://cdn/admin.png"] == "https://cdn/admin.png"
+    assert len(fetched) == 2
+
+
+def test_sync_team_players_avatar_upload_failure_retries(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fastapi import HTTPException
+
+    def upload(data: bytes, content_type: str) -> str:
+        raise HTTPException(status_code=502)
+
+    team, fetched = _avatar_setup(db_session, monkeypatch, lambda d, f: b"w", upload)
+
+    scrape_games.sync_team_players(db_session, team)
+    assert set(_avatars(db_session).values()) == {None}
+    scrape_games.sync_team_players(db_session, team)
+    assert len(fetched) == 4

@@ -13,7 +13,7 @@ import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { gameDayLabel, scoringByPlayer } from '../lib/games'
 import { pageTitle, playerJsonLd, setJsonLd } from '../lib/head'
-import { DEFAULT_PLAYER_PHOTO, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
+import { DEFAULT_PLAYER_PHOTO, avatarImg, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
 
 const route = useRoute()
 const editing = ref(false)
@@ -119,10 +119,9 @@ watch(() => route.params.id, load, { immediate: true })
       <header class="card flex flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:gap-8 sm:text-start">
         <div class="size-28 shrink-0 overflow-hidden rounded-full ring-4 ring-sunken sm:size-40">
           <img
-            :src="avatar?.url || DEFAULT_PLAYER_PHOTO"
+            v-bind="avatarImg(avatar)"
             alt=""
             data-testid="player-avatar"
-            :style="focusStyle(avatar)"
             class="size-full object-cover object-top"
             @error="onPlayerImgError"
           />

@@ -45,6 +45,8 @@ class PlayerImage(Base):
     focus_x: Mapped[float | None] = mapped_column(default=None)
     focus_y: Mapped[float | None] = mapped_column(default=None)
     zoom: Mapped[float | None] = mapped_column(default=None)
+    # Square face-framed copy for the round avatar (#568); NULL = not made yet; equals `url` when no copy could be made.
+    avatar_url: Mapped[str | None] = mapped_column(String(500), default=None)
 
     player: Mapped["Player"] = relationship(back_populates="images")
 

@@ -100,6 +100,7 @@ class PlayerImageOut(BaseModel):
     focus_x: float | None
     focus_y: float | None
     zoom: float | None
+    avatar_url: str | None
 
 
 class PlayerVideoCreate(BaseModel):
@@ -347,7 +348,16 @@ def set_main_player_image(player_id: int, image_id: int, db: DbSession, user: Re
         db.delete(row)
     db.flush()
     for row in before:
-        db.add(PlayerImage(player_id=player_id, url=row.url, focus_x=row.focus_x, focus_y=row.focus_y, zoom=row.zoom))
+        db.add(
+            PlayerImage(
+                player_id=player_id,
+                url=row.url,
+                focus_x=row.focus_x,
+                focus_y=row.focus_y,
+                zoom=row.zoom,
+                avatar_url=row.avatar_url,
+            )
+        )
     db.commit()
     db.refresh(player)
     return player.images

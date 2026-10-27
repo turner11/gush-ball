@@ -111,6 +111,14 @@ describe('PlayerView', () => {
     expect(avatar.attributes('style')).toContain('transform: scale(1.5)')
   })
 
+  it('hero avatar prefers the avatar copy', async () => {
+    withPlayer({ images: [{ id: 1, url: '/a.jpg', avatar_url: '/a.webp', focus_x: 50, focus_y: 40.5, zoom: 1.5 }] })
+    const avatar = (await mountAt('/players/3')).find('[data-testid="player-avatar"]')
+
+    expect(avatar.attributes('src')).toBe('/a.webp')
+    expect(avatar.attributes('style')).toBeUndefined()
+  })
+
   it('hero avatar falls back to the default photo when the player has none', async () => {
     withPlayer({ images: [] })
     const avatar = (await mountAt('/players/3')).find('[data-testid="player-avatar"]')
