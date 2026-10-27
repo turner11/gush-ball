@@ -1,7 +1,7 @@
 """add player_images.avatar_url
 
 Revision ID: ac415b0924e4
-Revises: 6dcf2bfde023
+Revises: b10ab3d448d0
 Create Date: 2026-10-27 15:07:05.817878
 
 """
@@ -14,7 +14,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "ac415b0924e4"
-down_revision: str | Sequence[str] | None = "6dcf2bfde023"
+down_revision: str | Sequence[str] | None = "b10ab3d448d0"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
