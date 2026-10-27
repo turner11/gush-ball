@@ -101,13 +101,15 @@ async function onDeleteConfirmed() {
 }
 
 const games = ref([])
-onMounted(async () => {
-  if (props.fields.some((f) => f.type === 'game')) {
-    // a failed fetch leaves only "ללא משחק" in the picker
-    games.value = (await apiFetch(`/teams/${props.ownerId}/games`).catch(() => null)) ?? []
+const gamesFailed = ref(false)
+async function loadGames() {
+  try {
+    games.value = (await apiFetch(`/teams/${props.ownerId}/games`)) ?? []
+  } catch {
+    gamesFailed.value = true // the picker keeps only "ללא משחק"
   }
-  await load()
-})
+}
+onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && loadGames(), load()]))
 </script>
 
 <template>
@@ -187,6 +189,7 @@ onMounted(async () => {
             <option :value="null">ללא משחק</option>
             <option v-for="g in games" :key="g.id" :value="g.id">{{ formatDateTime(g.scheduled_at) }} · {{ g.opponent.name }}</option>
           </select>
+          <p v-if="gamesFailed" class="mt-1 text-sm text-muted">טעינת המשחקים נכשלה</p>
         </template>
         <template v-else>
         <label :for="`${resource}-${field.key}`" class="field-label">

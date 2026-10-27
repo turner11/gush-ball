@@ -338,6 +338,7 @@ describe('TeamContentSection', () => {
       await flushPromises()
       return wrapper
     }
+    const importSection = async () => (await import('./TeamContentSection.vue')).default
     const bodyOf = (method) => JSON.parse(global.fetch.mock.calls.find(([, o]) => o?.method === method)[1].body)
 
     it('lists the team games and posts the chosen game_id', async () => {
@@ -350,6 +351,16 @@ describe('TeamContentSection', () => {
       await w.find('form').trigger('submit')
       await flushPromises()
       expect(bodyOf('POST')).toEqual({ title: 'כותרת', game_id: 7 })
+    })
+
+    it('fetches posts and games in parallel, and says so when the games fail', async () => {
+      const w = await mountPosts([], { 'GET /api/teams/1/games': () => Promise.reject(new Error('down')) })
+      expect(w.text()).toContain('טעינת המשחקים נכשלה')
+      expect(w.findAll('#posts-game_id option')).toHaveLength(1)
+      const mounted = mount(await importSection(), { props: { ownerId: 1, resource: 'posts', heading: 'x', fields: POST_FIELDS } })
+      const urls = global.fetch.mock.calls.slice(-2).map(([u]) => u)
+      expect(urls).toEqual(expect.arrayContaining(['/api/teams/1/posts', '/api/teams/1/games']))
+      mounted.unmount()
     })
 
     it('sends null when ללא משחק is chosen on edit, and the list label omits the id', async () => {

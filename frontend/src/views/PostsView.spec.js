@@ -42,8 +42,8 @@ describe('PostsView', () => {
 
   it('scrolls to the #post-<id> card once the posts have loaded', async () => {
     mockRoute.hash = '#post-2'
-    const scrollIntoView = vi.fn()
-    Element.prototype.scrollIntoView = scrollIntoView
+    Element.prototype.scrollIntoView ??= () => {} // jsdom lacks it; spyOn needs it to exist
+    const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {})
     const wrapper = await mountView()
     mockRoute.hash = ''
     expect(scrollIntoView).toHaveBeenCalledTimes(1)

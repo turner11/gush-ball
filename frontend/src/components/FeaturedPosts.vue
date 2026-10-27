@@ -34,14 +34,13 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <section v-if="current" aria-roledescription="carousel" aria-label="עדכונים נבחרים" class="min-w-0 rounded-2xl bg-team p-6 text-on-team shadow-card sm:p-10">
+  <section v-if="current" aria-roledescription="carousel" aria-label="עדכונים נבחרים" :aria-live="rotating ? 'off' : 'polite'" class="min-w-0 rounded-2xl bg-team p-6 text-on-team shadow-card sm:p-10">
     <Transition name="flash" mode="out-in">
       <div
         :key="current.post.id"
         role="group"
         aria-roledescription="slide"
         :aria-label="`${index + 1} מתוך ${items.length}`"
-        :aria-live="rotating ? 'off' : 'polite'"
         class="flex min-h-56 flex-col items-start justify-end gap-3 sm:min-h-64"
       >
         <p v-if="current.label" class="text-sm font-bold">{{ current.label }}</p>

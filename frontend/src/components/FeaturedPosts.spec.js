@@ -44,6 +44,14 @@ describe('FeaturedPosts', () => {
     expect(title(w)).toBe('כותרת 2')
   })
 
+  it('keeps aria-live on the persistent carousel, not the re-inserted slide', async () => {
+    const w = mountIt([item(1), item(2)])
+    expect(w.find('section').attributes('aria-live')).toBe('off')
+    await w.find('button[aria-label="השהיית החלפת העדכונים"]').trigger('click')
+    expect(w.find('section').attributes('aria-live')).toBe('polite')
+    expect(w.find('[role="group"]').attributes('aria-live')).toBeUndefined()
+  })
+
   it('one item has no dots, pause or rotation', () => {
     const w = mountIt([item(1)])
     expect(dots(w)).toHaveLength(0)
