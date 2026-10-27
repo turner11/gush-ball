@@ -30,4 +30,14 @@ describe('AboutView', () => {
     expect(w.find('a[href^="mailto:"]').exists()).toBe(false)
     expect(w.text()).toContain('כתובת ליצירת קשר תפורסם כאן בקרוב')
   })
+
+  it("removes a team page's leftover JSON-LD", () => {
+    const ld = document.createElement('script')
+    ld.type = 'application/ld+json'
+    ld.setAttribute('data-page', '')
+    document.head.appendChild(ld)
+    mountView()
+
+    expect(document.head.querySelector('script[data-page]')).toBeNull()
+  })
 })

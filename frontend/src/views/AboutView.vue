@@ -1,10 +1,11 @@
 <script setup>
-import { pageTitle, setMeta } from '../lib/head'
+import { pageTitle, setJsonLd, setMeta } from '../lib/head'
 
 const contactEmail = import.meta.env.VITE_CONTACT_EMAIL
 
 document.title = pageTitle('אודות')
 setMeta('description', 'GushBall: אתר כדורסל לכל קבוצה בליגות איגוד הכדורסל: משחקים, תוצאות, טבלה ושחקנים. מי אנחנו, מאיפה הנתונים ואיך יוצרים קשר.')
+setJsonLd(null) // drop a team page's SportsTeam block left over from SPA navigation
 </script>
 
 <template>
