@@ -7,7 +7,7 @@ member-only (#439); the other lists are public. Posts and plays are reorderable 
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
@@ -144,17 +144,20 @@ class PostOut(BaseModel):
 class TeamPostCreate(PostCreate):
     game_id: int | None = None
     image_url: HttpUrl | None = None
+    expires_on: date | None = None
 
 
 class TeamPostUpdate(PostUpdate):
     game_id: int | None = None  # null clears the link
     image_url: HttpUrl | None = None  # null clears the background
+    expires_on: date | None = None  # null clears
 
 
 class TeamPostOut(PostOut):
     team_id: int
     game_id: int | None
     image_url: str | None
+    expires_on: date | None
     created_at: datetime | None
 
 

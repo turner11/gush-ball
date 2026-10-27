@@ -286,6 +286,30 @@ describe('TeamContentSection', () => {
     expect(JSON.parse(post[1].body)).toEqual({ title: 'חדש', pinned: true })
   })
 
+  it('date field shows "עד d.m.y" or a פג תוקף badge, never the raw date (#569)', async () => {
+    const fields = [
+      { key: 'title', label: 'כותרת', type: 'text', required: true },
+      { key: 'expires_on', label: 'מוצג בדף הבית עד', type: 'date', nullable: true },
+    ]
+    mockFetch({
+      'GET /api/teams/1/posts': () =>
+        jsonRes([
+          { id: 1, title: 'עתידי', expires_on: '2999-11-01' },
+          { id: 2, title: 'ישן', expires_on: '2000-01-01' },
+        ]),
+    })
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const wrapper = mount(TeamContentSection, {
+      props: { ownerId: 1, resource: 'posts', heading: 'עדכונים', fields },
+    })
+    await flushPromises()
+
+    const [live, expired] = wrapper.findAll('li')
+    expect(live.find('.badge').text()).toBe('עד 01.11.2999')
+    expect(live.text()).not.toContain('2999-11-01')
+    expect(expired.find('.badge').text()).toBe('פג תוקף')
+  })
+
   it('owner="clubs" lists and creates against /api/clubs/:id/:resource', async () => {
     mockFetch({
       'GET /api/clubs/5/posts': () => jsonRes([]),

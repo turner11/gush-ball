@@ -1,7 +1,7 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String, Text, false
+from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, String, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -81,6 +81,8 @@ class TeamPost(_PostColumns, Base):
     game_id: Mapped[int | None] = mapped_column(ForeignKey("games.id", ondelete="SET NULL"), default=None)
     # Background of the post's home hero slide (#562); an upload or any image URL.
     image_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    # Last day the post shows on the home page (#569); NULL = never expires.
+    expires_on: Mapped[date | None] = mapped_column(Date, default=None)
     # NULL for posts added before the audit log: no date is invented, so they never count as recent.
     created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 

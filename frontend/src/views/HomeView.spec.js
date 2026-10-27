@@ -417,6 +417,17 @@ describe('HomeView', () => {
     expect(wrapper.text()).not.toContain('פוסט 1')
   })
 
+  it('never shows an expired post in the hero or the posts section', async () => {
+    const wrapper = await mountWithTeam(TEAM, {
+      posts: [
+        { id: 1, team_id: 1, title: 'פג תוקף', body: 'x', expires_on: '2000-01-01' },
+        { id: 2, team_id: 1, title: 'בתוקף', body: 'x', expires_on: null },
+      ],
+    })
+    expect(wrapper.text()).toContain('בתוקף')
+    expect(wrapper.text()).not.toContain('פג תוקף')
+  })
+
   it('the hero shows the pinned post over a newer one', async () => {
     const post = (id, pinned) => ({ id, team_id: 1, title: `פוסט ${id}`, body: 'x', pinned })
     const wrapper = await mountWithTeam(TEAM, { posts: [post(1, true), post(2, false)] })

@@ -63,6 +63,7 @@ export const CONTENT_SECTIONS = {
       ...POST_FIELDS,
       { key: 'game_id', label: 'קשור למשחק', type: 'game' },
       { key: 'image_url', label: 'תמונת רקע (לא חובה)', type: 'url', upload: true, preview: true, nullable: true },
+      { key: 'expires_on', label: 'מוצג בדף הבית עד (לא חובה)', type: 'date', nullable: true },
     ],
   },
   plays: {

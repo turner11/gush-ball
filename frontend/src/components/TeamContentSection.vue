@@ -3,6 +3,7 @@ import { nextTick, onMounted, reactive, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
+import { isExpired } from '../lib/posts'
 import { useTeamContent } from '../composables/useTeamContent'
 import AppIcon from './AppIcon.vue'
 import ImageUpload from './ImageUpload.vue'
@@ -52,7 +53,7 @@ async function onEdit(item) {
 }
 
 function itemLabel(item) {
-  return props.fields.filter((f) => !['players', 'checkbox', 'game'].includes(f.type)).map((f) => item[f.key]).filter(Boolean).join(' — ')
+  return props.fields.filter((f) => !['players', 'checkbox', 'game', 'date'].includes(f.type)).map((f) => item[f.key]).filter(Boolean).join(' — ')
 }
 
 async function onSubmit() {
@@ -138,6 +139,10 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
           <span class="min-w-0 truncate">{{ itemLabel(item) }}</span>
           <template v-for="f in fields" :key="f.key">
             <span v-if="f.type === 'checkbox' && item[f.key]" class="badge badge-muted shrink-0">{{ f.label }}</span>
+            <template v-else-if="f.type === 'date' && item[f.key]">
+              <span v-if="isExpired({ expires_on: item[f.key] })" class="badge badge-loss shrink-0">פג תוקף</span>
+              <span v-else class="badge badge-muted shrink-0">עד {{ item[f.key].split('-').reverse().join('.') }}</span>
+            </template>
           </template>
         </span>
         <span class="inline-flex shrink-0 gap-1">
