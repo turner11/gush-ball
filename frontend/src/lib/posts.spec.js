@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { featuredPosts } from './posts'
+import { featuredPosts, homePosts } from './posts'
 
 const NOW = new Date('2026-10-27T12:00:00Z')
 const day = (n) => new Date(NOW.getTime() - n * 86400000).toISOString()
@@ -35,5 +35,18 @@ describe('featuredPosts', () => {
 
   it('is empty without posts', () => {
     expect(featuredPosts([], next, last, NOW)).toEqual([])
+  })
+})
+
+describe('homePosts', () => {
+  it('drops posts whose expires_on is before today; today and unset stay, in order', () => {
+    const posts = [
+      post(1, { expires_on: '2026-10-26' }),
+      post(2, { expires_on: '2026-10-27' }),
+      post(3, { expires_on: '2026-10-28' }),
+      post(4, { expires_on: null }),
+      post(5),
+    ]
+    expect(homePosts(posts, NOW).map((p) => p.id)).toEqual([2, 3, 4, 5])
   })
 })

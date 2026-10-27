@@ -489,6 +489,17 @@ def test_post_image_url_set_and_cleared_with_null(admin_client: TestClient, team
     assert patched.json()["image_url"] is None
 
 
+def test_post_expires_on_set_and_cleared_with_null(admin_client: TestClient, team: Team) -> None:
+    base = f"/teams/{team.id}/posts"
+    assert admin_client.post(base, json={"title": "t", "body": "x"}).json()["expires_on"] is None
+    created = admin_client.post(base, json={"title": "t", "body": "x", "expires_on": "2026-11-01"})
+    assert created.status_code == 201
+    assert created.json()["expires_on"] == "2026-11-01"
+    patched = admin_client.patch(f"{base}/{created.json()['id']}", json={"expires_on": None})
+    assert patched.status_code == 200
+    assert patched.json()["expires_on"] is None
+
+
 def test_post_rejects_non_url_image(admin_client: TestClient, team: Team) -> None:
     assert admin_client.post(f"/teams/{team.id}/posts", json={"title": "t", "body": "x", "image_url": "not a url"}).status_code == 422
 
