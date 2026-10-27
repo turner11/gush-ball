@@ -9,7 +9,6 @@ import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
-from html import unescape
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
@@ -130,7 +129,7 @@ def _iframe_src(value):
     match = _IFRAME_SRC.search(value)
     if not match:
         raise ValueError("Paste a link or an <iframe> embed code")
-    return unescape(match.group(1) or match.group(2))
+    return (match.group(1) or match.group(2)).replace("&amp;", "&")  # not html.unescape: it decodes &copy, &not without ";"
 
 
 PlayUrl = Annotated[HttpUrl, BeforeValidator(_iframe_src)]

@@ -82,13 +82,24 @@ SNIPPET_URL = (
 )
 
 
-def test_create_play_from_iframe_snippet(admin_client: TestClient, own_team: Team) -> None:
-    response = admin_client.post(_plays(own_team), json={"title": "A", "url": SNIPPET})
+LEGACY = "https://example.com/e?a=1&notes=1&copy=2&region=il"
+
+
+@pytest.mark.parametrize(
+    ("snippet", "stored"),
+    [
+        (SNIPPET, SNIPPET_URL),
+        (f'<iframe src="{LEGACY}"></iframe>', LEGACY),  # no ";" so never an entity in an attribute
+        (f'<iframe src="{LEGACY.replace("&", "&amp;")}"></iframe>', LEGACY),
+    ],
+)
+def test_create_play_from_iframe_snippet(snippet, stored, admin_client: TestClient, own_team: Team) -> None:
+    response = admin_client.post(_plays(own_team), json={"title": "A", "url": snippet})
     assert response.status_code == 201
-    assert response.json()["url"] == SNIPPET_URL
+    assert response.json()["url"] == stored
 
 
-@pytest.mark.parametrize("bad", ["<div>hi</div>", '<iframe src="javascript:alert(1)"></iframe>', "<script>alert(1)</script>"])
+@pytest.mark.parametrize("bad", ["<div>hi</div>", '<iframe src="javascript:alert(1)"></iframe>', '<iframe src="&#106;avascript:alert(1)"></iframe>', "<script>alert(1)</script>"])
 def test_play_url_rejects_bad_markup(bad, admin_client: TestClient, own_team: Team) -> None:
     assert admin_client.post(_plays(own_team), json={"title": "A", "url": bad}).status_code == 422
 
