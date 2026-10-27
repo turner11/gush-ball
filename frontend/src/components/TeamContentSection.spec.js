@@ -355,11 +355,14 @@ describe('TeamContentSection', () => {
 
     it('fetches posts and games in parallel, and says so when the games fail', async () => {
       const w = await mountPosts([], { 'GET /api/teams/1/games': () => Promise.reject(new Error('down')) })
-      expect(w.text()).toContain('טעינת המשחקים נכשלה')
+      expect(w.get('#posts-game_id').attributes('aria-describedby')).toBe('posts-game_id-error')
+      expect(w.get('#posts-game_id-error').text()).toBe('טעינת המשחקים נכשלה')
       expect(w.findAll('#posts-game_id option')).toHaveLength(1)
-      const mounted = mount(await importSection(), { props: { ownerId: 1, resource: 'posts', heading: 'x', fields: POST_FIELDS } })
-      const urls = global.fetch.mock.calls.slice(-2).map(([u]) => u)
-      expect(urls).toEqual(expect.arrayContaining(['/api/teams/1/posts', '/api/teams/1/games']))
+      const Section = await importSection()
+      global.fetch.mockClear()
+      // no flush: sequential loading would only have fired the posts fetch by now
+      const mounted = mount(Section, { props: { ownerId: 1, resource: 'posts', heading: 'x', fields: POST_FIELDS } })
+      expect(global.fetch.mock.calls.map(([u]) => u).sort()).toEqual(['/api/teams/1/games', '/api/teams/1/posts'])
       mounted.unmount()
     })
 

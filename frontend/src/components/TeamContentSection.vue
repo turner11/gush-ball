@@ -185,11 +185,11 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
         </label>
         <template v-else-if="field.type === 'game'">
           <label :for="`${resource}-${field.key}`" class="field-label">{{ field.label }}</label>
-          <select :id="`${resource}-${field.key}`" v-model="form[field.key]" class="field-input">
+          <select :id="`${resource}-${field.key}`" v-model="form[field.key]" class="field-input" :aria-describedby="gamesFailed ? `${resource}-${field.key}-error` : undefined">
             <option :value="null">ללא משחק</option>
             <option v-for="g in games" :key="g.id" :value="g.id">{{ formatDateTime(g.scheduled_at) }} · {{ g.opponent.name }}</option>
           </select>
-          <p v-if="gamesFailed" class="mt-1 text-sm text-muted">טעינת המשחקים נכשלה</p>
+          <p v-if="gamesFailed" :id="`${resource}-${field.key}-error`" class="mt-1 text-sm text-muted">טעינת המשחקים נכשלה</p>
         </template>
         <template v-else>
         <label :for="`${resource}-${field.key}`" class="field-label">
