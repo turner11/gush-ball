@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { DEFAULT_PLAYER_PHOTO, avatarImg, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
+import { avatarImg, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
 
 // `player` may be undefined (jersey not on the roster); `jersey` is then shown as #N.
 const props = defineProps({

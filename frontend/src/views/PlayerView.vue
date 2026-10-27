@@ -13,7 +13,7 @@ import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { gameDayLabel, scoringByPlayer } from '../lib/games'
 import { pageTitle, playerJsonLd, setJsonLd } from '../lib/head'
-import { DEFAULT_PLAYER_PHOTO, avatarImg, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
+import { avatarImg, onPlayerImgError } from '../lib/playerPhoto'
 
 const route = useRoute()
 const editing = ref(false)
