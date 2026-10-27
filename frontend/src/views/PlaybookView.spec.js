@@ -54,7 +54,7 @@ describe('PlaybookView', () => {
     mockFetch()
     const wrapper = await mountView()
 
-    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['GIF', 'וידאו'])
+    expect(wrapper.findAll('ul h2').map((h) => h.text())).toEqual(['GIF', 'וידאו'])
     expect(wrapper.find('a[href="https://cdn/c.pdf"]').text()).toContain('מסמך')
     expect(wrapper.findAll('li').map((a) => a.text())[3]).toContain('קישור')
     expect(wrapper.find('img[src="https://cdn/a.gif"]').attributes('alt')).toBe('GIF')
@@ -75,7 +75,30 @@ describe('PlaybookView', () => {
     expect(frame.attributes('src')).toBe(embed.url)
     expect(frame.attributes('title')).toBe('מהלך')
     expect(frame.attributes('sandbox')).toBe('allow-scripts allow-same-origin')
-    expect(wrapper.get('h2').text()).toBe('מהלך')
+    expect(wrapper.get('ul h2').text()).toBe('מהלך')
+  })
+
+  it('expands an embed play into a full-screen dialog (#577)', async () => {
+    const embed = { id: 5, title: 'מהלך', notes: null, file_url: null, url: 'https://www.thehoopsgeek.com/react-apps/PlayCreator/embed/?code=85zQytijU8&showTitle=1' }
+    mockFetch({ 'GET /api/teams/1/plays': () => jsonRes([embed]) })
+    const wrapper = await mountView()
+
+    await wrapper.get('button[aria-label="מסך מלא: מהלך"]').trigger('click')
+    const dialog = wrapper.get('dialog[aria-labelledby="embed-dialog-title"]')
+    expect(dialog.attributes('open')).toBeDefined()
+    expect(dialog.get('iframe').attributes('src')).toBe(embed.url)
+    expect(dialog.get('iframe').attributes('sandbox')).toBe('allow-scripts allow-same-origin')
+    expect(dialog.get('#embed-dialog-title').text()).toBe('מהלך')
+
+    await dialog.get('button[aria-label="סגירה"]').trigger('click')
+    expect(dialog.attributes('open')).toBeUndefined()
+    expect(dialog.find('iframe').exists()).toBe(false)
+  })
+
+  it('only embed plays get the full-screen button (#577)', async () => {
+    mockFetch()
+    const wrapper = await mountView()
+    expect(wrapper.find('button[aria-label^="מסך מלא"]').exists()).toBe(false)
   })
 
   it('links (not embeds) an allow-listed host over plain http', async () => {
@@ -92,8 +115,8 @@ describe('PlaybookView', () => {
     const wrapper = await mountView()
     expect(wrapper.find('a[href="https://cdn/a.gif"]').exists()).toBe(false)
     await wrapper.get('button[aria-label="הגדלת תמונה: GIF"]').trigger('click')
-    expect(wrapper.get('dialog').attributes('open')).toBeDefined()
-    expect(wrapper.get('dialog img').attributes('src')).toBe('https://cdn/a.gif')
+    expect(wrapper.get('dialog[aria-label="תמונה בגודל מלא"]').attributes('open')).toBeDefined()
+    expect(wrapper.get('dialog[aria-label="תמונה בגודל מלא"] img').attributes('src')).toBe('https://cdn/a.gif')
   })
 
   it('shows an empty state', async () => {
