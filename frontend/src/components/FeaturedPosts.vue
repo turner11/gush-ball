@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 
 import AppIcon from './AppIcon.vue'
 
-// The home hero (#560): up to 3 featured posts, one slide at a time, auto-advancing every 7s with dots and a pause button.
+// The home hero (#560): up to 3 featured posts (title only; a post's image_url, when set, is the slide background #562), one slide at a time, auto-advancing every 7s with dots and a pause button.
 const props = defineProps({
   items: { type: Array, required: true }, // from featuredPosts(): { post, label }
   postsTo: { type: String, required: true },
@@ -34,7 +34,13 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <section v-if="current" aria-roledescription="carousel" aria-label="עדכונים נבחרים" :aria-live="rotating ? 'off' : 'polite'" class="min-w-0 rounded-2xl bg-team p-6 text-on-team shadow-card sm:p-10">
+  <section v-if="current" aria-roledescription="carousel" aria-label="עדכונים נבחרים" :aria-live="rotating ? 'off' : 'polite'" :class="current.post.image_url ? 'bg-black text-white' : 'bg-team text-on-team'" class="relative isolate min-w-0 overflow-hidden rounded-2xl p-6 shadow-card sm:p-10">
+    <template v-if="current.post.image_url">
+      <Transition name="flash">
+        <img :key="current.post.id" :src="current.post.image_url" alt="" class="absolute inset-0 -z-10 size-full object-cover" />
+      </Transition>
+      <div class="absolute inset-0 -z-10 bg-linear-to-t from-black/85 via-black/60 to-black/25" aria-hidden="true" />
+    </template>
     <Transition name="flash" mode="out-in">
       <div
         :key="current.post.id"
@@ -45,7 +51,6 @@ onBeforeUnmount(() => clearInterval(timer))
       >
         <p v-if="current.label" class="text-sm font-bold">{{ current.label }}</p>
         <h2 class="break-words text-2xl font-black leading-tight sm:text-4xl">{{ current.post.title }}</h2>
-        <p class="line-clamp-3 max-w-prose whitespace-pre-line break-words sm:line-clamp-4">{{ current.post.body }}</p>
         <RouterLink :to="`${postsTo}#post-${current.post.id}`" class="btn-secondary">להמשך קריאה</RouterLink>
       </div>
     </Transition>
