@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import css from './style.css?raw'
 import { describe, expect, it } from 'vitest'
 
@@ -37,7 +38,8 @@ describe('design tokens', () => {
   })
 
   it('the image hover pop is the shared .image-pop class (#563)', () => {
-    const rule = css.match(/\.image-pop\s*\{[^}]*\}/)?.[0] ?? ''
+    // vitest stubs `style.css?raw` to '', so read the file directly
+    const rule = readFileSync('src/style.css', 'utf8').match(/\.image-pop\s*\{[^}]*\}/)?.[0] ?? ''
     expect(rule).toContain('hover:scale-105')
     expect(rule).toContain('motion-reduce:transition-none')
     for (const f of ['./components/HomeSlideshow.vue', './components/ImageGallery.vue', './views/PlayerView.vue'])
