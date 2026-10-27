@@ -75,7 +75,7 @@ export const CONTENT_SECTIONS = {
       { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
       { key: 'notes', label: 'הערות', type: 'textarea', maxlength: 2000 },
       { key: 'file_url', label: 'קובץ: תמונה, GIF, MP4 או PDF', type: 'url', upload: true, accept: 'image/*,video/mp4,application/pdf' },
-      { key: 'url', label: 'או קישור חיצוני (FastDraw, YouTube…)', type: 'url' },
+      { key: 'url', label: 'או קישור / קוד הטמעה (The Hoops Geek, FastDraw, YouTube…)', type: 'text' },
     ],
   },
 }

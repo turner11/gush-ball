@@ -66,6 +66,27 @@ describe('PlaybookView', () => {
     }
   })
 
+  it('embeds an allow-listed play host in a sandboxed iframe', async () => {
+    const embed = { id: 5, title: 'מהלך', notes: null, file_url: null, url: 'https://www.thehoopsgeek.com/react-apps/PlayCreator/embed/?code=85zQytijU8&showTitle=1' }
+    mockFetch({ 'GET /api/teams/1/plays': () => jsonRes([embed]) })
+    const wrapper = await mountView()
+
+    const frame = wrapper.get('iframe')
+    expect(frame.attributes('src')).toBe(embed.url)
+    expect(frame.attributes('title')).toBe('מהלך')
+    expect(frame.attributes('sandbox')).toBe('allow-scripts allow-same-origin')
+    expect(wrapper.get('h2').text()).toBe('מהלך')
+  })
+
+  it('links (not embeds) an allow-listed host over plain http', async () => {
+    const play = { id: 6, title: 'מהלך', notes: null, file_url: null, url: 'http://www.thehoopsgeek.com/react-apps/PlayCreator/embed/?code=85zQytijU8&showTitle=1' }
+    mockFetch({ 'GET /api/teams/1/plays': () => jsonRes([play]) })
+    const wrapper = await mountView()
+
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.find(`a[href="${play.url}"]`).exists()).toBe(true)
+  })
+
   it('clicking an image play opens the in-page viewer', async () => {
     mockFetch()
     const wrapper = await mountView()
