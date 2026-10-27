@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import LoadError from '../components/LoadError.vue'
 import PostCard from '../components/PostCard.vue'
@@ -13,6 +14,7 @@ import { CONTENT_SECTIONS } from '../lib/teamContent'
 const posts = ref([])
 const loading = ref(false)
 const loadError = ref(false)
+const route = useRoute()
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
@@ -34,6 +36,13 @@ async function load() {
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
+  await revealHashTarget()
+}
+
+// The router's scrollBehavior runs before the posts have loaded, so scroll to the #post-<id> card here.
+async function revealHashTarget() {
+  await nextTick()
+  if (route.hash) document.getElementById(route.hash.slice(1))?.scrollIntoView({ block: 'start' })
 }
 
 watch(selectedTeamId, load, { immediate: true })
