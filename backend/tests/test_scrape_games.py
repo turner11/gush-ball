@@ -166,7 +166,7 @@ def _make_team(db_session: Session) -> Team:
     return team
 
 
-def test_sync_creates_pending_scraped_games(
+def test_sync_publishes_new_scraped_games_by_default(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     team = _make_team(db_session)
@@ -180,7 +180,7 @@ def test_sync_creates_pending_scraped_games(
     assert [g.source_event_id for g in games] == [9001, 9002]
     for g in games:
         assert g.is_scraped is True
-        assert g.needs_review is True
+        assert g.needs_review is False
         assert g.is_manually_overridden is False
 
     future_game = games[0]
@@ -443,7 +443,7 @@ def test_resync_skips_manually_overridden_game(
     team = _make_team(db_session)
     fake = FakeApi([FUTURE_EVENT])
     monkeypatch.setattr(scrape_games, "_get_json", fake)
-    scrape_games.sync_team_games(db_session, team)
+    scrape_games.sync_team_games(db_session, team, auto_accept=False)
 
     game = db_session.query(Game).filter_by(source_event_id=9001).one()
     game.is_manually_overridden = True
@@ -615,7 +615,7 @@ def _two_teams(db_session: Session) -> None:
 def _fail_for_bad(monkeypatch: pytest.MonkeyPatch, db_session: Session, fail) -> None:
     real = scrape_games.sync_team_games
 
-    def fake(db: Session, team: Team, auto_accept: bool = False) -> int:
+    def fake(db: Session, team: Team, auto_accept: bool = True) -> int:
         if team.slug == "bad":
             return fail(db)
         return real(db, team, auto_accept)
@@ -642,6 +642,19 @@ def test_sync_all_games_continues_after_one_team_fails(
     assert errors == ["games bad: boom"]
 
 
+def test_sync_without_auto_accept_creates_pending_games(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _make_team(db_session)
+    monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT, FINAL_EVENT_AWAY]))
+
+    scrape_games.sync_team_games(db_session, team, auto_accept=False)
+
+    games = db_session.query(Game).all()
+    assert len(games) == 2
+    assert all(g.needs_review is True for g in games)
+
+
 def test_sync_auto_accept_publishes_new_games(
     db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -660,7 +673,7 @@ def test_sync_auto_accept_publishes_previously_pending_game(
 ) -> None:
     team = _make_team(db_session)
     monkeypatch.setattr(scrape_games, "_get_json", FakeApi([FUTURE_EVENT]))
-    scrape_games.sync_team_games(db_session, team)
+    scrape_games.sync_team_games(db_session, team, auto_accept=False)
     assert db_session.query(Game).one().needs_review is True
 
     scrape_games.sync_team_games(db_session, team, auto_accept=True)
@@ -675,7 +688,7 @@ def test_sync_auto_accept_never_applies_suggestion_to_overridden_game(
     team = _make_team(db_session)
     fake = FakeApi([FUTURE_EVENT])
     monkeypatch.setattr(scrape_games, "_get_json", fake)
-    scrape_games.sync_team_games(db_session, team)
+    scrape_games.sync_team_games(db_session, team, auto_accept=False)
 
     game = db_session.query(Game).filter_by(source_event_id=9001).one()
     game.is_manually_overridden = True

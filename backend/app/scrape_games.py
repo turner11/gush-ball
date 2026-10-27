@@ -313,7 +313,7 @@ def _fetch_team_events(db: Session, team: Team, sp_team: dict[str, Any]) -> list
     ]
 
 
-def sync_team_games(db: Session, team: Team, auto_accept: bool = False) -> int:
+def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
     sp_team = _sp_team(team.ibasketball_team_url)
     sp_id = sp_team["id"]
     _roll_league(db, team, sp_team.get("leagues", []))
@@ -463,7 +463,7 @@ def sync_all_games(
     db: Session,
     errors: list[str] | None = None,
     team_ids: list[int] | None = None,
-    auto_accept: bool = False,
+    auto_accept: bool = True,
 ) -> int:
     """Runs unattended (nightly cron), so one team's failure must not abort every team
     after it -- log and move on instead.
