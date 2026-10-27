@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: home-banner-from-photo
+expected_outcome: |
+  A 2400x1000 wide banner (player-banner.jpg) of the player from player.jpg with the face unchanged, centred horizontally with the face in the upper half, a yellow-and-blue arena look, no text or logo drawn into the image, a calm lower half, and a preview that shows the face clear of the title in both the desktop and phone crops. The reply suggests a post title instead of baking text in.
+context:
+  scaffold_script: place-files.sh
