@@ -331,6 +331,25 @@ def delete_player_image(
     db.commit()
 
 
+@router.post("/players/{player_id}/images/{image_id}/main", response_model=list[PlayerImageOut])
+def set_main_player_image(player_id: int, image_id: int, db: DbSession, user: RequireUser) -> list[PlayerImage]:
+    player = _get_player_or_404(db, player_id)
+    check_player_self_or_team_admin(db, user, player)
+    rows = player.images
+    chosen = next((i for i, row in enumerate(rows) if row.id == image_id), None)
+    if chosen is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+    # ponytail: main = lowest id; content moves between rows so every avatar reader and the schema stay untouched.
+    # Upgrade to a Player.main_image_id column if images ever need per-row identity (tags, captions).
+    contents = [(r.url, r.focus_x, r.focus_y, r.zoom) for r in rows]
+    contents.insert(0, contents.pop(chosen))
+    for row, content in zip(rows, contents, strict=True):
+        row.url, row.focus_x, row.focus_y, row.zoom = content
+    db.commit()
+    db.refresh(player)
+    return player.images
+
+
 @router.post(
     "/players/{player_id}/videos",
     response_model=PlayerVideoOut,

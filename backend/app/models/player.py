@@ -27,7 +27,9 @@ class Player(Base):
     user_id: Mapped[int | None] = mapped_column(ForeignKey("admin_users.id", ondelete="SET NULL"), index=True, default=None)
 
     team: Mapped["Team"] = relationship(back_populates="players")
-    images: Mapped[list["PlayerImage"]] = relationship(back_populates="player", cascade="all, delete-orphan")
+    images: Mapped[list["PlayerImage"]] = relationship(
+        back_populates="player", cascade="all, delete-orphan", order_by="PlayerImage.id"
+    )
     videos: Mapped[list["PlayerVideo"]] = relationship(
         back_populates="player", cascade="all, delete-orphan", order_by="PlayerVideo.id"
     )
