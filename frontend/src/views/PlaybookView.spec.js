@@ -153,6 +153,11 @@ describe('PlaybookView', () => {
     const frame = wrapper.get('dialog[aria-labelledby="play-dialog-title"] iframe')
     expect(frame.attributes('src')).toBe(src)
     expect(frame.attributes('sandbox')).toBeUndefined()
+    // the inline copy is blanked while the dialog plays, so two audio tracks never overlap
+    expect(wrapper.get('ul iframe').attributes('src')).toBe('about:blank')
+
+    await wrapper.get('dialog[aria-labelledby="play-dialog-title"] button[aria-label="סגירה"]').trigger('click')
+    expect(wrapper.get('ul iframe').attributes('src')).toBe(src)
   })
 
   it('links (not embeds) an allow-listed host over plain http', async () => {
