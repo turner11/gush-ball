@@ -19,7 +19,7 @@ import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { gameAddress, played, splitGames } from '../lib/games'
-import { featuredPosts } from '../lib/posts'
+import { featuredPosts, homePosts } from '../lib/posts'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const team = ref(null)
@@ -89,9 +89,10 @@ const matchCards = computed(() =>
 
 const lone = computed(() => matchCards.value.length === 1)
 
-const featured = computed(() => featuredPosts(posts.value, nextGame.value, lastGame.value))
+const shownPosts = computed(() => homePosts(posts.value))
+const featured = computed(() => featuredPosts(shownPosts.value, nextGame.value, lastGame.value))
 // The first post not already in the hero (API order: pinned first, then newest).
-const restPost = computed(() => posts.value.find((p) => !featured.value.some((f) => f.post.id === p.id)) ?? null)
+const restPost = computed(() => shownPosts.value.find((p) => !featured.value.some((f) => f.post.id === p.id)) ?? null)
 
 // ponytail: same highest-id-is-newest rule; the media page lists the rest.
 const latestVideos = computed(() => [...videos.value].sort((x, y) => y.id - x.id).slice(0, 2))
@@ -195,7 +196,7 @@ const hasSocialEmbed = computed(
           </div>
           <TeamContentSection v-if="editingPosts" id="home-posts-editor" :key="team.id" :owner-id="team.id" v-bind="CONTENT_SECTIONS.teamPosts" heading="" />
           <PostCard v-else-if="restPost" :post="restPost" clamp />
-          <p v-else-if="posts.length" class="empty-state">כל העדכונים מוצגים למעלה.</p>
+          <p v-else-if="shownPosts.length" class="empty-state">כל העדכונים מוצגים למעלה.</p>
           <p v-else class="empty-state">אין עדכונים עדיין.</p>
         </section>
 
