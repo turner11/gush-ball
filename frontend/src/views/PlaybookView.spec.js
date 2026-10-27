@@ -54,7 +54,7 @@ describe('PlaybookView', () => {
     mockFetch()
     const wrapper = await mountView()
 
-    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['GIF', 'וידאו'])
+    expect(wrapper.findAll('ul h2').map((h) => h.text())).toEqual(['GIF', 'וידאו'])
     expect(wrapper.find('a[href="https://cdn/c.pdf"]').text()).toContain('מסמך')
     expect(wrapper.findAll('li').map((a) => a.text())[3]).toContain('קישור')
     expect(wrapper.find('img[src="https://cdn/a.gif"]').attributes('alt')).toBe('GIF')
@@ -75,7 +75,89 @@ describe('PlaybookView', () => {
     expect(frame.attributes('src')).toBe(embed.url)
     expect(frame.attributes('title')).toBe('מהלך')
     expect(frame.attributes('sandbox')).toBe('allow-scripts allow-same-origin')
-    expect(wrapper.get('h2').text()).toBe('מהלך')
+    expect(wrapper.get('ul h2').text()).toBe('מהלך')
+  })
+
+  it('expands an embed play into a full-screen dialog (#577)', async () => {
+    const embed = { id: 5, title: 'מהלך', notes: null, file_url: null, url: 'https://www.thehoopsgeek.com/react-apps/PlayCreator/embed/?code=85zQytijU8&showTitle=1' }
+    mockFetch({ 'GET /api/teams/1/plays': () => jsonRes([embed]) })
+    const wrapper = await mountView()
+
+    await wrapper.get('button[aria-label="מסך מלא: מהלך"]').trigger('click')
+    const dialog = wrapper.get('dialog[aria-labelledby="play-dialog-title"]')
+    expect(dialog.attributes('open')).toBeDefined()
+    expect(dialog.get('iframe').attributes('src')).toBe(embed.url)
+    expect(dialog.get('iframe').attributes('sandbox')).toBe('allow-scripts allow-same-origin')
+    expect(dialog.get('#play-dialog-title').text()).toBe('מהלך')
+
+    await dialog.get('button[aria-label="סגירה"]').trigger('click')
+    expect(dialog.attributes('open')).toBeUndefined()
+    expect(dialog.find('iframe').exists()).toBe(false)
+  })
+
+  it('every play kind gets a full-screen control (#577)', async () => {
+    mockFetch()
+    const wrapper = await mountView()
+
+    expect(wrapper.findAll('[aria-label^="מסך מלא:"]')).toHaveLength(4)
+    for (const title of ['GIF', 'וידאו']) {
+      const button = wrapper.get(`button[aria-label="מסך מלא: ${title}"]`)
+      expect(button.attributes('aria-haspopup')).toBe('dialog')
+    }
+    for (const [title, href] of [['מסמך', 'https://cdn/c.pdf'], ['קישור', 'https://fastdraw.example.com/p/1']]) {
+      const a = wrapper.get(`a[aria-label^="מסך מלא: ${title}"]`)
+      expect(a.attributes('href')).toBe(href)
+      expect(a.attributes('target')).toBe('_blank')
+      expect(a.attributes('rel')).toContain('noopener')
+    }
+  })
+
+  it('image full-screen opens the shared image viewer, not the play dialog (#577)', async () => {
+    mockFetch()
+    const wrapper = await mountView()
+
+    await wrapper.get('button[aria-label="מסך מלא: GIF"]').trigger('click')
+    const viewer = wrapper.get('dialog[aria-label="תמונה בגודל מלא"]')
+    expect(viewer.attributes('open')).toBeDefined()
+    expect(viewer.get('img').attributes('src')).toBe('https://cdn/a.gif')
+    expect(wrapper.get('dialog[aria-labelledby="play-dialog-title"]').attributes('open')).toBeUndefined()
+  })
+
+  it('video full-screen pauses the inline video and plays it in the dialog (#577)', async () => {
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    mockFetch()
+    const wrapper = await mountView()
+
+    await wrapper.get('button[aria-label="מסך מלא: וידאו"]').trigger('click')
+    const dialog = wrapper.get('dialog[aria-labelledby="play-dialog-title"]')
+    expect(dialog.attributes('open')).toBeDefined()
+    expect(dialog.get('video').attributes('src')).toBe('https://cdn/b.mp4#t=0')
+    expect(dialog.get('video').attributes('controls')).toBeDefined()
+    expect(pause).toHaveBeenCalled()
+
+    await dialog.get('button[aria-label="סגירה"]').trigger('click')
+    expect(dialog.find('video').exists()).toBe(false)
+  })
+
+  it('a YouTube link play embeds inline and expands without sandbox (#577)', async () => {
+    const play = { id: 7, title: 'סרטון', notes: null, file_url: null, url: 'https://youtu.be/xyz' }
+    const src = 'https://www.youtube-nocookie.com/embed/xyz'
+    mockFetch({ 'GET /api/teams/1/plays': () => jsonRes([play]) })
+    const wrapper = await mountView()
+
+    expect(wrapper.get(`iframe[src="${src}"]`).exists()).toBe(true)
+    expect(wrapper.find(`a[href="${play.url}"]`).exists()).toBe(false)
+    expect(wrapper.get('ul h2').text()).toBe('סרטון')
+
+    await wrapper.get('button[aria-label="מסך מלא: סרטון"]').trigger('click')
+    const frame = wrapper.get('dialog[aria-labelledby="play-dialog-title"] iframe')
+    expect(frame.attributes('src')).toBe(src)
+    expect(frame.attributes('sandbox')).toBeUndefined()
+    // the inline copy is blanked while the dialog plays, so two audio tracks never overlap
+    expect(wrapper.get('ul iframe').attributes('src')).toBe('about:blank')
+
+    await wrapper.get('dialog[aria-labelledby="play-dialog-title"] button[aria-label="סגירה"]').trigger('click')
+    expect(wrapper.get('ul iframe').attributes('src')).toBe(src)
   })
 
   it('links (not embeds) an allow-listed host over plain http', async () => {
@@ -92,8 +174,8 @@ describe('PlaybookView', () => {
     const wrapper = await mountView()
     expect(wrapper.find('a[href="https://cdn/a.gif"]').exists()).toBe(false)
     await wrapper.get('button[aria-label="הגדלת תמונה: GIF"]').trigger('click')
-    expect(wrapper.get('dialog').attributes('open')).toBeDefined()
-    expect(wrapper.get('dialog img').attributes('src')).toBe('https://cdn/a.gif')
+    expect(wrapper.get('dialog[aria-label="תמונה בגודל מלא"]').attributes('open')).toBeDefined()
+    expect(wrapper.get('dialog[aria-label="תמונה בגודל מלא"] img').attributes('src')).toBe('https://cdn/a.gif')
   })
 
   it('shows an empty state', async () => {
