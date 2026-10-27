@@ -1,10 +1,11 @@
 <script setup>
-import { pageTitle, setMeta } from '../lib/head'
+import { pageTitle, setJsonLd, setMeta } from '../lib/head'
 
 const contactEmail = import.meta.env.VITE_CONTACT_EMAIL
 
 document.title = pageTitle('הצהרת נגישות')
 setMeta('description', 'הצהרת הנגישות של GushBall: התאמות הנגישות באתר, מגבלות ידועות ודרכי פנייה.')
+setJsonLd(null) // drop a team page's SportsTeam block left over from SPA navigation
 </script>
 
 <template>

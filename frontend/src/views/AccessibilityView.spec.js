@@ -24,4 +24,14 @@ describe('AccessibilityView', () => {
     expect(w.find('a[href^="mailto:"]').exists()).toBe(false)
     expect(w.text()).toContain('כתובת לפניות בנושא נגישות תפורסם כאן בקרוב')
   })
+
+  it("removes a team page's leftover JSON-LD", () => {
+    const ld = document.createElement('script')
+    ld.type = 'application/ld+json'
+    ld.setAttribute('data-page', '')
+    document.head.appendChild(ld)
+    mount(AccessibilityView)
+
+    expect(document.head.querySelector('script[data-page]')).toBeNull()
+  })
 })

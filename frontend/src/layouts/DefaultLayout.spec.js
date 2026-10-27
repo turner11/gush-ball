@@ -65,6 +65,7 @@ describe('DefaultLayout', () => {
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
         { path: '/teams', name: 'teams', component: { template: '<div/>' } },
         { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
+        { path: '/about', name: 'about', component: { template: '<div/>' }, meta: { title: 'אודות' } },
         { path: '/accessibility', name: 'accessibility', component: { template: '<div/>' }, meta: { title: 'הצהרת נגישות' } },
         { path: '/join', name: 'join', component: { template: '<div/>' } },
         { path: '/account', name: 'account', component: { template: '<div/>' } },
@@ -108,7 +109,7 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('header a[href="/teams"]').attributes('aria-label')).toBe('כל הקבוצות')
   })
 
-  it('footer links to the accessibility statement', async () => {
+  it('footer links to the about page and the accessibility statement', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -116,21 +117,24 @@ describe('DefaultLayout', () => {
     await router.push('/team_a/schedule')
     await flushPromises()
 
-    const link = wrapper.find('footer a')
-    expect(link.attributes('href')).toBe('/accessibility')
-    expect(link.text()).toBe('הצהרת נגישות')
+    const links = wrapper.findAll('footer a')
+    expect(links.map((a) => a.attributes('href'))).toEqual(['/about', '/accessibility'])
+    expect(links.map((a) => a.text())).toEqual(['אודות', 'הצהרת נגישות'])
   })
 
-  it('the accessibility statement keeps its own title once teams load', async () => {
+  it.each([
+    ['/accessibility', 'הצהרת נגישות'],
+    ['/about', 'אודות'],
+  ])('%s keeps its own title once teams load', async (path, title) => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
-    await router.push('/accessibility')
-    document.title = 'הצהרת נגישות' // what the view sets
+    await router.push(path)
+    document.title = title // what the view sets
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
     mount(DefaultLayout, { global: { plugins: [router] } })
     await flushPromises()
 
-    expect(document.title).toBe('הצהרת נגישות')
+    expect(document.title).toBe(title)
   })
 
   it('teams icon stays visible on desktop when no team is selected', async () => {

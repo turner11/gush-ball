@@ -26,7 +26,7 @@ def _url_slug(item: Team | Club) -> str:
 @router.get("/sitemap.xml")
 def sitemap(db: DbSession) -> Response:
     base = settings.public_url.rstrip("/")
-    paths: list[str] = ["accessibility"]
+    paths: list[str] = ["about", "accessibility"]
     for team in db.scalars(select(Team).order_by(Team.id)):
         slug = _url_slug(team)
         paths += [slug, *(f"{slug}/{page}" for page in TEAM_PAGES)]
