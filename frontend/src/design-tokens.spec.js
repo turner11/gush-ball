@@ -35,4 +35,13 @@ describe('design tokens', () => {
     expect(tabBar).toContain('after:bg-current')
     expect(tabBar).not.toMatch(/after:bg-team/)
   })
+
+  it('the image hover pop is the shared .image-pop class (#563)', () => {
+    const rule = css.match(/\.image-pop\s*\{[^}]*\}/)?.[0] ?? ''
+    expect(rule).toContain('hover:scale-105')
+    expect(rule).toContain('motion-reduce:transition-none')
+    for (const f of ['./components/HomeSlideshow.vue', './components/ImageGallery.vue', './views/PlayerView.vue'])
+      expect(sources[f], f).toContain('image-pop')
+    expect(sources['./components/HomeSlideshow.vue']).not.toContain('hover:scale-105')
+  })
 })
