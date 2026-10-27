@@ -20,6 +20,9 @@ if (!checked.value) checkSession()
 
 const plays = ref([])
 const lightbox = ref(null)
+const embedDialog = ref(null)
+const openEmbed = ref(null) // the embed play shown in the full-screen dialog
+let embedOpener = null // the button that opened it, refocused on close
 const loading = ref(false)
 const error = ref(false)
 
@@ -44,6 +47,18 @@ function playKind(play) {
   if (play.url) return isEmbed(play.url) ? 'embed' : 'link'
   if (play.file_url.endsWith('.mp4')) return 'video'
   return play.file_url.endsWith('.pdf') ? 'pdf' : 'image'
+}
+
+function openEmbedDialog(play, event) {
+  embedOpener = event.currentTarget
+  openEmbed.value = play
+  embedDialog.value.showModal()
+}
+
+// Fires for Esc, the close button and dialog.close() alike. Explicit focus: Safari never focuses a clicked button.
+function onEmbedClose() {
+  openEmbed.value = null
+  embedOpener?.focus()
 }
 
 async function load() {
@@ -113,11 +128,38 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
           <a v-else :href="play.file_url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">
             <span class="font-extrabold">{{ play.title }}</span><span class="badge badge-muted">PDF</span><AppIcon name="external" />
           </a>
-          <h2 v-if="['image', 'video', 'embed'].includes(playKind(play))" class="font-extrabold">{{ play.title }}</h2>
+          <h2 v-if="['image', 'video'].includes(playKind(play))" class="font-extrabold">{{ play.title }}</h2>
+          <div v-else-if="playKind(play) === 'embed'" class="flex items-center justify-between gap-2">
+            <h2 class="truncate font-extrabold">{{ play.title }}</h2>
+            <button type="button" class="btn-ghost shrink-0" aria-haspopup="dialog" :aria-label="`מסך מלא: ${play.title}`" @click="openEmbedDialog(play, $event)">
+              <AppIcon name="expand" />מסך מלא
+            </button>
+          </div>
         </template>
         <p v-if="play.notes" class="whitespace-pre-line text-muted">{{ play.notes }}</p>
       </li>
     </ul>
     <ImageLightbox ref="lightbox" :images="lightboxImages" />
+    <dialog
+      ref="embedDialog"
+      aria-labelledby="embed-dialog-title"
+      class="fixed inset-0 m-0 size-full max-h-none max-w-none flex-col border-0 bg-transparent p-0 text-white backdrop:bg-black/90 open:flex"
+      @close="onEmbedClose"
+    >
+      <div class="flex items-center justify-between gap-2 p-2 sm:px-6">
+        <h2 id="embed-dialog-title" class="truncate font-extrabold">{{ openEmbed?.title }}</h2>
+        <button type="button" class="btn-icon bg-black/50" aria-label="סגירה" @click="embedDialog.close()"><AppIcon name="close" /></button>
+      </div>
+      <div class="min-h-0 flex-1 px-2 pb-2 sm:px-6 sm:pb-6">
+        <iframe
+          v-if="openEmbed"
+          :src="openEmbed.url"
+          :title="openEmbed.title"
+          sandbox="allow-scripts allow-same-origin"
+          allowfullscreen
+          class="size-full rounded-2xl border-0 bg-raised"
+        />
+      </div>
+    </dialog>
   </section>
 </template>
