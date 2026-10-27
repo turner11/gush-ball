@@ -190,7 +190,7 @@ watch(() => route.params.id, load, { immediate: true })
             <li v-for="(image, index) in images" :key="image.key">
               <button
                 type="button"
-                class="card block w-full cursor-zoom-in overflow-hidden"
+                class="card image-pop block w-full cursor-zoom-in overflow-hidden"
                 :aria-label="`הגדלת תמונה: ${image.alt}`"
                 @click="lightbox.open(index, $event)"
               >

@@ -85,7 +85,7 @@ onBeforeUnmount(() => clearInterval(timer))
         v-for="(image, slot) in shown"
         :key="slot"
         type="button"
-        class="relative aspect-square cursor-zoom-in overflow-hidden rounded-xl bg-sunken transition-[scale,box-shadow] hover:z-10 hover:scale-105 hover:shadow-card focus-visible:z-10 focus-visible:scale-105 motion-reduce:transition-none"
+        class="aspect-square cursor-zoom-in overflow-hidden rounded-xl bg-sunken image-pop"
         :aria-label="`הגדלת תמונה: ${altOf(image)}`"
         @click="lightbox.open(pool.indexOf(image), $event)"
       >

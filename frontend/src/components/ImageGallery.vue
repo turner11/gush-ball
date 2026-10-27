@@ -14,7 +14,7 @@ const lightbox = ref(null)
 <template>
   <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
     <figure v-for="(img, i) in images" :key="i" class="space-y-1">
-      <button type="button" class="block w-full cursor-zoom-in" :aria-label="`הגדלת תמונה: ${img.title || fallbackAlt}`" @click="lightbox.open(i, $event)">
+      <button type="button" class="image-pop block w-full cursor-zoom-in overflow-hidden rounded-xl" :aria-label="`הגדלת תמונה: ${img.title || fallbackAlt}`" @click="lightbox.open(i, $event)">
         <img :src="img.url" :alt="img.title || fallbackAlt" loading="lazy" class="aspect-square w-full rounded-xl object-cover" />
       </button>
       <figcaption v-if="img.title" class="text-sm text-muted">{{ img.title }}</figcaption>

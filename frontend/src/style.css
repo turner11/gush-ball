@@ -110,6 +110,10 @@
   .card {
     @apply rounded-2xl border border-line bg-raised p-4 shadow-card sm:p-5;
   }
+  /* Image tile that pops on hover/focus (home photos, galleries, player photos, #563) */
+  .image-pop {
+    @apply relative transition-[scale,box-shadow] hover:z-10 hover:scale-105 hover:shadow-card focus-visible:z-10 focus-visible:scale-105 motion-reduce:transition-none;
+  }
   .empty-state {
     @apply rounded-2xl border border-dashed border-line px-4 py-10 text-center text-sm text-muted;
   }
