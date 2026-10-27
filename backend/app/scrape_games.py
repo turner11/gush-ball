@@ -652,6 +652,7 @@ def sync_team_players(db: Session, team: Team) -> int:
             .where(PlayerImage.id == image.id)
             .values(focus_x=x, focus_y=y, zoom=zoom, avatar_url=avatar_url)
         )
+        db.commit()  # per image: a crash mid-backfill keeps the copies already uploaded
 
     db.commit()
     return count

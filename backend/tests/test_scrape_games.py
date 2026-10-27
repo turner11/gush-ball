@@ -1632,3 +1632,23 @@ def test_sync_team_players_avatar_upload_failure_retries(
     assert set(_avatars(db_session).values()) == {None}
     scrape_games.sync_team_players(db_session, team)
     assert len(fetched) == 4
+
+
+def test_sync_team_players_keeps_avatars_stored_before_a_crash(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[bytes] = []
+
+    def upload(data: bytes, content_type: str) -> str:
+        calls.append(data)
+        if len(calls) > 1:
+            raise RuntimeError("redeploy mid-backfill")
+        return "https://cdn/av.webp"
+
+    team, _ = _avatar_setup(db_session, monkeypatch, lambda d, f: b"w", upload)
+
+    with pytest.raises(RuntimeError):
+        scrape_games.sync_team_players(db_session, team)
+    db_session.rollback()
+
+    assert "https://cdn/av.webp" in _avatars(db_session).values()
