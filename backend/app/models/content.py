@@ -77,6 +77,10 @@ class TeamPost(_PostColumns, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"))
+    # Optional link to one of the team's games; the home hero features posts of the next/last game.
+    game_id: Mapped[int | None] = mapped_column(ForeignKey("games.id", ondelete="SET NULL"), default=None)
+    # NULL for posts added before the audit log: no date is invented, so they never count as recent.
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     team: Mapped["Team"] = relationship(back_populates="posts")
 

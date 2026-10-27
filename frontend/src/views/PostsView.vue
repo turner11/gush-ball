@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import LoadError from '../components/LoadError.vue'
 import PostCard from '../components/PostCard.vue'
@@ -13,6 +14,7 @@ import { CONTENT_SECTIONS } from '../lib/teamContent'
 const posts = ref([])
 const loading = ref(false)
 const loadError = ref(false)
+const route = useRoute()
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
@@ -34,6 +36,13 @@ async function load() {
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
+  await revealHashTarget()
+}
+
+// The router's scrollBehavior runs before the posts have loaded, so scroll to the #post-<id> card here.
+async function revealHashTarget() {
+  await nextTick()
+  if (route.hash) document.getElementById(route.hash.slice(1))?.scrollIntoView({ block: 'start' })
 }
 
 watch(selectedTeamId, load, { immediate: true })
@@ -52,7 +61,7 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
     </div>
 
     <LoadError v-if="loadError" message="שגיאה בטעינת העדכונים" @retry="load" />
-    <TeamContentSection v-else-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.posts" />
+    <TeamContentSection v-else-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.teamPosts" />
     <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
     <div v-else-if="posts.length" class="space-y-6">
       <PostCard v-for="post in posts" :key="post.id" :post="post" :level="2" />

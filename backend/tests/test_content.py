@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.models import Player, Team, TeamImage, TeamLink, TeamPost, TeamVideo
+from app.models import Game, Opponent, Player, Team, TeamImage, TeamLink, TeamPost, TeamVideo
 
 # (segment, model_class, create_payload, patch_payload, patch_field, original_value_of_patch_field)
 RESOURCES = [
@@ -455,3 +455,36 @@ def test_post_body_capped(admin_client: TestClient, posts_path: str) -> None:
     created = admin_client.post(posts_path, json={"title": "t", "body": "x" * 20000})
     assert created.status_code == 201
     assert admin_client.patch(f"{posts_path}/{created.json()['id']}", json={"body_en": "x" * 20001}).status_code == 422
+
+
+def _game(db_session: Session, team: Team) -> Game:
+    opponent = Opponent(name=f"Opp {team.id}")
+    db_session.add(opponent)
+    db_session.flush()
+    game = Game(team_id=team.id, opponent_id=opponent.id, scheduled_at=datetime(2026, 1, 1, 20, tzinfo=UTC))
+    db_session.add(game)
+    db_session.commit()
+    return game
+
+
+def test_post_links_to_own_game_and_unlinks_with_null(admin_client: TestClient, db_session: Session, team: Team) -> None:
+    game = _game(db_session, team)
+    created = admin_client.post(f"/teams/{team.id}/posts", json={"title": "t", "body": "x", "game_id": game.id})
+    assert created.status_code == 201
+    assert created.json()["game_id"] == game.id
+    patched = admin_client.patch(f"/teams/{team.id}/posts/{created.json()['id']}", json={"game_id": None})
+    assert patched.status_code == 200
+    assert patched.json()["game_id"] is None
+
+
+def test_post_rejects_other_teams_game(admin_client: TestClient, db_session: Session, team: Team, other_team: Team) -> None:
+    foreign = _game(db_session, other_team)
+    base = f"/teams/{team.id}/posts"
+    assert admin_client.post(base, json={"title": "t", "body": "x", "game_id": foreign.id}).status_code == 422
+    post_id = admin_client.post(base, json={"title": "t", "body": "x"}).json()["id"]
+    assert admin_client.patch(f"{base}/{post_id}", json={"game_id": foreign.id}).status_code == 422
+
+
+def test_post_gets_created_at(admin_client: TestClient, team: Team) -> None:
+    created = admin_client.post(f"/teams/{team.id}/posts", json={"title": "t", "body": "x"}).json()
+    assert created["created_at"] is not None

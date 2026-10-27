@@ -1,6 +1,8 @@
 <script setup>
 import { nextTick, onMounted, reactive, ref } from 'vue'
 
+import { apiFetch } from '../lib/api'
+import { formatDateTime } from '../lib/format'
 import { useTeamContent } from '../composables/useTeamContent'
 import AppIcon from './AppIcon.vue'
 import ImageUpload from './ImageUpload.vue'
@@ -19,7 +21,8 @@ const props = defineProps({
 const { error, list, create, update, delete: destroy, reorder } = useTeamContent(props.resource, props.owner)
 
 const items = ref([])
-const blank = (field) => (field.type === 'players' ? [] : field.type === 'checkbox' ? false : '')
+const BLANKS = { players: () => [], checkbox: () => false, game: () => null } // null reaches PATCH and clears the link
+const blank = (field) => BLANKS[field.type]?.() ?? ''
 const form = reactive(Object.fromEntries(props.fields.map((f) => [f.key, blank(f)])))
 const loading = ref(true)
 const submitting = ref(false)
@@ -49,7 +52,7 @@ async function onEdit(item) {
 }
 
 function itemLabel(item) {
-  return props.fields.filter((f) => !['players', 'checkbox'].includes(f.type)).map((f) => item[f.key]).filter(Boolean).join(' — ')
+  return props.fields.filter((f) => !['players', 'checkbox', 'game'].includes(f.type)).map((f) => item[f.key]).filter(Boolean).join(' — ')
 }
 
 async function onSubmit() {
@@ -97,7 +100,16 @@ async function onDeleteConfirmed() {
   if (editingId.value === itemId) resetForm()
 }
 
-onMounted(load)
+const games = ref([])
+const gamesFailed = ref(false)
+async function loadGames() {
+  try {
+    games.value = (await apiFetch(`/teams/${props.ownerId}/games`)) ?? []
+  } catch {
+    gamesFailed.value = true // the picker keeps only "ללא משחק"
+  }
+}
+onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && loadGames(), load()]))
 </script>
 
 <template>
@@ -164,13 +176,21 @@ onMounted(load)
     />
 
     <form ref="formEl" class="space-y-2" @submit.prevent="onSubmit">
-      <p v-if="editingId" class="text-sm text-muted">עורך: {{ fields.filter((f) => f.type !== 'players').map((f) => form[f.key]).filter(Boolean)[0] }}</p>
+      <p v-if="editingId" class="text-sm text-muted">עורך: {{ fields.filter((f) => !['players', 'game'].includes(f.type)).map((f) => form[f.key]).filter(Boolean)[0] }}</p>
       <div v-for="field in fields" :key="field.key">
         <PlayerTagsInput v-if="field.type === 'players'" v-model="form[field.key]" :team-id="ownerId" />
         <label v-else-if="field.type === 'checkbox'" class="flex min-h-11 items-center gap-2">
           <input v-model="form[field.key]" type="checkbox" class="size-5" />
           <span class="field-label">{{ field.label }}</span>
         </label>
+        <template v-else-if="field.type === 'game'">
+          <label :for="`${resource}-${field.key}`" class="field-label">{{ field.label }}</label>
+          <select :id="`${resource}-${field.key}`" v-model="form[field.key]" class="field-input" :aria-describedby="gamesFailed ? `${resource}-${field.key}-error` : undefined">
+            <option :value="null">ללא משחק</option>
+            <option v-for="g in games" :key="g.id" :value="g.id">{{ formatDateTime(g.scheduled_at) }} · {{ g.opponent.name }}</option>
+          </select>
+          <p v-if="gamesFailed" :id="`${resource}-${field.key}-error`" class="mt-1 text-sm text-muted">טעינת המשחקים נכשלה</p>
+        </template>
         <template v-else>
         <label :for="`${resource}-${field.key}`" class="field-label">
           {{ field.label }}

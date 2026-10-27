@@ -1,6 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+const mockRoute = vi.hoisted(() => ({ hash: '' }))
+vi.mock('vue-router', async (orig) => ({ ...(await orig()), useRoute: () => mockRoute }))
+
 const POSTS = [
   { id: 1, title: 'נעוץ א', body: 'גוף נעוץ', pinned: true },
   { id: 2, title: 'חדש ב', body: 'גוף חדש', pinned: false },
@@ -9,9 +12,9 @@ const POSTS = [
 const jsonRes = (body) => ({ ok: true, status: 200, json: async () => body })
 
 async function mountView(posts = POSTS) {
-  global.fetch = vi.fn(() => Promise.resolve(jsonRes(posts)))
+  global.fetch = vi.fn((url) => Promise.resolve(jsonRes(url.endsWith('/games') ? [] : posts)))
   const { default: PostsView } = await import('./PostsView.vue')
-  const wrapper = mount(PostsView)
+  const wrapper = mount(PostsView, { attachTo: document.body })
   await flushPromises()
   return wrapper
 }
@@ -22,7 +25,10 @@ describe('PostsView', () => {
     localStorage.clear()
     localStorage.setItem('gush-ball:selected-team-id', '1')
   })
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    document.body.innerHTML = ''
+  })
 
   it('keeps the API order and badges pinned posts', async () => {
     const wrapper = await mountView()
@@ -32,6 +38,17 @@ describe('PostsView', () => {
     expect(articles[0].text()).toContain('נעוץ')
     expect(articles[1].find('.badge').exists()).toBe(false)
     expect(global.fetch.mock.calls.map(([u]) => u)).toEqual(['/api/teams/1/posts'])
+  })
+
+  it('scrolls to the #post-<id> card once the posts have loaded', async () => {
+    mockRoute.hash = '#post-2'
+    Element.prototype.scrollIntoView ??= () => {} // jsdom lacks it; spyOn needs it to exist
+    const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {})
+    const wrapper = await mountView()
+    mockRoute.hash = ''
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView.mock.contexts[0].id).toBe('post-2')
+    wrapper.unmount()
   })
 
   it('shows an empty state', async () => {

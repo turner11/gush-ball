@@ -324,4 +324,56 @@ describe('TeamContentSection', () => {
     expect(first.find('[aria-label="הזזה למטה"]').attributes('disabled')).toBeDefined()
     expect(second.find('[aria-label="הזזה למעלה"]').attributes('disabled')).toBeDefined()
   })
+
+  describe('game field', () => {
+    const POST_FIELDS = [
+      { key: 'title', label: 'כותרת', type: 'text', required: true },
+      { key: 'game_id', label: 'קשור למשחק', type: 'game' },
+    ]
+    const GAMES = [{ id: 7, scheduled_at: '2026-05-01T18:00:00', opponent: { name: 'הפועל' } }]
+    const mountPosts = async (posts, extra = {}) => {
+      mockFetch({ 'GET /api/teams/1/posts': () => jsonRes(posts), 'GET /api/teams/1/games': () => jsonRes(GAMES), ...extra })
+      const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+      const wrapper = mount(TeamContentSection, { props: { ownerId: 1, resource: 'posts', heading: 'עדכונים', fields: POST_FIELDS } })
+      await flushPromises()
+      return wrapper
+    }
+    const importSection = async () => (await import('./TeamContentSection.vue')).default
+    const bodyOf = (method) => JSON.parse(global.fetch.mock.calls.find(([, o]) => o?.method === method)[1].body)
+
+    it('lists the team games and posts the chosen game_id', async () => {
+      const w = await mountPosts([], { 'POST /api/teams/1/posts': () => jsonRes({ id: 1 }, 201) })
+      const options = w.findAll('#posts-game_id option')
+      expect(options[0].text()).toBe('ללא משחק')
+      expect(options[1].text()).toContain('הפועל')
+      await w.find('#posts-title').setValue('כותרת')
+      await w.find('#posts-game_id').setValue(7)
+      await w.find('form').trigger('submit')
+      await flushPromises()
+      expect(bodyOf('POST')).toEqual({ title: 'כותרת', game_id: 7 })
+    })
+
+    it('fetches posts and games in parallel, and says so when the games fail', async () => {
+      const w = await mountPosts([], { 'GET /api/teams/1/games': () => Promise.reject(new Error('down')) })
+      expect(w.get('#posts-game_id').attributes('aria-describedby')).toBe('posts-game_id-error')
+      expect(w.get('#posts-game_id-error').text()).toBe('טעינת המשחקים נכשלה')
+      expect(w.findAll('#posts-game_id option')).toHaveLength(1)
+      const Section = await importSection()
+      global.fetch.mockClear()
+      // no flush: sequential loading would only have fired the first fetch by now
+      const mounted = mount(Section, { props: { ownerId: 1, resource: 'posts', heading: 'x', fields: POST_FIELDS } })
+      expect(global.fetch.mock.calls.map(([u]) => u).sort()).toEqual(['/api/teams/1/games', '/api/teams/1/posts'])
+      mounted.unmount()
+    })
+
+    it('sends null when ללא משחק is chosen on edit, and the list label omits the id', async () => {
+      const w = await mountPosts([{ id: 3, title: 'פוסט', game_id: 7 }], { 'PATCH /api/teams/1/posts/3': () => jsonRes({ id: 3 }) })
+      expect(w.find('li').text()).not.toContain('7')
+      await w.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
+      await w.findAll('#posts-game_id option')[0].setSelected()
+      await w.find('form').trigger('submit')
+      await flushPromises()
+      expect(bodyOf('PATCH').game_id).toBeNull()
+    })
+  })
 })

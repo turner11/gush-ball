@@ -141,8 +141,18 @@ class PostOut(BaseModel):
     pinned: bool
 
 
+class TeamPostCreate(PostCreate):
+    game_id: int | None = None
+
+
+class TeamPostUpdate(PostUpdate):
+    game_id: int | None = None  # null clears the link
+
+
 class TeamPostOut(PostOut):
     team_id: int
+    game_id: int | None
+    created_at: datetime | None
 
 
 class ClubPostOut(PostOut):
@@ -239,6 +249,11 @@ def _check_player_ids(team, data: dict) -> None:
         )
 
 
+def _check_game_id(team, data: dict) -> None:
+    if data.get("game_id") is not None and data["game_id"] not in {g.id for g in team.games}:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown game_id")
+
+
 def _add_crud_routes(
     resource: str,
     model: type[Base],
@@ -264,7 +279,9 @@ def _add_crud_routes(
     @router.post(path, response_model=out_schema, status_code=status.HTTP_201_CREATED, dependencies=write)
     def create(owner_id: OwnerId, payload: create_schema, db: DbSession):
         data = payload.model_dump()
-        _check_player_ids(owner.get_or_404(db, owner_id), data)
+        team = owner.get_or_404(db, owner_id)
+        _check_player_ids(team, data)
+        _check_game_id(team, data)
         item = model(**{owner.fk: owner_id}, **_to_columns(data))
         db.add(item)
         db.commit()
@@ -296,7 +313,9 @@ def _add_crud_routes(
     def update(owner_id: OwnerId, item_id: int, payload: update_schema, db: DbSession):
         item = get_item_or_404(db, owner_id, item_id)
         data = payload.model_dump(exclude_unset=True)
-        _check_player_ids(owner.get_or_404(db, owner_id), data)
+        team = owner.get_or_404(db, owner_id)
+        _check_player_ids(team, data)
+        _check_game_id(team, data)
         for field, value in _to_columns(data).items():
             setattr(item, field, value)
         db.commit()
@@ -317,7 +336,7 @@ _add_crud_routes(
     "images", TeamImage, TeamImageCreate, TeamImageUpdate, TeamImageOut, "Image not found"
 )
 _add_crud_routes(
-    "posts", TeamPost, PostCreate, PostUpdate, TeamPostOut, "Post not found", reorderable=True
+    "posts", TeamPost, TeamPostCreate, TeamPostUpdate, TeamPostOut, "Post not found", reorderable=True
 )
 _add_crud_routes(
     "posts", ClubPost, PostCreate, PostUpdate, ClubPostOut, "Post not found", owner=CLUB, reorderable=True
