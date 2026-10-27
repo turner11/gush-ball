@@ -339,12 +339,15 @@ def set_main_player_image(player_id: int, image_id: int, db: DbSession, user: Re
     chosen = next((i for i, row in enumerate(rows) if row.id == image_id), None)
     if chosen is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
-    # ponytail: main = lowest id; content moves between rows so every avatar reader and the schema stay untouched.
-    # Upgrade to a Player.main_image_id column if images ever need per-row identity (tags, captions).
-    contents = [(r.url, r.focus_x, r.focus_y, r.zoom) for r in rows]
-    contents.insert(0, contents.pop(chosen))
-    for row, content in zip(rows, contents, strict=True):
-        row.url, row.focus_x, row.focus_y, row.zoom = content
+    # ponytail: main = lowest id, so the rows before the chosen one are re-inserted (fresh, higher ids, same content).
+    # The chosen row is untouched, so a stale id 404s instead of hitting another photo, and a concurrent focus write
+    # stays on its own row. Upgrade to a Player.main_image_id column if images ever need per-row identity.
+    before = rows[:chosen]
+    for row in before:
+        db.delete(row)
+    db.flush()
+    for row in before:
+        db.add(PlayerImage(player_id=player_id, url=row.url, focus_x=row.focus_x, focus_y=row.focus_y, zoom=row.zoom))
     db.commit()
     db.refresh(player)
     return player.images

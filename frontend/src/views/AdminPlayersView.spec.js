@@ -332,6 +332,26 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).toContain('תמונה ראשית')
   })
 
+  it('set-main buttons are disabled while the request runs (#557)', async () => {
+    PLAYERS[0].images = [{ id: 1, url: 'https://x/a.png' }, { id: 2, url: 'https://x/b.png' }]
+    let release
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'POST /api/players/10/images/2/main': () =>
+        new Promise((resolve) => (release = () => resolve(jsonRes([PLAYERS[0].images[1], PLAYERS[0].images[0]])))),
+    })
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const button = wrapper.find('[aria-label="הגדרה כתמונה ראשית — יוסי"]')
+    await button.trigger('click')
+    expect(button.attributes('disabled')).toBeDefined()
+    release()
+    await flushPromises()
+  })
+
   it('a failed set-main shows an error and keeps the order (#557)', async () => {
     PLAYERS[0].images = [{ id: 1, url: 'https://x/a.png' }, { id: 2, url: 'https://x/b.png' }]
     mockFetch({

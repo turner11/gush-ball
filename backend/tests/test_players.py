@@ -234,11 +234,20 @@ def test_set_main_player_image_moves_it_first(admin_client: TestClient, db_sessi
     assert [i["id"] for i in body] == sorted(i["id"] for i in body)
     assert (body[0]["focus_x"], body[0]["focus_y"], body[0]["zoom"]) == (30.0, 40.0, 1.5)
     assert body[1]["focus_x"] is None
+    assert body[0]["id"] == c["id"]  # the chosen row is untouched; the rows before it get fresh, higher ids
     got = admin_client.get(f"/players/{player_id}").json()["images"]
     assert [i["url"] for i in got] == [i["url"] for i in body]
 
     again = admin_client.post(f"/players/{player_id}/images/{body[0]['id']}/main").json()
     assert [i["url"] for i in again] == [i["url"] for i in body]
+
+
+def test_stale_image_id_404s_after_set_main(admin_client: TestClient, team: Team) -> None:
+    player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
+    a, _, c = _add_images(admin_client, player_id, "abc")
+    admin_client.post(f"/players/{player_id}/images/{c['id']}/main")
+    assert admin_client.delete(f"/players/{player_id}/images/{a['id']}").status_code == 404
+    assert len(admin_client.get(f"/players/{player_id}").json()["images"]) == 3
 
 
 def test_set_main_player_image_404s_and_requires_login(admin_client: TestClient, team: Team) -> None:
