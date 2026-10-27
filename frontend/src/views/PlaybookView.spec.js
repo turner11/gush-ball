@@ -66,6 +66,18 @@ describe('PlaybookView', () => {
     }
   })
 
+  it('embeds an allow-listed play host in a sandboxed iframe', async () => {
+    const embed = { id: 5, title: 'מהלך', notes: null, file_url: null, url: 'https://app.thehoopsgeek.com/p/abc' }
+    mockFetch({ 'GET /api/teams/1/plays': () => jsonRes([embed]) })
+    const wrapper = await mountView()
+
+    const frame = wrapper.get('iframe')
+    expect(frame.attributes('src')).toBe(embed.url)
+    expect(frame.attributes('title')).toBe('מהלך')
+    expect(frame.attributes('sandbox')).toBe('allow-scripts allow-same-origin')
+    expect(wrapper.get('h2').text()).toBe('מהלך')
+  })
+
   it('clicking an image play opens the in-page viewer', async () => {
     mockFetch()
     const wrapper = await mountView()

@@ -71,6 +71,28 @@ def test_create_play_with_file_url_and_with_link(admin_client: TestClient, own_t
     assert [p["title"] for p in admin_client.get(_plays(own_team)).json()] == ["A", "B"]
 
 
+SNIPPET = '<iframe width="560" src="https://app.thehoopsgeek.com/p/abc?x=1&amp;y=2" frameborder="0"></iframe>'
+SNIPPET_URL = "https://app.thehoopsgeek.com/p/abc?x=1&y=2"
+
+
+def test_create_play_from_iframe_snippet(admin_client: TestClient, own_team: Team) -> None:
+    response = admin_client.post(_plays(own_team), json={"title": "A", "url": SNIPPET})
+    assert response.status_code == 201
+    assert response.json()["url"] == SNIPPET_URL
+
+
+@pytest.mark.parametrize("bad", ["<div>hi</div>", '<iframe src="javascript:alert(1)"></iframe>', "<script>alert(1)</script>"])
+def test_play_url_rejects_bad_markup(bad, admin_client: TestClient, own_team: Team) -> None:
+    assert admin_client.post(_plays(own_team), json={"title": "A", "url": bad}).status_code == 422
+
+
+def test_patch_play_accepts_iframe_snippet(admin_client: TestClient, own_team: Team) -> None:
+    play = admin_client.post(_plays(own_team), json={"title": "A", "url": LINK}).json()
+    response = admin_client.patch(f"{_plays(own_team)}/{play['id']}", json={"url": SNIPPET})
+    assert response.status_code == 200
+    assert response.json()["url"] == SNIPPET_URL
+
+
 def test_play_notes_capped(admin_client: TestClient, own_team: Team) -> None:
     response = admin_client.post(_plays(own_team), json={"title": "A", "url": LINK, "notes": "x" * 2001})
     assert response.status_code == 422
