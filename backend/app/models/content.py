@@ -79,6 +79,8 @@ class TeamPost(_PostColumns, Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"))
     # Optional link to one of the team's games; the home hero features posts of the next/last game.
     game_id: Mapped[int | None] = mapped_column(ForeignKey("games.id", ondelete="SET NULL"), default=None)
+    # Background of the post's home hero slide (#562); an upload or any image URL.
+    image_url: Mapped[str | None] = mapped_column(String(500), default=None)
     # NULL for posts added before the audit log: no date is invented, so they never count as recent.
     created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 

@@ -143,15 +143,18 @@ class PostOut(BaseModel):
 
 class TeamPostCreate(PostCreate):
     game_id: int | None = None
+    image_url: HttpUrl | None = None
 
 
 class TeamPostUpdate(PostUpdate):
     game_id: int | None = None  # null clears the link
+    image_url: HttpUrl | None = None  # null clears the background
 
 
 class TeamPostOut(PostOut):
     team_id: int
     game_id: int | None
+    image_url: str | None
     created_at: datetime | None
 
 
@@ -235,7 +238,7 @@ class TeamPlayOut(BaseModel):
 
 def _to_columns(data: dict) -> dict:
     # HttpUrl doesn't map to a String column; store as plain str.
-    for key in ("url", "file_url"):
+    for key in ("url", "file_url", "image_url"):
         if data.get(key) is not None:
             data[key] = str(data[key])
     return data

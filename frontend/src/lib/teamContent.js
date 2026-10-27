@@ -59,7 +59,11 @@ export const CONTENT_SECTIONS = {
     resource: 'posts',
     heading: 'עדכונים',
     reorderable: true,
-    fields: [...POST_FIELDS, { key: 'game_id', label: 'קשור למשחק', type: 'game' }],
+    fields: [
+      ...POST_FIELDS,
+      { key: 'game_id', label: 'קשור למשחק', type: 'game' },
+      { key: 'image_url', label: 'תמונת רקע (לא חובה)', type: 'url', upload: true, preview: true, nullable: true },
+    ],
   },
   plays: {
     resource: 'plays',

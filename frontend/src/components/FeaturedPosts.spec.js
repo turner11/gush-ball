@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import FeaturedPosts from './FeaturedPosts.vue'
 
-const item = (id, label = null) => ({ post: { id, title: `כותרת ${id}`, body: `גוף ${id}` }, label })
+const item = (id, label = null, image_url = null) => ({ post: { id, title: `כותרת ${id}`, body: `גוף ${id}`, image_url }, label })
 const mountIt = (items) =>
   mount(FeaturedPosts, { props: { items, postsTo: '/x/posts' }, global: { stubs: { RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } } })
 const title = (w) => w.find('h2').text()
@@ -21,6 +21,21 @@ describe('FeaturedPosts', () => {
     expect(title(w)).toBe('כותרת 1')
     expect(w.text()).toContain('לקראת המשחק נגד הפועל')
     expect(w.find('a').attributes('href')).toBe('/x/posts#post-1')
+  })
+
+  it('shows the title but not the body', () => {
+    const w = mountIt([item(1)])
+    expect(w.text()).toContain('כותרת 1')
+    expect(w.text()).not.toContain('גוף 1')
+  })
+
+  it('uses the post image as the slide background, and keeps the team colour without one', () => {
+    const withImage = mountIt([item(1, null, 'https://cdn/p.jpg')])
+    expect(withImage.find('img[src="https://cdn/p.jpg"]').attributes('alt')).toBe('')
+    expect(withImage.find('section').classes()).toContain('text-white')
+    const plain = mountIt([item(1)])
+    expect(plain.find('img').exists()).toBe(false)
+    expect(plain.find('section').classes()).toContain('bg-team')
   })
 
   it('a dot selects its slide, marks it current and stops auto-advance', async () => {

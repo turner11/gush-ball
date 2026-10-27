@@ -58,8 +58,11 @@ function itemLabel(item) {
 async function onSubmit() {
   submitting.value = true
   try {
+    const nullable = new Set(props.fields.filter((f) => f.nullable).map((f) => f.key))
     const payload = Object.fromEntries(
-      Object.entries(form).filter(([, value]) => value !== ''),
+      Object.entries(form)
+        .map(([key, value]) => [key, value === '' && nullable.has(key) ? null : value]) // '' clears a nullable field
+        .filter(([, value]) => value !== ''),
     )
     if (editingId.value) {
       const updated = await update(props.ownerId, editingId.value, payload)

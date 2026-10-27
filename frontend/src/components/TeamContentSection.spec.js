@@ -375,5 +375,22 @@ describe('TeamContentSection', () => {
       await flushPromises()
       expect(bodyOf('PATCH').game_id).toBeNull()
     })
+
+    it('a nullable field sends null when emptied on edit', async () => {
+      mockFetch({
+        'GET /api/teams/1/posts': () => jsonRes([{ id: 3, title: 'פוסט', image_url: 'https://cdn/p.jpg' }]),
+        'GET /api/teams/1/games': () => jsonRes([]),
+        'PATCH /api/teams/1/posts/3': () => jsonRes({ id: 3 }),
+      })
+      const Section = await importSection()
+      const fields = [...POST_FIELDS, { key: 'image_url', label: 'תמונה', type: 'url', nullable: true }]
+      const w = mount(Section, { props: { ownerId: 1, resource: 'posts', heading: 'x', fields } })
+      await flushPromises()
+      await w.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
+      await w.find('#posts-image_url').setValue('')
+      await w.find('form').trigger('submit')
+      await flushPromises()
+      expect(bodyOf('PATCH').image_url).toBeNull()
+    })
   })
 })

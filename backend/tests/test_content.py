@@ -477,6 +477,22 @@ def test_post_links_to_own_game_and_unlinks_with_null(admin_client: TestClient, 
     assert patched.json()["game_id"] is None
 
 
+def test_post_image_url_set_and_cleared_with_null(admin_client: TestClient, team: Team) -> None:
+    base = f"/teams/{team.id}/posts"
+    plain = admin_client.post(base, json={"title": "t", "body": "x"})
+    assert plain.json()["image_url"] is None
+    created = admin_client.post(base, json={"title": "t", "body": "x", "image_url": "https://cdn.example/p.jpg"})
+    assert created.status_code == 201
+    assert created.json()["image_url"] == "https://cdn.example/p.jpg"
+    patched = admin_client.patch(f"{base}/{created.json()['id']}", json={"image_url": None})
+    assert patched.status_code == 200
+    assert patched.json()["image_url"] is None
+
+
+def test_post_rejects_non_url_image(admin_client: TestClient, team: Team) -> None:
+    assert admin_client.post(f"/teams/{team.id}/posts", json={"title": "t", "body": "x", "image_url": "not a url"}).status_code == 422
+
+
 def test_post_rejects_other_teams_game(admin_client: TestClient, db_session: Session, team: Team, other_team: Team) -> None:
     foreign = _game(db_session, other_team)
     base = f"/teams/{team.id}/posts"
