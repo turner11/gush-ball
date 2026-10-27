@@ -170,6 +170,20 @@ async function addImage(player) {
   }
 }
 
+const settingMain = ref(false)
+async function makeMain(player, image) {
+  if (settingMain.value) return
+  settingMain.value = true
+  error.value = null
+  try {
+    player.images = await apiFetch(`/players/${player.id}/images/${image.id}/main`, { method: 'POST' })
+  } catch {
+    error.value = 'שגיאה בעדכון התמונה הראשית, נסו שוב'
+  } finally {
+    settingMain.value = false
+  }
+}
+
 async function deleteImage(player, image) {
   error.value = null
   try {
@@ -218,8 +232,12 @@ async function deleteImage(player, image) {
                 <td data-label="תמונות" class="max-sm:flex-wrap">
                   <div>
                     <ul class="space-y-1">
-                      <li v-for="image in player.images" :key="image.id" class="flex items-center gap-2 text-xs">
+                      <li v-for="(image, index) in player.images" :key="image.id" class="flex flex-wrap items-center gap-2 text-xs">
                         <img :src="image.url" alt="" class="size-10 rounded object-cover" />
+                        <span v-if="index === 0" class="badge-muted">תמונה ראשית</span>
+                        <button v-else type="button" class="btn-ghost" :aria-label="`הגדרה כתמונה ראשית — ${player.name}`" :disabled="settingMain" @click="makeMain(player, image)">
+                          הגדרה כראשית
+                        </button>
                         <button type="button" class="btn-danger-ghost" :aria-label="`הסרת תמונה — ${player.name}`" @click="deleteImage(player, image)">
                           הסרת תמונה
                         </button>

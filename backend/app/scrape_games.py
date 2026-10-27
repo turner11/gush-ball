@@ -609,7 +609,9 @@ def sync_team_players(db: Session, team: Team) -> int:
         except httpx.HTTPError:
             log.warning("Could not fetch player image %s", image.url, exc_info=True)
             continue
-        image.focus_x, image.focus_y, image.zoom = face_focus(data)
+        x, y, zoom = face_focus(data)
+        # Core UPDATE: a row set-main (#557) deleted mid-fetch matches 0 rows instead of failing the team's sync
+        db.execute(update(PlayerImage).where(PlayerImage.id == image.id).values(focus_x=x, focus_y=y, zoom=zoom))
 
     db.commit()
     return count

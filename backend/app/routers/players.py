@@ -331,6 +331,28 @@ def delete_player_image(
     db.commit()
 
 
+@router.post("/players/{player_id}/images/{image_id}/main", response_model=list[PlayerImageOut])
+def set_main_player_image(player_id: int, image_id: int, db: DbSession, user: RequireUser) -> list[PlayerImage]:
+    player = _get_player_or_404(db, player_id)
+    check_player_self_or_team_admin(db, user, player)
+    rows = player.images
+    chosen = next((i for i, row in enumerate(rows) if row.id == image_id), None)
+    if chosen is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+    # ponytail: main = lowest id, so the rows before the chosen one are re-inserted (fresh, higher ids, same content).
+    # The chosen row is untouched, so a stale id 404s instead of hitting another photo, and a concurrent focus write
+    # stays on its own row. Upgrade to a Player.main_image_id column if images ever need per-row identity.
+    before = rows[:chosen]
+    for row in before:
+        db.delete(row)
+    db.flush()
+    for row in before:
+        db.add(PlayerImage(player_id=player_id, url=row.url, focus_x=row.focus_x, focus_y=row.focus_y, zoom=row.zoom))
+    db.commit()
+    db.refresh(player)
+    return player.images
+
+
 @router.post(
     "/players/{player_id}/videos",
     response_model=PlayerVideoOut,

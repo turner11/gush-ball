@@ -419,6 +419,26 @@ describe('PlayerView', () => {
       expect(wrapper.text()).toContain('סרטונים')
     })
 
+    it('marks the first image as main and a click on another sets it main (#557)', async () => {
+      const base = okFetch()
+      const swapped = [{ id: 1, url: '/b.jpg' }, { id: 2, url: '/a.jpg' }]
+      global.fetch = vi.fn((url, options) =>
+        url === '/api/players/3/images/2/main'
+          ? Promise.resolve({ ok: true, status: 200, json: async () => swapped })
+          : base(url, options),
+      )
+      useAuth().user.value = { username: 'a', team_ids: [1], player_ids: [] }
+      const wrapper = await mountAt('/players/3')
+      await edit(wrapper).trigger('click')
+      const rows = wrapper.findAll('#profile-form li')
+      expect(rows[0].text()).toContain('תמונה ראשית')
+      expect(rows[0].find('[aria-label="הגדרה כתמונה ראשית"]').exists()).toBe(false)
+      await rows[1].find('[aria-label="הגדרה כתמונה ראשית"]').trigger('click')
+      await flushPromises()
+      expect(global.fetch).toHaveBeenCalledWith('/api/players/3/images/2/main', expect.objectContaining({ method: 'POST' }))
+      expect(wrapper.find('[data-testid="player-avatar"]').attributes('src')).toBe('/b.jpg')
+    })
+
     it('preview hides the manage link', async () => {
       global.fetch = okFetch()
       const { previewMode } = await import('../composables/useAuth')

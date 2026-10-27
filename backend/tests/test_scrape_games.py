@@ -5,6 +5,7 @@ import cv2
 import httpx
 import numpy as np
 import pytest
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app import scrape_games
@@ -1079,6 +1080,30 @@ def test_sync_team_players_stores_face_focus_once(
 
     scrape_games.sync_team_players(db_session, team)
     assert len(fetched) == 2
+
+
+def test_sync_team_players_skips_focus_for_image_deleted_mid_sync(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # set-main (#557) re-inserts earlier photos; a row it removed during the fetch must not fail the sync
+    monkeypatch.setattr(settings, "object_storage_public_url", "https://cdn")
+    team = _make_team(db_session)
+    player = Player(team_id=team.id, name="איתי ורולקר")
+    player.images.append(PlayerImage(url="https://cdn/admin.png"))
+    db_session.add(player)
+    db_session.commit()
+    _fake_roster(monkeypatch, ROSTER_HTML)
+
+    def fetch_while_set_main_deletes(url: str) -> bytes:
+        db_session.connection().execute(text("DELETE FROM player_images WHERE url = 'https://cdn/admin.png'"))
+        return b"x"
+
+    monkeypatch.setattr(scrape_games, "_get_image", fetch_while_set_main_deletes)
+    monkeypatch.setattr(scrape_games, "face_focus", lambda data: (40.0, 30.0, 1.5))
+
+    scrape_games.sync_team_players(db_session, team)
+
+    assert _image_focus(db_session) == [("https://ibasketball.co.il/b.jpg", 40.0, 30.0, 1.5)]
 
 
 def test_sync_team_players_fills_focus_for_off_roster_player_images(

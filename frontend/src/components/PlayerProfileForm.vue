@@ -16,6 +16,7 @@ const nameEn = ref(props.player.name_en ?? '')
 const nameInput = ref(null)
 const uploadWrap = ref(null)
 const saving = ref(false)
+const settingMain = ref(false)
 const error = ref('')
 
 onMounted(() => (nameInput.value ?? uploadWrap.value?.querySelector('button, input'))?.focus())
@@ -47,6 +48,20 @@ async function addImage(url) {
   }
 }
 
+async function makeMain(image) {
+  if (settingMain.value) return
+  settingMain.value = true
+  error.value = ''
+  try {
+    const images = await apiFetch(`/players/${props.player.id}/images/${image.id}/main`, { method: 'POST' })
+    emit('saved', { ...props.player, images })
+  } catch {
+    error.value = 'שגיאה בעדכון התמונה הראשית, נסו שוב'
+  } finally {
+    settingMain.value = false
+  }
+}
+
 async function removeImage(image) {
   error.value = ''
   try {
@@ -74,8 +89,10 @@ async function removeImage(image) {
     <div>
       <h2 class="field-label">תמונות</h2>
       <ul v-if="player.images.length" class="space-y-2">
-        <li v-for="image in player.images" :key="image.id" class="flex items-center gap-3">
+        <li v-for="(image, index) in player.images" :key="image.id" class="flex flex-wrap items-center gap-3">
           <img :src="image.url" alt="" class="size-12 rounded object-cover object-top" />
+          <span v-if="index === 0" class="badge-muted">תמונה ראשית</span>
+          <button v-else type="button" class="btn-ghost" aria-label="הגדרה כתמונה ראשית" :disabled="settingMain" @click="makeMain(image)">הגדרה כראשית</button>
           <button type="button" class="btn-danger-ghost" aria-label="הסר תמונה" @click="removeImage(image)">הסר</button>
         </li>
       </ul>
