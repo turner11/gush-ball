@@ -123,6 +123,7 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
         </button>
         <iframe
           v-else-if="playKind(play) === 'embed'"
+          :key="openPlay === play"
           :src="openPlay === play ? 'about:blank' : play.url"
           :title="play.title"
           sandbox="allow-scripts allow-same-origin"
@@ -132,6 +133,7 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
         />
         <iframe
           v-else-if="playKind(play) === 'youtube'"
+          :key="openPlay === play"
           :src="openPlay === play ? 'about:blank' : youtubeEmbedUrl(play.url)"
           :title="play.title"
           loading="lazy"
@@ -143,7 +145,7 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
           <span class="font-extrabold">{{ play.title }}</span><span v-if="playKind(play) === 'pdf'" class="badge badge-muted">PDF</span><AppIcon name="external" />
         </a>
         <div class="flex items-center justify-between gap-2">
-          <h2 v-if="!['pdf', 'link'].includes(playKind(play))" class="min-w-0 font-extrabold">{{ play.title }}</h2>
+          <h2 v-if="!['pdf', 'link'].includes(playKind(play))" class="min-w-0 break-words font-extrabold">{{ play.title }}</h2>
           <!-- A PDF or third-party page can't be framed (CSP), so its full screen is a new tab. -->
           <a
             v-if="['pdf', 'link'].includes(playKind(play))"
