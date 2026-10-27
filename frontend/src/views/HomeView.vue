@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
 import PostCard from '../components/PostCard.vue'
+import FeaturedPosts from '../components/FeaturedPosts.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import HomeSlideshow from '../components/HomeSlideshow.vue'
@@ -18,6 +19,7 @@ import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { gameAddress, played, splitGames } from '../lib/games'
+import { featuredPosts } from '../lib/posts'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const team = ref(null)
@@ -87,7 +89,9 @@ const matchCards = computed(() =>
 
 const lone = computed(() => matchCards.value.length === 1)
 
-const topPost = computed(() => posts.value[0] ?? null) // API order: pinned first, then newest
+const featured = computed(() => featuredPosts(posts.value, nextGame.value, lastGame.value))
+// The first post not already in the hero (API order: pinned first, then newest).
+const restPost = computed(() => posts.value.find((p) => !featured.value.some((f) => f.post.id === p.id)) ?? null)
 
 // ponytail: same highest-id-is-newest rule; the media page lists the rest.
 const latestVideos = computed(() => [...videos.value].sort((x, y) => y.id - x.id).slice(0, 2))
@@ -132,6 +136,7 @@ const hasSocialEmbed = computed(
 
 <template>
   <section v-if="!team && (loading || (!selectedTeamId && !teamsLoaded))" class="space-y-8" aria-busy="true">
+    <div class="skeleton h-56" />
     <div class="grid gap-3 sm:grid-cols-2 sm:gap-4">
       <div class="skeleton h-40" />
       <div class="skeleton h-40" />
@@ -143,6 +148,7 @@ const hasSocialEmbed = computed(
   <LoadError v-else-if="loadError" message="שגיאה בטעינת דף הקבוצה" @retry="load" />
 
   <section v-else-if="team" class="space-y-10 sm:space-y-14">
+    <FeaturedPosts :key="team.id" :items="featured" :posts-to="base + '/posts'" />
     <!-- side-by-side only from lg; a fixed 20rem aside keeps the embeds secondary to the content -->
     <div class="grid gap-12" :class="{ 'lg:grid-cols-[1fr_20rem]': showAside }">
       <!-- min-w-0: without it the player carousel's width stretches this track and overflows the page -->
@@ -173,10 +179,10 @@ const hasSocialEmbed = computed(
           <p v-else class="empty-state">עוד אין טקסט על הקבוצה.</p>
         </section>
 
-        <section v-if="topPost || canEdit" class="space-y-3">
+        <section v-if="restPost || canEdit" class="space-y-3">
           <div class="section-header">
             <h2 class="section-title">עדכונים</h2>
-            <RouterLink v-if="topPost && !editingPosts" :to="base + '/posts'" class="section-link">כל העדכונים</RouterLink>
+            <RouterLink v-if="restPost && !editingPosts" :to="base + '/posts'" class="section-link">כל העדכונים</RouterLink>
             <button
               v-if="canEdit"
               ref="postsToggle"
@@ -187,8 +193,9 @@ const hasSocialEmbed = computed(
               @click="togglePosts"
             >{{ editingPosts ? 'סיום עריכה' : 'עריכת עדכונים' }}</button>
           </div>
-          <TeamContentSection v-if="editingPosts" id="home-posts-editor" :key="team.id" :owner-id="team.id" v-bind="CONTENT_SECTIONS.posts" heading="" />
-          <PostCard v-else-if="topPost" :post="topPost" clamp />
+          <TeamContentSection v-if="editingPosts" id="home-posts-editor" :key="team.id" :owner-id="team.id" v-bind="CONTENT_SECTIONS.teamPosts" heading="" />
+          <PostCard v-else-if="restPost" :post="restPost" clamp />
+          <p v-else-if="posts.length" class="empty-state">כל העדכונים מוצגים למעלה.</p>
           <p v-else class="empty-state">אין עדכונים עדיין.</p>
         </section>
 

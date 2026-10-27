@@ -14,7 +14,7 @@ import { BACKGROUND_PRESETS, backgroundSrc, isPresetBackground } from '../lib/ba
 import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 // Explicit list: CONTENT_SECTIONS also holds club-only sections (clubImages shares resource 'images').
-const TEAM_SECTIONS = ['links', 'videos', 'images', 'posts', 'plays'].map((k) => CONTENT_SECTIONS[k])
+const TEAM_SECTIONS = ['links', 'videos', 'images', 'teamPosts', 'plays'].map((k) => CONTENT_SECTIONS[k])
 
 const route = useRoute()
 const teamId = route.params.id

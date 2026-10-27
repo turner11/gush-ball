@@ -7,7 +7,7 @@ defineProps({
 </script>
 
 <template>
-  <article class="card space-y-2">
+  <article :id="'post-' + post.id" class="card space-y-2">
     <div class="flex items-center gap-2">
       <component :is="'h' + level" class="min-w-0 text-lg font-extrabold">{{ post.title }}</component>
       <span v-if="post.pinned" class="badge badge-muted shrink-0">נעוץ</span>

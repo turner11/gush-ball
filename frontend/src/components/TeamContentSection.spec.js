@@ -356,7 +356,7 @@ describe('TeamContentSection', () => {
       const w = await mountPosts([{ id: 3, title: 'פוסט', game_id: 7 }], { 'PATCH /api/teams/1/posts/3': () => jsonRes({ id: 3 }) })
       expect(w.find('li').text()).not.toContain('7')
       await w.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
-      await w.find('#posts-game_id').setValue(null)
+      await w.findAll('#posts-game_id option')[0].setSelected()
       await w.find('form').trigger('submit')
       await flushPromises()
       expect(bodyOf('PATCH').game_id).toBeNull()

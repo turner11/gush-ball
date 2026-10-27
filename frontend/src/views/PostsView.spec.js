@@ -9,7 +9,7 @@ const POSTS = [
 const jsonRes = (body) => ({ ok: true, status: 200, json: async () => body })
 
 async function mountView(posts = POSTS) {
-  global.fetch = vi.fn(() => Promise.resolve(jsonRes(posts)))
+  global.fetch = vi.fn((url) => Promise.resolve(jsonRes(url.endsWith('/games') ? [] : posts)))
   const { default: PostsView } = await import('./PostsView.vue')
   const wrapper = mount(PostsView)
   await flushPromises()

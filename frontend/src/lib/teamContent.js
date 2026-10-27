@@ -1,4 +1,12 @@
 // Field configs for TeamContentSection, shared by the admin team page and the inline editors on public pages (#468).
+const POST_FIELDS = [
+  { key: 'title', label: 'כותרת', type: 'text', required: true },
+  { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
+  { key: 'body', label: 'תוכן', type: 'textarea', required: true, maxlength: 20000 },
+  { key: 'body_en', label: 'תוכן (אנגלית)', type: 'textarea', maxlength: 20000 },
+  { key: 'pinned', label: 'נעוץ', type: 'checkbox' },
+]
+
 export const CONTENT_SECTIONS = {
   links: {
     resource: 'links',
@@ -44,13 +52,14 @@ export const CONTENT_SECTIONS = {
     resource: 'posts',
     heading: 'עדכונים',
     reorderable: true,
-    fields: [
-      { key: 'title', label: 'כותרת', type: 'text', required: true },
-      { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
-      { key: 'body', label: 'תוכן', type: 'textarea', required: true, maxlength: 20000 },
-      { key: 'body_en', label: 'תוכן (אנגלית)', type: 'textarea', maxlength: 20000 },
-      { key: 'pinned', label: 'נעוץ', type: 'checkbox' },
-    ],
+    fields: POST_FIELDS,
+  },
+  // A team's posts can also be tied to one of its games (#560).
+  teamPosts: {
+    resource: 'posts',
+    heading: 'עדכונים',
+    reorderable: true,
+    fields: [...POST_FIELDS, { key: 'game_id', label: 'קשור למשחק', type: 'game' }],
   },
   plays: {
     resource: 'plays',
