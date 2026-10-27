@@ -688,7 +688,7 @@ def test_sync_auto_accept_never_applies_suggestion_to_overridden_game(
     team = _make_team(db_session)
     fake = FakeApi([FUTURE_EVENT])
     monkeypatch.setattr(scrape_games, "_get_json", fake)
-    scrape_games.sync_team_games(db_session, team)
+    scrape_games.sync_team_games(db_session, team, auto_accept=False)
 
     game = db_session.query(Game).filter_by(source_event_id=9001).one()
     game.is_manually_overridden = True

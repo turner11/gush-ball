@@ -40,7 +40,7 @@ def sync_all(
     db: Session,
     team_ids: list[int] | None = None,
     kinds: Collection[str] = KINDS,
-    auto_accept: bool = False,
+    auto_accept: bool = True,
 ) -> dict[str, Any]:
     # Leagues first so the games step's season rollover (#352) sees them; standings last, scraping the moved url.
     _sp_team.cache_clear()
