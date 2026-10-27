@@ -222,7 +222,7 @@ def _add_images(admin_client: TestClient, player_id: int, names: str) -> list[di
 
 def test_set_main_player_image_moves_it_first(admin_client: TestClient, db_session: Session, team: Team) -> None:
     player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
-    a, b, c = _add_images(admin_client, player_id, "abc")
+    c = _add_images(admin_client, player_id, "abc")[2]
     row = db_session.get(PlayerImage, c["id"])
     row.focus_x, row.focus_y, row.zoom = 30.0, 40.0, 1.5
     db_session.commit()
