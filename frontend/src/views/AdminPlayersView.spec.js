@@ -313,6 +313,42 @@ describe('AdminPlayersView', () => {
     expect(wrapper.text()).not.toContain('יוסי')
   })
 
+  it('set-main posts and re-renders the images in the returned order (#557)', async () => {
+    PLAYERS[0].images = [{ id: 1, url: 'https://x/a.png' }, { id: 2, url: 'https://x/b.png' }]
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'POST /api/players/10/images/2/main': () =>
+        jsonRes([{ id: 1, url: 'https://x/b.png' }, { id: 2, url: 'https://x/a.png' }]),
+    })
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.findAll('img').map((i) => i.attributes('src'))).toEqual(['https://x/a.png', 'https://x/b.png'])
+    await wrapper.find('[aria-label="הגדרה כתמונה ראשית — יוסי"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('img').map((i) => i.attributes('src'))).toEqual(['https://x/b.png', 'https://x/a.png'])
+    expect(wrapper.text()).toContain('תמונה ראשית')
+  })
+
+  it('a failed set-main shows an error and keeps the order (#557)', async () => {
+    PLAYERS[0].images = [{ id: 1, url: 'https://x/a.png' }, { id: 2, url: 'https://x/b.png' }]
+    mockFetch({
+      'GET /api/teams': () => jsonRes(TEAMS),
+      'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+      'POST /api/players/10/images/2/main': () => errorRes(),
+    })
+    const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+    const wrapper = mount(AdminPlayersView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    await wrapper.find('[aria-label="הגדרה כתמונה ראשית — יוסי"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('שגיאה בעדכון התמונה הראשית, נסו שוב')
+    expect(wrapper.findAll('img').map((i) => i.attributes('src'))).toEqual(['https://x/a.png', 'https://x/b.png'])
+  })
+
   it('a failed add-image request sets an error and leaves the image list unchanged', async () => {
     mockFetch({
       'GET /api/teams': () => jsonRes(TEAMS),

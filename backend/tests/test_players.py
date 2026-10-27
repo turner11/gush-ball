@@ -213,6 +213,57 @@ def test_delete_player_image(admin_client: TestClient, team: Team) -> None:
     assert response.status_code == 204
 
 
+def _add_images(admin_client: TestClient, player_id: int, names: str) -> list[dict]:
+    return [
+        admin_client.post(f"/players/{player_id}/images", json={"url": f"https://example.com/{n}.jpg"}).json()
+        for n in names
+    ]
+
+
+def test_set_main_player_image_moves_it_first(admin_client: TestClient, db_session: Session, team: Team) -> None:
+    player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
+    a, b, c = _add_images(admin_client, player_id, "abc")
+    row = db_session.get(PlayerImage, c["id"])
+    row.focus_x, row.focus_y, row.zoom = 30.0, 40.0, 1.5
+    db_session.commit()
+
+    response = admin_client.post(f"/players/{player_id}/images/{c['id']}/main")
+    assert response.status_code == 200
+    body = response.json()
+    assert [i["url"].rsplit("/", 1)[1] for i in body] == ["c.jpg", "a.jpg", "b.jpg"]
+    assert [i["id"] for i in body] == sorted(i["id"] for i in body)
+    assert (body[0]["focus_x"], body[0]["focus_y"], body[0]["zoom"]) == (30.0, 40.0, 1.5)
+    assert body[1]["focus_x"] is None
+    got = admin_client.get(f"/players/{player_id}").json()["images"]
+    assert [i["url"] for i in got] == [i["url"] for i in body]
+
+    again = admin_client.post(f"/players/{player_id}/images/{body[0]['id']}/main").json()
+    assert [i["url"] for i in again] == [i["url"] for i in body]
+
+
+def test_set_main_player_image_404s_and_requires_login(admin_client: TestClient, team: Team) -> None:
+    first = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
+    second = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dan"}).json()["id"]
+    (image,) = _add_images(admin_client, first, "a")
+    assert admin_client.post(f"/players/{second}/images/{image['id']}/main").status_code == 404
+    assert admin_client.post(f"/players/999999/images/{image['id']}/main").status_code == 404
+    assert TestClient(app).post(f"/players/{first}/images/{image['id']}/main").status_code == 401
+
+
+def test_linked_user_sets_main_image_on_own_player_only(
+    client: TestClient, db_session: Session, own_team: Team, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "object_storage_public_url", "https://x.test")
+    user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
+    mine = _player(db_session, own_team, user=user)
+    other = _player(db_session, own_team, name="Other")
+    for n in "ab":
+        client.post(f"/players/{mine.id}/images", json={"url": f"https://x.test/{n}.png"})
+    second = client.get(f"/players/{mine.id}").json()["images"][1]["id"]
+    assert client.post(f"/players/{mine.id}/images/{second}/main").status_code == 200
+    assert client.post(f"/players/{other.id}/images/{second}/main").status_code == 403
+
+
 def test_get_player_public_includes_images(
     client: TestClient, db_session: Session, team: Team
 ) -> None:
