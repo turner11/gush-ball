@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
-import css from './style.css?raw'
 import { describe, expect, it } from 'vitest'
 
+// read from disk: vitest stubs CSS imports (`?raw` -> '')
+const css = readFileSync('src/style.css', 'utf8')
 const sources = import.meta.glob('./**/*.vue', { query: '?raw', import: 'default', eager: true })
 
 describe('design tokens', () => {
@@ -20,6 +21,7 @@ describe('design tokens', () => {
 
   it('no tap target is shorter than min-h-11', () => {
     const small = /\bmin-h-(8|9|10)\b/
+    expect(css.length).toBeGreaterThan(0)
     expect(css).not.toMatch(small)
     for (const [path, src] of Object.entries(sources)) expect(src, path).not.toMatch(small)
   })
@@ -38,8 +40,7 @@ describe('design tokens', () => {
   })
 
   it('the image hover pop is the shared .image-pop class (#563)', () => {
-    // vitest stubs `style.css?raw` to '', so read the file directly
-    const rule = readFileSync('src/style.css', 'utf8').match(/\.image-pop\s*\{[^}]*\}/)?.[0] ?? ''
+    const rule = css.match(/\.image-pop\s*\{[^}]*\}/)?.[0] ?? ''
     expect(rule).toContain('hover:scale-105')
     expect(rule).toContain('motion-reduce:transition-none')
     for (const f of ['./components/HomeSlideshow.vue', './components/ImageGallery.vue', './views/PlayerView.vue'])
