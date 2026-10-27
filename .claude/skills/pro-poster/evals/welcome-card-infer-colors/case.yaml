@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: welcome-card-infer-colors
+expected_outcome: |
+  A 1080x1350 poster of the player in player.jpg with the face unchanged, colors inferred from the jersey, an English welcome headline plus the name, legible and clear of the face.
+context:
+  scaffold_script: place-files.sh

@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: collage-three-no-text
+expected_outcome: |
+  A single 1080x1350 image combining all three people from p1/p2/p3 with recognisable faces, a polished pro look, and no added text or garbled lettering.
+context:
+  scaffold_script: place-files.sh
