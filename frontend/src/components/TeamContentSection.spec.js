@@ -360,7 +360,7 @@ describe('TeamContentSection', () => {
       expect(w.findAll('#posts-game_id option')).toHaveLength(1)
       const Section = await importSection()
       global.fetch.mockClear()
-      // no flush: sequential loading would only have fired the posts fetch by now
+      // no flush: sequential loading would only have fired the first fetch by now
       const mounted = mount(Section, { props: { ownerId: 1, resource: 'posts', heading: 'x', fields: POST_FIELDS } })
       expect(global.fetch.mock.calls.map(([u]) => u).sort()).toEqual(['/api/teams/1/games', '/api/teams/1/posts'])
       mounted.unmount()
