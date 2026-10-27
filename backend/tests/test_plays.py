@@ -71,8 +71,15 @@ def test_create_play_with_file_url_and_with_link(admin_client: TestClient, own_t
     assert [p["title"] for p in admin_client.get(_plays(own_team)).json()] == ["A", "B"]
 
 
-SNIPPET = '<iframe width="560" src="https://app.thehoopsgeek.com/p/abc?x=1&amp;y=2" frameborder="0"></iframe>'
-SNIPPET_URL = "https://app.thehoopsgeek.com/p/abc?x=1&y=2"
+SNIPPET = (
+    """<iframe allow="fullscreen" style="border:0" title="Play Creator App" width="800" height="500" """
+    """src='https://www.thehoopsgeek.com/react-apps/PlayCreator/embed/?code=85zQytijU8&showTitle=1"""
+    """&showVideo=1&showDescription=1&showPhaseDescriptions=1'></iframe>"""
+)
+SNIPPET_URL = (
+    "https://www.thehoopsgeek.com/react-apps/PlayCreator/embed/"
+    "?code=85zQytijU8&showTitle=1&showVideo=1&showDescription=1&showPhaseDescriptions=1"
+)
 
 
 def test_create_play_from_iframe_snippet(admin_client: TestClient, own_team: Team) -> None:

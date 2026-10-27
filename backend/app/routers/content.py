@@ -217,7 +217,7 @@ class TeamPlayCreate(BaseModel):
     title: str
     title_en: str | None = None
     notes: Notes | None = None
-    file_url: PlayUrl | None = None
+    file_url: HttpUrl | None = None
     url: PlayUrl | None = None
 
     @model_validator(mode="after")
@@ -232,7 +232,7 @@ class TeamPlayUpdate(BaseModel):
     title: str = None
     title_en: str | None = None
     notes: Notes | None = None
-    file_url: PlayUrl | None = None
+    file_url: HttpUrl | None = None
     url: PlayUrl | None = None
 
     @model_validator(mode="after")

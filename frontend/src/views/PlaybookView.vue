@@ -28,11 +28,12 @@ const imagePlays = computed(() => plays.value.filter((p) => playKind(p) === 'ima
 const lightboxImages = computed(() => imagePlays.value.map((p) => ({ url: p.file_url, alt: p.title })))
 
 // Hosts whose pages we frame (keep in sync with frame-src in frontend/Caddyfile).
-const EMBED_HOSTS = ['app.thehoopsgeek.com']
+const EMBED_HOSTS = ['www.thehoopsgeek.com']
 
 function isEmbed(url) {
   try {
-    return EMBED_HOSTS.includes(new URL(url).hostname)
+    const { protocol, hostname } = new URL(url)
+    return protocol === 'https:' && EMBED_HOSTS.includes(hostname)
   } catch {
     return false
   }
@@ -106,7 +107,7 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
             sandbox="allow-scripts allow-same-origin"
             loading="lazy"
             allowfullscreen
-            class="aspect-video w-full rounded-2xl border-0 bg-raised"
+            class="aspect-[8/5] w-full rounded-2xl border-0 bg-raised"
           />
           <video v-else-if="playKind(play) === 'video'" :src="play.file_url" :aria-label="play.title" controls preload="metadata" playsinline class="w-full rounded-xl" />
           <a v-else :href="play.file_url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">
