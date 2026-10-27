@@ -345,7 +345,7 @@ def test_sync_tonight_runs_only_games_and_standings(
     scrape.sync_tonight(db_session, _evening())
 
     a = tonight_teams["A"].id
-    assert stub_scrapers["games_kw"]["team_ids"] == [a]
+    assert stub_scrapers["games_kw"] == {"team_ids": [a], "auto_accept": True}  # cron publishes by default (#556)
     assert stub_scrapers["standings_kw"]["team_ids"] == [a]
     assert stub_scrapers["players"] == 0
     assert stub_scrapers["leagues"] == 0
