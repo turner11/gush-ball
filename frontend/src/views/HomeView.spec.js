@@ -168,7 +168,7 @@ describe('HomeView', () => {
   it("section links point at the team's pages", async () => {
     const wrapper = await mountWithTeam(
       { ...TEAM, name_en: 'Elizur' },
-      { players: [{ id: 1, name: 'דני', jersey_number: 4, images: [] }], posts: POSTS },
+      { players: [{ id: 1, name: 'דני', jersey_number: 4, images: [] }], posts: [...POSTS, { id: 2, team_id: 1, title: 'עוד', body: 'x' }] },
     )
 
     const hrefOf = (text) => wrapper.findAll('a').find((a) => a.text() === text).attributes('href')
@@ -406,20 +406,22 @@ describe('HomeView', () => {
     expect(cards[0].element.parentElement.className).toContain('sm:grid-cols-2')
   })
 
-  it('shows only the newest post', async () => {
+  it('the hero shows the newest post and the posts section the next one, never the same twice', async () => {
     const post = (id) => ({ id, team_id: 1, title: `פוסט ${id}`, body: 'x' })
-    const wrapper = await mountWithTeam(TEAM, { posts: [post(2), post(1)] })
+    const wrapper = await mountWithTeam(TEAM, { posts: [post(3), post(2), post(1)] })
 
-    expect(wrapper.text()).toContain('פוסט 2')
+    const section = wrapper.findAll('section').find((x) => x.find('h2').text() === 'עדכונים')
+    expect(wrapper.find('h2').text()).toBe('פוסט 3')
+    expect(section.text()).toContain('פוסט 2')
+    expect(section.text()).not.toContain('פוסט 3')
     expect(wrapper.text()).not.toContain('פוסט 1')
   })
 
-  it('shows the pinned post over a newer one', async () => {
+  it('the hero shows the pinned post over a newer one', async () => {
     const post = (id, pinned) => ({ id, team_id: 1, title: `פוסט ${id}`, body: 'x', pinned })
     const wrapper = await mountWithTeam(TEAM, { posts: [post(1, true), post(2, false)] })
 
-    expect(wrapper.text()).toContain('פוסט 1')
-    expect(wrapper.text()).not.toContain('פוסט 2')
+    expect(wrapper.find('h2').text()).toBe('פוסט 1')
   })
 
   it('shows the about section when the team has about text', async () => {
@@ -429,20 +431,20 @@ describe('HomeView', () => {
     expect(wrapper.text()).toContain('קבוצה ותיקה')
   })
 
-  it('orders sections: games, about, post, players, videos', async () => {
+  it('orders sections: hero, games, about, post, players, videos', async () => {
     const opp = { name: 'יריבה', source_url: null, logo_url: null }
     const wrapper = await mountWithTeam({ ...TEAM, about: 'x' }, {
       games: [
         { id: 1, opponent: opp, scheduled_at: '2999-01-01T18:00:00', is_home: false, team_score: null, opponent_score: null },
         { id: 2, opponent: opp, scheduled_at: '2000-01-01T18:00:00', is_home: false, team_score: 1, opponent_score: 2 },
       ],
-      posts: [{ id: 1, title: 'פוסט', body: 'x' }],
+      posts: [{ id: 2, title: 'שני', body: 'x' }, { id: 1, title: 'פוסט', body: 'x' }],
       players: [{ id: 1, name: 'דני', jersey_number: 4, images: [] }],
       videos: [{ id: 1, title: 'וידאו', url: 'https://vimeo.com/1' }],
     })
 
     const titles = wrapper.findAll('h2').map((h) => h.text())
-    expect(titles).toEqual(['המשחק האחרון', 'המשחק הבא', 'על הקבוצה', 'עדכונים', 'הסגל', 'סרטונים'])
+    expect(titles).toEqual(['שני', 'המשחק האחרון', 'המשחק הבא', 'על הקבוצה', 'עדכונים', 'הסגל', 'סרטונים'])
   })
 
   it('shows only the 2 newest videos', async () => {
