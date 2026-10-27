@@ -27,9 +27,20 @@ const error = ref(false)
 const imagePlays = computed(() => plays.value.filter((p) => playKind(p) === 'image'))
 const lightboxImages = computed(() => imagePlays.value.map((p) => ({ url: p.file_url, alt: p.title })))
 
+// Hosts whose pages we frame (keep in sync with frame-src in frontend/Caddyfile).
+const EMBED_HOSTS = ['app.thehoopsgeek.com']
+
+function isEmbed(url) {
+  try {
+    return EMBED_HOSTS.includes(new URL(url).hostname)
+  } catch {
+    return false
+  }
+}
+
 // Uploaded keys always end in an allow-listed extension (storage.py), so it tells the kinds apart.
 function playKind(play) {
-  if (play.url) return 'link'
+  if (play.url) return isEmbed(play.url) ? 'embed' : 'link'
   if (play.file_url.endsWith('.mp4')) return 'video'
   return play.file_url.endsWith('.pdf') ? 'pdf' : 'image'
 }
@@ -88,11 +99,20 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
           >
             <img :src="play.file_url" :alt="play.title" loading="lazy" class="w-full rounded-xl object-contain" />
           </button>
+          <iframe
+            v-else-if="playKind(play) === 'embed'"
+            :src="play.url"
+            :title="play.title"
+            sandbox="allow-scripts allow-same-origin"
+            loading="lazy"
+            allowfullscreen
+            class="aspect-video w-full rounded-2xl border-0 bg-raised"
+          />
           <video v-else-if="playKind(play) === 'video'" :src="play.file_url" :aria-label="play.title" controls preload="metadata" playsinline class="w-full rounded-xl" />
           <a v-else :href="play.file_url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">
             <span class="font-extrabold">{{ play.title }}</span><span class="badge badge-muted">PDF</span><AppIcon name="external" />
           </a>
-          <h2 v-if="['image', 'video'].includes(playKind(play))" class="font-extrabold">{{ play.title }}</h2>
+          <h2 v-if="['image', 'video', 'embed'].includes(playKind(play))" class="font-extrabold">{{ play.title }}</h2>
         </template>
         <p v-if="play.notes" class="whitespace-pre-line text-muted">{{ play.notes }}</p>
       </li>

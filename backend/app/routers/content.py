@@ -5,13 +5,22 @@ schemas, so they're registered once per resource by `_add_crud_routes` below. Pl
 member-only (#439); the other lists are public. Posts and plays are reorderable via `PUT .../order`.
 """
 
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
+from html import unescape
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
-from pydantic import BaseModel, ConfigDict, HttpUrl, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    HttpUrl,
+    StringConstraints,
+    model_validator,
+)
 from sqlalchemy.orm import Session
 
 from app.db import Base
@@ -111,6 +120,21 @@ class TeamImageOut(TitledUrlOut):
 PostBody = Annotated[str, StringConstraints(max_length=20000)]
 Notes = Annotated[str, StringConstraints(max_length=2000)]
 
+_IFRAME_SRC = re.compile(r"""<iframe\b[^>]*?\ssrc\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.IGNORECASE)
+
+
+def _iframe_src(value):
+    """Embed code pasted as a play link: keep only the iframe src (never store markup)."""
+    if not isinstance(value, str) or not value.strip().startswith("<"):
+        return value
+    match = _IFRAME_SRC.search(value)
+    if not match:
+        raise ValueError("Paste a link or an <iframe> embed code")
+    return unescape(match.group(1) or match.group(2))
+
+
+PlayUrl = Annotated[HttpUrl, BeforeValidator(_iframe_src)]
+
 
 # Team and club posts share their schemas; `sort_order` is only ever set via `PUT .../order`.
 class PostCreate(BaseModel):
@@ -193,8 +217,8 @@ class TeamPlayCreate(BaseModel):
     title: str
     title_en: str | None = None
     notes: Notes | None = None
-    file_url: HttpUrl | None = None
-    url: HttpUrl | None = None
+    file_url: PlayUrl | None = None
+    url: PlayUrl | None = None
 
     @model_validator(mode="after")
     def _exactly_one_source(self):
@@ -208,8 +232,8 @@ class TeamPlayUpdate(BaseModel):
     title: str = None
     title_en: str | None = None
     notes: Notes | None = None
-    file_url: HttpUrl | None = None
-    url: HttpUrl | None = None
+    file_url: PlayUrl | None = None
+    url: PlayUrl | None = None
 
     @model_validator(mode="after")
     def _swap_source(self):
