@@ -222,9 +222,11 @@ def _add_images(admin_client: TestClient, player_id: int, names: str) -> list[di
 
 def test_set_main_player_image_moves_it_first(admin_client: TestClient, db_session: Session, team: Team) -> None:
     player_id = admin_client.post(f"/teams/{team.id}/players", json={"name": "Dana"}).json()["id"]
-    c = _add_images(admin_client, player_id, "abc")[2]
+    a, _, c = _add_images(admin_client, player_id, "abc")
+    assert a["avatar_url"] is None
     row = db_session.get(PlayerImage, c["id"])
     row.focus_x, row.focus_y, row.zoom = 30.0, 40.0, 1.5
+    db_session.get(PlayerImage, a["id"]).avatar_url = "https://cdn/a.webp"
     db_session.commit()
 
     response = admin_client.post(f"/players/{player_id}/images/{c['id']}/main")
@@ -234,6 +236,7 @@ def test_set_main_player_image_moves_it_first(admin_client: TestClient, db_sessi
     assert [i["id"] for i in body] == sorted(i["id"] for i in body)
     assert (body[0]["focus_x"], body[0]["focus_y"], body[0]["zoom"]) == (30.0, 40.0, 1.5)
     assert body[1]["focus_x"] is None
+    assert [i["avatar_url"] for i in body] == [None, "https://cdn/a.webp", None]
     assert body[0]["id"] == c["id"]  # the chosen row is untouched; the rows before it get fresh, higher ids
     got = admin_client.get(f"/players/{player_id}").json()["images"]
     assert [i["url"] for i in got] == [i["url"] for i in body]

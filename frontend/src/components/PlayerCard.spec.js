@@ -62,6 +62,14 @@ describe('PlayerCard', () => {
     expect(style).toContain('transform: scale(1.5)')
   })
 
+  it('uses the framed avatar copy in the circle without a focus transform', () => {
+    const img = mountCard({
+      player: { ...PLAYER, images: [{ url: '/a.jpg', avatar_url: '/a.webp', focus_x: 50, focus_y: 40, zoom: 2 }] },
+    }).find('img')
+    expect(img.attributes('src')).toBe('/a.webp')
+    expect(img.attributes('style')).toBeUndefined()
+  })
+
   it('keeps top anchoring when an image has no focus', () => {
     const img = mountCard({ player: PLAYER }).find('img')
     expect(img.attributes('style')).toBeUndefined()

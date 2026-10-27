@@ -7,6 +7,14 @@ export function focusStyle(img) {
   return { objectPosition: at, transformOrigin: at, transform: `scale(${img.zoom})` }
 }
 
+// Round-avatar props: the backend's pre-framed, downsampled copy (#568) needs no focus transform; without one, the original + focus.
+export function avatarImg(img) {
+  return {
+    src: img?.avatar_url || img?.url || DEFAULT_PLAYER_PHOTO,
+    style: img?.avatar_url ? undefined : focusStyle(img),
+  }
+}
+
 // Dead/blocked hotlink -> default; the endsWith guard stops a loop if the default itself fails.
 export function onPlayerImgError(e) {
   if (!e.target.src.endsWith(DEFAULT_PLAYER_PHOTO)) e.target.src = DEFAULT_PLAYER_PHOTO

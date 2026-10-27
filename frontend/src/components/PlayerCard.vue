@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { DEFAULT_PLAYER_PHOTO, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
+import { avatarImg, focusStyle, onPlayerImgError } from '../lib/playerPhoto'
 
 // `player` may be undefined (jersey not on the roster); `jersey` is then shown as #N.
 const props = defineProps({
@@ -61,10 +61,9 @@ onBeforeUnmount(stopSlideshow)
         class="overflow-hidden rounded-full ring-sunken"
       >
         <img
-          :src="own[0]?.url || DEFAULT_PLAYER_PHOTO"
+          v-bind="avatarImg(own[0])"
           :alt="player?.name ?? ''"
           loading="lazy"
-          :style="focusStyle(own[0])"
           class="size-full object-cover object-top"
           @error="onPlayerImgError"
         />
