@@ -40,6 +40,11 @@ describe('PostsView', () => {
     expect(global.fetch.mock.calls.map(([u]) => u)).toEqual(['/api/teams/1/posts'])
   })
 
+  it('renders the post body as markdown', async () => {
+    const wrapper = await mountView([{ id: 1, title: 'כותרת', body: '**חשוב**', pinned: false }])
+    expect(wrapper.find('article strong').text()).toBe('חשוב')
+  })
+
   it('scrolls to the #post-<id> card once the posts have loaded', async () => {
     mockRoute.hash = '#post-2'
     Element.prototype.scrollIntoView ??= () => {} // jsdom lacks it; spyOn needs it to exist
@@ -49,6 +54,30 @@ describe('PostsView', () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(1)
     expect(scrollIntoView.mock.contexts[0].id).toBe('post-2')
     wrapper.unmount()
+  })
+
+  it('shows a muted <time> date only when created_at is set', async () => {
+    const wrapper = await mountView([
+      { id: 1, title: 'א', body: 'x', created_at: '2026-03-05T10:00:00Z' },
+      { id: 2, title: 'ב', body: 'x', created_at: null },
+    ])
+    const [dated, legacy] = wrapper.findAll('article')
+    expect(dated.find('time').attributes('datetime')).toBe('2026-03-05T10:00:00Z')
+    expect(dated.find('time').classes()).toContain('text-muted')
+    expect(legacy.find('time').exists()).toBe(false)
+  })
+
+  it('shows the side image only when image_url is set', async () => {
+    const wrapper = await mountView([
+      { id: 1, title: 'א', body: 'x', image_url: 'https://cdn/x.jpg' },
+      { id: 2, title: 'ב', body: 'x', image_url: null },
+    ])
+    const [withImage, without] = wrapper.findAll('article')
+    const img = withImage.find('img')
+    expect(img.attributes('src')).toBe('https://cdn/x.jpg')
+    expect(img.attributes('alt')).toBe('')
+    expect(img.attributes('loading')).toBe('lazy')
+    expect(without.find('img').exists()).toBe(false)
   })
 
   it('shows an empty state', async () => {

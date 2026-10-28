@@ -110,6 +110,37 @@
   .card {
     @apply rounded-2xl border border-line bg-raised p-4 shadow-card sm:p-5;
   }
+  /* Rendered post markdown (lib/markdown.js); margins, not gap, so line-clamp still works */
+  .post-body {
+    @apply break-words;
+  }
+  .post-body > * + * {
+    @apply mt-2;
+  }
+  .post-body ul {
+    @apply list-disc ps-5;
+  }
+  .post-body ol {
+    @apply list-decimal ps-5;
+  }
+  .post-body a {
+    @apply font-semibold text-ink underline;
+  }
+  .post-body strong {
+    @apply font-bold text-ink;
+  }
+  .post-body :is(h1, h2, h3, h4, h5, h6) {
+    @apply text-base font-bold text-ink;
+  }
+  .post-body blockquote {
+    @apply border-s-4 border-line ps-3;
+  }
+  .post-body img {
+    @apply max-w-full rounded-xl;
+  }
+  .post-body code {
+    @apply rounded bg-sunken px-1;
+  }
   /* Image tile that pops on hover/focus (home photos, galleries, player photos, #563) */
   .image-pop {
     @apply relative transition-[scale,box-shadow] hover:z-10 hover:scale-105 hover:shadow-card focus-visible:z-10 focus-visible:scale-105 motion-reduce:transition-none;

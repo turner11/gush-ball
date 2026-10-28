@@ -22,7 +22,8 @@ const ALL = '__all__'
 const props = defineProps({
   id: { type: String, required: true },
   label: { type: String, required: true },
-  options: { type: Array, required: true }, // [{ value, label }]
+  options: { type: Array, required: true }, // [{ value, label, muted? }]; muted dims the row
+  describedby: { type: String, default: null }, // id of a hint/error element for the trigger
   allLabel: { type: String, default: null },
 })
 const model = defineModel({ type: String, default: '' })
@@ -44,6 +45,7 @@ const triggerText = computed(() => props.options.find((o) => o.value === model.v
             :id="id"
             type="button"
             :aria-labelledby="`${id}-label ${id}`"
+            :aria-describedby="describedby ?? undefined"
             class="field-input flex items-center justify-between gap-2 text-start"
           >
             <span class="truncate">{{ triggerText }}</span>
@@ -67,7 +69,7 @@ const triggerText = computed(() => props.options.find((o) => o.value === model.v
               </ComboboxItem>
               <ComboboxSeparator class="my-1 h-px bg-line" />
             </template>
-            <ComboboxItem v-for="o in options" :key="o.value" :value="o.value" :text-value="o.label" class="menu-item">
+            <ComboboxItem v-for="o in options" :key="o.value" :value="o.value" :text-value="o.label" class="menu-item" :class="{ 'text-muted': o.muted }">
               <span class="truncate">{{ o.label }}</span>
               <ComboboxItemIndicator class="ms-auto"><AppIcon name="check" /></ComboboxItemIndicator>
             </ComboboxItem>

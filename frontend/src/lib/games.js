@@ -3,12 +3,13 @@ import { formatGameDate } from './format'
 // Comparator: earliest game first.
 export const byDate = (a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)
 
+export const isPast = (g, now = new Date()) => new Date(g.scheduled_at) < now
+
 // Split a team's games into upcoming (soonest first) and past (latest first).
 export function splitGames(games, now = new Date()) {
-  const at = (g) => new Date(g.scheduled_at)
   return {
-    upcoming: games.filter((g) => at(g) >= now).sort(byDate),
-    past: games.filter((g) => at(g) < now).sort((a, b) => byDate(b, a)),
+    upcoming: games.filter((g) => !isPast(g, now)).sort(byDate),
+    past: games.filter((g) => isPast(g, now)).sort((a, b) => byDate(b, a)),
   }
 }
 
