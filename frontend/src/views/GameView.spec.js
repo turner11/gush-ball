@@ -19,13 +19,14 @@ const GAME = {
   opponent: { id: 6, name: 'הפועל עבר', logo_url: null, source_url: null, address: 'רחוב הספורט 1, חיפה' },
 }
 
-function mockFetch(game) {
+function mockFetch(game, posts = []) { // posts null = the posts endpoint fails
   global.fetch = vi.fn((url) => {
     if (url === '/api/teams/1') return Promise.resolve({ ok: true, status: 200, json: async () => TEAM })
     if (url === '/api/teams/1/games/5') return Promise.resolve(game)
     if (url === '/api/teams/1/games' || url === '/api/standings') return Promise.resolve(ok([]))
     if (url === '/api/teams/1/games/5/opponent-results') return Promise.resolve(ok([]))
     if (url === '/api/teams/1/players') return Promise.resolve(ok([]))
+    if (url === '/api/teams/1/posts') return Promise.resolve(posts ? ok(posts) : { ok: false, status: 500, statusText: 'Error', json: async () => ({}) })
     return Promise.reject(new Error(`Unhandled fetch: ${url}`))
   })
 }
@@ -234,6 +235,34 @@ describe('GameView', () => {
     })
   })
 
+  describe('linked posts (#581)', () => {
+    const post = (id, title, game_id) => ({ id, title, body: 'b', game_id })
+    const h2s = (w) => w.findAll('h2').map((h) => h.text())
+
+    it('shows the posts linked to this game, not other posts', async () => {
+      mockFetch(ok(GAME), [post(1, 'לקראת המשחק', 5), post(2, 'פוסט אחר', 99), post(3, 'כללי', null)])
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.text()).toContain('לקראת המשחק')
+      expect(wrapper.text()).not.toContain('פוסט אחר')
+      expect(wrapper.text()).not.toContain('כללי')
+      expect(wrapper.findAll('article')).toHaveLength(1)
+    })
+
+    it('hides the posts section when no post is linked to the game', async () => {
+      mockFetch(ok(GAME), [post(2, 'פוסט אחר', 99)])
+      const { wrapper } = await mountAt(true)
+      expect(h2s(wrapper)).not.toContain('עדכונים')
+    })
+
+    it('a failed posts fetch hides the section but keeps the game page', async () => {
+      mockFetch(ok(GAME), null)
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.text()).toContain('הפועל עבר')
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(h2s(wrapper)).not.toContain('עדכונים')
+    })
+  })
+
   it('a failed load shows an error with retry, not not-found', async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, statusText: 'Error', json: async () => ({}) }))
     const { wrapper } = await mountAt(true)
@@ -245,14 +274,14 @@ describe('GameView', () => {
     expect(wrapper.text()).toContain('הפועל עבר')
   })
 
-  it('orders the cards: about, scorers, stats, then media (#539)', async () => {
+  it('orders the cards: about, scorers, stats, posts, then media (#539, #581)', async () => {
     mockFetch(ok({
       ...GAME,
       scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
       videos: [{ url: 'https://www.youtube.com/watch?v=abc123', title: 'תקציר', title_en: null }],
-    }))
+    }), [{ id: 1, title: 'לקראת המשחק', body: 'b', game_id: 5 }])
     const { wrapper } = await mountAt(true)
-    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['על המשחק', 'קלעים', 'ממוצעי נקודות', 'מדיה'])
+    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['על המשחק', 'קלעים', 'ממוצעי נקודות', 'עדכונים', 'מדיה'])
   })
 
   it('preview hides the scorers and media edit buttons from a team admin (#468)', async () => {
