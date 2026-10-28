@@ -10,7 +10,7 @@ defineProps({
 </script>
 
 <template>
-  <article :id="'post-' + post.id" class="card flex flex-col gap-3 sm:flex-row sm:items-start">
+  <article :id="'post-' + post.id" class="card flex flex-col gap-3 sm:flex-row">
     <div class="min-w-0 flex-1 space-y-2">
       <time v-if="post.created_at" :datetime="post.created_at" class="block text-xs text-muted">{{ formatIsraelDay(post.created_at) }}</time>
       <div class="flex items-center gap-2">
@@ -19,13 +19,13 @@ defineProps({
       </div>
       <div class="post-body max-w-prose text-muted" :class="{ 'line-clamp-6': clamp }" v-html="renderMarkdown(post.body)" />
     </div>
-    <!-- DOM after the text = the card's end side on sm+; order-first stacks it above the text on phones -->
-    <img
+    <!-- DOM after the text = the card's end side on sm+; order-first stacks it above the text on phones.
+         On sm+ the wrapper stretches to the text's height (min-h for short posts) and the image covers it. -->
+    <div
       v-if="post.image_url"
-      :src="post.image_url"
-      alt=""
-      loading="lazy"
-      class="order-first aspect-video w-full rounded-xl object-cover sm:order-none sm:w-56 sm:shrink-0"
-    />
+      class="relative order-first aspect-video w-full shrink-0 overflow-hidden rounded-xl sm:order-none sm:aspect-auto sm:min-h-40 sm:w-1/3"
+    >
+      <img :src="post.image_url" alt="" loading="lazy" class="absolute inset-0 h-full w-full object-cover" />
+    </div>
   </article>
 </template>
