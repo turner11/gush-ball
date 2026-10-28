@@ -40,6 +40,11 @@ describe('PostsView', () => {
     expect(global.fetch.mock.calls.map(([u]) => u)).toEqual(['/api/teams/1/posts'])
   })
 
+  it('renders the post body as markdown', async () => {
+    const wrapper = await mountView([{ id: 1, title: 'כותרת', body: '**חשוב**', pinned: false }])
+    expect(wrapper.find('article strong').text()).toBe('חשוב')
+  })
+
   it('scrolls to the #post-<id> card once the posts have loaded', async () => {
     mockRoute.hash = '#post-2'
     Element.prototype.scrollIntoView ??= () => {} // jsdom lacks it; spyOn needs it to exist

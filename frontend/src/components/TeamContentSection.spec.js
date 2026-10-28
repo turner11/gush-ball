@@ -1,5 +1,5 @@
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const LINKS = [{ id: 10, label: 'אתר הבית', label_en: null, url: 'https://example.com' }]
 
@@ -349,29 +349,63 @@ describe('TeamContentSection', () => {
     expect(second.find('[aria-label="הזזה למעלה"]').attributes('disabled')).toBeDefined()
   })
 
+  it('a markdown field shows a hint and a live preview', async () => {
+    mockFetch({ 'GET /api/teams/1/posts': () => jsonRes([]) })
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const fields = [{ key: 'body', label: 'תוכן', type: 'textarea', markdown: true }]
+    const wrapper = mount(TeamContentSection, { props: { ownerId: 1, resource: 'posts', heading: 'x', fields } })
+    await flushPromises()
+    const area = wrapper.find('#posts-body')
+    expect(wrapper.find(`#${area.attributes('aria-describedby')}`).exists()).toBe(true)
+    expect(wrapper.find('details').exists()).toBe(false)
+    await area.setValue('**א**')
+    expect(wrapper.find('details .post-body strong').text()).toBe('א')
+  })
+
   describe('game field', () => {
     const POST_FIELDS = [
       { key: 'title', label: 'כותרת', type: 'text', required: true },
       { key: 'game_id', label: 'קשור למשחק', type: 'game' },
     ]
     const GAMES = [{ id: 7, scheduled_at: '2026-05-01T18:00:00', opponent: { name: 'הפועל' } }]
+    beforeAll(() => {
+      Element.prototype.scrollIntoView = () => {} // jsdom lacks it; reka scrolls the highlighted item
+    })
     const mountPosts = async (posts, extra = {}) => {
       mockFetch({ 'GET /api/teams/1/posts': () => jsonRes(posts), 'GET /api/teams/1/games': () => jsonRes(GAMES), ...extra })
       const { default: TeamContentSection } = await import('./TeamContentSection.vue')
-      const wrapper = mount(TeamContentSection, { props: { ownerId: 1, resource: 'posts', heading: 'עדכונים', fields: POST_FIELDS } })
+      const wrapper = mount(TeamContentSection, { props: { ownerId: 1, resource: 'posts', heading: 'עדכונים', fields: POST_FIELDS }, attachTo: document.body })
       await flushPromises()
       return wrapper
     }
     const importSection = async () => (await import('./TeamContentSection.vue')).default
+    const openGames = async (w) => {
+      await w.find('#posts-game_id').trigger('click')
+      await flushPromises()
+    }
+    const optionEls = () => new DOMWrapper(document.body).findAll('[role=option]')
     const bodyOf = (method) => JSON.parse(global.fetch.mock.calls.find(([, o]) => o?.method === method)[1].body)
 
-    it('lists the team games and posts the chosen game_id', async () => {
+    it('lists games oldest first and mutes past games', async () => {
+      const w = await mountPosts([], {
+        'GET /api/teams/1/games': () =>
+          jsonRes([
+            { id: 8, scheduled_at: '2999-01-01T18:00:00', opponent: { name: 'עתיד' } },
+            { id: 7, scheduled_at: '2000-01-01T18:00:00', opponent: { name: 'עבר' } },
+          ]),
+      })
+      await openGames(w)
+      const options = optionEls()
+      expect(options.map((o) => o.text())).toEqual(['ללא משחק', expect.stringContaining('עבר'), expect.stringContaining('עתיד')])
+      expect(options[1].classes()).toContain('text-muted')
+      expect(options[2].classes()).not.toContain('text-muted')
+    })
+
+    it('posts the chosen game_id as a number', async () => {
       const w = await mountPosts([], { 'POST /api/teams/1/posts': () => jsonRes({ id: 1 }, 201) })
-      const options = w.findAll('#posts-game_id option')
-      expect(options[0].text()).toBe('ללא משחק')
-      expect(options[1].text()).toContain('הפועל')
       await w.find('#posts-title').setValue('כותרת')
-      await w.find('#posts-game_id').setValue(7)
+      await openGames(w)
+      await optionEls()[1].trigger('click')
       await w.find('form').trigger('submit')
       await flushPromises()
       expect(bodyOf('POST')).toEqual({ title: 'כותרת', game_id: 7 })
@@ -381,7 +415,8 @@ describe('TeamContentSection', () => {
       const w = await mountPosts([], { 'GET /api/teams/1/games': () => Promise.reject(new Error('down')) })
       expect(w.get('#posts-game_id').attributes('aria-describedby')).toBe('posts-game_id-error')
       expect(w.get('#posts-game_id-error').text()).toBe('טעינת המשחקים נכשלה')
-      expect(w.findAll('#posts-game_id option')).toHaveLength(1)
+      await openGames(w)
+      expect(optionEls().map((o) => o.text())).toEqual(['ללא משחק'])
       const Section = await importSection()
       global.fetch.mockClear()
       // no flush: sequential loading would only have fired the first fetch by now
@@ -394,7 +429,8 @@ describe('TeamContentSection', () => {
       const w = await mountPosts([{ id: 3, title: 'פוסט', game_id: 7 }], { 'PATCH /api/teams/1/posts/3': () => jsonRes({ id: 3 }) })
       expect(w.find('li').text()).not.toContain('7')
       await w.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
-      await w.findAll('#posts-game_id option')[0].setSelected()
+      await openGames(w)
+      await optionEls()[0].trigger('click')
       await w.find('form').trigger('submit')
       await flushPromises()
       expect(bodyOf('PATCH').game_id).toBeNull()
