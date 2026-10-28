@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
-import { byDate } from '../lib/games'
+import { byDate, isPast } from '../lib/games'
 import { renderMarkdown } from '../lib/markdown'
 import { isExpired } from '../lib/posts'
 import { useTeamContent } from '../composables/useTeamContent'
@@ -113,7 +113,7 @@ const gameOptions = computed(() =>
   games.value.map((g) => ({
     value: String(g.id),
     label: `${formatDateTime(g.scheduled_at)} · ${g.opponent.name}`,
-    muted: new Date(g.scheduled_at) < new Date(), // same past rule as splitGames
+    muted: isPast(g),
   })),
 )
 async function loadGames() {

