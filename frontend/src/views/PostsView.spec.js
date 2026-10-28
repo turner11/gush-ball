@@ -56,6 +56,30 @@ describe('PostsView', () => {
     wrapper.unmount()
   })
 
+  it('shows a muted <time> date only when created_at is set', async () => {
+    const wrapper = await mountView([
+      { id: 1, title: 'א', body: 'x', created_at: '2026-03-05T10:00:00Z' },
+      { id: 2, title: 'ב', body: 'x', created_at: null },
+    ])
+    const [dated, legacy] = wrapper.findAll('article')
+    expect(dated.find('time').attributes('datetime')).toBe('2026-03-05T10:00:00Z')
+    expect(dated.find('time').classes()).toContain('text-muted')
+    expect(legacy.find('time').exists()).toBe(false)
+  })
+
+  it('shows the side image only when image_url is set', async () => {
+    const wrapper = await mountView([
+      { id: 1, title: 'א', body: 'x', image_url: 'https://cdn/x.jpg' },
+      { id: 2, title: 'ב', body: 'x', image_url: null },
+    ])
+    const [withImage, without] = wrapper.findAll('article')
+    const img = withImage.find('img')
+    expect(img.attributes('src')).toBe('https://cdn/x.jpg')
+    expect(img.attributes('alt')).toBe('')
+    expect(img.attributes('loading')).toBe('lazy')
+    expect(without.find('img').exists()).toBe(false)
+  })
+
   it('shows an empty state', async () => {
     expect((await mountView([])).find('.empty-state').text()).toBe('אין עדכונים עדיין.')
   })
