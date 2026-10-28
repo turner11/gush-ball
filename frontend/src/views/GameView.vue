@@ -5,6 +5,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import GameAverages from '../components/GameAverages.vue'
 import ImageGallery from '../components/ImageGallery.vue'
 import LoadError from '../components/LoadError.vue'
+import PostCard from '../components/PostCard.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
@@ -22,6 +23,7 @@ const route = useRoute()
 const { selectedTeamId, teamsLoaded } = useSelectedTeam()
 const team = ref(null)
 const game = ref(null)
+const posts = ref([])
 const loading = ref(true)
 const notFound = ref(false)
 const loadError = ref(false)
@@ -31,6 +33,7 @@ const canEdit = computed(() => !!game.value && canEditTeam(game.value.team_id))
 const { editing: editingScorers, toggleEl: scorersToggle, toggle: toggleScorers } = useInlineEditor(canEdit)
 const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = useInlineEditor(canEdit)
 const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.images?.length))
+const gamePosts = computed(() => posts.value.filter((p) => p.game_id === game.value?.id))
 const address = computed(() => gameAddress(game.value, team.value))
 
 const saved = ref(null) // 'scorers' | 'media': which save to confirm (the editor unmounts on save)
@@ -63,9 +66,15 @@ async function load() {
   const id = selectedTeamId.value
   loading.value = true
   try {
-    const loaded = await Promise.all([apiFetch(`/teams/${id}`), apiFetch(`/teams/${id}/games/${route.params.id}`)])
+    // ponytail: fetches all the team's posts and filters client-side; add a ?game_id= filter if post counts grow.
+    // Posts are secondary, so a failed fetch means no posts, not a failed page.
+    const loaded = await Promise.all([
+      apiFetch(`/teams/${id}`),
+      apiFetch(`/teams/${id}/games/${route.params.id}`),
+      apiFetch(`/teams/${id}/posts`).catch(() => []),
+    ])
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
-    ;[team.value, game.value] = loaded
+    ;[team.value, game.value, posts.value] = loaded
   } catch (e) {
     if (id !== selectedTeamId.value) return
     game.value = null
@@ -158,6 +167,11 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
     </section>
 
     <GameAverages :team="team" :opponent="game.opponent" :game-id="game.id" />
+
+    <section v-if="gamePosts.length" class="space-y-3" aria-labelledby="game-posts-title">
+      <h2 id="game-posts-title" class="section-title">עדכונים</h2>
+      <PostCard v-for="post in gamePosts" :key="post.id" :post="post" />
+    </section>
 
     <section v-if="hasMedia || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">
