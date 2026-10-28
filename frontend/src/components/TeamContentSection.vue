@@ -1,11 +1,14 @@
 <script setup>
-import { nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
+import { byDate } from '../lib/games'
+import { renderMarkdown } from '../lib/markdown'
 import { isExpired } from '../lib/posts'
 import { useTeamContent } from '../composables/useTeamContent'
 import AppIcon from './AppIcon.vue'
+import FilterCombobox from './FilterCombobox.vue'
 import ImageUpload from './ImageUpload.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import PlayerTagsInput from './PlayerTagsInput.vue'
@@ -106,9 +109,16 @@ async function onDeleteConfirmed() {
 
 const games = ref([])
 const gamesFailed = ref(false)
+const gameOptions = computed(() =>
+  games.value.map((g) => ({
+    value: String(g.id),
+    label: `${formatDateTime(g.scheduled_at)} · ${g.opponent.name}`,
+    muted: new Date(g.scheduled_at) < new Date(), // same past rule as splitGames
+  })),
+)
 async function loadGames() {
   try {
-    games.value = (await apiFetch(`/teams/${props.ownerId}/games`)) ?? []
+    games.value = ((await apiFetch(`/teams/${props.ownerId}/games`)) ?? []).sort(byDate)
   } catch {
     gamesFailed.value = true // the picker keeps only "ללא משחק"
   }
@@ -192,11 +202,15 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
           <span class="field-label">{{ field.label }}</span>
         </label>
         <template v-else-if="field.type === 'game'">
-          <label :for="`${resource}-${field.key}`" class="field-label">{{ field.label }}</label>
-          <select :id="`${resource}-${field.key}`" v-model="form[field.key]" class="field-input" :aria-describedby="gamesFailed ? `${resource}-${field.key}-error` : undefined">
-            <option :value="null">ללא משחק</option>
-            <option v-for="g in games" :key="g.id" :value="g.id">{{ formatDateTime(g.scheduled_at) }} · {{ g.opponent.name }}</option>
-          </select>
+          <FilterCombobox
+            :id="`${resource}-${field.key}`"
+            :label="field.label"
+            all-label="ללא משחק"
+            :options="gameOptions"
+            :describedby="gamesFailed ? `${resource}-${field.key}-error` : undefined"
+            :model-value="form[field.key] == null ? '' : String(form[field.key])"
+            @update:model-value="(v) => (form[field.key] = v ? Number(v) : null)"
+          />
           <p v-if="gamesFailed" :id="`${resource}-${field.key}-error`" class="mt-1 text-sm text-muted">טעינת המשחקים נכשלה</p>
         </template>
         <template v-else>
@@ -209,8 +223,16 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
           v-model="form[field.key]"
           :required="field.required"
           :maxlength="field.maxlength"
+          :aria-describedby="field.markdown ? `${resource}-${field.key}-hint` : undefined"
           class="field-input"
         />
+        <template v-if="field.type === 'textarea' && field.markdown">
+          <p :id="`${resource}-${field.key}-hint`" class="mt-1 text-sm text-muted">ניתן לעצב ב-Markdown: **מודגש**, *נטוי*, - רשימה, [קישור](https://…)</p>
+          <details v-if="form[field.key]">
+            <summary class="flex min-h-11 cursor-pointer items-center font-bold">תצוגה מקדימה</summary>
+            <div class="post-body rounded-xl border border-line p-3 text-muted" v-html="renderMarkdown(form[field.key])" />
+          </details>
+        </template>
         <input
           v-else
           :id="`${resource}-${field.key}`"

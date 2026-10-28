@@ -1,4 +1,6 @@
 <script setup>
+import { renderMarkdown } from '../lib/markdown'
+
 defineProps({
   post: { type: Object, required: true },
   clamp: Boolean,
@@ -12,6 +14,6 @@ defineProps({
       <component :is="'h' + level" class="min-w-0 text-lg font-extrabold">{{ post.title }}</component>
       <span v-if="post.pinned" class="badge badge-muted shrink-0">נעוץ</span>
     </div>
-    <p class="max-w-prose whitespace-pre-line text-muted" :class="{ 'line-clamp-6': clamp }">{{ post.body }}</p>
+    <div class="post-body max-w-prose text-muted" :class="{ 'line-clamp-6': clamp }" v-html="renderMarkdown(post.body)" />
   </article>
 </template>
