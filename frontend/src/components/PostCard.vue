@@ -20,12 +20,13 @@ defineProps({
       <div class="post-body max-w-prose text-muted" :class="{ 'line-clamp-6': clamp }" v-html="renderMarkdown(post.body)" />
     </div>
     <!-- DOM after the text = the card's end side on sm+; order-first stacks it above the text on phones.
-         On sm+ the wrapper stretches to the text's height (min-h for short posts) and the image covers it. -->
-    <div
+         Natural aspect ratio, never cropped: a short post's card grows to the image, a long post's text runs past it. -->
+    <img
       v-if="post.image_url"
-      class="relative order-first aspect-video w-full shrink-0 overflow-hidden rounded-xl sm:order-none sm:aspect-auto sm:min-h-40 sm:w-1/3"
-    >
-      <img :src="post.image_url" alt="" loading="lazy" class="absolute inset-0 h-full w-full object-cover" />
-    </div>
+      :src="post.image_url"
+      alt=""
+      loading="lazy"
+      class="order-first h-auto w-full rounded-xl sm:order-none sm:w-1/3 sm:shrink-0 sm:self-start"
+    />
   </article>
 </template>
