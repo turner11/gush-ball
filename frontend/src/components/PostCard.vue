@@ -26,7 +26,7 @@ defineProps({
       :src="post.image_url"
       alt=""
       loading="lazy"
-      class="order-first h-auto max-h-96 w-full rounded-xl object-contain sm:order-none sm:w-1/3 sm:shrink-0 sm:self-start"
+      class="order-first h-auto max-h-96 w-full rounded-xl bg-raised object-contain sm:order-none sm:w-1/3 sm:shrink-0 sm:self-start"
     />
   </article>
 </template>
