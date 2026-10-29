@@ -60,7 +60,10 @@ describe('GameView', () => {
     vi.resetModules()
     localStorage.clear()
   })
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    document.body.innerHTML = '' // mountAt attaches to the body; drop stale #post-N cards between tests
+  })
 
   it('shows the not-found state with a schedule link when no team resolves', async () => {
     mockFetch(ok(GAME))
@@ -270,7 +273,6 @@ describe('GameView', () => {
       expect(scrollIntoView).toHaveBeenCalledTimes(1)
       expect(scrollIntoView.mock.contexts[0].id).toBe('post-1')
       wrapper.unmount()
-      document.body.innerHTML = ''
     })
   })
 

@@ -10,7 +10,7 @@ defineProps({
 </script>
 
 <template>
-  <article :id="'post-' + post.id" class="card flex flex-col gap-3 sm:flex-row">
+  <article :id="'post-' + post.id" class="card flex scroll-mt-24 flex-col gap-3 sm:flex-row">
     <div class="min-w-0 flex-1 space-y-2">
       <time v-if="post.created_at" :datetime="post.created_at" class="block text-xs text-muted">{{ formatIsraelDay(post.created_at) }}</time>
       <div class="flex items-center gap-2">
