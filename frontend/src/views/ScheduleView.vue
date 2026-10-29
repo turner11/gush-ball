@@ -4,7 +4,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import AppIcon from '../components/AppIcon.vue'
 import CalendarSubscribe from '../components/CalendarSubscribe.vue'
 import GameForm from '../components/GameForm.vue'
-import GameRow from '../components/GameRow.vue'
+import GameListFold from '../components/GameListFold.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import LoadError from '../components/LoadError.vue'
 import PracticesAdmin from '../components/PracticesAdmin.vue'
@@ -60,26 +60,18 @@ const RESULTS_SHOWN = 3
 const UPCOMING_SHOWN = 1 // reads as "next game"
 const expanded = ref({ past: false, upcoming: false })
 
-// Results first. Collapsed, a section shows its top rows plus one faded, inert peek row hinting at more.
+// Results first; GameListFold folds each section to its top rows.
 const sections = computed(() => {
   const { upcoming, past } = splitGames(games.value)
   return [
     { key: 'past', title: 'תוצאות', games: past, limit: RESULTS_SHOWN, empty: 'אין תוצאות עדיין.', all: 'כל התוצאות' },
     { key: 'upcoming', title: 'המשחק הבא', games: upcoming, limit: UPCOMING_SHOWN, empty: 'אין משחקים קרובים.', all: 'כל המשחקים הקרובים' },
-  ].map((s) => {
-    const open = expanded.value[s.key]
-    return {
-      ...s,
-      shown: open ? s.games : s.games.slice(0, s.limit),
-      peek: open ? null : (s.games[s.limit] ?? null),
-      foldable: s.games.length > s.limit,
-    }
-  })
+  ]
 })
 
-function toggleSection(s) {
-  expanded.value[s.key] = !expanded.value[s.key]
-  if (!expanded.value[s.key] && s.games.slice(s.limit).some((g) => g.id === editingId.value)) editingId.value = null
+function setExpanded(s, open) {
+  expanded.value[s.key] = open
+  if (!open && s.games.slice(s.limit).some((g) => g.id === editingId.value)) editingId.value = null
 }
 
 async function loadGames() {
@@ -210,37 +202,35 @@ const { editing: editingPractices, toggleEl: practicesToggle, toggle: togglePrac
     <template v-else>
       <section v-for="s in sections" :key="s.key" class="space-y-3">
         <h2 class="section-title">{{ s.title }}</h2>
-        <ol v-if="s.games.length" :id="'games-' + s.key" class="card divide-y divide-line overflow-hidden p-0">
-          <template v-for="game in s.shown" :key="game.id">
-            <GameRow :game="game" :team="team">
-              <template v-if="canEdit" #actions>
-                <GameStatsLink :game="game" class="btn-ghost" />
-                <button
-                  :id="'edit-game-' + game.id"
-                  type="button"
-                  class="btn-ghost"
-                  :aria-label="'עריכת המשחק נגד ' + game.opponent.name"
-                  :aria-expanded="editingId === game.id"
-                  :aria-controls="'game-editor-' + game.id"
-                  @click="editingId = editingId === game.id ? null : game.id"
-                >עריכה</button>
-              </template>
-            </GameRow>
+        <GameListFold
+          v-if="s.games.length"
+          :games="s.games"
+          :limit="s.limit"
+          :list-id="'games-' + s.key"
+          :all-label="s.all"
+          :team-of="() => team"
+          :expanded="expanded[s.key]"
+          @update:expanded="(open) => setExpanded(s, open)"
+        >
+          <template v-if="canEdit" #actions="{ game }">
+            <GameStatsLink :game="game" class="btn-ghost" />
+            <button
+              :id="'edit-game-' + game.id"
+              type="button"
+              class="btn-ghost"
+              :aria-label="'עריכת המשחק נגד ' + game.opponent.name"
+              :aria-expanded="editingId === game.id"
+              :aria-controls="'game-editor-' + game.id"
+              @click="editingId = editingId === game.id ? null : game.id"
+            >עריכה</button>
+          </template>
+          <template #after="{ game }">
             <li v-if="editingId === game.id" :id="'game-editor-' + game.id" class="px-4 py-4 sm:px-5">
               <GameForm class="max-w-2xl" :team-id="team.id" :game="game" @saved="onSaved" @cancel="closeEditor" />
             </li>
           </template>
-          <GameRow v-if="s.peek" :game="s.peek" :team="team" inert aria-hidden="true" class="max-h-14 overflow-hidden opacity-60 mask-b-to-transparent" />
-        </ol>
+        </GameListFold>
         <p v-else class="empty-state">{{ s.empty }}</p>
-        <button
-          v-if="s.foldable"
-          type="button"
-          class="btn-ghost w-full sm:w-auto"
-          :aria-controls="'games-' + s.key"
-          :aria-expanded="expanded[s.key]"
-          @click="toggleSection(s)"
-        >{{ expanded[s.key] ? 'הצגת פחות' : `${s.all} (${s.games.length})` }}</button>
       </section>
     </template>
   </section>

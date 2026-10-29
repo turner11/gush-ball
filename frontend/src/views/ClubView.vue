@@ -14,7 +14,7 @@ import { leagueKey } from '../lib/leagues'
 import { DEFAULT_PLAYER_PHOTO, onPlayerImgError } from '../lib/playerPhoto'
 import { matchRank } from '../lib/search'
 import SearchInput from '../components/SearchInput.vue'
-import GameRow from '../components/GameRow.vue'
+import GameListFold from '../components/GameListFold.vue'
 import TeamCard from '../components/TeamCard.vue'
 import AppIcon from '../components/AppIcon.vue'
 import PostCard from '../components/PostCard.vue'
@@ -74,13 +74,14 @@ function clearSearch() {
   searchInput.value?.focus()
 }
 
+const CLUB_GAMES_SHOWN = 3
 const groups = computed(() => {
   // ponytail: /games returns every club's games, so filter client-side; add a `club` query param if the payload grows.
   const clubIds = new Set(shownTeams.value.map((t) => t.id))
   const { upcoming, past } = splitGames(games.value.filter((g) => clubIds.has(g.team_id)))
   return [
-    { title: 'משחקים קרובים', games: upcoming },
-    { title: 'תוצאות אחרונות', games: past },
+    { key: 'past', title: 'תוצאות אחרונות', games: past, limit: CLUB_GAMES_SHOWN, all: 'כל התוצאות' },
+    { key: 'upcoming', title: 'משחקים קרובים', games: upcoming, limit: CLUB_GAMES_SHOWN, all: 'כל המשחקים הקרובים' },
   ].filter((g) => g.games.length)
 })
 const teamOf = (g) => teams.value.find((t) => t.id === g.team_id) ?? null
@@ -219,11 +220,9 @@ watch(() => route.params.clubSlug, load, { immediate: true })
       <section class="space-y-3">
         <h2 class="section-title">השבוע במועדון</h2>
         <p v-if="!groups.length" class="empty-state">{{ query.trim() ? 'אין משחקים השבוע לקבוצות התואמות.' : 'אין משחקים במועדון השבוע.' }}</p>
-        <div v-for="group in groups" :key="group.title" class="space-y-2">
+        <div v-for="group in groups" :key="club.id + '-' + group.key" class="space-y-2">
           <h3 class="eyebrow">{{ group.title }}</h3>
-          <ol class="card divide-y divide-line overflow-hidden p-0">
-            <GameRow v-for="g in group.games" :key="g.id" :game="g" :team="teamOf(g)" show-team />
-          </ol>
+          <GameListFold :games="group.games" :limit="group.limit" :list-id="'club-games-' + group.key" :all-label="group.all" :team-of="teamOf" show-team />
         </div>
       </section>
     </template>

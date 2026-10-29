@@ -45,7 +45,7 @@ describe('GameListFold', () => {
 
   it('forwards the actions slot only when given, and renders the after slot per shown row', () => {
     const plain = mountFold({}, { after: '<li data-after />' })
-    expect(plain.findAll('[data-stats]')).toHaveLength(3)
+    expect(plain.findAll('[data-stats]')).toHaveLength(4) // 3 shown rows + the peek
     expect(plain.findAll('[data-after]')).toHaveLength(3)
     const withActions = mountFold({}, { actions: '<b data-action />' })
     expect(withActions.findAll('[data-action]')).toHaveLength(3)
