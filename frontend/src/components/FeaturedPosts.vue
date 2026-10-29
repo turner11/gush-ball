@@ -4,10 +4,10 @@ import { RouterLink } from 'vue-router'
 
 import AppIcon from './AppIcon.vue'
 
-// The home hero (#560): up to 3 featured posts (title only; a post's image_url, when set, is the slide background #562), one slide at a time, auto-advancing every 7s with dots and a pause button.
+// The home hero (#560): up to 3 featured posts (title only; a post's image_url, when set, is the slide background #562), one slide at a time, auto-advancing every 7s with dots and a pause button. The CTA deep-links to the post's game page when it has one (#584), else to the posts page.
 const props = defineProps({
   items: { type: Array, required: true }, // from featuredPosts(): { post, label }
-  postsTo: { type: String, required: true },
+  base: { type: String, required: true }, // the team's base path, e.g. /team_a
 })
 
 const ROTATE_MS = 7000
@@ -17,6 +17,10 @@ const reducedMotion = ref(false)
 const multiple = computed(() => props.items.length > 1)
 const rotating = computed(() => multiple.value && !reducedMotion.value && !paused.value)
 const current = computed(() => props.items[index.value] ?? props.items[0])
+const readMoreTo = computed(() => {
+  const { id, game_id } = current.value.post
+  return game_id ? `${props.base}/games/${game_id}#post-${id}` : `${props.base}/posts#post-${id}`
+})
 
 watch(() => props.items, () => (index.value = 0)) // posts reload after editing
 
@@ -51,7 +55,7 @@ onBeforeUnmount(() => clearInterval(timer))
       >
         <p v-if="current.label" class="text-sm font-bold">{{ current.label }}</p>
         <h2 class="break-words text-2xl font-black leading-tight sm:text-4xl">{{ current.post.title }}</h2>
-        <RouterLink :to="`${postsTo}#post-${current.post.id}`" class="btn-secondary">להמשך קריאה</RouterLink>
+        <RouterLink :to="readMoreTo" class="btn-secondary">להמשך קריאה</RouterLink>
       </div>
     </Transition>
     <div v-if="multiple" class="mt-2 flex items-center gap-1">

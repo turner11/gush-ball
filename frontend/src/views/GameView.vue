@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import GameAverages from '../components/GameAverages.vue'
@@ -82,6 +82,11 @@ async function load() {
     else loadError.value = true
   } finally {
     if (id === selectedTeamId.value) loading.value = false
+  }
+  // scrollBehavior runs before the game has loaded, so reveal a #post-<id> link target here
+  if (game.value && id === selectedTeamId.value && route.hash) {
+    await nextTick()
+    document.getElementById(route.hash.slice(1))?.scrollIntoView({ block: 'start' })
   }
 }
 
