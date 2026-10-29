@@ -32,7 +32,7 @@ function mockFetch(game, posts = []) { // posts null = the posts endpoint fails
 }
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 
-async function mountAt(teamsLoaded, teamId = '1') {
+async function mountAt(teamsLoaded, teamId = '1', path = '/team_a/games/5') {
   const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -43,14 +43,14 @@ async function mountAt(teamsLoaded, teamId = '1') {
       { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' } },
     ],
   })
-  router.push('/team_a/games/5')
+  router.push(path)
   await router.isReady()
   const { useSelectedTeam } = await import('../composables/useSelectedTeam')
   const sel = useSelectedTeam()
   sel.selectedTeamId.value = teamId
   sel.teamsLoaded.value = teamsLoaded
   const { default: GameView } = await import('./GameView.vue')
-  const wrapper = mount(GameView, { global: { plugins: [router] } })
+  const wrapper = mount(GameView, { attachTo: document.body, global: { plugins: [router] } })
   await flushPromises()
   return { wrapper, sel, router }
 }
@@ -260,6 +260,17 @@ describe('GameView', () => {
       expect(wrapper.text()).toContain('הפועל עבר')
       expect(wrapper.find('[role="alert"]').exists()).toBe(false)
       expect(h2s(wrapper)).not.toContain('עדכונים')
+    })
+
+    it('scrolls to the #post-<id> card once the game has loaded (#584)', async () => {
+      mockFetch(ok(GAME), [post(1, 'לקראת המשחק', 5)])
+      Element.prototype.scrollIntoView ??= () => {} // jsdom lacks it; spyOn needs it to exist
+      const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {})
+      const { wrapper } = await mountAt(true, '1', '/team_a/games/5#post-1')
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(scrollIntoView.mock.contexts[0].id).toBe('post-1')
+      wrapper.unmount()
+      document.body.innerHTML = ''
     })
   })
 
