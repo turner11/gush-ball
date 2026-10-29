@@ -32,3 +32,18 @@ describe('GameRow showTeam', () => {
     expect(w.findComponent({ name: 'GameStatsLink' }).exists()).toBe(false)
   })
 })
+
+describe('GameRow edge', () => {
+  it('colours only the start edge, so divide-line still draws the divider', () => {
+    const cases = [
+      [game, 'border-s-win', 'border-win'],
+      [{ ...game, team_score: 60 }, 'border-s-loss', 'border-loss'],
+      [{ ...game, status: 'scheduled', team_score: null, opponent_score: null }, 'border-s-transparent', 'border-transparent'],
+    ]
+    for (const [g, start, bare] of cases) {
+      const classes = mount(GameRow, { props: { game: g }, global: { stubs } }).get('li').classes()
+      expect(classes).toContain(start)
+      expect(classes).not.toContain(bare)
+    }
+  })
+})
