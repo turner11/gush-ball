@@ -49,6 +49,6 @@ describe('GameListFold', () => {
     expect(plain.findAll('[data-after]')).toHaveLength(3)
     const withActions = mountFold({}, { actions: '<b data-action />' })
     expect(withActions.findAll('[data-action]')).toHaveLength(3)
-    expect(withActions.find('[data-stats]').exists()).toBe(false)
+    expect(withActions.findAll('#fold > li:not([inert]) [data-stats]')).toHaveLength(0)
   })
 })
