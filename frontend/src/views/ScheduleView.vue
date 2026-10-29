@@ -79,7 +79,7 @@ const sections = computed(() => {
 
 function toggleSection(s) {
   expanded.value[s.key] = !expanded.value[s.key]
-  if (!expanded.value[s.key] && !s.games.slice(0, s.limit).some((g) => g.id === editingId.value)) editingId.value = null
+  if (!expanded.value[s.key] && s.games.slice(s.limit).some((g) => g.id === editingId.value)) editingId.value = null
 }
 
 async function loadGames() {

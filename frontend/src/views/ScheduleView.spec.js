@@ -587,6 +587,22 @@ describe('ScheduleView', () => {
       wrapper.unmount()
     })
 
+    it('collapsing results keeps an open add form, and closes only an editor hidden in the tail', async () => {
+      const past = (n) => ({ ...PAST_GAME, id: 100 + n, scheduled_at: `2020-0${n}-01T18:00:00`, opponent: { ...PAST_GAME.opponent, id: 100 + n, name: `עבר ${n}` } })
+      const wrapper = await mountWith({ 'GET /api/teams/1/games': () => jsonRes([1, 2, 3, 4, 5].map(past)) })
+      const toggle = () => wrapper.get('button[aria-controls="games-past"]')
+      await toggle().trigger('click') // expand results
+      await button(wrapper, 'הוספת משחק').trigger('click')
+      await toggle().trigger('click') // collapse
+      expect(wrapper.find('#add-game-form').exists()).toBe(true)
+
+      await button(wrapper, 'ביטול').trigger('click')
+      await toggle().trigger('click') // expand
+      await wrapper.get('#edit-game-101').trigger('click') // oldest game, hidden once collapsed
+      await toggle().trigger('click') // collapse
+      expect(wrapper.find('form').exists()).toBe(false)
+    })
+
     it('team admin edits a game inline through the same PATCH, without touching stats_url', async () => {
       const done = { ...FUTURE_GAME, status: 'final', team_score: 90, opponent_score: 80 }
       const wrapper = await mountWith({ 'PATCH /api/teams/1/games/1': () => jsonRes(done) })
