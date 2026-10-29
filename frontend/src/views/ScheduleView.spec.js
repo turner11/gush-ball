@@ -98,35 +98,6 @@ describe('ScheduleView', () => {
       expect(text).not.toContain('2030-05-01T18:00:00')
     })
 
-    it('shows the latest 3 results plus a faded, inert peek row and a "show all" button', async () => {
-      const wrapper = await mountGames([...PASTS, ...FUTURES])
-
-      const rows = section(wrapper, 'past').findAll(':scope > li')
-      expect(rows).toHaveLength(4)
-      expect(rows[0].text()).toContain('עבר 5')
-      expect(rows[2].attributes('inert')).toBeUndefined()
-      expect(rows[3].attributes('inert')).toBeDefined()
-      expect(rows[3].attributes('aria-hidden')).toBe('true')
-      expect(rows[3].text()).toContain('עבר 2')
-      expect(section(wrapper, 'past').text()).not.toContain('עבר 1')
-      expect(toggle(wrapper, 'past').text()).toBe('כל התוצאות (5)')
-      expect(toggle(wrapper, 'past').attributes('aria-expanded')).toBe('false')
-    })
-
-    it('expanding results shows them all and the button collapses them again', async () => {
-      const wrapper = await mountGames(PASTS)
-
-      await toggle(wrapper, 'past').trigger('click')
-      expect(section(wrapper, 'past').findAll(':scope > li')).toHaveLength(5)
-      expect(section(wrapper, 'past').find('[inert]').exists()).toBe(false)
-      expect(toggle(wrapper, 'past').text()).toBe('הצגת פחות')
-      expect(toggle(wrapper, 'past').attributes('aria-expanded')).toBe('true')
-
-      await toggle(wrapper, 'past').trigger('click')
-      expect(section(wrapper, 'past').findAll(':scope > li')).toHaveLength(4)
-      expect(section(wrapper, 'past').findAll('[inert]')).toHaveLength(1)
-    })
-
     it('shows the next game first and the rest of upcoming behind a toggle', async () => {
       const wrapper = await mountGames(FUTURES)
 
@@ -138,13 +109,6 @@ describe('ScheduleView', () => {
       expect(rows[1].attributes('inert')).toBeDefined()
       expect(section(wrapper, 'upcoming').text()).not.toContain('עתיד 3')
       expect(toggle(wrapper, 'upcoming').text()).toBe('כל המשחקים הקרובים (3)')
-    })
-
-    it('no peek and no toggle when a section has no more than its limit', async () => {
-      const wrapper = await mountGames([past(1), past(2), future(1)])
-
-      expect(wrapper.find('[inert]').exists()).toBe(false)
-      expect(wrapper.findAll('button').some((b) => b.text().startsWith('כל '))).toBe(false)
     })
 
     it('switching team collapses the expanded sections', async () => {

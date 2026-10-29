@@ -103,6 +103,25 @@ describe('ClubView', () => {
     expect(global.fetch.mock.calls.map((c) => c[0])).toContain(`/api/games?from=${from}&to=${to}`)
   })
 
+  it('lists results before upcoming games', async () => {
+    mockFetch(GAMES)
+    const w = await mountIt()
+    expect(w.findAll('h3.eyebrow').map((h) => h.text())).toEqual(['תוצאות אחרונות', 'משחקים קרובים'])
+  })
+
+  it('folds each group to 3 rows with a peek row and a toggle', async () => {
+    const past = (n) => ({ id: 30 + n, team_id: 1 + (n % 2), is_home: true, scheduled_at: `2026-03-0${n + 4}T18:00:00`, status: 'final', team_score: 80, opponent_score: 70, opponent: opp })
+    mockFetch([1, 2, 3, 4, 5].map(past))
+    const w = await mountIt()
+    const rows = () => w.findAll('#club-games-past > li')
+    expect(rows()).toHaveLength(4)
+    expect(rows()[3].attributes('inert')).toBeDefined()
+    const toggle = w.get('button[aria-controls="club-games-past"]')
+    expect(toggle.text()).toBe('כל התוצאות (5)')
+    await toggle.trigger('click')
+    expect(rows()).toHaveLength(5)
+  })
+
   it('renders upcoming and past rows with their team', async () => {
     mockFetch(GAMES)
     const w = await mountIt()

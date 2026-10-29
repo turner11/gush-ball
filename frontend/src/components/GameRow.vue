@@ -21,7 +21,7 @@ const sides = computed(() => {
   return homeFirst(g, us, them)
 })
 const address = computed(() => gameAddress(props.game, props.team))
-const edge = computed(() => ({ W: 'border-win', L: 'border-loss' })[result(props.game)] ?? 'border-transparent')
+const edge = computed(() => ({ W: 'border-s-win', L: 'border-s-loss' })[result(props.game)] ?? 'border-s-transparent')
 </script>
 
 <template>

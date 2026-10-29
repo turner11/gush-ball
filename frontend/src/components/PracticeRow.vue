@@ -14,7 +14,7 @@ const endTime = computed(() => {
 </script>
 
 <template>
-  <li class="flex flex-wrap items-center gap-3 border-s-4 border-transparent px-4 py-3 sm:gap-4 sm:px-5">
+  <li class="flex flex-wrap items-center gap-3 border-s-4 border-s-transparent px-4 py-3 sm:gap-4 sm:px-5">
     <div v-if="d" class="w-11 shrink-0 text-center leading-none">
       <span class="block text-2xl font-black tabular-nums">{{ d.day }}</span>
       <span class="block text-xs font-bold text-muted">{{ d.month }}</span>
