@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import FeaturedPosts from './FeaturedPosts.vue'
 
-const item = (id, label = null, image_url = null) => ({ post: { id, title: `כותרת ${id}`, body: `גוף ${id}`, image_url }, label })
+const item = (id, label = null, image_url = null, game_id = null) => ({ post: { id, title: `כותרת ${id}`, body: `גוף ${id}`, image_url, game_id }, label })
 const mountIt = (items) =>
-  mount(FeaturedPosts, { props: { items, postsTo: '/x/posts' }, global: { stubs: { RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } } })
+  mount(FeaturedPosts, { props: { items, base: '/x' }, global: { stubs: { RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } } })
 const title = (w) => w.find('h2').text()
 const dots = (w) => w.findAll('button[aria-label^="עדכון"]')
 
@@ -21,6 +21,11 @@ describe('FeaturedPosts', () => {
     expect(title(w)).toBe('כותרת 1')
     expect(w.text()).toContain('לקראת המשחק נגד הפועל')
     expect(w.find('a').attributes('href')).toBe('/x/posts#post-1')
+  })
+
+  it('links a game-linked post to its game page anchor (#584)', () => {
+    const w = mountIt([item(1, null, null, 5)])
+    expect(w.find('a').attributes('href')).toBe('/x/games/5#post-1')
   })
 
   it('shows the title but not the body', () => {

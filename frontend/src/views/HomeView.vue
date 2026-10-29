@@ -149,7 +149,7 @@ const hasSocialEmbed = computed(
   <LoadError v-else-if="loadError" message="שגיאה בטעינת דף הקבוצה" @retry="load" />
 
   <section v-else-if="team" class="space-y-10 sm:space-y-14">
-    <FeaturedPosts :key="team.id" :items="featured" :posts-to="base + '/posts'" />
+    <FeaturedPosts :key="team.id" :items="featured" :base="base" />
     <!-- side-by-side only from lg; a fixed 20rem aside keeps the embeds secondary to the content -->
     <div class="grid gap-12" :class="{ 'lg:grid-cols-[1fr_20rem]': showAside }">
       <!-- min-w-0: without it the player carousel's width stretches this track and overflows the page -->
