@@ -13,7 +13,7 @@ import { canEditTeam, teamMember, useAuth, viewer } from '../composables/useAuth
 import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
-import { splitGames } from '../lib/games'
+import { isPast, splitGames } from '../lib/games'
 
 // Fire and forget: the live stats link appears for admins once the session resolves.
 const { checked, checkSession } = useAuth()
@@ -49,21 +49,42 @@ function onSaved(game) {
   const idx = games.value.findIndex((g) => g.id === game.id)
   if (idx === -1) games.value.push(game)
   else games.value[idx] = game
+  expanded.value[isPast(game) ? 'past' : 'upcoming'] = true // never hide a game the admin just saved behind the fold
   closeEditor()
 }
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
 
-const upcoming = computed(() => splitGames(games.value).upcoming)
-const past = computed(() => splitGames(games.value).past)
-const sections = computed(() => [
-  { title: 'משחקים קרובים', games: upcoming.value, empty: 'אין משחקים קרובים.' },
-  { title: 'תוצאות', games: past.value, empty: 'אין תוצאות עדיין.' },
-])
+const RESULTS_SHOWN = 3
+const UPCOMING_SHOWN = 1 // reads as "next game"
+const expanded = ref({ past: false, upcoming: false })
+
+// Results first. Collapsed, a section shows its top rows plus one faded, inert peek row hinting at more.
+const sections = computed(() => {
+  const { upcoming, past } = splitGames(games.value)
+  return [
+    { key: 'past', title: 'תוצאות', games: past, limit: RESULTS_SHOWN, empty: 'אין תוצאות עדיין.', all: 'כל התוצאות' },
+    { key: 'upcoming', title: 'המשחק הבא', games: upcoming, limit: UPCOMING_SHOWN, empty: 'אין משחקים קרובים.', all: 'כל המשחקים הקרובים' },
+  ].map((s) => {
+    const open = expanded.value[s.key]
+    return {
+      ...s,
+      shown: open ? s.games : s.games.slice(0, s.limit),
+      peek: open ? null : (s.games[s.limit] ?? null),
+      foldable: s.games.length > s.limit,
+    }
+  })
+})
+
+function toggleSection(s) {
+  expanded.value[s.key] = !expanded.value[s.key]
+  if (!expanded.value[s.key] && s.games.slice(s.limit).some((g) => g.id === editingId.value)) editingId.value = null
+}
 
 async function loadGames() {
   editingId.value = null
+  expanded.value = { past: false, upcoming: false }
   loadError.value = false
   if (!selectedTeamId.value) {
     games.value = []
@@ -187,10 +208,10 @@ const { editing: editingPractices, toggleEl: practicesToggle, toggle: togglePrac
     <p v-else-if="!games.length" class="empty-state">אין משחקים עדיין.</p>
 
     <template v-else>
-      <section v-for="s in sections" :key="s.title" class="space-y-3">
+      <section v-for="s in sections" :key="s.key" class="space-y-3">
         <h2 class="section-title">{{ s.title }}</h2>
-        <ol v-if="s.games.length" class="card divide-y divide-line overflow-hidden p-0">
-          <template v-for="game in s.games" :key="game.id">
+        <ol v-if="s.games.length" :id="'games-' + s.key" class="card divide-y divide-line overflow-hidden p-0">
+          <template v-for="game in s.shown" :key="game.id">
             <GameRow :game="game" :team="team">
               <template v-if="canEdit" #actions>
                 <GameStatsLink :game="game" class="btn-ghost" />
@@ -209,8 +230,17 @@ const { editing: editingPractices, toggleEl: practicesToggle, toggle: togglePrac
               <GameForm class="max-w-2xl" :team-id="team.id" :game="game" @saved="onSaved" @cancel="closeEditor" />
             </li>
           </template>
+          <GameRow v-if="s.peek" :game="s.peek" :team="team" inert aria-hidden="true" class="max-h-14 overflow-hidden opacity-60 mask-b-to-transparent" />
         </ol>
         <p v-else class="empty-state">{{ s.empty }}</p>
+        <button
+          v-if="s.foldable"
+          type="button"
+          class="btn-ghost w-full sm:w-auto"
+          :aria-controls="'games-' + s.key"
+          :aria-expanded="expanded[s.key]"
+          @click="toggleSection(s)"
+        >{{ expanded[s.key] ? 'הצגת פחות' : `${s.all} (${s.games.length})` }}</button>
       </section>
     </template>
   </section>

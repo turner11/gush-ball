@@ -68,24 +68,105 @@ describe('ScheduleView', () => {
     vi.restoreAllMocks()
   })
 
-  it('splits games into upcoming and past sections by scheduled_at', async () => {
-    mockFetch({
-      'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
-      'GET /api/teams/1/games': () => jsonRes([FUTURE_GAME, PAST_GAME]),
+  describe('results first, collapsed to the top rows', () => {
+    const past = (n) => ({ ...PAST_GAME, id: 100 + n, scheduled_at: `2020-0${n}-01T18:00:00`, opponent: { ...PAST_GAME.opponent, id: 100 + n, name: `עבר ${n}` } })
+    const future = (n) => ({ ...FUTURE_GAME, id: 200 + n, scheduled_at: `2030-0${n}-01T18:00:00`, opponent: { ...FUTURE_GAME.opponent, id: 200 + n, name: `עתיד ${n}` } })
+    const PASTS = [1, 2, 3, 4, 5].map(past) // latest result is עבר 5, the oldest עבר 1
+    const FUTURES = [1, 2, 3].map(future)
+
+    async function mountGames(games) {
+      mockFetch({
+        'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+        'GET /api/teams/1/games': () => jsonRes(games),
+      })
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+      return wrapper
+    }
+    const section = (wrapper, id) => wrapper.get(`#games-${id}`)
+    const toggle = (wrapper, id) => wrapper.get(`button[aria-controls="games-${id}"]`)
+
+    it('shows results before the next game', async () => {
+      const wrapper = await mountGames([FUTURE_GAME, PAST_GAME])
+
+      const text = wrapper.text()
+      expect(text.indexOf('הפועל עבר')).toBeGreaterThan(-1)
+      expect(text.indexOf('הפועל עבר')).toBeLessThan(text.indexOf('מכבי עתיד'))
+      expect(wrapper.findAll('h2.section-title').map((h) => h.text())).toEqual(['תוצאות', 'המשחק הבא'])
+      expect(text).toContain(formatGameDate('2030-05-01T18:00:00').time)
+      expect(text).not.toContain('2030-05-01T18:00:00')
     })
 
-    const { default: ScheduleView } = await import('./ScheduleView.vue')
-    const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
-    await flushPromises()
+    it('shows the latest 3 results plus a faded, inert peek row and a "show all" button', async () => {
+      const wrapper = await mountGames([...PASTS, ...FUTURES])
 
-    const text = wrapper.text()
-    const upcomingIdx = text.indexOf('מכבי עתיד')
-    const pastIdx = text.indexOf('הפועל עבר')
-    expect(upcomingIdx).toBeGreaterThan(-1)
-    expect(pastIdx).toBeGreaterThan(-1)
-    expect(upcomingIdx).toBeLessThan(pastIdx)
-    expect(text).toContain(formatGameDate('2030-05-01T18:00:00').time)
-    expect(text).not.toContain('2030-05-01T18:00:00')
+      const rows = section(wrapper, 'past').findAll(':scope > li')
+      expect(rows).toHaveLength(4)
+      expect(rows[0].text()).toContain('עבר 5')
+      expect(rows[2].attributes('inert')).toBeUndefined()
+      expect(rows[3].attributes('inert')).toBeDefined()
+      expect(rows[3].attributes('aria-hidden')).toBe('true')
+      expect(rows[3].text()).toContain('עבר 2')
+      expect(section(wrapper, 'past').text()).not.toContain('עבר 1')
+      expect(toggle(wrapper, 'past').text()).toBe('כל התוצאות (5)')
+      expect(toggle(wrapper, 'past').attributes('aria-expanded')).toBe('false')
+    })
+
+    it('expanding results shows them all and the button collapses them again', async () => {
+      const wrapper = await mountGames(PASTS)
+
+      await toggle(wrapper, 'past').trigger('click')
+      expect(section(wrapper, 'past').findAll(':scope > li')).toHaveLength(5)
+      expect(section(wrapper, 'past').find('[inert]').exists()).toBe(false)
+      expect(toggle(wrapper, 'past').text()).toBe('הצגת פחות')
+      expect(toggle(wrapper, 'past').attributes('aria-expanded')).toBe('true')
+
+      await toggle(wrapper, 'past').trigger('click')
+      expect(section(wrapper, 'past').findAll(':scope > li')).toHaveLength(4)
+      expect(section(wrapper, 'past').findAll('[inert]')).toHaveLength(1)
+    })
+
+    it('shows the next game first and the rest of upcoming behind a toggle', async () => {
+      const wrapper = await mountGames(FUTURES)
+
+      const rows = section(wrapper, 'upcoming').findAll(':scope > li')
+      expect(rows).toHaveLength(2)
+      expect(rows[0].text()).toContain('עתיד 1')
+      expect(rows[0].attributes('inert')).toBeUndefined()
+      expect(rows[1].text()).toContain('עתיד 2')
+      expect(rows[1].attributes('inert')).toBeDefined()
+      expect(section(wrapper, 'upcoming').text()).not.toContain('עתיד 3')
+      expect(toggle(wrapper, 'upcoming').text()).toBe('כל המשחקים הקרובים (3)')
+    })
+
+    it('no peek and no toggle when a section has no more than its limit', async () => {
+      const wrapper = await mountGames([past(1), past(2), future(1)])
+
+      expect(wrapper.find('[inert]').exists()).toBe(false)
+      expect(wrapper.findAll('button').some((b) => b.text().startsWith('כל '))).toBe(false)
+    })
+
+    it('switching team collapses the expanded sections', async () => {
+      mockFetch({
+        'GET /api/teams/1': () => jsonRes({ id: 1, name: 'קבוצה א', ibasketball_team_url: null }),
+        'GET /api/teams/1/games': () => jsonRes(PASTS),
+        'GET /api/teams/2': () => jsonRes({ id: 2, name: 'קבוצה ב', ibasketball_team_url: null }),
+        'GET /api/teams/2/games': () => jsonRes(PASTS),
+      })
+      const { default: ScheduleView } = await import('./ScheduleView.vue')
+      const { useSelectedTeam } = await import('../composables/useSelectedTeam')
+      const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
+      await flushPromises()
+      await toggle(wrapper, 'past').trigger('click')
+      expect(section(wrapper, 'past').findAll(':scope > li')).toHaveLength(5)
+
+      useSelectedTeam().selectedTeamId.value = '2'
+      await flushPromises()
+
+      expect(section(wrapper, 'past').findAll(':scope > li')).toHaveLength(4)
+      expect(toggle(wrapper, 'past').attributes('aria-expanded')).toBe('false')
+    })
   })
 
   it('shows an inline error with retry when the load fails, and retrying loads the page', async () => {
@@ -326,13 +407,13 @@ describe('ScheduleView', () => {
     }
 
     it('shows maps and waze links on home game rows', async () => {
-      const row = (await mountWith(ADDR)).findAll('li')[0]
+      const row = (await mountWith(ADDR)).findAll('li')[1]
       expect(row.find(`a[href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ADDR)}"]`).exists()).toBe(true)
       expect(row.find(`a[href^="https://waze.com/ul?q=${encodeURIComponent(ADDR)}"]`).exists()).toBe(true)
     })
 
     it('hides location links on away games and when team has no address', async () => {
-      const away = (await mountWith(ADDR)).findAll('li')[1]
+      const away = (await mountWith(ADDR)).findAll('li')[0]
       expect(away.find('a[href*="waze.com"]').exists()).toBe(false)
       const none = await mountWith(null)
       expect(none.find('a[href*="waze.com"]').exists()).toBe(false)
@@ -350,7 +431,7 @@ describe('ScheduleView', () => {
       const wrapper = mount(ScheduleView, { global: { plugins: [router] } })
       await flushPromises()
 
-      const away = wrapper.findAll('li')[1]
+      const away = wrapper.findAll('li')[0]
       expect(away.find(`a[href^="https://waze.com/ul?q=${encodeURIComponent(OPP)}"]`).exists()).toBe(true)
     })
 
@@ -375,7 +456,7 @@ describe('ScheduleView', () => {
     }
 
     it('lists our team first on home games and the opponent first on away games', async () => {
-      const [home, away] = await rows()
+      const [away, home] = await rows()
       const h = home.text()
       const a = away.text()
       expect(h.indexOf('קבוצה א')).toBeGreaterThan(-1)
@@ -384,7 +465,7 @@ describe('ScheduleView', () => {
     })
 
     it('hides our own team (not the opponent) below sm', async () => {
-      const [home, away] = await rows()
+      const [away, home] = await rows()
       const hidden = (row, name) => row.findAll('span').find((s) => s.text() === name).classes()
       expect(hidden(home, 'קבוצה א')).toContain('max-sm:hidden')
       expect(hidden(home, 'מכבי עתיד')).not.toContain('max-sm:hidden')
@@ -393,7 +474,7 @@ describe('ScheduleView', () => {
     })
 
     it('marks home and away games with a badge', async () => {
-      const [home, away] = await rows()
+      const [away, home] = await rows()
       expect(home.findAll('.badge').map((b) => b.text())).toContain('בית')
       expect(away.findAll('.badge').map((b) => b.text())).toContain('חוץ')
     })
@@ -492,6 +573,7 @@ describe('ScheduleView', () => {
       expect(JSON.parse(options.body).opponent_name).toBe('בני חדש')
       expect(wrapper.find('form').exists()).toBe(false)
       expect(wrapper.text()).toContain('בני חדש')
+      expect(wrapper.get('#games-upcoming').findAll(':scope > li').find((li) => li.text().includes('בני חדש')).attributes('inert')).toBeUndefined()
     })
 
     it("the add form's ביטול closes it and returns focus to the add button", async () => {
@@ -503,6 +585,22 @@ describe('ScheduleView', () => {
       expect(wrapper.find('#add-game-form').exists()).toBe(false)
       expect(document.activeElement).toBe(button(wrapper, 'הוספת משחק').element)
       wrapper.unmount()
+    })
+
+    it('collapsing results keeps an open add form, and closes only an editor hidden in the tail', async () => {
+      const past = (n) => ({ ...PAST_GAME, id: 100 + n, scheduled_at: `2020-0${n}-01T18:00:00`, opponent: { ...PAST_GAME.opponent, id: 100 + n, name: `עבר ${n}` } })
+      const wrapper = await mountWith({ 'GET /api/teams/1/games': () => jsonRes([1, 2, 3, 4, 5].map(past)) })
+      const toggle = () => wrapper.get('button[aria-controls="games-past"]')
+      await toggle().trigger('click') // expand results
+      await button(wrapper, 'הוספת משחק').trigger('click')
+      await toggle().trigger('click') // collapse
+      expect(wrapper.find('#add-game-form').exists()).toBe(true)
+
+      await button(wrapper, 'ביטול').trigger('click')
+      await toggle().trigger('click') // expand
+      await wrapper.get('#edit-game-101').trigger('click') // oldest game, hidden once collapsed
+      await toggle().trigger('click') // collapse
+      expect(wrapper.find('form').exists()).toBe(false)
     })
 
     it('team admin edits a game inline through the same PATCH, without touching stats_url', async () => {
