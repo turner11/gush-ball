@@ -1,7 +1,7 @@
 FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
 
 # glibc variant (not alpine): the runner base is Ubuntu 20.04, glibc 2.31.
-FROM node:26-slim@sha256:193fe51b64e77981119c98c2002c9e32a70e2f006fb4d25068ce0558998917f0 AS node
+FROM node:26-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec AS node
 
 FROM myoung34/github-runner:2.338.1@sha256:c1531a71a722a30697f47866140daf942c2e8b724d21a48dcfcbeacb8f2e58a1
 
