@@ -8,14 +8,15 @@ import GameForm from '../components/GameForm.vue'
 import GameRow from '../components/GameRow.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
+import GameStatsEditor from '../components/GameStatsEditor.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import PracticesAdmin from '../components/PracticesAdmin.vue'
 import SearchInput from '../components/SearchInput.vue'
-import { ownTeams, useAuth } from '../composables/useAuth'
+import { ownTeams } from '../composables/useAuth'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
-import { byDate, sheetCopyUrl, STATUS_LABELS } from '../lib/games'
+import { byDate, STATUS_LABELS } from '../lib/games'
 import { matchesQuery } from '../lib/search'
 
 const FIELD_LABELS = {
@@ -36,16 +37,7 @@ const editing = ref(null)
 const formKey = ref(0) // bumping it remounts GameForm: refill on edit, clear after save
 const error = ref(null)
 const pendingDelete = ref(null)
-const { user } = useAuth()
 const statsUrl = ref('')
-const statsMessage = ref(null)
-const confirming = ref(null) // null | 'replace' | 'delete'
-const CONFIRMS = {
-  replace: { text: 'למשחק זה כבר יש נתונים. לטעון מחדש ולהחליף אותם?', button: 'החלפה', cls: 'btn-primary' },
-  delete: { text: 'למחוק את כל נתוני הסטטיסטיקה של המשחק? הקישור לגיליון יישמר.', button: 'מחיקה', cls: 'btn-danger' },
-}
-const templateCopyUrl = computed(() => sheetCopyUrl(user.value?.stats_template_url ?? ''))
-const loadButton = ref(null)
 
 const { selectedTeamId } = useSelectedTeam()
 
@@ -117,56 +109,7 @@ function replaceGame(updated) {
   else games.value.push(updated)
 }
 
-function requestLoadStats() {
-  if (editing.value.has_stats) {
-    confirming.value = 'replace'
-    return
-  }
-  loadStats()
-}
-
-function confirmStats() {
-  const action = confirming.value
-  cancelConfirm()
-  if (action === 'delete') deleteStats()
-  else loadStats()
-}
-
-function cancelConfirm() {
-  confirming.value = null
-  loadButton.value?.focus()
-}
-
-async function deleteStats() {
-  error.value = null
-  statsMessage.value = null
-  try {
-    await apiFetch(`/teams/${selectedTeamId.value}/games/${editing.value.id}/stats`, { method: 'DELETE' })
-    editing.value.has_stats = false
-    statsMessage.value = 'הסטטיסטיקה נמחקה'
-  } catch (e) {
-    error.value = e.message
-  }
-}
-
-async function loadStats() {
-  error.value = null
-  statsMessage.value = null
-  try {
-    const res = await apiFetch(`/teams/${selectedTeamId.value}/games/${editing.value.id}/stats`, {
-      method: 'POST',
-      body: { url: statsUrl.value || null },
-    })
-    editing.value.has_stats = res.snapshots > 0
-    editing.value.stats_url = res.stats_url
-    statsMessage.value = res.snapshots ? `נטענו ${res.snapshots} רשומות` : 'הקישור נשמר — הגיליון עדיין ריק. טענו שוב אחרי המשחק.'
-  } catch (e) {
-    error.value = e.message
-  }
-}
-
 function resetForm() {
-  confirming.value = null
   editing.value = null
   formKey.value++
 }
@@ -176,8 +119,6 @@ const formEl = ref(null)
 function startEdit(game) {
   formEl.value?.$el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   editing.value = game
-  confirming.value = null
-  statsMessage.value = null
   statsUrl.value = game.stats_url ?? ''
   formKey.value++
 }
@@ -328,28 +269,15 @@ async function onDelete(game) {
       >
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
 
-        <div v-if="editing" class="space-y-2 border-t border-line pt-3">
-          <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
-          <label for="stats-url" class="field-label">קישור ללשונית הנתונים (כולל gid) או מזהה הגיליון — משותף ל"כל מי שיש לו קישור"</label>
-          <input id="stats-url" v-model="statsUrl" type="text" inputmode="url" dir="ltr" autocomplete="off" spellcheck="false" class="field-input" />
-          <div class="flex flex-wrap gap-x-4">
-            <a v-if="editing.stats_url" :href="editing.stats_url" target="_blank" rel="noopener" class="section-link">פתיחת הגיליון<AppIcon name="external" /></a>
-            <a v-if="templateCopyUrl" :href="templateCopyUrl" target="_blank" rel="noopener" class="section-link">גיליון חדש מתבנית<AppIcon name="external" /></a>
-          </div>
-          <p v-if="templateCopyUrl" class="text-sm text-muted">לפני המשחק: צרו גיליון מהתבנית, הדביקו את הקישור ולחצו על טעינת סטטיסטיקה. אחרי המשחק: טענו שוב.</p>
-          <div class="flex flex-wrap gap-2">
-            <button ref="loadButton" type="button" class="btn-secondary" @click="requestLoadStats">טעינת סטטיסטיקה</button>
-            <button v-if="editing.has_stats" type="button" class="btn-danger-ghost" @click="confirming = 'delete'">מחיקת סטטיסטיקה</button>
-          </div>
-          <div v-if="confirming" role="alert" class="space-y-2 rounded-xl border border-warn/60 p-3">
-            <p class="text-sm">{{ CONFIRMS[confirming].text }}</p>
-            <div class="flex flex-wrap gap-2">
-              <button type="button" :class="CONFIRMS[confirming].cls" @click="confirmStats">{{ CONFIRMS[confirming].button }}</button>
-              <button type="button" class="btn-secondary" @click="cancelConfirm">ביטול</button>
-            </div>
-          </div>
-          <p v-if="statsMessage" class="text-sm">{{ statsMessage }}</p>
-        </div>
+        <GameStatsEditor
+          v-if="editing"
+          :key="editing.id"
+          v-model:url="statsUrl"
+          class="border-t border-line pt-3"
+          :team-id="selectedTeamId"
+          :game="editing"
+          @change="Object.assign(editing, $event)"
+        />
       </GameForm>
       <section v-if="editing" class="card space-y-3">
         <h2 class="section-title">קלעים</h2>
