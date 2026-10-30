@@ -306,5 +306,49 @@ describe('GameView', () => {
     const labels = wrapper.findAll('button').map((b) => b.text())
     expect(labels).not.toContain('עריכת קלעים')
     expect(labels).not.toContain('עריכת מדיה')
+    expect(labels).not.toContain('ניהול סטטיסטיקה')
+  })
+
+  describe('stats manager (#591)', () => {
+    const adminClick = async (wrapper, text) => {
+      await wrapper.findAll('button').find((b) => b.text() === text).trigger('click')
+      await flushPromises()
+    }
+
+    async function mountAdmin(game) {
+      mockFetch(ok(game))
+      const base = global.fetch
+      global.fetch = vi.fn((url, opts) => {
+        if (url === '/api/teams/1/games/5/stats') {
+          if (opts?.method === 'DELETE') return Promise.resolve({ ok: true, status: 204, json: async () => null })
+          return Promise.resolve(ok({ snapshots: 3, stats_url: 'https://sheet' }))
+        }
+        return base(url, opts)
+      })
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      return mountAt(true)
+    }
+
+    it('a team admin can load stats from the game page', async () => {
+      const { wrapper } = await mountAdmin(GAME)
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await wrapper.find('#stats-url').setValue('https://sheet')
+      await adminClick(wrapper, 'טעינת סטטיסטיקה')
+      const post = global.fetch.mock.calls.find(([u, o]) => u === '/api/teams/1/games/5/stats' && o?.method === 'POST')
+      expect(JSON.parse(post[1].body)).toEqual({ url: 'https://sheet' })
+      expect(wrapper.text()).toContain('נטענו 3 רשומות')
+      expect(wrapper.find('a[href*="stats"]').exists()).toBe(true)
+    })
+
+    it('a team admin can delete stats from the game page', async () => {
+      const { wrapper } = await mountAdmin({ ...GAME, has_stats: true, stats_url: 'https://sheet' })
+      expect(wrapper.find('a[href*="stats"]').exists()).toBe(true)
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await adminClick(wrapper, 'מחיקת סטטיסטיקה')
+      await adminClick(wrapper, 'מחיקה')
+      expect(global.fetch.mock.calls.some(([u, o]) => u === '/api/teams/1/games/5/stats' && o?.method === 'DELETE')).toBe(true)
+      expect(wrapper.find('a[href*="stats"]').exists()).toBe(false)
+    })
   })
 })
