@@ -125,6 +125,33 @@ describe('LineupStats', () => {
     expect(first()).toContain('+2') // defence_pm 3 < 4
   })
 
+  it('shows +/-, offense and defence per minute whatever the sort', async () => {
+    mockFetch([LINEUP])
+    const wrapper = mountIt()
+    await flushPromises()
+    for (const t of ['+0.4', '1.6', '1.2', '+/- לדקה', 'זכות לדקה', 'חובה לדקה']) expect(wrapper.text()).toContain(t)
+
+    await button(wrapper, 'התקפה').trigger('click')
+    expect(wrapper.text()).toContain('+0.4')
+  })
+
+  it('offense sort is team points desc, per minute then total', async () => {
+    const A = { ...LINEUP, players: [1, 2], offense_pm: 9, offense_diff: 10 }
+    const B = { ...LINEUP, players: [3, 4], offense_pm: 2, offense_diff: 50 }
+    mockFetch([A, B])
+    const wrapper = mountIt()
+    await flushPromises()
+    await button(wrapper, 'התקפה').trigger('click')
+    const cards = () => wrapper.findAll('li.card')
+    expect(cards()[0].text()).toContain('#1')
+    expect(cards()[0].text()).toContain('10 : 15')
+    expect(cards()[1].text()).toContain('#2')
+
+    await button(wrapper, 'סה״כ').trigger('click')
+    expect(cards()[0].text()).toContain('50 : 15')
+    expect(cards().map((c) => c.find('.eyebrow').text())).toEqual(['#1', '#2'])
+  })
+
   it('shows the empty state', async () => {
     mockFetch([])
     const wrapper = mountIt()

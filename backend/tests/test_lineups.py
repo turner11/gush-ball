@@ -436,3 +436,22 @@ def test_reload_rejects_stored_non_google_url(admin_client, db_session, fake_she
 
     assert r.status_code == 422
     assert fake_sheet == []
+
+
+def test_lineups_merge_same_players_in_any_order(admin_client, db_session, own_team) -> None:
+    game = _own_game_with_snapshots(db_session, own_team)
+    game.lineup_snapshots = [
+        LineupSnapshot(players=[1, 2, 3, 4, 5], elapsed=5.0, offense_diff=2, defence_diff=0),
+        LineupSnapshot(players=[5, 4, 3, 2, 1], elapsed=3.0, offense_diff=1, defence_diff=1),
+    ]
+    db_session.commit()
+    base = f"/teams/{own_team.id}/lineups"
+
+    rows = admin_client.get(f"{base}?size=5").json()
+    assert len(rows) == 1
+    assert rows[0]["players"] == [1, 2, 3, 4, 5]
+    assert rows[0]["minutes"] == 8.0
+    assert rows[0]["score_diff"] == 2
+
+    pairs = [tuple(r["players"]) for r in admin_client.get(f"{base}?size=2").json()]
+    assert len(pairs) == len(set(pairs)) == 10
