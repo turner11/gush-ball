@@ -72,7 +72,6 @@ async function loadStats() {
 
 <template>
   <div class="space-y-2">
-    <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
     <p v-if="error" class="error-text" role="alert">{{ error }}</p>
     <label for="stats-url" class="field-label">קישור ללשונית הנתונים (כולל gid) או מזהה הגיליון — משותף ל"כל מי שיש לו קישור"</label>
     <input id="stats-url" v-model="url" type="text" inputmode="url" dir="ltr" autocomplete="off" spellcheck="false" class="field-input" />

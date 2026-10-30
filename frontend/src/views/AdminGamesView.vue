@@ -269,15 +269,16 @@ async function onDelete(game) {
       >
         <p v-if="error" class="error-text" role="alert">{{ error }}</p>
 
-        <GameStatsEditor
-          v-if="editing"
-          :key="editing.id"
-          v-model:url="statsUrl"
-          class="border-t border-line pt-3"
-          :team-id="selectedTeamId"
-          :game="editing"
-          @change="Object.assign(editing, $event)"
-        />
+        <div v-if="editing" class="space-y-2 border-t border-line pt-3">
+          <h3 class="text-sm font-bold">סטטיסטיקת חמישיות</h3>
+          <GameStatsEditor
+            :key="editing.id"
+            v-model:url="statsUrl"
+            :team-id="selectedTeamId"
+            :game="editing"
+            @change="Object.assign(editing, $event)"
+          />
+        </div>
       </GameForm>
       <section v-if="editing" class="card space-y-3">
         <h2 class="section-title">קלעים</h2>
