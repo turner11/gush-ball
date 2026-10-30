@@ -118,7 +118,8 @@ def list_lineups(
     df = pd.DataFrame(
         [
             {
-                "players": r.players,
+                # bbstats' combinations are order-sensitive: unsorted rosters yield duplicate lineups (#593)
+                "players": sorted(r.players),
                 "elapsed": r.elapsed,
                 "offense_diff": r.offense_diff,
                 "defence_diff": r.defence_diff,

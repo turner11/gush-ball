@@ -15,9 +15,9 @@ const props = defineProps({
 const SIZES = [1, 2, 3, 4, 5]
 // key: API field prefix (`${key}_diff` / `${key}_pm`); asc: defence ranks low-to-high, as in bbstats
 const SORTS = [
-  { value: 'top', label: 'מובילים', key: 'score', asc: false, pmLabel: '+/- לדקה' },
-  { value: 'offense', label: 'התקפה', key: 'offense', asc: false, pmLabel: 'זכות לדקה' },
-  { value: 'defense', label: 'הגנה', key: 'defence', asc: true, pmLabel: 'חובה לדקה' },
+  { value: 'top', label: 'מובילים', key: 'score', asc: false },
+  { value: 'offense', label: 'התקפה', key: 'offense', asc: false },
+  { value: 'defense', label: 'הגנה', key: 'defence', asc: true },
   { value: 'minutes', label: 'דקות' },
 ]
 const MIN_MINUTES = [0, 1, 2, 5]
@@ -46,7 +46,6 @@ async function load() {
 watch(() => [props.teamId, props.gameId, size.value], load, { immediate: true })
 
 const activeSort = computed(() => SORTS.find((o) => o.value === sort.value))
-const rateField = computed(() => `${activeSort.value.key ?? 'score'}_pm`)
 
 // Sorting and filtering are client-side: the API returns every lineup, so no refetch is needed.
 const shown = computed(() => {
@@ -131,22 +130,30 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
         <div class="grid grid-cols-5 gap-1 md:w-80 md:shrink-0">
           <PlayerCard v-for="n in l.players" :key="n" :player="playerFor(n)" :jersey="n" compact />
         </div>
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 md:min-w-0 md:flex-1 md:grid-cols-2 xl:grid-cols-4">
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:min-w-0 md:flex-1 md:grid-cols-2 xl:grid-cols-3">
           <div class="stat">
             <p class="stat-value" :class="l.score_diff >= 0 ? 'text-win' : 'text-loss'" dir="ltr">{{ signed(l.score_diff) }}</p>
             <p class="stat-label">+/-</p>
           </div>
           <div class="stat">
-            <p class="stat-value" dir="ltr">{{ formatMinutes(l.minutes) }}</p>
-            <p class="stat-label">דקות</p>
+            <p class="stat-value" dir="ltr">{{ signed(Number(l.score_pm.toFixed(1))) }}</p>
+            <p class="stat-label">+/- לדקה</p>
           </div>
           <div class="stat">
             <p class="stat-value">{{ l.offense_diff }} : {{ l.defence_diff }}</p>
             <p class="stat-label">זכות : חובה</p>
           </div>
           <div class="stat">
-            <p class="stat-value" dir="ltr">{{ signed(Number(l[rateField].toFixed(1))) }}</p>
-            <p class="stat-label">{{ activeSort.pmLabel ?? SORTS[0].pmLabel }}</p>
+            <p class="stat-value" dir="ltr">{{ formatMinutes(l.minutes) }}</p>
+            <p class="stat-label">דקות</p>
+          </div>
+          <div class="stat">
+            <p class="stat-value" dir="ltr">{{ l.offense_pm.toFixed(1) }}</p>
+            <p class="stat-label">זכות לדקה</p>
+          </div>
+          <div class="stat">
+            <p class="stat-value" dir="ltr">{{ l.defence_pm.toFixed(1) }}</p>
+            <p class="stat-label">חובה לדקה</p>
           </div>
         </div>
       </li>
