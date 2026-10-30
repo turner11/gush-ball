@@ -1,8 +1,8 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { apiFetch } from '../lib/api'
-import { signed } from '../lib/format'
+import { formatMinutes, signed } from '../lib/format'
 import PlayerCard from './PlayerCard.vue'
 import LoadError from './LoadError.vue'
 
@@ -13,14 +13,19 @@ const props = defineProps({
 })
 
 const SIZES = [1, 2, 3, 4, 5]
+// key: API field prefix (`${key}_diff` / `${key}_pm`); asc: defence ranks low-to-high, as in bbstats
 const SORTS = [
-  { value: 'top', label: 'מובילים' },
-  { value: 'offense', label: 'התקפה' },
-  { value: 'defense', label: 'הגנה' },
+  { value: 'top', label: 'מובילים', key: 'score', asc: false, pmLabel: '+/- לדקה' },
+  { value: 'offense', label: 'התקפה', key: 'offense', asc: false, pmLabel: 'זכות לדקה' },
+  { value: 'defense', label: 'הגנה', key: 'defence', asc: true, pmLabel: 'חובה לדקה' },
+  { value: 'minutes', label: 'דקות' },
 ]
+const MIN_MINUTES = [0, 1, 2, 5]
 
 const size = ref(5)
 const sort = ref('top')
+const perMinute = ref(true)
+const minMinutes = ref(1)
 const lineups = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -29,7 +34,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    lineups.value = await apiFetch(`/teams/${props.teamId}/lineups?size=${size.value}&sort=${sort.value}${props.gameId ? `&game_id=${props.gameId}` : ''}`)
+    lineups.value = await apiFetch(`/teams/${props.teamId}/lineups?size=${size.value}${props.gameId ? `&game_id=${props.gameId}` : ''}`)
   } catch {
     // a stats failure must not blank the whole page
     error.value = 'שגיאה בטעינת החמישיות'
@@ -38,7 +43,20 @@ async function load() {
   }
 }
 
-watch(() => [props.teamId, props.gameId, size.value, sort.value], load, { immediate: true })
+watch(() => [props.teamId, props.gameId, size.value], load, { immediate: true })
+
+const activeSort = computed(() => SORTS.find((o) => o.value === sort.value))
+const rateField = computed(() => `${activeSort.value.key ?? 'score'}_pm`)
+
+// Sorting and filtering are client-side: the API returns every lineup, so no refetch is needed.
+const shown = computed(() => {
+  const { key, asc } = activeSort.value
+  // whole seconds, so a 0.99999 min stint (shown as 01:00) passes the 01:00 filter
+  const kept = lineups.value.filter((l) => Math.round(l.minutes * 60) >= minMinutes.value * 60)
+  const field = `${key}_${perMinute.value ? 'pm' : 'diff'}`
+  const by = key ? (l) => l[field] * (asc ? -1 : 1) : (l) => l.minutes
+  return kept.sort((a, b) => by(b) - by(a)).slice(0, 10)
+})
 
 const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
 </script>
@@ -76,6 +94,29 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
           </button>
         </div>
       </div>
+      <div v-if="sort !== 'minutes'">
+        <p class="eyebrow mb-1">ערך</p>
+        <div role="group" aria-label="ערך" class="segmented">
+          <button type="button" class="segmented-item" :aria-pressed="perMinute" @click="perMinute = true">לדקה</button>
+          <button type="button" class="segmented-item" :aria-pressed="!perMinute" @click="perMinute = false">סה״כ</button>
+        </div>
+      </div>
+      <div>
+        <p class="eyebrow mb-1">זמן מינימלי</p>
+        <div role="group" aria-label="זמן מינימלי" class="segmented">
+          <button
+            v-for="m in MIN_MINUTES"
+            :key="m"
+            type="button"
+            class="segmented-item"
+            :dir="m ? 'ltr' : undefined"
+            :aria-pressed="minMinutes === m"
+            @click="minMinutes = m"
+          >
+            {{ m ? formatMinutes(m) : 'הכל' }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <LoadError v-if="error" :message="error" @retry="load" />
@@ -84,8 +125,8 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
       <div class="skeleton h-44 md:h-32" />
     </div>
     <!-- ponytail: top 10, add paging if asked -->
-    <ul v-else-if="lineups.length" class="space-y-4">
-      <li v-for="(l, i) in lineups.slice(0, 10)" :key="l.players.join('-')" class="card flex flex-col gap-3 md:flex-row md:items-center md:gap-5">
+    <ul v-else-if="shown.length" class="space-y-4">
+      <li v-for="(l, i) in shown" :key="l.players.join('-')" class="card flex flex-col gap-3 md:flex-row md:items-center md:gap-5">
         <p class="eyebrow md:w-6 md:shrink-0">#{{ i + 1 }}</p>
         <div class="grid grid-cols-5 gap-1 md:w-80 md:shrink-0">
           <PlayerCard v-for="n in l.players" :key="n" :player="playerFor(n)" :jersey="n" compact />
@@ -96,7 +137,7 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
             <p class="stat-label">+/-</p>
           </div>
           <div class="stat">
-            <p class="stat-value" dir="ltr">{{ Math.round(l.minutes) }}</p>
+            <p class="stat-value" dir="ltr">{{ formatMinutes(l.minutes) }}</p>
             <p class="stat-label">דקות</p>
           </div>
           <div class="stat">
@@ -104,12 +145,16 @@ const playerFor = (n) => props.players.find((p) => p.jersey_number === n)
             <p class="stat-label">זכות : חובה</p>
           </div>
           <div class="stat">
-            <p class="stat-value" dir="ltr">{{ signed(Number(l.score_pm.toFixed(1))) }}</p>
-            <p class="stat-label">לדקה</p>
+            <p class="stat-value" dir="ltr">{{ signed(Number(l[rateField].toFixed(1))) }}</p>
+            <p class="stat-label">{{ activeSort.pmLabel ?? SORTS[0].pmLabel }}</p>
           </div>
         </div>
       </li>
     </ul>
+    <div v-else-if="lineups.length" class="space-y-3">
+      <p class="empty-state">אין הרכבים ששיחקו לפחות <span dir="ltr">{{ formatMinutes(minMinutes) }}</span></p>
+      <button type="button" class="btn-secondary" @click="minMinutes = 0">הצגת כל ההרכבים</button>
+    </div>
     <p v-else class="empty-state">{{ gameId ? 'אין נתוני חמישיות למשחק הזה.' : 'אין נתוני חמישיות עדיין.' }}</p>
   </div>
 </template>

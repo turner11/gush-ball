@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { formatAverage, formatDateTime, formatDuration, formatGameDate, signed, userLabel } from './format'
+import { formatAverage, formatDateTime, formatDuration, formatGameDate, formatMinutes, signed, userLabel } from './format'
 
 const OPTS = { weekday: 'long', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }
 
@@ -69,5 +69,15 @@ describe('formatAverage', () => {
     expect(formatAverage(161, 2)).toBe('80.5')
     expect(formatAverage(160, 2)).toBe('80.0')
     expect(formatAverage(0, 0)).toBe('—')
+  })
+})
+
+describe('formatMinutes', () => {
+  it('formats float minutes as mm:ss, rounding to whole seconds', () => {
+    expect(formatMinutes(12.4)).toBe('12:24')
+    expect(formatMinutes(0.4166667)).toBe('00:25')
+    expect(formatMinutes(2.1666667)).toBe('02:10')
+    expect(formatMinutes(125.5)).toBe('125:30')
+    expect(formatMinutes(0)).toBe('00:00')
   })
 })

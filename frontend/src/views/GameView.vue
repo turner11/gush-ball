@@ -10,6 +10,7 @@ import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
+import GameStatsEditor from '../components/GameStatsEditor.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { canEditTeam } from '../composables/useAuth'
@@ -32,6 +33,7 @@ const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.
 const canEdit = computed(() => !!game.value && canEditTeam(game.value.team_id))
 const { editing: editingScorers, toggleEl: scorersToggle, toggle: toggleScorers } = useInlineEditor(canEdit)
 const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = useInlineEditor(canEdit)
+const { editing: editingStats, toggleEl: statsToggle, toggle: toggleStats } = useInlineEditor(canEdit)
 const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.images?.length))
 const gamePosts = computed(() => posts.value.filter((p) => p.game_id === game.value?.id))
 const address = computed(() => gameAddress(game.value, team.value))
@@ -169,6 +171,24 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
         </li>
       </ol>
       <p v-else class="empty-state">עדיין לא הוזנו קלעים.</p>
+    </section>
+
+    <section v-if="canEdit" class="card space-y-3">
+      <div class="section-header flex-wrap">
+        <h2 class="section-title">סטטיסטיקת חמישיות</h2>
+        <button
+          ref="statsToggle"
+          type="button"
+          class="btn-secondary ms-auto"
+          aria-controls="game-stats-editor"
+          :aria-expanded="editingStats"
+          @click="toggleStats"
+        >
+          {{ editingStats ? 'סיום עריכה' : 'ניהול סטטיסטיקה' }}
+        </button>
+      </div>
+      <GameStatsEditor v-if="editingStats" id="game-stats-editor" :team-id="game.team_id" :game="game" @change="Object.assign(game, $event)" />
+      <p v-else class="text-sm text-muted">{{ game.has_stats ? 'הנתונים נטענו.' : 'עדיין לא נטענו נתונים.' }}</p>
     </section>
 
     <GameAverages :team="team" :opponent="game.opponent" :game-id="game.id" />

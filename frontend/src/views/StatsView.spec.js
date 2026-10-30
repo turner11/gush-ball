@@ -11,7 +11,7 @@ const game = (id, day, has_stats) => ({
   opponent: { id: 10 + id, name: `יריבה ${id}` },
 })
 const GAMES = [game(1, '01', false), game(2, '04', true), game(3, '11', true)]
-const LINEUPS = 'GET /api/teams/1/lineups?size=5&sort=top'
+const LINEUPS = 'GET /api/teams/1/lineups?size=5'
 
 function jsonRes(body) {
   return { ok: true, status: 200, json: async () => body }
@@ -90,7 +90,7 @@ describe('StatsView', () => {
     await wrapper.find('select').setValue('2')
     await flushPromises()
     expect(router.currentRoute.value.query.game).toBe('2')
-    expect(urls()).toContain('/api/teams/1/lineups?size=5&sort=top&game_id=2')
+    expect(urls()).toContain('/api/teams/1/lineups?size=5&game_id=2')
 
     await wrapper.find('select').setValue('')
     await flushPromises()
@@ -100,14 +100,14 @@ describe('StatsView', () => {
   it('deep link /stats?game=2 preselects it', async () => {
     const wrapper = await mountAt('/stats?game=2')
     expect(wrapper.find('select').element.value).toBe('2')
-    expect(urls()).toContain('/api/teams/1/lineups?size=5&sort=top&game_id=2')
+    expect(urls()).toContain('/api/teams/1/lineups?size=5&game_id=2')
     expect(wrapper.text()).not.toContain(NOTE)
   })
 
   it.each(['99', '1'])('unknown ?game=%s falls back to all games with a note', async (id) => {
     const wrapper = await mountAt(`/stats?game=${id}`)
     expect(wrapper.find('select').element.value).toBe('')
-    expect(urls()).toContain('/api/teams/1/lineups?size=5&sort=top')
+    expect(urls()).toContain('/api/teams/1/lineups?size=5')
     expect(urls().some((u) => u.includes('game_id'))).toBe(false)
     expect(wrapper.text()).toContain(NOTE)
     expect(router.currentRoute.value.query.game).toBe(id)

@@ -43,6 +43,12 @@ export function formatDuration(totalSeconds) {
 // Per-game average to one decimal; a dash when nothing was played.
 export const formatAverage = (total, count) => (count ? (total / count).toFixed(1) : '—')
 
+// Float minutes to mm:ss. Round to whole seconds first: 2.1666 * 60 is 129.999, which would truncate to 02:09.
+export function formatMinutes(minutes) {
+  const s = Math.round(minutes * 60)
+  return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`
+}
+
 export const signed = (n) => (n > 0 ? `+${n}` : `${n}`)
 
 // Display names aren't unique, so a picker shows the login name too whenever it differs.
