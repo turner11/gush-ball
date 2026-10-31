@@ -33,7 +33,7 @@ const navItems = computed(() => [
   { to: teamBase.value + '/roster', label: 'שחקנים' },
   { to: teamBase.value + '/posts', label: 'עדכונים' },
   { to: teamBase.value + '/media', label: 'מדיה' },
-  { to: teamBase.value + '/stats', label: 'נתונים' },
+  { to: teamBase.value + '/stats', label: 'סטטיסטיקה' },
   ...(teamMember(selectedTeamId.value) ? [{ to: teamBase.value + '/playbook', label: 'פלייבוק' }] : []),
 ])
 
@@ -44,7 +44,7 @@ const tabItems = computed(() => [
   { to: teamBase.value + '/standings', label: 'טבלה', icon: 'table' },
   { to: teamBase.value + '/roster', label: 'שחקנים', icon: 'users' },
   { to: teamBase.value + '/media', label: 'מדיה', icon: 'media' },
-  { to: teamBase.value + '/stats', label: 'נתונים', icon: 'chart' },
+  { to: teamBase.value + '/stats', label: 'סטט׳', ariaLabel: 'סטטיסטיקה', icon: 'chart' },
   ...(teamMember(selectedTeamId.value) ? [{ to: teamBase.value + '/playbook', label: 'פלייבוק', icon: 'clipboard' }] : []),
 ])
 

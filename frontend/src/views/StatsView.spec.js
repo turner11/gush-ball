@@ -73,9 +73,9 @@ describe('StatsView', () => {
     return mountView()
   }
 
-  it('titles the page נתונים', async () => {
+  it('titles the page סטטיסטיקה', async () => {
     const wrapper = await mountAt()
-    expect(wrapper.find('h1').text()).toBe('נתונים')
+    expect(wrapper.find('h1').text()).toBe('סטטיסטיקה')
   })
 
   it('picker lists "all games" plus only has_stats games, newest first', async () => {
