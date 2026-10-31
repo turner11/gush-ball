@@ -68,6 +68,8 @@ class _PostColumns:
     body: Mapped[str] = mapped_column(Text)
     body_en: Mapped[str | None] = mapped_column(Text, default=None)
     pinned: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # Shown as its own section under About, not in the updates feed (#605).
+    is_core: Mapped[bool] = mapped_column(default=False, server_default=false())
     # Card image (#604); a team post's is also its home hero background (#562). An upload or any image URL.
     image_url: Mapped[str | None] = mapped_column(String(500), default=None)
     # ponytail: NULL = never reordered, sorts first (after pinned), so a new post lands on top without max+1.

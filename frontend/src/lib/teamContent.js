@@ -5,6 +5,7 @@ const POST_FIELDS = [
   { key: 'body', label: 'תוכן', type: 'textarea', required: true, maxlength: 20000, markdown: true },
   { key: 'body_en', label: 'תוכן (אנגלית)', type: 'textarea', maxlength: 20000 },
   { key: 'pinned', label: 'נעוץ', type: 'checkbox' },
+  { key: 'is_core', label: 'קטע קבוע בדף', type: 'checkbox' },
   { key: 'image_url', label: 'תמונה (לא חובה)', type: 'url', upload: true, preview: true, nullable: true },
 ]
 

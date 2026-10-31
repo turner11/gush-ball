@@ -142,6 +142,7 @@ class PostCreate(BaseModel):
     body: PostBody
     body_en: PostBody | None = None
     pinned: bool = False
+    is_core: bool = False
     image_url: HttpUrl | None = None
 
 
@@ -152,6 +153,7 @@ class PostUpdate(BaseModel):
     body: PostBody = None
     body_en: PostBody | None = None
     pinned: bool = None
+    is_core: bool = None
     image_url: HttpUrl | None = None  # null clears
 
 
@@ -164,6 +166,7 @@ class PostOut(BaseModel):
     body: str
     body_en: str | None
     pinned: bool
+    is_core: bool
     image_url: str | None
 
 

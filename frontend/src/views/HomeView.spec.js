@@ -420,7 +420,7 @@ describe('HomeView', () => {
 
   it('shows a core post as its own section under about, never in the hero or the updates', async () => {
     const core = { id: 2, team_id: 1, title: 'לזכרו', body: 'גוף קבוע', is_core: true }
-    const wrapper = await mountWithTeam({ ...TEAM, about: 'x' }, { posts: [core, { id: 1, team_id: 1, title: 'חדשות', body: 'x' }] })
+    const wrapper = await mountWithTeam({ ...TEAM, about: 'x' }, { posts: [core, { id: 3, team_id: 1, title: 'חדשות ב', body: 'x' }, { id: 1, team_id: 1, title: 'חדשות', body: 'x' }] })
 
     const h2s = wrapper.findAll('h2').map((h) => h.text())
     expect(h2s[0]).not.toBe('לזכרו')
