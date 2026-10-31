@@ -68,6 +68,10 @@ class _PostColumns:
     body: Mapped[str] = mapped_column(Text)
     body_en: Mapped[str | None] = mapped_column(Text, default=None)
     pinned: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # Shown as its own section under About, not in the updates feed (#605).
+    is_core: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # Card image (#604); a team post's is also its home hero background (#562). An upload or any image URL.
+    image_url: Mapped[str | None] = mapped_column(String(500), default=None)
     # ponytail: NULL = never reordered, sorts first (after pinned), so a new post lands on top without max+1.
     sort_order: Mapped[int | None] = mapped_column(default=None)
 
@@ -79,8 +83,6 @@ class TeamPost(_PostColumns, Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"))
     # Optional link to one of the team's games; the home hero features posts of the next/last game.
     game_id: Mapped[int | None] = mapped_column(ForeignKey("games.id", ondelete="SET NULL"), default=None)
-    # Background of the post's home hero slide (#562); an upload or any image URL.
-    image_url: Mapped[str | None] = mapped_column(String(500), default=None)
     # Last day the post shows on the home page (#569); NULL = never expires.
     expires_on: Mapped[date | None] = mapped_column(Date, default=None)
     # NULL for posts added before the audit log: no date is invented, so they never count as recent.

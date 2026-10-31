@@ -142,6 +142,8 @@ class PostCreate(BaseModel):
     body: PostBody
     body_en: PostBody | None = None
     pinned: bool = False
+    is_core: bool = False
+    image_url: HttpUrl | None = None
 
 
 class PostUpdate(BaseModel):
@@ -151,6 +153,8 @@ class PostUpdate(BaseModel):
     body: PostBody = None
     body_en: PostBody | None = None
     pinned: bool = None
+    is_core: bool = None
+    image_url: HttpUrl | None = None  # null clears
 
 
 class PostOut(BaseModel):
@@ -162,24 +166,23 @@ class PostOut(BaseModel):
     body: str
     body_en: str | None
     pinned: bool
+    is_core: bool
+    image_url: str | None
 
 
 class TeamPostCreate(PostCreate):
     game_id: int | None = None
-    image_url: HttpUrl | None = None
     expires_on: date | None = None
 
 
 class TeamPostUpdate(PostUpdate):
     game_id: int | None = None  # null clears the link
-    image_url: HttpUrl | None = None  # null clears the background
     expires_on: date | None = None  # null clears
 
 
 class TeamPostOut(PostOut):
     team_id: int
     game_id: int | None
-    image_url: str | None
     expires_on: date | None
     created_at: datetime | None
 

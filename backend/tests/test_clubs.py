@@ -196,6 +196,28 @@ def test_club_admin_crud_own_club_posts(club_admin_client: TestClient, db_sessio
     assert club_admin_client.get(path).json() == []
 
 
+def test_club_post_image_url_set_and_cleared_with_null(club_admin_client: TestClient, db_session: Session) -> None:
+    club = db_session.query(Club).filter_by(name="Gush").one_or_none() or _gush(db_session)
+    path = f"/clubs/{club.id}/posts"
+
+    assert club_admin_client.post(path, json={"title": "t", "body": "x"}).json()["image_url"] is None
+    created = club_admin_client.post(path, json={"title": "t", "body": "x", "image_url": "https://cdn.example/p.jpg"})
+    assert created.status_code == 201
+    assert created.json()["image_url"] == "https://cdn.example/p.jpg"
+    patched = club_admin_client.patch(f"{path}/{created.json()['id']}", json={"image_url": None})
+    assert patched.json()["image_url"] is None
+    assert club_admin_client.post(path, json={"title": "t", "body": "x", "image_url": "not a url"}).status_code == 422
+
+
+def test_club_post_is_core_round_trips(club_admin_client: TestClient, db_session: Session) -> None:
+    club = db_session.query(Club).filter_by(name="Gush").one_or_none() or _gush(db_session)
+    path = f"/clubs/{club.id}/posts"
+
+    created = club_admin_client.post(path, json={"title": "t", "body": "x", "is_core": True})
+    assert created.status_code == 201
+    assert [p["is_core"] for p in club_admin_client.get(path).json()] == [True]
+
+
 def test_club_post_writes_scoped_to_club(
     club_admin_client: TestClient, db_session: Session, client: TestClient
 ) -> None:

@@ -4,7 +4,10 @@ const RECENT_MS = 14 * 24 * 60 * 60 * 1000
 // Posts still live on the home page: expires_on (YYYY-MM-DD, inclusive, viewer's local day) unset or not yet past (#569).
 // The posts page and the admin editor keep listing expired posts.
 export const isExpired = (post, now = new Date()) => Boolean(post.expires_on) && post.expires_on < now.toLocaleDateString('en-CA')
-export const homePosts = (posts, now = new Date()) => posts.filter((p) => !isExpired(p, now))
+// Core posts (#605) are page sections, not news: kept out of every feed surface (hero, teaser, posts page, club updates).
+// They ignore expires_on, which only means "shown on the home page until".
+export const feedPosts = (posts) => posts.filter((p) => !p.is_core)
+export const homePosts = (posts, now = new Date()) => feedPosts(posts).filter((p) => !isExpired(p, now))
 
 // Posts for the home hero: next-game posts, then last-game posts, then posts from the last 14 days, each tier in API
 // order and deduped. When nothing matches, the first post (API order: pinned, then newest) so the hero is never empty.
