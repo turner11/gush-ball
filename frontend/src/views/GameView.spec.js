@@ -366,6 +366,26 @@ describe('GameView', () => {
       expect(wrapper.get('[data-test="stats-saved"]').text()).toContain('הקישור לגיליון נשמר')
     })
 
+    it('a double-click on end-edit sends one PATCH and leaves the editor closed (#596)', async () => {
+      const { wrapper } = await mountAdmin(GAME)
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await wrapper.find('#stats-url').setValue('https://other-sheet')
+      const end = wrapper.findAll('button').find((b) => b.text() === 'סיום עריכה')
+      end.trigger('click')
+      await end.trigger('click')
+      await flushPromises()
+      expect(patches()).toHaveLength(1)
+      expect(wrapper.find('#game-stats-editor').exists()).toBe(false)
+    })
+
+    it('clearing the link says it was removed (#596)', async () => {
+      const { wrapper } = await mountAdmin({ ...GAME, stats_url: 'https://sheet' }, () => ok({ ...GAME, stats_url: null }))
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await wrapper.find('#stats-url').setValue('')
+      await adminClick(wrapper, 'סיום עריכה')
+      expect(wrapper.get('[data-test="stats-saved"]').text()).toContain('הקישור לגיליון הוסר')
+    })
+
     it('ending the edit with an unchanged link sends no PATCH (#596)', async () => {
       const { wrapper } = await mountAdmin({ ...GAME, stats_url: 'https://sheet' })
       await adminClick(wrapper, 'ניהול סטטיסטיקה')
