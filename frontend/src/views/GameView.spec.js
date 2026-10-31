@@ -315,10 +315,11 @@ describe('GameView', () => {
       await flushPromises()
     }
 
-    async function mountAdmin(game) {
+    async function mountAdmin(game, patch = (body) => ok({ ...game, stats_url: body.stats_url })) {
       mockFetch(ok(game))
       const base = global.fetch
       global.fetch = vi.fn((url, opts) => {
+        if (url === '/api/teams/1/games/5' && opts?.method === 'PATCH') return Promise.resolve(patch(JSON.parse(opts.body)))
         if (url === '/api/teams/1/games/5/stats') {
           if (opts?.method === 'DELETE') return Promise.resolve({ ok: true, status: 204, json: async () => null })
           return Promise.resolve(ok({ snapshots: 3, stats_url: 'https://sheet' }))
@@ -349,6 +350,58 @@ describe('GameView', () => {
       await adminClick(wrapper, 'מחיקה')
       expect(global.fetch.mock.calls.some(([u, o]) => u === '/api/teams/1/games/5/stats' && o?.method === 'DELETE')).toBe(true)
       expect(wrapper.find('a[href*="stats"]').exists()).toBe(false)
+    })
+
+    const patches = () => global.fetch.mock.calls.filter(([, o]) => o?.method === 'PATCH')
+
+    it('ending the edit saves a changed sheet link without loading stats (#596)', async () => {
+      const { wrapper } = await mountAdmin(GAME)
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await wrapper.find('#stats-url').setValue('abc')
+      await adminClick(wrapper, 'סיום עריכה')
+      expect(patches()).toHaveLength(1)
+      expect(JSON.parse(patches()[0][1].body)).toEqual({ stats_url: 'abc' })
+      expect(global.fetch.mock.calls.some(([u]) => u === '/api/teams/1/games/5/stats')).toBe(false)
+      expect(wrapper.find('#game-stats-editor').exists()).toBe(false)
+      expect(wrapper.get('[data-test="stats-saved"]').text()).toContain('הקישור לגיליון נשמר')
+    })
+
+    it('a double-click on end-edit sends one PATCH and leaves the editor closed (#596)', async () => {
+      const { wrapper } = await mountAdmin(GAME)
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await wrapper.find('#stats-url').setValue('https://other-sheet')
+      const end = wrapper.findAll('button').find((b) => b.text() === 'סיום עריכה')
+      end.trigger('click')
+      await end.trigger('click')
+      await flushPromises()
+      expect(patches()).toHaveLength(1)
+      expect(wrapper.find('#game-stats-editor').exists()).toBe(false)
+    })
+
+    it('clearing the link says it was removed (#596)', async () => {
+      const { wrapper } = await mountAdmin({ ...GAME, stats_url: 'https://sheet' }, () => ok({ ...GAME, stats_url: null }))
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await wrapper.find('#stats-url').setValue('')
+      await adminClick(wrapper, 'סיום עריכה')
+      expect(wrapper.get('[data-test="stats-saved"]').text()).toContain('הקישור לגיליון הוסר')
+    })
+
+    it('ending the edit with an unchanged link sends no PATCH (#596)', async () => {
+      const { wrapper } = await mountAdmin({ ...GAME, stats_url: 'https://sheet' })
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await adminClick(wrapper, 'סיום עריכה')
+      expect(patches()).toHaveLength(0)
+      expect(wrapper.find('#game-stats-editor').exists()).toBe(false)
+    })
+
+    it('a rejected sheet link keeps the editor open with the error (#596)', async () => {
+      const detail = 'Not a Google Sheet link or sheet ID: x'
+      const { wrapper } = await mountAdmin(GAME, () => ({ ok: false, status: 422, json: async () => ({ detail }) }))
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await wrapper.find('#stats-url').setValue('x')
+      await adminClick(wrapper, 'סיום עריכה')
+      expect(wrapper.find('#game-stats-editor').exists()).toBe(true)
+      expect(wrapper.get('[role="alert"]').text()).toContain(detail)
     })
   })
 })

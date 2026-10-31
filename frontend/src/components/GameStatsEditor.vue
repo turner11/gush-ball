@@ -58,6 +58,22 @@ async function deleteStats() {
   }
 }
 
+// Saves just the sheet link (the parent calls this when ending the edit). False = rejected, error shown.
+async function saveUrl() {
+  error.value = statsMessage.value = null
+  const link = url.value.trim()
+  if (link === (props.game.stats_url ?? '')) return true
+  try {
+    const res = await apiFetch(`/teams/${props.teamId}/games/${props.game.id}`, { method: 'PATCH', body: { stats_url: link || null } })
+    emit('change', { stats_url: res.stats_url })
+    return true
+  } catch (e) {
+    error.value = e.message
+    return false
+  }
+}
+defineExpose({ saveUrl })
+
 async function loadStats() {
   error.value = statsMessage.value = null
   try {
