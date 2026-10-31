@@ -58,6 +58,9 @@ class Game(Base):
 
     # Not a scrape field: setting it never flags an override. Sheet holding BBStats snapshots.
     stats_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    # Raw rows typed on the site, in sheet column order (lineups.STATS_HEADERS); emptied when a sheet is
+    # loaded. lineup_snapshots are derived from them.
+    stats_rows: Mapped[list[list[str]]] = mapped_column(JSON, default=list, server_default="[]")
     # Admin content, not scrape fields: editing them never flags an override.
     # ponytail: whole-list JSON like Club.about_images (#451); tables only if items need ids or tagging.
     videos: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")

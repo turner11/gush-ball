@@ -32,7 +32,7 @@ issue, before starting.
 - `StandingRow` (Phase 1 issue #4): designed so Phase 2's scraper upserts into the *same* table
   Phase 1's manual entry uses, keyed by league + team name.
 - `LineupSnapshot`: raw per-snapshot lineup rows (5 jersey numbers, elapsed minutes, points for/against)
-  belonging to a `Game`. `Game.stats_url` is the admin-set sheet they were loaded from; it is not a
+  belonging to a `Game`. They come from the admin-set sheet (`Game.stats_url`) or from rows typed in on the game page (`Game.stats_rows`, in the sheet's format, exportable as CSV) (#601); it is not a
   scrape field, so setting it never flags an override.
 - `AdminUser`: every login account (the table keeps its historic name). Nullable unique `email` (lowercase). `is_full_admin` (set only by the migration and `scripts/create_admin.py`, never by an API) = full admin. Any other rights come from `Membership` rows.
 - `Membership`: one user's grant on one `Team` **or** one club (the `Team.club` string, exactly one of the two), with `role` `pending | member | admin`. A user may hold many (#249): admin of several teams or clubs, across clubs.
@@ -65,7 +65,7 @@ issue, before starting.
 - **Statistics (lineup +/-)**: real per-lineup +/- needs live substitution tracking that the scraped
   source can never provide (box scores only, no play-by-play) — a permanent limitation of the data
   source. BBStats (`stats/` git submodule, installed into the backend as the `bbstats` package) is the
-  stats engine. The admin sets a Google Sheet/CSV URL per `Game` and loads it; the raw snapshots are
+  stats engine. The admin sets a Google Sheet/CSV URL per `Game` and loads it, or types the same rows on the game page (#601); the raw snapshots are
   stored in `LineupSnapshot`. Lineup stats for group size 1–5 and sort top/offense/defense are
   computed on read with `get_stats_from_raw_data`, with no precomputed aggregates. The `/stats` page (per game or all games) and its API
   are for approved members and admins only (`RequireStatsViewer` in `app/deps.py`, #249): anonymous visitors get a
@@ -116,7 +116,7 @@ Don't build these ahead of their phase, even if a related task makes them tempti
 
 - Stats beyond per-lineup +/- from admin-loaded BBStats sheets and per-game scorers (#441: a game's
   players and their points, entered in-site by that team's admins): no other box-score stats, no
-  other in-site stat entry, no precomputed/stored aggregates
+  other in-site stat entry beyond the lineup sheet rows (#601), no precomputed/stored aggregates
 - Dynamic per-team color theming (Phase 3) — dark/light mode is a *different*, already-shipped
   feature; don't conflate the two
 - Social media embeds (Phase 3)

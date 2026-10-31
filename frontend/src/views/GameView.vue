@@ -11,6 +11,7 @@ import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
 import GameScoreboard from '../components/GameScoreboard.vue'
 import GameStatsEditor from '../components/GameStatsEditor.vue'
+import GameStatsRowsEditor from '../components/GameStatsRowsEditor.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import VideoCard from '../components/VideoCard.vue'
 import { canEditTeam } from '../composables/useAuth'
@@ -39,6 +40,12 @@ const gamePosts = computed(() => posts.value.filter((p) => p.game_id === game.va
 const address = computed(() => gameAddress(game.value, team.value))
 
 const statsEditor = ref(null)
+const rowsEditor = ref(null)
+const rowsKey = ref(0) // bumped when a sheet load or delete changed the rows on the server, so the table reloads
+function onStatsChange(e) {
+  Object.assign(game.value, e)
+  if ('has_stats' in e) rowsKey.value++
+}
 const saved = ref(null) // 'scorers' | 'media' | 'stats' | 'stats-removed': which save to confirm (the editor unmounts on save)
 watch(editingScorers, (open) => open && (saved.value = null))
 watch(editingMedia, (open) => open && (saved.value = null))
@@ -52,8 +59,9 @@ async function toggleStatsEditor() {
     const before = game.value.stats_url
     savingStats.value = true
     const ok = await statsEditor.value.saveUrl()
+    const rowsOk = ok && (await rowsEditor.value.save())
     savingStats.value = false
-    if (!ok) return
+    if (!ok || !rowsOk) return
     if (game.value.stats_url !== before) saved.value = game.value.stats_url ? 'stats' : 'stats-removed'
   }
   toggleStats()
@@ -206,7 +214,10 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
           {{ editingStats ? 'סיום עריכה' : 'ניהול סטטיסטיקה' }}
         </button>
       </div>
-      <GameStatsEditor v-if="editingStats" ref="statsEditor" id="game-stats-editor" :team-id="game.team_id" :game="game" @change="Object.assign(game, $event)" />
+      <div v-if="editingStats" id="game-stats-editor" class="space-y-6">
+        <GameStatsEditor ref="statsEditor" :team-id="game.team_id" :game="game" @change="onStatsChange" />
+        <GameStatsRowsEditor ref="rowsEditor" :key="rowsKey" :team-id="game.team_id" :game-id="game.id" :has-stats="game.has_stats" @saved="Object.assign(game, $event)" />
+      </div>
       <p v-else class="text-sm text-muted">{{ game.has_stats ? 'הנתונים נטענו.' : 'עדיין לא נטענו נתונים.' }}</p>
     </section>
 

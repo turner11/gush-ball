@@ -544,7 +544,7 @@ def test_sheet_load_and_delete_clear_stats_rows(admin_client, db_session, fake_s
     ("who", "expected"),
     [("anonymous", 401), ("member:own", 403), ("admin:other", 403), ("admin:own", 200), ("admin:club", 200)],
 )
-def test_stats_rows_routes_need_team_admin(who, expected, client, db_session, own_team, other_team) -> None:
+def test_stats_rows_routes_need_team_admin(who, expected, client, db_session, own_team, other_team, sibling_team) -> None:
     game = _own_game_with_snapshots(db_session, own_team)
     _login_as(client, db_session, who, own_team, other_team)
 
