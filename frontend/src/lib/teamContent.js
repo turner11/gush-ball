@@ -5,6 +5,7 @@ const POST_FIELDS = [
   { key: 'body', label: 'תוכן', type: 'textarea', required: true, maxlength: 20000, markdown: true },
   { key: 'body_en', label: 'תוכן (אנגלית)', type: 'textarea', maxlength: 20000 },
   { key: 'pinned', label: 'נעוץ', type: 'checkbox' },
+  { key: 'image_url', label: 'תמונה (לא חובה)', type: 'url', upload: true, preview: true, nullable: true },
 ]
 
 export const CONTENT_SECTIONS = {
@@ -54,7 +55,7 @@ export const CONTENT_SECTIONS = {
     reorderable: true,
     fields: POST_FIELDS,
   },
-  // A team's posts can also be tied to one of its games (#560).
+  // A team's posts add a game link (#560) and a home-page expiry (#569).
   teamPosts: {
     resource: 'posts',
     heading: 'עדכונים',
@@ -62,7 +63,6 @@ export const CONTENT_SECTIONS = {
     fields: [
       ...POST_FIELDS,
       { key: 'game_id', label: 'קשור למשחק', type: 'game' },
-      { key: 'image_url', label: 'תמונת רקע (לא חובה)', type: 'url', upload: true, preview: true, nullable: true },
       { key: 'expires_on', label: 'מוצג בדף הבית עד (לא חובה)', type: 'date', nullable: true },
     ],
   },
