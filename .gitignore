@@ -228,3 +228,5 @@ frontend/dist/
 
 # Self-hosted runner secrets
 .env.runners
+
+gush-ball-backup.env
