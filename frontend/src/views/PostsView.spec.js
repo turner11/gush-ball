@@ -108,6 +108,7 @@ describe('PostsView', () => {
     await editButton(wrapper).trigger('click')
     await flushPromises()
     expect(wrapper.findAll('button').some((b) => b.text() === 'הוספה')).toBe(true)
+    expect(wrapper.findAll('h2').some((h) => h.text() === 'עדכונים')).toBe(false)
 
     global.fetch.mockClear()
     await editButton(wrapper, 'סיום עריכה').trigger('click')

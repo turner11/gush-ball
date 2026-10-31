@@ -181,8 +181,8 @@ const hasSocialEmbed = computed(
         </section>
 
         <section v-if="restPost || canEdit" class="space-y-3">
-          <div class="section-header">
-            <h2 class="section-title">עדכונים</h2>
+          <div class="section-header justify-end">
+            <h2 class="sr-only">עדכונים</h2>
             <RouterLink v-if="restPost && !editingPosts" :to="base + '/posts'" class="section-link">כל העדכונים</RouterLink>
             <button
               v-if="canEdit"

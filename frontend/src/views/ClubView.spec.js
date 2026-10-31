@@ -411,6 +411,7 @@ describe('ClubView', () => {
     expect(w.text()).toContain('חדשות')
     expect(w.text()).toContain('גוף העדכון')
     expect(w.text()).toContain('נעוץ')
+    expect(w.findAll('h2').find((h) => h.text() === 'עדכונים').classes()).toContain('sr-only')
   })
 
   it('a failed posts load keeps the page and shows an inline error', async () => {

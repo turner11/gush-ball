@@ -61,7 +61,7 @@ const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor
     </div>
 
     <LoadError v-if="loadError" message="שגיאה בטעינת העדכונים" @retry="load" />
-    <TeamContentSection v-else-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.teamPosts" />
+    <TeamContentSection v-else-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.teamPosts" heading="" />
     <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
     <div v-else-if="posts.length" class="space-y-6">
       <PostCard v-for="post in posts" :key="post.id" :post="post" :level="2" />
