@@ -412,6 +412,7 @@ describe('HomeView', () => {
 
     const section = wrapper.findAll('section').find((x) => x.find('h2').text() === 'עדכונים')
     expect(wrapper.find('h2').text()).toBe('פוסט 3')
+    expect(section.find('h2').classes()).toContain('sr-only')
     expect(section.text()).toContain('פוסט 2')
     expect(section.text()).not.toContain('פוסט 3')
     expect(wrapper.text()).not.toContain('פוסט 1')

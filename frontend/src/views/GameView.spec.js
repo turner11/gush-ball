@@ -295,6 +295,7 @@ describe('GameView', () => {
     }), [{ id: 1, title: 'לקראת המשחק', body: 'b', game_id: 5 }])
     const { wrapper } = await mountAt(true)
     expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['על המשחק', 'קלעים', 'ממוצעי נקודות', 'עדכונים', 'מדיה'])
+    expect(wrapper.get('#game-posts-title').classes()).toContain('sr-only')
   })
 
   it('preview hides the scorers and media edit buttons from a team admin (#468)', async () => {

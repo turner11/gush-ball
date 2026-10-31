@@ -213,7 +213,7 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
     <GameAverages :team="team" :opponent="game.opponent" :game-id="game.id" />
 
     <section v-if="gamePosts.length" class="space-y-3" aria-labelledby="game-posts-title">
-      <h2 id="game-posts-title" class="section-title">עדכונים</h2>
+      <h2 id="game-posts-title" class="sr-only">עדכונים</h2>
       <PostCard v-for="post in gamePosts" :key="post.id" :post="post" />
     </section>
 

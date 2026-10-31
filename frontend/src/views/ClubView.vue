@@ -176,7 +176,7 @@ watch(() => route.params.clubSlug, load, { immediate: true })
       </section>
       <TeamContentSection v-if="editing" id="club-posts-editor" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.posts" />
       <section v-else-if="posts.length || postsError" class="space-y-3">
-        <h2 class="section-title">עדכונים</h2>
+        <h2 class="sr-only">עדכונים</h2>
         <p v-if="postsError" class="error-text" role="alert">שגיאה בטעינת העדכונים</p>
         <div v-else class="space-y-6">
           <PostCard v-for="post in posts" :key="post.id" :post="post" />
