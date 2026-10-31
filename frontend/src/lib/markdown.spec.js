@@ -36,6 +36,12 @@ describe('renderMarkdown', () => {
     expect(img.style.maxHeight).toBe('100px')
   })
 
+  it('strips width and height from non-image tags', () => {
+    const el = render('<table width="2000"><tr><td>x</td></tr></table><hr width="3000">')
+    expect(el.querySelector('table').hasAttribute('width')).toBe(false)
+    expect(el.querySelector('hr').hasAttribute('width')).toBe(false)
+  })
+
   it('ignores a non-numeric height and any author style on images', () => {
     const el = render('<img src="https://x/a.png" height="1px;position:fixed" style="position:fixed;inset:0">')
     const img = el.querySelector('img')

@@ -11,7 +11,12 @@ const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'del', 'a', 'ul', 'ol', 'li', '
 const ALLOWED_ATTR = ['href', 'title', 'src', 'alt', 'start', 'align', 'width', 'height']
 // ponytail: height attr → max-height (preflight's height:auto beats the attr); swap for CSS attr() once it's cross-browser
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-  const height = node.tagName === 'IMG' && node.getAttribute('height')
+  if (node.tagName !== 'IMG') {
+    node.removeAttribute('width')
+    node.removeAttribute('height')
+    return
+  }
+  const height = node.getAttribute('height')
   if (height && /^\d+$/.test(height)) node.style.maxHeight = `${height}px`
 })
 export const renderMarkdown = (text) =>
