@@ -32,8 +32,8 @@ issue, before starting.
 - `StandingRow` (Phase 1 issue #4): designed so Phase 2's scraper upserts into the *same* table
   Phase 1's manual entry uses, keyed by league + team name.
 - `LineupSnapshot`: raw per-snapshot lineup rows (5 jersey numbers, elapsed minutes, points for/against)
-  belonging to a `Game`. They come from the admin-set sheet (`Game.stats_url`) or from rows typed in on the game page (`Game.stats_rows`, in the sheet's format, exportable as CSV) (#601); it is not a
-  scrape field, so setting it never flags an override.
+  belonging to a `Game`. They come from the admin-set sheet (`Game.stats_url`) or from rows typed in on the game page (`Game.stats_rows`, in the sheet's format, exportable as CSV) (#601);
+  neither is a scrape field, so setting either never flags an override.
 - `AdminUser`: every login account (the table keeps its historic name). Nullable unique `email` (lowercase). `is_full_admin` (set only by the migration and `scripts/create_admin.py`, never by an API) = full admin. Any other rights come from `Membership` rows.
 - `Membership`: one user's grant on one `Team` **or** one club (the `Team.club` string, exactly one of the two), with `role` `pending | member | admin`. A user may hold many (#249): admin of several teams or clubs, across clubs.
 

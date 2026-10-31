@@ -506,6 +506,16 @@ def test_put_stats_rows_rejects_formula_cell(admin_client, db_session) -> None:
     assert _count(db_session) == len(bbstats.get_snapshots_df(CSV))
 
 
+def test_put_stats_rows_rejects_blank_cell_naming_row_and_column(admin_client, db_session) -> None:
+    game = _make_game(db_session)
+
+    r = admin_client.put(_rows_path(game), json=[ROWS[0], ["", *ROWS[1][1:]]])
+
+    assert r.status_code == 422
+    assert "Row 2" in r.json()["detail"]
+    assert "#1" in r.json()["detail"]
+
+
 def test_put_stats_rows_time_over_quarter_names_value(admin_client, db_session) -> None:
     game = _make_game(db_session)
 

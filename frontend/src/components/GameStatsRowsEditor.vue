@@ -69,6 +69,7 @@ async function removeRow(index) {
 // Saves the table (the parent calls this when ending the edit). True = nothing to save or saved; false = rejected.
 async function save() {
   if (!dirty.value) return true
+  if (!root.value.querySelector('form').reportValidity()) return false
   saving.value = true
   saveError.value = ''
   justSaved.value = false
@@ -116,14 +117,14 @@ defineExpose({ save })
               v-model="row.cells[c]"
               :data-col="c"
               :aria-label="`שורה ${i + 1}, ${label}`"
-              :placeholder="c === TIME ? '10:00' : ''"
-              :required="c === TIME"
+              :placeholder="c === TIME ? '10:00' : HEADS[c]"
+              required
               :pattern="c === TIME ? '\\d{1,2}:\\d{2}' : '\\d*'"
               :maxlength="c === TIME ? 5 : 3"
               :dir="c === TIME ? 'ltr' : undefined"
               :inputmode="c === TIME ? 'text' : 'numeric'"
               type="text"
-              class="field-input !mt-0 min-w-0 text-center tabular-nums"
+              class="field-input !mt-0 min-w-0 !px-1 text-center tabular-nums"
               @input="justSaved = false"
             />
             <button type="button" data-delete class="btn-ghost size-11 !p-0" :aria-label="`מחיקת שורה ${i + 1}`" @click="removeRow(i)">

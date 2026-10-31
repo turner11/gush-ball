@@ -131,6 +131,10 @@ def put_stats_rows(
 ) -> StatsLoadOut:
     # Not PATCH /games, so no override flag (see load_game_stats). Parse first: a bad row changes nothing.
     game = get_game_or_404(db, team_id, game_id)
+    for i, row in enumerate(rows, 1):
+        for name, cell in zip(STATS_HEADERS, row, strict=True):
+            if not cell:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Row {i}: '{name}' is empty")
     game.lineup_snapshots = _snapshots_from_csv(_rows_to_csv(rows))
     game.stats_rows = rows
     db.commit()
