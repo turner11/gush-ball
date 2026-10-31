@@ -16,6 +16,7 @@ defineProps({ items: { type: Array, required: true } })
       <li v-for="item in items" :key="item.label">
         <RouterLink
           :to="item.to"
+          :aria-label="item.ariaLabel"
           :active-class="item.exact ? '' : 'tab-active'"
           exact-active-class="tab-active"
           :class="{ 'tab-active': item.current }"

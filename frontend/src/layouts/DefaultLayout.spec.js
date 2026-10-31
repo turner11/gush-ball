@@ -61,7 +61,7 @@ describe('DefaultLayout', () => {
         { path: '/', name: 'home', component: { template: '<div/>' } },
         { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' }, meta: { title: 'לוח', description: (t) => `לוח של ${t}` } },
         { path: '/clubs/:clubSlug', name: 'club', component: { template: '<div/>' } },
-        { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' }, meta: { title: 'נתונים' } },
+        { path: '/:slug/stats', name: 'stats', component: { template: '<div/>' }, meta: { title: 'סטטיסטיקה' } },
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
         { path: '/teams', name: 'teams', component: { template: '<div/>' } },
         { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
@@ -539,7 +539,7 @@ describe('DefaultLayout', () => {
     expect(wrapper.find('select').exists()).toBe(false)
   })
 
-  it('top nav and tab bar both name the stats page נתונים, and so does the document title', async () => {
+  it('names the stats page סטטיסטיקה in the top nav, abbreviates it in the tab bar, and titles the document', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 
     const { default: DefaultLayout } = await import('./DefaultLayout.vue')
@@ -549,11 +549,11 @@ describe('DefaultLayout', () => {
     await router.push('/team_a/stats')
     await flushPromises()
 
-    for (const id of ['top-nav', 'tab-bar']) {
-      const a = wrapper.find(`[data-testid="${id}"]`).findAll('a').find((x) => x.attributes('href') === '/team_a/stats')
-      expect(a.text()).toBe('נתונים')
-    }
-    expect(document.title.startsWith('נתונים · קבוצה א')).toBe(true)
+    const statsLink = (id) => wrapper.find(`[data-testid="${id}"]`).findAll('a').find((x) => x.attributes('href') === '/team_a/stats')
+    expect(statsLink('top-nav').text()).toBe('סטטיסטיקה')
+    expect(statsLink('tab-bar').text()).toBe('סטט׳')
+    expect(statsLink('tab-bar').attributes('aria-label')).toBe('סטטיסטיקה')
+    expect(document.title.startsWith('סטטיסטיקה · קבוצה א')).toBe(true)
   })
 
   it('nav links מדיה to the media page', async () => {
