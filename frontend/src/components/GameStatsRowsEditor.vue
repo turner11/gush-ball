@@ -101,7 +101,7 @@ defineExpose({ save })
       <p v-if="hasStats && !rows.length" class="text-sm text-muted">הנתונים הנוכחיים נטענו מגיליון; שמירה כאן תחליף אותם</p>
       <p v-if="!rows.length" class="empty-state">עדיין לא הוזנו שורות — הוסיפו שורה בכל חילוף</p>
       <div v-else>
-        <div class="hidden grid-cols-[repeat(9,minmax(0,1fr))_2.75rem] gap-2 pb-1 text-center text-xs text-muted sm:grid" aria-hidden="true">
+        <div class="grid grid-cols-5 gap-2 pb-1 text-center text-xs text-muted sm:grid-cols-[repeat(9,minmax(0,1fr))_2.75rem]" aria-hidden="true">
           <span v-for="h in HEADS" :key="h">{{ h }}</span>
         </div>
         <ul class="divide-y divide-line">
