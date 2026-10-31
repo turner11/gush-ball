@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { featuredPosts, homePosts } from './posts'
+import { featuredPosts, feedPosts, homePosts } from './posts'
 
 const NOW = new Date('2026-10-27T12:00:00Z')
 const day = (n) => new Date(NOW.getTime() - n * 86400000).toISOString()
@@ -48,5 +48,11 @@ describe('homePosts', () => {
       post(5),
     ]
     expect(homePosts(posts, NOW).map((p) => p.id)).toEqual([2, 3, 4, 5])
+  })
+
+  it('drops core posts: they are page sections, not feed items', () => {
+    const posts = [post(1, { is_core: true }), post(2), post(3, { is_core: false })]
+    expect(homePosts(posts, NOW).map((p) => p.id)).toEqual([2, 3])
+    expect(feedPosts(posts).map((p) => p.id)).toEqual([2, 3])
   })
 })

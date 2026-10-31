@@ -418,6 +418,18 @@ describe('HomeView', () => {
     expect(wrapper.text()).not.toContain('פוסט 1')
   })
 
+  it('shows a core post as its own section under about, never in the hero or the updates', async () => {
+    const core = { id: 2, team_id: 1, title: 'לזכרו', body: 'גוף קבוע', is_core: true }
+    const wrapper = await mountWithTeam({ ...TEAM, about: 'x' }, { posts: [core, { id: 1, team_id: 1, title: 'חדשות', body: 'x' }] })
+
+    const h2s = wrapper.findAll('h2').map((h) => h.text())
+    expect(h2s[0]).not.toBe('לזכרו')
+    expect(h2s.indexOf('לזכרו')).toBe(h2s.indexOf('על הקבוצה') + 1)
+    expect(h2s.indexOf('עדכונים')).toBe(h2s.indexOf('לזכרו') + 1)
+    const section = wrapper.findAll('section').find((x) => x.find('h2').text() === 'לזכרו')
+    expect(section.text()).toContain('גוף קבוע')
+  })
+
   it('never shows an expired post in the hero or the posts section', async () => {
     const wrapper = await mountWithTeam(TEAM, {
       posts: [
