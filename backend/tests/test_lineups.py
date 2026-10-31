@@ -455,3 +455,99 @@ def test_lineups_merge_same_players_in_any_order(admin_client, db_session, own_t
 
     pairs = [tuple(r["players"]) for r in admin_client.get(f"{base}?size=2").json()]
     assert len(pairs) == len(set(pairs)) == 10
+
+
+# --- rows typed on the site (#601) ---
+ROWS = [line.split(",") for line in CSV.splitlines()[1:]]
+
+
+def _rows_path(game: Game) -> str:
+    return f"{_stats_path(game)}/rows"
+
+
+def test_put_stats_rows_replaces_snapshots_and_rows(admin_client, db_session) -> None:
+    from app.models.audit_log import AuditLog
+
+    game = _make_game(db_session)
+    audits_before = len(db_session.scalars(select(AuditLog)).all())
+
+    r = admin_client.put(_rows_path(game), json=ROWS)
+
+    assert r.status_code == 200
+    assert r.json()["snapshots"] == len(bbstats.get_snapshots_df(CSV))
+    assert admin_client.get(_rows_path(game)).json() == ROWS
+    db_session.refresh(game)
+    assert game.has_stats
+    assert game.is_manually_overridden is False
+    assert len(db_session.scalars(select(AuditLog)).all()) == audits_before
+
+
+def test_stats_csv_export_matches_sheet_format(admin_client, db_session) -> None:
+    game = _make_game(db_session)
+    admin_client.put(_rows_path(game), json=ROWS)
+
+    r = admin_client.get(f"{_stats_path(game)}.csv")
+
+    assert r.status_code == 200
+    assert r.text == CSV
+    assert r.headers["content-type"].startswith("text/csv")
+    assert "attachment" in r.headers["content-disposition"]
+
+
+def test_put_stats_rows_rejects_formula_cell(admin_client, db_session) -> None:
+    game = _make_game(db_session)
+    admin_client.put(_rows_path(game), json=ROWS)
+    bad = [["=1+1", *ROWS[0][1:]]]
+
+    r = admin_client.put(_rows_path(game), json=bad)
+
+    assert r.status_code == 422
+    assert admin_client.get(_rows_path(game)).json() == ROWS
+    assert _count(db_session) == len(bbstats.get_snapshots_df(CSV))
+
+
+def test_put_stats_rows_time_over_quarter_names_value(admin_client, db_session) -> None:
+    game = _make_game(db_session)
+
+    r = admin_client.put(_rows_path(game), json=[[*ROWS[0][:7], "1", "12:00"]])
+
+    assert r.status_code == 422
+    assert "12" in r.json()["detail"]
+
+
+def test_put_empty_stats_rows_clears_stats(admin_client, db_session) -> None:
+    game = _make_game(db_session)
+    admin_client.put(_rows_path(game), json=ROWS)
+
+    r = admin_client.put(_rows_path(game), json=[])
+
+    assert r.status_code == 200
+    assert r.json()["snapshots"] == 0
+    db_session.refresh(game)
+    assert game.has_stats is False
+
+
+def test_sheet_load_and_delete_clear_stats_rows(admin_client, db_session, fake_sheet) -> None:
+    game = _make_game(db_session)
+    admin_client.put(_rows_path(game), json=ROWS)
+    admin_client.post(_stats_path(game), json={"url": URL})
+    db_session.refresh(game)
+    assert game.stats_rows == []
+
+    admin_client.put(_rows_path(game), json=ROWS)
+    admin_client.delete(_stats_path(game))
+    db_session.refresh(game)
+    assert game.stats_rows == []
+
+
+@pytest.mark.parametrize(
+    ("who", "expected"),
+    [("anonymous", 401), ("member:own", 403), ("admin:other", 403), ("admin:own", 200), ("admin:club", 200)],
+)
+def test_stats_rows_routes_need_team_admin(who, expected, client, db_session, own_team, other_team) -> None:
+    game = _own_game_with_snapshots(db_session, own_team)
+    _login_as(client, db_session, who, own_team, other_team)
+
+    assert client.get(_rows_path(game)).status_code == expected
+    assert client.put(_rows_path(game), json=ROWS).status_code == expected
+    assert client.get(f"{_stats_path(game)}.csv").status_code == expected
