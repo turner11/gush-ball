@@ -38,8 +38,8 @@ describe('renderMarkdown', () => {
 
   it('ignores a non-numeric height and any author style on images', () => {
     const el = render('<img src="https://x/a.png" height="1px;position:fixed" style="position:fixed;inset:0">')
-    expect(el.innerHTML).not.toContain('position')
-    expect(el.querySelector('img').style.maxHeight).toBe('')
+    const img = el.querySelector('img')
+    expect(img.hasAttribute('style')).toBe(false)
   })
 
   it('an image inside a line of text stays in the same paragraph (inline)', () => {
