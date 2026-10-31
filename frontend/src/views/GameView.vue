@@ -38,9 +38,21 @@ const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.ima
 const gamePosts = computed(() => posts.value.filter((p) => p.game_id === game.value?.id))
 const address = computed(() => gameAddress(game.value, team.value))
 
-const saved = ref(null) // 'scorers' | 'media': which save to confirm (the editor unmounts on save)
+const statsEditor = ref(null)
+const saved = ref(null) // 'scorers' | 'media' | 'stats': which save to confirm (the editor unmounts on save)
 watch(editingScorers, (open) => open && (saved.value = null))
 watch(editingMedia, (open) => open && (saved.value = null))
+watch(editingStats, (open) => open && (saved.value = null))
+
+// Ending the edit saves a changed sheet link first; a rejected link keeps the editor open.
+async function toggleStatsEditor() {
+  if (editingStats.value) {
+    const before = game.value.stats_url
+    if (!(await statsEditor.value.saveUrl())) return
+    if (game.value.stats_url !== before) saved.value = 'stats'
+  }
+  toggleStats()
+}
 
 function onScorersSaved(list) {
   game.value.scorers = list
@@ -176,18 +188,19 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
     <section v-if="canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">
         <h2 class="section-title">סטטיסטיקת חמישיות</h2>
+        <p aria-live="polite" data-test="stats-saved" class="ms-auto text-sm text-muted">{{ saved === 'stats' ? 'הקישור לגיליון נשמר' : '' }}</p>
         <button
           ref="statsToggle"
           type="button"
-          class="btn-secondary ms-auto"
+          class="btn-secondary"
           aria-controls="game-stats-editor"
           :aria-expanded="editingStats"
-          @click="toggleStats"
+          @click="toggleStatsEditor"
         >
           {{ editingStats ? 'סיום עריכה' : 'ניהול סטטיסטיקה' }}
         </button>
       </div>
-      <GameStatsEditor v-if="editingStats" id="game-stats-editor" :team-id="game.team_id" :game="game" @change="Object.assign(game, $event)" />
+      <GameStatsEditor v-if="editingStats" ref="statsEditor" id="game-stats-editor" :team-id="game.team_id" :game="game" @change="Object.assign(game, $event)" />
       <p v-else class="text-sm text-muted">{{ game.has_stats ? 'הנתונים נטענו.' : 'עדיין לא נטענו נתונים.' }}</p>
     </section>
 
