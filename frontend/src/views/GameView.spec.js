@@ -316,11 +316,16 @@ describe('GameView', () => {
       await flushPromises()
     }
 
+    let rowsOnServer = []
     async function mountAdmin(game, patch = (body) => ok({ ...game, stats_url: body.stats_url })) {
       mockFetch(ok(game))
       const base = global.fetch
       global.fetch = vi.fn((url, opts) => {
         if (url === '/api/teams/1/games/5' && opts?.method === 'PATCH') return Promise.resolve(patch(JSON.parse(opts.body)))
+        if (url === '/api/teams/1/games/5/stats/rows') {
+          if (opts?.method === 'PUT') return Promise.resolve(ok({ stats_url: null, snapshots: 1 }))
+          return Promise.resolve(ok(rowsOnServer))
+        }
         if (url === '/api/teams/1/games/5/stats') {
           if (opts?.method === 'DELETE') return Promise.resolve({ ok: true, status: 204, json: async () => null })
           return Promise.resolve(ok({ snapshots: 3, stats_url: 'https://sheet' }))
@@ -393,6 +398,17 @@ describe('GameView', () => {
       await adminClick(wrapper, 'סיום עריכה')
       expect(patches()).toHaveLength(0)
       expect(wrapper.find('#game-stats-editor').exists()).toBe(false)
+    })
+
+    it('ending the edit saves unsaved stats rows (#601)', async () => {
+      rowsOnServer = [['1', '2', '3', '4', '5', '0', '0', '1', '10:00']]
+      const { wrapper } = await mountAdmin(GAME)
+      await adminClick(wrapper, 'ניהול סטטיסטיקה')
+      await wrapper.get('[aria-label="שורה 1, זמן נותר"]').setValue('9:00')
+      await adminClick(wrapper, 'סיום עריכה')
+      rowsOnServer = []
+      const put = global.fetch.mock.calls.find(([u, o]) => u === '/api/teams/1/games/5/stats/rows' && o?.method === 'PUT')
+      expect(JSON.parse(put[1].body)[0][8]).toBe('9:00')
     })
 
     it('a rejected sheet link keeps the editor open with the error (#596)', async () => {
