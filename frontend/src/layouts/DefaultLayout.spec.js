@@ -443,7 +443,7 @@ describe('DefaultLayout', () => {
     await flushPromises()
 
     const nav = wrapper.find('[data-testid="top-nav"]').findAll('a').map((a) => a.attributes('href'))
-    expect(nav).toEqual(['/team_a/schedule', '/team_a/standings', '/team_a/roster', '/team_a/posts', '/team_a/media', '/team_a/stats'])
+    expect(nav).toEqual(['/team_a/schedule', '/team_a/roster', '/team_a/media', '/team_a/posts', '/team_a/standings', '/team_a/stats'])
     const body = await openMenu(wrapper.find('button[aria-label$="תפריט חשבון"]'))
     expect(body.find('[role=menuitem][href="/team_a/admin"]').text()).toBe('ניהול')
   })
@@ -754,7 +754,7 @@ describe('DefaultLayout', () => {
       .find('[data-testid="tab-bar"]')
       .findAll('a')
       .map((a) => a.attributes('href'))
-    expect(hrefs).toEqual(['/team_a', '/team_a/schedule', '/team_a/standings', '/team_a/roster', '/team_a/media', '/team_a/stats'])
+    expect(hrefs).toEqual(['/team_a', '/team_a/schedule', '/team_a/roster', '/team_a/media', '/team_a/standings', '/team_a/stats'])
   })
 
   it.each([
@@ -773,7 +773,7 @@ describe('DefaultLayout', () => {
       const hrefs = wrapper.find(`[data-testid="${id}"]`).findAll('a').map((a) => a.attributes('href'))
       expect(hrefs.includes('/clubs/maccabi')).toBe(shown)
       // top-nav's Home is a menu button, so its first link is the schedule
-      if (shown) expect(hrefs.slice(0, 3)).toEqual(id === 'top-nav' ? ['/team_a/schedule', '/clubs/maccabi', '/team_a/standings'] : ['/team_a', '/team_a/schedule', '/clubs/maccabi'])
+      if (shown) expect(hrefs.slice(0, 3)).toEqual(id === 'top-nav' ? ['/team_a/schedule', '/clubs/maccabi', '/team_a/roster'] : ['/team_a', '/team_a/schedule', '/clubs/maccabi'])
     }
     const ld = JSON.parse(document.head.querySelector('script[data-page]').textContent)
     if (shown) expect(ld.memberOf.url).toBe(`${location.origin}/clubs/maccabi`)

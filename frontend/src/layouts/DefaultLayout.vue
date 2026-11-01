@@ -29,10 +29,10 @@ const otherPreviews = computed(() => Object.entries(PREVIEWS).filter(([mode]) =>
 const navItems = computed(() => [
   { to: teamBase.value + '/schedule', label: 'לוח משחקים' },
   ...(clubPath.value ? [{ to: clubPath.value, label: 'מועדון' }] : []),
-  { to: teamBase.value + '/standings', label: 'טבלה' },
   { to: teamBase.value + '/roster', label: 'שחקנים' },
-  { to: teamBase.value + '/posts', label: 'עדכונים' },
   { to: teamBase.value + '/media', label: 'מדיה' },
+  { to: teamBase.value + '/posts', label: 'עדכונים' },
+  { to: teamBase.value + '/standings', label: 'טבלה' },
   { to: teamBase.value + '/stats', label: 'סטטיסטיקה' },
   ...(teamMember(selectedTeamId.value) ? [{ to: teamBase.value + '/playbook', label: 'פלייבוק' }] : []),
 ])
@@ -41,9 +41,9 @@ const tabItems = computed(() => [
   { to: homePath.value, label: 'בית', icon: 'home', exact: true },
   { to: teamBase.value + '/schedule', label: 'משחקים', icon: 'calendar' },
   ...(clubPath.value ? [{ to: clubPath.value, label: 'מועדון', icon: 'shield' }] : []),
-  { to: teamBase.value + '/standings', label: 'טבלה', icon: 'table' },
   { to: teamBase.value + '/roster', label: 'שחקנים', icon: 'users' },
   { to: teamBase.value + '/media', label: 'מדיה', icon: 'media' },
+  { to: teamBase.value + '/standings', label: 'טבלה', icon: 'table' },
   { to: teamBase.value + '/stats', label: 'סטט׳', ariaLabel: 'סטטיסטיקה', icon: 'chart' },
   ...(teamMember(selectedTeamId.value) ? [{ to: teamBase.value + '/playbook', label: 'פלייבוק', icon: 'clipboard' }] : []),
 ])
