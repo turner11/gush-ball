@@ -39,6 +39,14 @@ describe('AdminClubEditView', () => {
     expect(tos).not.toContainEqual({ name: 'admin-team-edit', params: { id: 2 } })
   })
 
+  it('the club posts editor offers an image field but no game or expiry', async () => {
+    const w = await mountAt('5')
+
+    expect(w.find('#posts-image_url').exists()).toBe(true)
+    expect(w.find('#posts-game_id').exists()).toBe(false)
+    expect(w.find('#posts-expires_on').exists()).toBe(false)
+  })
+
   it('an unknown club id shows the not-found state', async () => {
     const w = await mountAt('99')
 

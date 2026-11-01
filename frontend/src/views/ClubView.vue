@@ -8,6 +8,7 @@ import { useInlineEditor } from '../composables/useInlineEditor'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { splitGames } from '../lib/games'
+import { feedPosts } from '../lib/posts'
 import { clubJsonLd, pageTitle, setJsonLd, setMeta } from '../lib/head'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
 import { leagueKey } from '../lib/leagues'
@@ -17,6 +18,7 @@ import SearchInput from '../components/SearchInput.vue'
 import GameListFold from '../components/GameListFold.vue'
 import TeamCard from '../components/TeamCard.vue'
 import AppIcon from '../components/AppIcon.vue'
+import CorePosts from '../components/CorePosts.vue'
 import PostCard from '../components/PostCard.vue'
 import TeamContentSection from '../components/TeamContentSection.vue'
 import ImageGallery from '../components/ImageGallery.vue'
@@ -47,6 +49,7 @@ const imagesError = ref(false)
 const { user } = useAuth()
 const canEdit = computed(() => !previewMode.value && !!user.value && (fullAdmin.value || clubAdmin(club.value?.name)))
 const { editing, toggleEl: editToggle, toggle: toggleEditing } = useInlineEditor(canEdit, () => loadContent(route.params.clubSlug)) // the editors may have changed them
+const feed = computed(() => feedPosts(posts.value))
 const hasAbout = computed(() => {
   const c = club.value
   return !!c && !!(c.about_title || c.about || c.about_images.length || c.about_links.length)
@@ -174,20 +177,6 @@ watch(() => route.params.clubSlug, load, { immediate: true })
         </div>
         <ImageGallery v-if="club.about_images.length" :images="club.about_images" :fallback-alt="club.name" />
       </section>
-      <TeamContentSection v-if="editing" id="club-posts-editor" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.posts" />
-      <section v-else-if="posts.length || postsError" class="space-y-3">
-        <h2 class="sr-only">עדכונים</h2>
-        <p v-if="postsError" class="error-text" role="alert">שגיאה בטעינת העדכונים</p>
-        <div v-else class="space-y-6">
-          <PostCard v-for="post in posts" :key="post.id" :post="post" />
-        </div>
-      </section>
-      <TeamContentSection v-if="editing" id="club-images-editor" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.clubImages" />
-      <section v-else-if="images.length || imagesError" class="space-y-3">
-        <h2 class="section-title">תמונות</h2>
-        <p v-if="imagesError" class="error-text" role="alert">שגיאה בטעינת התמונות</p>
-        <ImageGallery v-else :images="images" :fallback-alt="club.name" />
-      </section>
       <section v-if="club.officials.length" class="space-y-3">
         <h2 class="section-title">בעלי תפקידים</h2>
         <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -200,6 +189,21 @@ watch(() => route.params.clubSlug, load, { immediate: true })
             </div>
           </li>
         </ul>
+      </section>
+      <CorePosts :posts="posts" />
+      <TeamContentSection v-if="editing" id="club-posts-editor" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.posts" />
+      <section v-else-if="feed.length || postsError" class="space-y-3">
+        <h2 class="sr-only">עדכונים</h2>
+        <p v-if="postsError" class="error-text" role="alert">שגיאה בטעינת העדכונים</p>
+        <div v-else class="space-y-6">
+          <PostCard v-for="post in feed" :key="post.id" :post="post" />
+        </div>
+      </section>
+      <TeamContentSection v-if="editing" id="club-images-editor" :key="club.id" owner="clubs" :owner-id="club.id" v-bind="CONTENT_SECTIONS.clubImages" />
+      <section v-else-if="images.length || imagesError" class="space-y-3">
+        <h2 class="section-title">תמונות</h2>
+        <p v-if="imagesError" class="error-text" role="alert">שגיאה בטעינת התמונות</p>
+        <ImageGallery v-else :images="images" :fallback-alt="club.name" />
       </section>
       <p v-if="canEdit && !hasAbout && !club.officials.length" class="empty-state">עוד אין תוכן על המועדון. <RouterLink :to="{ name: 'admin-club-edit', params: { id: club.id } }" class="btn-primary">הוספת תוכן</RouterLink></p>
       <div v-if="clubTeams.length > 1">

@@ -185,6 +185,15 @@ describe('ClubView', () => {
     expect(w.findAll('h2').map((h) => h.text())).toEqual(['הסיפור שלנו', 'בעלי תפקידים', 'הקבוצות', 'השבוע במועדון'])
   })
 
+  it('renders a core post as a section after about and officials, not in the updates', async () => {
+    const core = { id: 2, title: 'לזכרו', body: 'גוף קבוע', is_core: true }
+    mockFetch(GAMES, TEAMS, [], [core, { id: 1, title: 'חדשות', body: 'x' }])
+    const w = await mountIt()
+    expect(w.findAll('h2').map((h) => h.text())).toEqual(['הסיפור שלנו', 'בעלי תפקידים', 'לזכרו', 'עדכונים', 'הקבוצות', 'השבוע במועדון'])
+    const updates = w.findAll('section').find((x) => x.find('h2').text() === 'עדכונים')
+    expect(updates.text()).not.toContain('לזכרו')
+  })
+
   it('lists officials under the about block, in order', async () => {
     mockFetch(GAMES)
     const w = await mountIt()

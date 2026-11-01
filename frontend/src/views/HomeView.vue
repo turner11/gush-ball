@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
+import CorePosts from '../components/CorePosts.vue'
 import PostCard from '../components/PostCard.vue'
 import FeaturedPosts from '../components/FeaturedPosts.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
@@ -179,6 +180,8 @@ const hasSocialEmbed = computed(
           <div v-if="team.about" class="card"><p class="max-w-prose whitespace-pre-line break-words">{{ team.about }}</p></div>
           <p v-else class="empty-state">עוד אין טקסט על הקבוצה.</p>
         </section>
+
+        <CorePosts :posts="posts" />
 
         <section v-if="restPost || canEdit" class="space-y-3">
           <div class="section-header justify-end">

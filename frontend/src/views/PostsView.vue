@@ -9,6 +9,7 @@ import { canEditTeam } from '../composables/useAuth'
 import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { feedPosts } from '../lib/posts'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const posts = ref([])
@@ -30,7 +31,7 @@ async function load() {
   try {
     const p = await apiFetch(`/teams/${id}/posts`)
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
-    posts.value = p
+    posts.value = feedPosts(p)
   } catch {
     if (id === selectedTeamId.value) loadError.value = true
   } finally {

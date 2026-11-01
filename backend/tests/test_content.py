@@ -382,6 +382,19 @@ def test_post_pinned_defaults_false_and_rejects_null(admin_client: TestClient, t
     assert response.status_code == 422
 
 
+def test_post_is_core_defaults_false_round_trips_and_rejects_null(admin_client: TestClient, client: TestClient, team: Team) -> None:
+    url = f"/teams/{team.id}/posts"
+    body = {"title": "t", "body": "x"}
+    assert admin_client.post(url, json=body).json()["is_core"] is False
+
+    core = admin_client.post(url, json={**body, "is_core": True}).json()
+    assert core["is_core"] is True
+    assert {p["id"]: p["is_core"] for p in client.get(url).json()}[core["id"]] is True
+
+    assert admin_client.patch(f"{url}/{core['id']}", json={"is_core": False}).json()["is_core"] is False
+    assert admin_client.patch(f"{url}/{core['id']}", json={"is_core": None}).status_code == 422
+
+
 def test_image_hidden_from_home_defaults_false_round_trips_and_rejects_null(
     admin_client: TestClient, client: TestClient, team: Team
 ) -> None:

@@ -40,6 +40,11 @@ describe('PostsView', () => {
     expect(global.fetch.mock.calls.map(([u]) => u)).toEqual(['/api/teams/1/posts'])
   })
 
+  it('hides core posts from the updates page', async () => {
+    const wrapper = await mountView([{ id: 1, title: 'קבוע', body: 'x', is_core: true }, ...POSTS])
+    expect(wrapper.findAll('article h2').map((h) => h.text())).toEqual(['נעוץ א', 'חדש ב'])
+  })
+
   it('renders the post body as markdown', async () => {
     const wrapper = await mountView([{ id: 1, title: 'כותרת', body: '**חשוב**', pinned: false }])
     expect(wrapper.find('article strong').text()).toBe('חשוב')
