@@ -136,7 +136,7 @@
     @apply border-s-4 border-line ps-3;
   }
   .post-body img {
-    @apply max-w-full rounded-xl;
+    @apply inline max-w-full rounded-xl align-middle object-contain;
   }
   .post-body code {
     @apply rounded bg-sunken px-1;

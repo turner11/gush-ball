@@ -28,6 +28,10 @@ const items = ref([])
 const BLANKS = { players: () => [], checkbox: () => false, game: () => null } // null reaches PATCH and clears the link
 const blank = (field) => BLANKS[field.type]?.() ?? ''
 const form = reactive(Object.fromEntries(props.fields.map((f) => [f.key, blank(f)])))
+// ponytail: appends at end; insert at selectionStart if admins ask
+const insertImage = (key, url) => {
+  form[key] += `${form[key] ? '\n\n' : ''}![תיאור התמונה](${url})`
+}
 const loading = ref(true)
 const submitting = ref(false)
 const editingId = ref(null)
@@ -227,7 +231,8 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
           class="field-input"
         />
         <template v-if="field.type === 'textarea' && field.markdown">
-          <p :id="`${resource}-${field.key}-hint`" class="mt-1 text-sm text-muted">ניתן לעצב ב-Markdown: **מודגש**, *נטוי*, - רשימה, [קישור](https://…)</p>
+          <p :id="`${resource}-${field.key}-hint`" class="mt-1 text-sm text-muted">ניתן לעצב ב-Markdown: **מודגש**, *נטוי*, - רשימה, [קישור](https://…), תמונה: ![תיאור](https://…), גודל: &lt;img src="…" width="300"&gt;</p>
+          <ImageUpload label="הוספת תמונה לתוכן" @uploaded="(url) => insertImage(field.key, url)" />
           <details v-if="form[field.key]">
             <summary class="flex min-h-11 cursor-pointer items-center font-bold">תצוגה מקדימה</summary>
             <div class="post-body rounded-xl border border-line p-3 text-muted" v-html="renderMarkdown(form[field.key])" />

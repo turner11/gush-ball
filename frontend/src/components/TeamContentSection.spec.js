@@ -61,6 +61,28 @@ describe('TeamContentSection', () => {
     expect(wrapper.find('#links-url').element.value).toBe('https://cdn/x.png')
   })
 
+  it("a markdown field's upload appends an image to the body", async () => {
+    mockFetch({
+      'GET /api/teams/1/posts': () => jsonRes([]),
+      'POST /api/uploads': () => jsonRes({ url: 'https://cdn/x.png' }),
+    })
+    const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+    const fields = [{ key: 'body', type: 'textarea', markdown: true, label: 'תוכן' }]
+    const wrapper = mount(TeamContentSection, {
+      props: { ownerId: 1, resource: 'posts', heading: 'פוסטים', fields },
+    })
+    await flushPromises()
+
+    await wrapper.find('#posts-body').setValue('א')
+    const input = wrapper.find('input[type="file"]')
+    const file = new File(['a'], 'a.png', { type: 'image/png' })
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.find('#posts-body').element.value).toBe('א\n\n![תיאור התמונה](https://cdn/x.png)')
+  })
+
   it('clicking עריכה fills the form and focuses its first field', async () => {
     mockFetch({ 'GET /api/teams/1/links': () => jsonRes(LINKS) })
     const { default: TeamContentSection } = await import('./TeamContentSection.vue')

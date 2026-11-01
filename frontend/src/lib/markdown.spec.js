@@ -22,4 +22,35 @@ describe('renderMarkdown', () => {
     const html = renderMarkdown('<div style="position:fixed;inset:0">x</div><form action="https://evil.example"><input name=password><button>go</button></form>')
     for (const bad of ['style', '<form', '<input', '<button', 'evil.example']) expect(html).not.toContain(bad)
   })
+
+  const render = (md) => {
+    const el = document.createElement('div')
+    el.innerHTML = renderMarkdown(md)
+    return el
+  }
+
+  it('keeps width and height on images, mapping a numeric height to max-height', () => {
+    const img = render('<img src="https://x/a.png" width="200" height="100" alt="a">').querySelector('img')
+    expect(img.getAttribute('width')).toBe('200')
+    expect(img.getAttribute('height')).toBe('100')
+    expect(img.style.maxHeight).toBe('100px')
+  })
+
+  it('strips width and height from non-image tags', () => {
+    const el = render('<table width="2000"><tr><td>x</td></tr></table><hr width="3000">')
+    expect(el.querySelector('table').hasAttribute('width')).toBe(false)
+    expect(el.querySelector('hr').hasAttribute('width')).toBe(false)
+  })
+
+  it('ignores a non-numeric height and any author style on images', () => {
+    const el = render('<img src="https://x/a.png" height="1px;position:fixed" style="position:fixed;inset:0">')
+    const img = el.querySelector('img')
+    expect(img.hasAttribute('style')).toBe(false)
+  })
+
+  it('an image inside a line of text stays in the same paragraph (inline)', () => {
+    const p = render('טקסט ![a](https://x/a.png) טקסט').querySelector('p')
+    expect(p.querySelector('img')).not.toBeNull()
+    expect(p.textContent).toContain('טקסט')
+  })
 })
