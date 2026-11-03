@@ -1726,3 +1726,24 @@ def test_sync_never_flags_missing(scoped: bool, db_session: Session, monkeypatch
     scrape_games.sync_team_games(db_session, team)
 
     assert played.missing_from_source is False
+
+
+def test_resync_does_not_flag_earlier_season_unscored_game(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _scoped_team(db_session)
+    old = Game(
+        team_id=team.id, opponent=Opponent(name="Old"), is_home=True, scheduled_at=datetime(2025, 3, 1, 20),
+        status=GameStatus.SCHEDULED, source_event_id=1, is_scraped=True,
+    )
+    db_session.add(old)
+    db_session.commit()
+    dropped = {**FUTURE_EVENT, "id": 9003, "date": "2026-09-20T21:00:00", "teams": [OUR_SP_ID, 2002]}
+    fake = _scoped_feed(FINAL_EVENT_AWAY, dropped)
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    scrape_games.sync_team_games(db_session, team)
+    fake.by_month = {2026: [FINAL_EVENT_AWAY]}
+
+    scrape_games.sync_team_games(db_session, team)
+
+    games = _by_event(db_session)
+    assert games[1].missing_from_source is False
+    assert games[9003].missing_from_source is True

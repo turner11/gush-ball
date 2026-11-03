@@ -500,7 +500,8 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
 
     if scoped and events:  # an empty or unscoped feed says nothing about what vanished
         for orphan in orphans:
-            if orphan.status == GameStatus.SCHEDULED:
+            # before the feed's first event = an earlier season, not a dropped game
+            if orphan.status == GameStatus.SCHEDULED and orphan.scheduled_at >= feed_start:
                 orphan.missing_from_source = True
 
     db.commit()
