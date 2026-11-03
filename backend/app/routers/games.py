@@ -99,6 +99,7 @@ class AdminGameRead(GameRead):
 
     is_scraped: bool
     needs_review: bool
+    missing_from_source: bool
     is_manually_overridden: bool
     scrape_suggestion: dict | None
 
@@ -185,7 +186,7 @@ def create_game(
 def list_games(team_id: int, db: DbSession, user: OptionalUser) -> list[GameRead]:
     get_team_or_404(db, team_id)
     show = can_write_team(db, user, team_id)
-    games = db.scalars(select(Game).where(Game.team_id == team_id, Game.needs_review.is_(False)))
+    games = db.scalars(select(Game).where(Game.team_id == team_id, Game.is_public))
     return [_public_game(g, show) for g in games]
 
 
@@ -201,7 +202,7 @@ def list_club_games(db: DbSession, from_: Annotated[date, Query(alias="from")], 
         select(Game)
         .options(selectinload(Game.opponent))
         .where(
-            Game.needs_review.is_(False),
+            Game.is_public,
             Game.scheduled_at >= datetime.combine(from_, time.min),
             Game.scheduled_at <= datetime.combine(to, time.max),
         )
@@ -222,6 +223,7 @@ def list_pending_review_games(
                 Game.team_id == team_id,
                 or_(
                     Game.needs_review.is_(True),
+                    Game.missing_from_source.is_(True),
                     (Game.scrape_suggestion.is_not(None) & Game.scrape_suggestion_dismissed.is_(False)),
                 ),
             )
@@ -236,7 +238,7 @@ def list_team_scorers(team_id: int, db: DbSession) -> list[ScorerHistoryOut]:
     rows = db.execute(
         select(GameScorer, Game)
         .join(Game, GameScorer.game_id == Game.id)
-        .where(Game.team_id == team_id, Game.needs_review.is_(False))
+        .where(Game.team_id == team_id, Game.is_public)
         .order_by(Game.scheduled_at, Game.id, GameScorer.points.desc())
     )
     return [
@@ -249,7 +251,7 @@ def list_team_scorers(team_id: int, db: DbSession) -> list[ScorerHistoryOut]:
 def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> GameDetailRead:
     game = get_game_or_404(db, team_id, game_id)
     show = can_write_team(db, user, team_id)
-    if game.needs_review and not show:  # unapproved scraped game, hidden like in list_games
+    if not game.is_public and not show:  # unapproved scraped game, hidden like in list_games
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
     return GameDetailRead(
         **_public_game(game, show).model_dump(),
@@ -271,7 +273,7 @@ def get_opponent_results(
 ) -> list[dict]:
     """The opponent's played games in this team's league, for the game page's win/loss averages (#537)."""
     game = get_game_or_404(db, team_id, game_id)
-    if game.needs_review and not can_write_team(db, user, team_id):
+    if not game.is_public and not can_write_team(db, user, team_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
     league = db.scalar(select(League).where(League.url == game.team.ibasketball_league_url))
     if league is None or game.opponent.source_url is None:
@@ -349,6 +351,25 @@ def approve_game(
     game = get_game_or_404(db, team_id, game_id)
     game.needs_review = False
     game.is_scraped = True
+    db.commit()
+    db.refresh(game)
+    return game
+
+
+@router.post("/{game_id}/keep", response_model=AdminGameRead)
+def keep_missing_game(
+    team_id: int,
+    game_id: int,
+    db: DbSession,
+    _admin_id: RequireTeamAdmin,
+) -> Game:
+    """#620: the admin keeps a game that left the feed. Detaching it makes it manual (the scraper only touches
+    games with a source_event_id)."""
+    game = get_game_or_404(db, team_id, game_id)
+    if not game.missing_from_source:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Game is not flagged missing")
+    game.missing_from_source = False
+    game.source_event_id = None
     db.commit()
     db.refresh(game)
     return game

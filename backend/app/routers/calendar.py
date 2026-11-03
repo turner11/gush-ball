@@ -89,7 +89,7 @@ def _practice_lines(team: Team, practice: Practice, stamp: str) -> list[str]:
 def team_calendar(team_id: int, db: DbSession, practices: bool = False) -> Response:
     team = get_team_or_404(db, team_id)
     games = db.scalars(
-        select(Game).where(Game.team_id == team_id, Game.needs_review.is_(False)).order_by(Game.scheduled_at)
+        select(Game).where(Game.team_id == team_id, Game.is_public).order_by(Game.scheduled_at)
     )
     stamp = datetime.now(UTC).strftime(_STAMP)
     lines = [

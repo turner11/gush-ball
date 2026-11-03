@@ -164,7 +164,7 @@ def list_lineups(
     query = (
         select(LineupSnapshot)
         .join(Game)
-        .where(Game.team_id == team_id, Game.needs_review.is_(False))
+        .where(Game.team_id == team_id, Game.is_public)
     )
     if game_id is not None:
         get_game_or_404(db, team_id, game_id)

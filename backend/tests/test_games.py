@@ -829,3 +829,48 @@ def test_list_team_scorers_hides_needs_review_games_and_other_teams(client: Test
 
     assert [(r["game_id"], r["points"]) for r in rows] == [(visible.id, 4)]
     assert client.get("/teams/999999/games/scorers").status_code == 404
+
+
+def test_missing_game_hidden_from_public_only_after_its_date(
+    admin_client: TestClient, client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    ghost = _make_game(db_session, team)  # 2026-01-01: clearly past
+    ghost.missing_from_source = True
+    future = _make_game(db_session, team)
+    future.scheduled_at = datetime(2099, 1, 1, 18, 0)
+    future.missing_from_source = True
+    db_session.commit()
+
+    client.post("/auth/logout")
+    assert [g["id"] for g in client.get(f"/teams/{team.id}/games").json()] == [future.id]
+    listed = client.get("/games", params={"from": "2025-12-31", "to": "2026-01-02"}).json()
+    assert ghost.id not in [g["id"] for g in listed]
+    assert client.get(f"/teams/{team.id}/calendar.ics").text.count("BEGIN:VEVENT") == 1
+    assert client.get(f"/teams/{team.id}/games/{ghost.id}").status_code == 404
+    admin_client.post("/auth/login", json={"username": "admin", "password": "password123"})
+    assert admin_client.get(f"/teams/{team.id}/games/{ghost.id}").status_code == 200
+
+
+def test_pending_review_lists_missing_game_and_keep_detaches_it(
+    admin_client: TestClient, client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    game.missing_from_source = True
+    game.source_event_id = 9003
+    db_session.commit()
+
+    queue = admin_client.get(f"/teams/{team.id}/games/pending-review").json()
+    assert [(g["id"], g["missing_from_source"]) for g in queue] == [(game.id, True)]
+
+    client.post("/auth/logout")
+    assert client.post(f"/teams/{team.id}/games/{game.id}/keep").status_code == 401
+    client.post("/auth/login", json={"username": "admin", "password": "password123"})
+    kept = admin_client.post(f"/teams/{team.id}/games/{game.id}/keep")
+    assert kept.status_code == 200
+    assert kept.json()["missing_from_source"] is False
+    db_session.refresh(game)
+    assert game.source_event_id is None
+    assert admin_client.get(f"/teams/{team.id}/games/pending-review").json() == []
+    assert admin_client.post(f"/teams/{team.id}/games/{game.id}/keep").status_code == 409

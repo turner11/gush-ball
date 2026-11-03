@@ -33,6 +33,7 @@ const games = ref([])
 const loading = ref(false)
 const listError = ref(null)
 const pendingGames = ref([])
+const pendingError = ref(null)
 const editing = ref(null)
 const formKey = ref(0) // bumping it remounts GameForm: refill on edit, clear after save
 const error = ref(null)
@@ -81,9 +82,16 @@ async function loadPendingGames() {
     return
   }
   const id = selectedTeamId.value
-  const pending = await apiFetch(`/teams/${id}/games/pending-review`)
-  if (id !== selectedTeamId.value) return
-  pendingGames.value = pending
+  pendingError.value = null
+  try {
+    const pending = await apiFetch(`/teams/${id}/games/pending-review`)
+    if (id !== selectedTeamId.value) return
+    pendingGames.value = pending
+  } catch {
+    if (id !== selectedTeamId.value) return
+    pendingGames.value = []
+    pendingError.value = 'שגיאה בטעינת המשחקים לאישור'
+  }
 }
 
 onMounted(async () => {
@@ -97,8 +105,10 @@ watch(selectedTeamId, () => {
   loadPendingGames()
 })
 
-function suggestionCurrentValue(game, key) {
-  return key === 'opponent_name' ? game.opponent.name : game[key]
+// `value` is the raw field (the opponent object for opponent_name); dates read as dd/mm hh:mm, not ISO.
+function suggestionValue(value, key) {
+  if (key === 'opponent_name') return value?.name ?? value
+  return key === 'scheduled_at' ? formatDateTime(value) : value
 }
 
 // Moves a game out of the pending queue (if there) and upserts it into the live list.
@@ -141,6 +151,17 @@ async function approveGame(game) {
   }
 }
 
+async function keepGame(game) {
+  error.value = null
+  try {
+    replaceGame(
+      await apiFetch(`/teams/${selectedTeamId.value}/games/${game.id}/keep`, { method: 'POST' }),
+    )
+  } catch {
+    error.value = 'שגיאה בעדכון המשחק, נסו שוב'
+  }
+}
+
 async function acceptSuggestion(game) {
   error.value = null
   try {
@@ -172,6 +193,7 @@ async function onDelete(game) {
   try {
     await apiFetch(`/teams/${selectedTeamId.value}/games/${game.id}`, { method: 'DELETE' })
     games.value = games.value.filter((g) => g.id !== game.id)
+    pendingGames.value = pendingGames.value.filter((g) => g.id !== game.id)
   } catch {
     error.value = 'שגיאה במחיקת המשחק, נסו שוב'
   }
@@ -188,7 +210,11 @@ async function onDelete(game) {
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div class="min-w-0 space-y-6">
-        <section v-if="pendingGames.length" class="card space-y-3 border-warn/60">
+        <div v-if="pendingError" class="card space-y-3 border-warn/60">
+          <p class="error-text" role="alert">{{ pendingError }}</p>
+          <button type="button" class="btn-secondary" @click="loadPendingGames">נסו שוב</button>
+        </div>
+        <section v-else-if="pendingGames.length" class="card space-y-3 border-warn/60">
           <h2 class="section-title">
             ממתינים לאישור <span class="badge badge-muted">{{ pendingGames.length }}</span>
           </h2>
@@ -199,18 +225,32 @@ async function onDelete(game) {
                 <span>{{ formatDateTime(game.scheduled_at) }}</span>
                 <span>{{ game.is_home ? 'בית' : 'חוץ' }}</span>
                 <span class="badge badge-muted">{{ STATUS_LABELS[game.status] ?? game.status }}</span>
+                <span v-if="game.missing_from_source" class="badge badge-loss">נעלם מ-ibasketball</span>
                 <span class="tabular-nums">{{ game.team_score ?? '-' }} : {{ game.opponent_score ?? '-' }}</span>
               </p>
-              <p v-if="game.scrape_suggestion" class="text-sm">
-                <span v-for="key in Object.keys(game.scrape_suggestion)" :key="key" class="me-4 inline-block">
-                  {{ FIELD_LABELS[key] ?? key }}: <del>{{ suggestionCurrentValue(game, key) }}</del> →
-                  <strong>{{ game.scrape_suggestion[key] }}</strong>
-                </span>
+              <p v-if="game.missing_from_source" class="text-sm font-semibold">
+                המשחק כבר לא מופיע ב-ibasketball. למחוק או להשאיר?
               </p>
+              <template v-if="game.scrape_suggestion">
+                <p v-if="game.scrape_suggestion.scheduled_at" class="text-sm font-semibold">
+                  המשחק הועבר ל-{{ formatDateTime(game.scrape_suggestion.scheduled_at) }}?
+                </p>
+                <p class="text-sm">
+                  <span v-for="key in Object.keys(game.scrape_suggestion)" :key="key" class="me-4 inline-block">
+                    {{ FIELD_LABELS[key] ?? key }}:
+                    <del>{{ suggestionValue(game[key === 'opponent_name' ? 'opponent' : key], key) }}</del> →
+                    <strong>{{ suggestionValue(game.scrape_suggestion[key], key) }}</strong>
+                  </span>
+                </p>
+              </template>
               <span class="flex flex-wrap gap-1">
                 <GameStatsLink :game="game" class="btn-ghost" />
                 <button type="button" class="btn-ghost" @click="startEdit(game)">עריכה</button>
-                <button v-if="!game.scrape_suggestion" type="button" class="btn-ghost" @click="approveGame(game)">
+                <template v-if="game.missing_from_source">
+                  <button type="button" class="btn-ghost" @click="keepGame(game)">השארה</button>
+                  <button type="button" class="btn-danger-ghost" @click="pendingDelete = game">מחיקה</button>
+                </template>
+                <button v-else-if="!game.scrape_suggestion" type="button" class="btn-ghost" @click="approveGame(game)">
                   אישור
                 </button>
                 <template v-else>

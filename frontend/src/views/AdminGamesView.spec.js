@@ -2,7 +2,7 @@ import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatGameDate } from '../lib/format'
+import { formatDateTime, formatGameDate } from '../lib/format'
 
 const TEAMS = [{ id: 1, name: 'קבוצה א' }]
 const GAMES = [
@@ -805,5 +805,86 @@ describe('AdminGamesView', () => {
     expect(wrapper.findComponent(GameScorersEditor).props()).toEqual({ teamId: '1', gameId: 100 })
     const { default: GameMediaEditor } = await import('../components/GameMediaEditor.vue')
     expect(wrapper.findComponent(GameMediaEditor).props()).toEqual({ teamId: '1', gameId: 100 })
+  })
+
+  describe('games missing from the feed (#620)', () => {
+    const missing = {
+      id: 300,
+      team_id: 1,
+      is_home: true,
+      scheduled_at: '2026-12-01T18:00:00',
+      status: 'scheduled',
+      team_score: null,
+      opponent_score: null,
+      description: null,
+      opponent: { id: 7, name: 'הפועל ירושלים', name_en: null, logo_url: null, source_url: null },
+      missing_from_source: true,
+      scrape_suggestion: null,
+    }
+    const mountQueue = async (queue, extra = {}, options = {}) => {
+      mockFetch({
+        'GET /api/teams': () => jsonRes(TEAMS),
+        'GET /api/teams/1/games': () => jsonRes(GAMES),
+        'GET /api/teams/1/games/pending-review': () => queue(),
+        ...extra,
+      })
+      const { default: AdminGamesView } = await import('./AdminGamesView.vue')
+      const wrapper = mount(AdminGamesView, { global: { plugins: [router] }, ...options })
+      await flushPromises()
+      return wrapper
+    }
+    const button = (wrapper, label) => wrapper.findAll('button').find((b) => b.text() === label)
+
+    it('shows keep/delete; keep POSTs /games/300/keep and moves it out of the queue', async () => {
+      const kept = { ...missing, missing_from_source: false }
+      const wrapper = await mountQueue(() => jsonRes([missing]), {
+        'POST /api/teams/1/games/300/keep': () => jsonRes(kept),
+      })
+
+      expect(wrapper.text()).toContain('נעלם מ-ibasketball')
+      expect(button(wrapper, 'אישור')).toBeUndefined()
+      await button(wrapper, 'השארה').trigger('click')
+      await flushPromises()
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/teams/1/games/300/keep',
+        expect.objectContaining({ method: 'POST' }),
+      )
+      expect(wrapper.text()).not.toContain('נעלם מ-ibasketball')
+    })
+
+    it('deleting a missing game from the queue confirms, DELETEs and removes it', async () => {
+      const wrapper = await mountQueue(() => jsonRes([missing]), {
+        'DELETE /api/teams/1/games/300': () => ({ ok: true, status: 204, json: vi.fn() }),
+      }, { attachTo: document.body })
+
+      await button(wrapper, 'מחיקה').trigger('click')
+      await body().findAll('[role="alertdialog"] button').find((b) => b.text() === 'מחיקה').trigger('click')
+      await flushPromises()
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/teams/1/games/300',
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+      expect(wrapper.text()).not.toContain('נעלם מ-ibasketball')
+    })
+
+    it('reschedule suggestion shows the formatted new date', async () => {
+      const moved = { ...missing, missing_from_source: false, scrape_suggestion: { scheduled_at: '2099-01-10T21:00:00' } }
+      const wrapper = await mountQueue(() => jsonRes([moved]))
+
+      expect(wrapper.text()).toContain(`המשחק הועבר ל-${formatDateTime('2099-01-10T21:00:00')}?`)
+    })
+
+    it('pending-review load failure shows an alert with retry', async () => {
+      let calls = 0
+      const wrapper = await mountQueue(() => (calls++ === 0 ? errorRes() : jsonRes([missing])))
+
+      expect(wrapper.get('[role="alert"]').text()).toContain('שגיאה בטעינת המשחקים לאישור')
+      await button(wrapper, 'נסו שוב').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('נעלם מ-ibasketball')
+    })
   })
 })

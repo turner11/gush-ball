@@ -5,7 +5,7 @@ import cv2
 import httpx
 import numpy as np
 import pytest
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app import scrape_games
@@ -1652,3 +1652,98 @@ def test_sync_team_players_keeps_avatars_stored_before_a_crash(
     db_session.rollback()
 
     assert "https://cdn/av.webp" in _avatars(db_session).values()
+
+
+def _scoped_team(db_session: Session) -> Team:
+    db_session.add(League(ibasketball_id=NEW_LEAGUE_ID, name="ליגה", url=f"{NEW_LEAGUE}{NEW_LEAGUE_ID}/", season=2026))
+    db_session.flush()
+    return _make_team(db_session)
+
+
+def _scoped_feed(*events: dict) -> FakeApi:
+    return FakeApi([], known_opponents=(OPP_SP_ID, 2002, 2003), team_leagues=(NEW_LEAGUE_ID,), by_month={2026: list(events)})
+
+
+def _by_event(db_session: Session) -> dict[int, Game]:
+    return {g.source_event_id: g for g in db_session.query(Game)}
+
+
+def test_resync_flags_removed_offers_moved_as_reschedule_and_adds_new(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team = _scoped_team(db_session)
+    removed = {**FUTURE_EVENT, "id": 9003, "date": "2026-09-20T21:00:00", "teams": [OUR_SP_ID, 2002]}
+    moved = {**FUTURE_EVENT, "id": 9004, "date": "2026-10-10T21:00:00", "teams": [OUR_SP_ID, 2003]}
+    fake = _scoped_feed(FINAL_EVENT_AWAY, removed, moved)
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    scrape_games.sync_team_games(db_session, team)
+
+    reissued = {**moved, "id": 9104, "date": "2099-01-10T21:00:00"}
+    added = {**FUTURE_EVENT, "id": 9005, "date": "2099-02-01T21:00:00"}
+    fake.by_month = {2026: [FINAL_EVENT_AWAY, reissued, added]}
+    scrape_games.sync_team_games(db_session, team)
+
+    games = _by_event(db_session)
+    assert games[9003].missing_from_source is True
+    public = {g.id for g in db_session.scalars(select(Game).where(Game.is_public))}
+    assert games[9003].id not in public
+    vs_2003 = db_session.query(Game).filter(Game.opponent.has(name="Other 2003")).all()
+    assert [g.source_event_id for g in vs_2003] == [9104]
+    assert vs_2003[0].scheduled_at == datetime(2026, 10, 10, 21)
+    assert vs_2003[0].scrape_suggestion["scheduled_at"].startswith("2099-01-10")
+    assert vs_2003[0].id in public
+    assert games[9005].id in public
+
+
+def test_resync_clears_missing_flag_when_event_returns(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _scoped_team(db_session)
+    gone = {**FUTURE_EVENT, "id": 9003, "date": "2026-09-20T21:00:00", "teams": [OUR_SP_ID, 2002]}
+    fake = _scoped_feed(FINAL_EVENT_AWAY, gone)
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    scrape_games.sync_team_games(db_session, team)
+    fake.by_month = {2026: [FINAL_EVENT_AWAY]}
+    scrape_games.sync_team_games(db_session, team)
+    assert _by_event(db_session)[9003].missing_from_source is True
+
+    fake.by_month = {2026: [FINAL_EVENT_AWAY, gone]}
+    scrape_games.sync_team_games(db_session, team)
+
+    assert _by_event(db_session)[9003].missing_from_source is False
+
+
+@pytest.mark.parametrize("scoped", [False, True])
+def test_sync_never_flags_missing(scoped: bool, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _scoped_team(db_session) if scoped else _make_team(db_session)
+    played = Game(
+        team_id=team.id, opponent=Opponent(name="Old"), is_home=True, scheduled_at=datetime(2026, 9, 5, 20),
+        status=GameStatus.FINAL if scoped else GameStatus.SCHEDULED, source_event_id=1, team_score=1, opponent_score=0,
+    )
+    db_session.add(played)
+    db_session.commit()
+    fake = _scoped_feed(FINAL_EVENT_AWAY) if scoped else FakeApi([FINAL_EVENT_AWAY])
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+
+    scrape_games.sync_team_games(db_session, team)
+
+    assert played.missing_from_source is False
+
+
+def test_resync_does_not_flag_earlier_season_unscored_game(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    team = _scoped_team(db_session)
+    old = Game(
+        team_id=team.id, opponent=Opponent(name="Old"), is_home=True, scheduled_at=datetime(2025, 3, 1, 20),
+        status=GameStatus.SCHEDULED, source_event_id=1, is_scraped=True,
+    )
+    db_session.add(old)
+    db_session.commit()
+    dropped = {**FUTURE_EVENT, "id": 9003, "date": "2026-09-20T21:00:00", "teams": [OUR_SP_ID, 2002]}
+    fake = _scoped_feed(FINAL_EVENT_AWAY, dropped)
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    scrape_games.sync_team_games(db_session, team)
+    fake.by_month = {2026: [FINAL_EVENT_AWAY]}
+
+    scrape_games.sync_team_games(db_session, team)
+
+    games = _by_event(db_session)
+    assert games[1].missing_from_source is False
+    assert games[9003].missing_from_source is True
