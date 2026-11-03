@@ -320,7 +320,8 @@ def home_away_scores(event: dict) -> tuple[int, int] | None:
         raise ValueError(f"event {event['id']}: bad main_results {main_results!r}") from exc
 
 
-def _fetch_team_events(db: Session, team: Team, sp_team: dict[str, Any]) -> list[dict[str, Any]]:
+def _fetch_team_events(db: Session, team: Team, sp_team: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    """(events, scoped): scoped means the whole current season, so absence from it is meaningful."""
     # ponytail: single page (100) per call; follow X-WP-TotalPages if a team ever exceeds it. ibasketball hides
     # events older than ~3 days unless `month` is set, and a season spans two calendar years.
     sp_id = sp_team["id"]
@@ -331,14 +332,15 @@ def _fetch_team_events(db: Session, team: Team, sp_team: dict[str, Any]) -> list
             team.slug,
             sp_team.get("leagues"),
         )
-        return _get_json("/sportspress/v2/events", teams=sp_id, per_page=100)
+        return _get_json("/sportspress/v2/events", teams=sp_id, per_page=100), False
     league_ids = ",".join(str(i) for i in sorted(lg.ibasketball_id for lg in leagues))
     years = sorted({y for lg in leagues for y in (lg.season, lg.season + 1)})
-    return [
+    events = [
         event
         for year in years
         for event in _get_json("/sportspress/v2/events", teams=sp_id, leagues=league_ids, month=year, per_page=100)
     ]
+    return events, True
 
 
 def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
@@ -355,7 +357,7 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
             if link is not None:
                 team.club = _page_club(db, team.club, *link) or team.club
 
-    events = _fetch_team_events(db, team, sp_team)
+    events, scoped = _fetch_team_events(db, team, sp_team)
 
     # Games whose event left the feed: the league re-publishes a schedule under new event ids.
     feed_ids = {e["id"] for e in events}
@@ -368,6 +370,10 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
             )
         )
     )
+
+    event_dates = [datetime.fromisoformat(e["date"]) for e in events]
+    feed_days = {d.date() for d in event_dates}
+    feed_start = min(event_dates, default=None)
 
     opponent_details = _fetch_opponents(events, sp_id)
     opponents: dict[int, Opponent] = {}
@@ -401,8 +407,10 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
 
         if game is None:
             # ponytail: matches by same day + opponent + side; an admin-edited date/opponent gets a
-            # twin (delete it in the admin UI). Unmatched orphans are left alone: deleting vanished
-            # events is a separate decision.
+            # twin (delete it in the admin UI). Failing that, a single unplayed orphan with the same
+            # opponent + side on a day the feed doesn't use is offered as a reschedule (#620); a genuinely
+            # new game could be mistaken for it, and rejecting leaves the old date on the new event id.
+            # Orphans matching neither are flagged missing after the loop, never deleted.
             day = datetime.fromisoformat(event["date"]).date()
             game = next(
                 (
@@ -414,6 +422,20 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
                 ),
                 None,
             )
+            if game is None:
+                moved = [
+                    o
+                    for o in orphans
+                    if o.opponent_id == opponent.id
+                    and o.is_home == is_home
+                    and o.status == GameStatus.SCHEDULED
+                    and o.scheduled_at.date() not in feed_days
+                    and o.scheduled_at >= feed_start
+                ]
+                if len(moved) == 1:
+                    game = moved[0]
+                    game.is_manually_overridden = True  # routes the new date into scrape_suggestion below
+                    log.info("Games sync: game %d offered as reschedule to event %s", game.id, event["id"])
             if game is not None:
                 orphans.remove(game)
                 log.info(
@@ -424,6 +446,8 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
                 )
                 game.source_event_id = event["id"]
 
+        if game is not None:
+            game.missing_from_source = False
         if game is not None and game.is_manually_overridden:
             # #16: never clobber an admin override — store what differs as a
             # suggestion for the pending-review queue instead of applying it.
@@ -473,6 +497,11 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
         game.team_score = team_score
         game.opponent_score = opponent_score
         count += 1
+
+    if scoped and events:  # an empty or unscoped feed says nothing about what vanished
+        for orphan in orphans:
+            if orphan.status == GameStatus.SCHEDULED:
+                orphan.missing_from_source = True
 
     db.commit()
     return count

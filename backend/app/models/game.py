@@ -1,8 +1,21 @@
 import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import JSON, Enum, ForeignKey, String, Text, UniqueConstraint, exists, false
+from sqlalchemy import (
+    JSON,
+    Enum,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    and_,
+    exists,
+    false,
+    or_,
+)
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from app.db import Base
@@ -12,6 +25,11 @@ from app.models.lineup_snapshot import LineupSnapshot
 if TYPE_CHECKING:
     from app.models.opponent import Opponent
     from app.models.team import Team
+
+
+def _israel_now() -> datetime:
+    """Naive Israel wall time, the same clock as Game.scheduled_at. Per call, never at import."""
+    return datetime.now(ZoneInfo("Asia/Jerusalem")).replace(tzinfo=None)
 
 
 class GameStatus(enum.Enum):
@@ -49,6 +67,8 @@ class Game(Base):
     is_scraped: Mapped[bool] = mapped_column(default=False, server_default=false())
     needs_review: Mapped[bool] = mapped_column(default=False, server_default=false())
     is_manually_overridden: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # #620: an unplayed scraped game whose event left the feed; it waits in the review queue.
+    missing_from_source: Mapped[bool] = mapped_column(default=False, server_default=false())
 
     # #16: pending scraped diff for an overridden game (fields that differ from the
     # source, in GameUpdate shape) + whether the admin dismissed it. none_as_null=True
@@ -70,6 +90,19 @@ class Game(Base):
     scorers: Mapped[list["GameScorer"]] = relationship(
         cascade="all, delete-orphan", order_by="(GameScorer.points.desc(), GameScorer.id)"
     )
+
+    @hybrid_property
+    def is_public(self) -> bool:
+        """Visible to anonymous fans: approved, and not a ghost whose date has passed (#620)."""
+        return not self.needs_review and not (self.missing_from_source and self.scheduled_at < _israel_now())
+
+    @is_public.inplace.expression
+    @classmethod
+    def _is_public_expression(cls):
+        return and_(
+            cls.needs_review.is_(False),
+            or_(cls.missing_from_source.is_(False), cls.scheduled_at >= _israel_now()),
+        )
 
     team: Mapped["Team"] = relationship(back_populates="games")
     opponent: Mapped["Opponent"] = relationship()
