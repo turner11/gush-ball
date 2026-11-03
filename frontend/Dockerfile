@@ -1,4 +1,4 @@
-FROM node:26-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797 AS build
+FROM node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS build
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ ARG SOURCE_COMMIT
 ENV VITE_SENTRY_RELEASE=$SOURCE_COMMIT
 RUN npm run build
 
-FROM caddy:2-alpine@sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f
+FROM caddy:2-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
 
 COPY --from=build /app/dist /srv
 COPY Caddyfile /etc/caddy/Caddyfile
