@@ -1,9 +1,9 @@
-FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 AS uv
 
 # glibc variant (not alpine): the runner base is Ubuntu 20.04, glibc 2.31.
-FROM node:26-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec AS node
+FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS node
 
-FROM myoung34/github-runner:2.338.1@sha256:c1531a71a722a30697f47866140daf942c2e8b724d21a48dcfcbeacb8f2e58a1
+FROM myoung34/github-runner:2.338.2@sha256:7cc183492366138ace1c9c74296fd2c6240916d98178696c38bc78e6d5810ee8
 
 # Node.js 24 (Claude Code CLI + frontend tests) comes from the pinned node image and uv (backend
 # tests/lint) from the pinned uv image, so nothing is piped from curl into a shell.
