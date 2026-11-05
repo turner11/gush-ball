@@ -144,3 +144,14 @@ def test_calendar_cancelled_practice_has_status_cancelled(client: TestClient, db
     _practice(db_session, own_team, cancelled=True)
 
     assert "STATUS:CANCELLED" in client.get(f"/teams/{own_team.id}/calendar.ics?practices=1").text
+
+
+def test_calendar_practice_series_keeps_weekday_across_dst(admin_client: TestClient, own_team: Team) -> None:
+    # Monday 20:45 Israel time, series crossing the Oct 25 clock change (#623).
+    body = {"starts_at": "2026-10-19T20:45:00", "duration_minutes": 105, "repeat_weekly_until": "2026-11-09"}
+    assert admin_client.post(f"/teams/{own_team.id}/practices", json=body).status_code == 201
+
+    feed = admin_client.get(f"/teams/{own_team.id}/calendar.ics?practices=1").text
+
+    for expected in ("DTSTART:20261019T174500Z", "DTSTART:20261026T184500Z", "DTSTART:20261109T184500Z", "DTEND:20261109T203000Z"):
+        assert expected in feed
