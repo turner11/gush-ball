@@ -1,6 +1,7 @@
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { formatDateTime } from '../lib/format'
 import PracticesAdmin from './PracticesAdmin.vue'
 
 const TEAM = { id: 1, name: 'קבוצה א', home_court_address: 'רחוב הכדור 1' }
@@ -86,5 +87,40 @@ describe('PracticesAdmin', () => {
       'GET /api/teams/1/practices': () => ({ ok: false, status: 500, statusText: 'x', json: async () => ({}) }),
     })
     expect(wrapper.get('[role=alert]').text()).toContain('שגיאה בטעינת האימונים')
+  })
+
+  it('lists past practices newest-first inside a collapsed "אימונים שעברו" disclosure', async () => {
+    const wrapper = await mountAdmin({ 'GET /api/teams/1/practices': () => jsonRes([row(1, -14), row(2, -7), row(3, 2)]) })
+
+    const details = wrapper.get('details')
+    expect(wrapper.findAll('ol')[0].findAll('li')).toHaveLength(1)
+    expect(details.element.open).toBe(false)
+    expect(details.get('summary').text()).toContain('אימונים שעברו')
+    expect(details.get('summary').text()).toContain('2')
+    const rows = details.findAll('li')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].get('button').attributes('aria-label')).toContain(formatDateTime(future(-7)))
+    expect(rows[1].get('button').attributes('aria-label')).toContain(formatDateTime(future(-14)))
+  })
+
+  it('editing a past practice PATCHes it', async () => {
+    const wrapper = await mountAdmin({
+      'GET /api/teams/1/practices': () => jsonRes([row(1, -7)]),
+      'PATCH /api/teams/1/practices/1': () => jsonRes(row(1, -7, { duration_minutes: 120 })),
+    })
+    await wrapper.get('details').findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
+    await wrapper.get('#practice-duration').setValue(120)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(bodyOf('/api/teams/1/practices/1', 'PATCH')).toMatchObject({ duration_minutes: 120 })
+    expect(wrapper.get('form h3').text()).toBe('הוספת אימון')
+  })
+
+  it('past practices show even when there are no upcoming ones', async () => {
+    const wrapper = await mountAdmin({ 'GET /api/teams/1/practices': () => jsonRes([row(1, -7)]) })
+
+    expect(wrapper.text()).toContain('אין אימונים קרובים')
+    expect(wrapper.find('details').exists()).toBe(true)
   })
 })

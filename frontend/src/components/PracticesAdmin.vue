@@ -31,8 +31,9 @@ const repeatMax = computed(() => {
   const start = form.value.starts_at.slice(0, 10)
   return start ? new Date(Date.parse(start) + 366 * 864e5).toISOString().slice(0, 10) : undefined
 })
-// Past practices are clutter in the admin list.
 const upcoming = computed(() => practices.value.filter((p) => new Date(p.starts_at) >= new Date()))
+// Collapsed under the upcoming list; newest first (practices is kept ascending).
+const past = computed(() => practices.value.filter((p) => !upcoming.value.includes(p)).reverse())
 
 async function load() {
   loading.value = true
@@ -137,18 +138,34 @@ async function onDeleteAll() {
           <div class="skeleton h-12" />
         </div>
         <p v-else-if="listError" class="error-text" role="alert">{{ listError }}</p>
-        <p v-else-if="!upcoming.length" class="empty-state">אין אימונים קרובים. הוסיפו אימון בטופס.</p>
         <template v-else>
-          <button type="button" class="btn-danger-ghost" @click="confirmingAll = true">מחיקת כל האימונים הקרובים</button>
-          <ol class="card divide-y divide-line overflow-hidden p-0">
-            <PracticeRow v-for="practice in upcoming" :key="practice.id" :practice="practice">
-              <template #actions>
+          <p v-if="!upcoming.length" class="empty-state">אין אימונים קרובים. הוסיפו אימון בטופס.</p>
+          <template v-else>
+            <button type="button" class="btn-danger-ghost" @click="confirmingAll = true">מחיקת כל האימונים הקרובים</button>
+            <ol class="card divide-y divide-line overflow-hidden p-0">
+              <PracticeRow v-for="practice in upcoming" :key="practice.id" :practice="practice">
+                <template #actions>
                 <button type="button" class="btn-ghost" :aria-label="'עריכה: האימון ב' + formatDateTime(practice.starts_at)" @click="startEdit(practice)">עריכה</button>
                 <button type="button" class="btn-ghost" :aria-label="(practice.cancelled ? 'שחזור' : 'ביטול') + ': האימון ב' + formatDateTime(practice.starts_at)" @click="toggleCancelled(practice)">{{ practice.cancelled ? 'שחזור' : 'ביטול אימון' }}</button>
                 <button type="button" class="btn-danger-ghost" :aria-label="'מחיקה: האימון ב' + formatDateTime(practice.starts_at)" @click="pendingDelete = practice">מחיקה</button>
               </template>
-            </PracticeRow>
-          </ol>
+              </PracticeRow>
+            </ol>
+          </template>
+          <details v-if="past.length">
+            <summary class="flex min-h-11 cursor-pointer items-center gap-2 font-bold">
+              אימונים שעברו <span class="badge-muted">{{ past.length }}</span>
+            </summary>
+            <ol class="card divide-y divide-line overflow-hidden p-0">
+              <PracticeRow v-for="practice in past" :key="practice.id" :practice="practice">
+                <template #actions>
+                <button type="button" class="btn-ghost" :aria-label="'עריכה: האימון ב' + formatDateTime(practice.starts_at)" @click="startEdit(practice)">עריכה</button>
+                <button type="button" class="btn-ghost" :aria-label="(practice.cancelled ? 'שחזור' : 'ביטול') + ': האימון ב' + formatDateTime(practice.starts_at)" @click="toggleCancelled(practice)">{{ practice.cancelled ? 'שחזור' : 'ביטול אימון' }}</button>
+                <button type="button" class="btn-danger-ghost" :aria-label="'מחיקה: האימון ב' + formatDateTime(practice.starts_at)" @click="pendingDelete = practice">מחיקה</button>
+              </template>
+              </PracticeRow>
+            </ol>
+          </details>
         </template>
       </div>
 
