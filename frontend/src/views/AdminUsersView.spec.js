@@ -163,7 +163,7 @@ describe('AdminUsersView', () => {
         await flushPromises()
       }
       const submit = async () => {
-        await wrapper.findAll('button').find((b) => b.text() === 'שיוך').trigger('click')
+        await wrapper.find('#assign-panel-2 .btn-primary').trigger('click')
         await flushPromises()
       }
       return { wrapper, combobox, pick, submit }
@@ -236,7 +236,7 @@ describe('AdminUsersView', () => {
       await clubRadio().setValue(true)
       combobox().vm.$emit('update:modelValue', 'מועדון ב')
       await flushPromises()
-      await wrapper.findAll('button').find((b) => b.text() === 'שיוך').trigger('click')
+      await wrapper.find('#assign-panel-2 .btn-primary').trigger('click')
       await flushPromises()
 
       expect(global.fetch).toHaveBeenCalledWith(

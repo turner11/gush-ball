@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
-import { userLabel } from '../lib/format'
+import { scopeLabel, userLabel } from '../lib/format'
 import ConfirmDialog from './ConfirmDialog.vue'
 
 const rows = ref(null) // null = loading; pending requests and approved members
@@ -17,7 +17,6 @@ const pendingReject = ref(null) // the team request awaiting rejection
 const requests = computed(() => rows.value?.filter((r) => r.role === 'pending'))
 const members = computed(() => rows.value?.filter((r) => r.role === 'member'))
 const pendingCount = computed(() => (requests.value?.length ?? 0) + teamRequests.value.length)
-const scopeLabel = (row) => (row.club ? `מועדון: ${row.club}` : `קבוצה: ${row.team_name}`)
 
 async function load() {
   loadFailed.value = false
