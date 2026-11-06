@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 // Presentational line chart. labels: x categories, oldest first. series: [{ key, name, values: (number|null)[], emphasis }].
-// RTL: time flows right to left, so the oldest point sits at the inline-start (right) edge.
+// Always LTR whatever the page language (#625): oldest point on the left, y labels on the left.
 const props = defineProps({
   labels: { type: Array, required: true },
   series: { type: Array, required: true },
@@ -13,7 +13,7 @@ const props = defineProps({
 
 const W = 640
 const H = 240
-const PAD = { start: 44, end: 36, top: 16, bottom: 36 } // start = right in RTL, where the y labels sit; under dir=rtl SVG "end" extends rightwards from x
+const PAD = { left: 44, right: 36, top: 16, bottom: 36 } // left gutter holds the y labels
 const TICKS = 4
 const STYLE = {
   primary: { cls: 'text-team', width: 3, dash: null },
@@ -22,7 +22,7 @@ const STYLE = {
 }
 
 const top = computed(() => Math.max(TICKS, Math.ceil(Math.max(0, ...props.series.flatMap((s) => s.values.filter((v) => v != null))) / TICKS) * TICKS))
-const x = (i) => W - PAD.start - (props.labels.length < 2 ? 0 : (i * (W - PAD.start - PAD.end)) / (props.labels.length - 1))
+const x = (i) => PAD.left + (props.labels.length < 2 ? 0 : (i * (W - PAD.left - PAD.right)) / (props.labels.length - 1))
 const y = (v) => PAD.top + (1 - v / top.value) * (H - PAD.top - PAD.bottom)
 const gridlines = computed(() => Array.from({ length: TICKS + 1 }, (_, i) => (top.value * i) / TICKS))
 // first, last and (with room) the middle label, so nothing collides on a phone
@@ -49,10 +49,10 @@ const connectors = computed(() => {
   <div>
     <svg :viewBox="`0 0 ${W} ${H}`" class="h-auto w-full" role="img" :aria-label="ariaLabel">
       <g class="text-line" stroke="currentColor" stroke-width="1">
-        <line v-for="g in gridlines" :key="g" :x1="PAD.end" :x2="W - PAD.start" :y1="y(g)" :y2="y(g)" />
+        <line v-for="g in gridlines" :key="g" :x1="PAD.left" :x2="W - PAD.right" :y1="y(g)" :y2="y(g)" />
       </g>
-      <g class="fill-current text-muted" font-size="20" text-anchor="end">
-        <text v-for="g in gridlines" :key="g" :x="W - PAD.start + 8" :y="y(g) + 7">{{ g }}</text>
+      <g class="fill-current text-muted" font-size="20" text-anchor="end" direction="ltr">
+        <text v-for="g in gridlines" :key="g" :x="PAD.left - 8" :y="y(g) + 7">{{ g }}</text>
       </g>
       <g class="fill-current text-muted" font-size="20" text-anchor="middle">
         <text v-for="i in shownLabels" :key="i" :x="x(i)" :y="H - 8">{{ labels[i] }}</text>

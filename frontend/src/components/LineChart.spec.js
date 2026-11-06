@@ -23,12 +23,15 @@ describe('LineChart', () => {
     expect(table.text()).toContain('01.03')
   })
 
-  it('oldest label sits at the inline-start (largest x)', () => {
+  it('draws time left to right: oldest point has the smallest x, y labels sit left of it', () => {
     const wrapper = mount(LineChart, { props })
     const xs = wrapper.findAll('polyline')[0].attributes('points').split(' ').map((p) => Number(p.split(',')[0]))
     expect(xs).toHaveLength(3)
-    expect(xs[0]).toBeGreaterThan(xs[1])
-    expect(xs[1]).toBeGreaterThan(xs[2])
+    expect(xs[0]).toBeLessThan(xs[1])
+    expect(xs[1]).toBeLessThan(xs[2])
+    const tickGroup = wrapper.find('g[direction="ltr"]')
+    expect(tickGroup.exists()).toBe(true)
+    for (const t of tickGroup.findAll('text')) expect(Number(t.attributes('x'))).toBeLessThan(xs[0])
   })
 
   it('draws a win/loss connector per outcome that has both values', () => {
