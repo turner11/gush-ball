@@ -2,12 +2,13 @@ from typing import Self
 
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import exists, select
+from sqlalchemy import exists, or_, select
 
 from app.deps import (
     DbSession,
     RequireAnyAdmin,
     RequireUser,
+    admin_clubs,
     admin_team_ids,
     check_membership_scope,
     get_team_or_404,
@@ -79,8 +80,8 @@ def list_managed(admin: RequireAnyAdmin, db: DbSession) -> list[MemberRowOut]:
         .order_by(Membership.id)
     )
     scope = admin_team_ids(db, admin)
-    if scope is not None:  # club requests are excluded by construction: their team_id is NULL
-        query = query.where(Membership.team_id.in_(scope))
+    if scope is not None:
+        query = query.where(or_(Membership.team_id.in_(scope), Membership.club.in_(admin_clubs(db, admin))))
     return [
         MemberRowOut(id=i, role=r, username=u, display_name=d, email_hint=mask_email(e), team_id=t, team_name=n, club=c)
         for i, r, u, d, e, t, n, c in db.execute(query)

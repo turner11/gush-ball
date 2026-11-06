@@ -71,9 +71,10 @@ def test_list_is_scoped(
         Membership(team_id=sibling_team.id, role="pending"),
         Membership(team_id=other_team.id, role="pending"),
         Membership(club="Gush", role="pending"),
+        Membership(club="Rival", role="pending"),
         Membership(team_id=own_team.id, role="member"),
     )
-    for fixture, count in {"admin_client": 5, "team_admin_client": 2, "club_admin_client": 3}.items():
+    for fixture, count in {"admin_client": 6, "team_admin_client": 2, "club_admin_client": 4}.items():
         client = request.getfixturevalue(fixture)
         response = client.get("/memberships")
         assert response.status_code == 200
@@ -83,7 +84,11 @@ def test_list_is_scoped(
         assert all("role" in i for i in items)
         assert [i["team_id"] for i in items if i["role"] == "member"] == [own_team.id]
         if fixture == "club_admin_client":
-            assert {i["team_id"] for i in items} == {own_team.id, sibling_team.id}
+            assert {(i["team_id"], i["club"]) for i in items} == {
+                (own_team.id, None),
+                (sibling_team.id, None),
+                (None, "Gush"),
+            }
         client.post("/auth/logout")
 
 
@@ -121,25 +126,32 @@ def test_club_admin_scope(
     club_admin_client: TestClient, db_session: Session, sibling_team: Team, other_team: Team
 ) -> None:
     c = club_admin_client
-    inside, outside, club = _pending(
+    inside, outside, club, rival, rejected = _pending(
         db_session,
         Membership(team_id=sibling_team.id, role="pending"),
         Membership(team_id=other_team.id, role="pending"),
         Membership(club="Gush", role="pending"),
+        Membership(club="Rival", role="pending"),
+        Membership(club="Gush", role="pending"),
     )
     assert c.post(f"/memberships/{inside}/approve").status_code == 204
     assert c.post(f"/memberships/{outside}/approve").status_code == 403
-    assert c.post(f"/memberships/{club}/approve").status_code == 403
-    assert c.delete(f"/memberships/{club}").status_code == 403
-    assert _role(db_session, club) == "pending" and _role(db_session, outside) == "pending"
+    assert c.post(f"/memberships/{club}/approve").status_code == 204
+    assert _role(db_session, club) == "member"
+    assert c.post(f"/memberships/{rival}/approve").status_code == 403
+    assert c.delete(f"/memberships/{rival}").status_code == 403
+    assert _role(db_session, rival) == "pending" and _role(db_session, outside) == "pending"
+    assert c.delete(f"/memberships/{rejected}").status_code == 204
+    assert db_session.get(Membership, rejected) is None
 
 
-def test_club_request_needs_full_admin(
+def test_team_admin_cannot_act_on_club_request(
     team_admin_client: TestClient, db_session: Session, sibling_team: Team
 ) -> None:
     c = team_admin_client
     (club,) = _pending(db_session, Membership(club="Gush", role="pending"))
     assert c.post(f"/memberships/{club}/approve").status_code == 403
+    assert c.delete(f"/memberships/{club}").status_code == 403
     c.post("/auth/logout")
     db_session.add(AdminUser(username="boss", password_hash=hash_password("password123"), is_full_admin=True))
     db_session.commit()
