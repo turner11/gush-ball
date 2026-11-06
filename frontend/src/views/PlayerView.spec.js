@@ -447,6 +447,37 @@ describe('PlayerView', () => {
       expect(wrapper.find('[data-testid="player-avatar"]').attributes('src')).toBe('/b.jpg')
     })
 
+    it('bulk photo upload adds every picked photo', async () => {
+      const base = okFetch()
+      let uploads = 0
+      let posts = 0
+      let releaseFirst
+      const firstPost = new Promise((resolve) => (releaseFirst = resolve))
+      const ok = (body) => ({ ok: true, status: 200, json: async () => body })
+      global.fetch = vi.fn((url, options) => {
+        if (url === '/api/uploads') return Promise.resolve(ok({ url: `/new${++uploads}.jpg` }))
+        if (url === '/api/players/3/images') {
+          const n = ++posts
+          const image = ok({ id: 100 + n, url: `/new${n}.jpg` })
+          return n === 1 ? firstPost.then(() => image) : Promise.resolve(image)
+        }
+        return base(url, options)
+      })
+      useAuth().user.value = { username: 'a', team_ids: [1], player_ids: [] }
+      const wrapper = await mountAt('/players/3')
+      await edit(wrapper).trigger('click')
+      const before = wrapper.findAll('#profile-form li').length
+      const input = wrapper.find('#profile-form input[type="file"]')
+      const files = ['x.png', 'y.png'].map((name) => new File(['a'], name, { type: 'image/png' }))
+      Object.defineProperty(input.element, 'files', { value: files, configurable: true })
+      await input.trigger('change')
+      await flushPromises()
+      releaseFirst()
+      await flushPromises()
+
+      expect(wrapper.findAll('#profile-form li')).toHaveLength(before + 2)
+    })
+
     it('preview hides the manage link', async () => {
       global.fetch = okFetch()
       const { previewMode } = await import('../composables/useAuth')
