@@ -32,6 +32,8 @@ const form = reactive(Object.fromEntries(props.fields.map((f) => [f.key, blank(f
 const insertImage = (key, url) => {
   form[key] += `${form[key] ? '\n\n' : ''}![תיאור התמונה](${url})`
 }
+// ponytail: one multiple field per section
+const extraUrls = ref([]) // bulk-picked files beyond the url field; saved as sibling items on submit
 const loading = ref(true)
 const submitting = ref(false)
 const editingId = ref(null)
@@ -44,7 +46,30 @@ async function load() {
 
 function resetForm() {
   editingId.value = null
+  extraUrls.value = []
   for (const field of props.fields) form[field.key] = blank(field)
+}
+
+const multipleField = computed(() => props.fields.find((f) => f.multiple))
+
+function onUploaded(field, url) {
+  if (field.multiple && !editingId.value && form[field.key]) extraUrls.value.push(url)
+  else form[field.key] = url
+}
+
+// One item per picked image with the shared payload; the unsaved urls stay in the form for a retry.
+async function createMany(payload) {
+  const key = multipleField.value.key
+  const urls = [payload[key], ...extraUrls.value]
+  const failed = []
+  for (const url of urls) {
+    if (!(await create(props.ownerId, { ...payload, [key]: url }))) failed.push(url)
+  }
+  await load()
+  if (!failed.length) return resetForm()
+  form[key] = failed[0]
+  extraUrls.value = failed.slice(1)
+  error.value = `נשמרו ${urls.length - failed.length} מתוך ${urls.length} תמונות. התמונות שלא נשמרו נשארו בטופס, נסו שוב`
 }
 
 const formEl = ref(null)
@@ -78,6 +103,8 @@ async function onSubmit() {
         await load() // the server order is the truth (e.g. pinned posts move up)
         resetForm()
       }
+    } else if (extraUrls.value.length) {
+      await createMany(payload)
     } else {
       const created = await create(props.ownerId, payload)
       if (created && !error.value) {
@@ -232,7 +259,7 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
         />
         <template v-if="field.type === 'textarea' && field.markdown">
           <p :id="`${resource}-${field.key}-hint`" class="mt-1 text-sm text-muted">ניתן לעצב ב-Markdown: **מודגש**, *נטוי*, - רשימה, [קישור](https://…), תמונה: ![תיאור](https://…), גודל: &lt;img src="…" width="300"&gt;</p>
-          <ImageUpload label="הוספת תמונה לתוכן" @uploaded="(url) => insertImage(field.key, url)" />
+          <ImageUpload multiple label="הוספת תמונות לתוכן" @uploaded="(url) => insertImage(field.key, url)" />
           <details v-if="form[field.key]">
             <summary class="flex min-h-11 cursor-pointer items-center font-bold">תצוגה מקדימה</summary>
             <div class="post-body rounded-xl border border-line p-3 text-muted" v-html="renderMarkdown(form[field.key])" />
@@ -246,7 +273,16 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
           :required="field.required"
           class="field-input"
         />
-        <ImageUpload v-if="field.upload" :accept="field.accept" @uploaded="(url) => (form[field.key] = url)" />
+        <ImageUpload v-if="field.upload" :multiple="field.multiple && !editingId" :label="field.label" :accept="field.accept" @uploaded="(url) => onUploaded(field, url)" />
+        <div v-if="field.multiple && extraUrls.length" class="mt-2 space-y-2">
+          <p class="text-sm text-muted">יתווספו עוד {{ extraUrls.length }} תמונות עם אותה כותרת ותיוגים</p>
+          <div class="flex flex-wrap gap-2">
+            <div v-for="(url, i) in extraUrls" :key="url" class="flex flex-col items-start gap-1">
+              <img :src="url" alt="" class="size-16 rounded-xl object-cover" />
+              <button type="button" class="btn-danger-ghost" :aria-label="`הסרת תמונה נוספת ${i + 1}`" @click="extraUrls.splice(i, 1)">הסרה</button>
+            </div>
+          </div>
+        </div>
         <!-- big enough to tell who is in the photo while tagging below -->
         <img v-if="field.preview && form[field.key]" :src="form[field.key]" alt="תצוגה מקדימה" class="mt-2 max-h-72 w-full rounded-xl bg-raised object-contain" />
         </template>
@@ -256,7 +292,7 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
 
       <div class="flex gap-2">
         <button type="submit" :disabled="submitting" class="btn-primary">
-          {{ editingId ? 'עדכון' : 'הוספה' }}
+          {{ editingId ? 'עדכון' : extraUrls.length ? `הוספת ${extraUrls.length + 1} תמונות` : 'הוספה' }}
         </button>
         <button v-if="editingId" type="button" class="btn-secondary" @click="resetForm">
           ביטול
