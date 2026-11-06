@@ -1,10 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-async function pickFile(wrapper) {
+async function pickFile(wrapper, names = ['a.png']) {
   const input = wrapper.find('input[type="file"]')
-  const file = new File(['a'], 'a.png', { type: 'image/png' })
-  Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+  const files = names.map((name) => new File(['a'], name, { type: 'image/png' }))
+  Object.defineProperty(input.element, 'files', { value: files, configurable: true })
   await input.trigger('change')
   await flushPromises()
 }
@@ -77,5 +77,41 @@ describe('ImageUpload', () => {
     expect(mount(ImageUpload).find('input').attributes('accept')).toBe('image/*')
     const wrapper = mount(ImageUpload, { props: { accept: 'application/pdf' } })
     expect(wrapper.find('input').attributes('accept')).toBe('application/pdf')
+  })
+
+  const upload = (status, url) => ({ ok: status < 400, status, statusText: 'x', json: async () => (status < 400 ? { url } : {}) })
+
+  it('uploads every selected file in order and emits each url when multiple', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce(upload(200, 'u1')).mockResolvedValueOnce(upload(200, 'u2'))
+    const { default: ImageUpload } = await import('./ImageUpload.vue')
+    const wrapper = mount(ImageUpload, { props: { multiple: true } })
+    expect(wrapper.find('input').attributes('multiple')).toBeDefined()
+    await pickFile(wrapper, ['a.png', 'b.png'])
+
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    expect(wrapper.emitted('uploaded')).toEqual([['u1'], ['u2']])
+    expect(mount(ImageUpload).find('input').attributes('multiple')).toBeUndefined()
+  })
+
+  it('keeps the successes and names the failed files', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce(upload(200, 'u1')).mockResolvedValueOnce(upload(502)).mockResolvedValueOnce(upload(200, 'u3'))
+    const { default: ImageUpload } = await import('./ImageUpload.vue')
+    const wrapper = mount(ImageUpload, { props: { multiple: true } })
+    await pickFile(wrapper, ['a.png', 'b.png', 'c.png'])
+
+    expect(wrapper.emitted('uploaded')).toEqual([['u1'], ['u3']])
+    expect(wrapper.text()).toContain('לא הועלו 1 מתוך 3')
+    expect(wrapper.text()).toContain('b.png')
+  })
+
+  it('stops at a 429 and counts the rest as not uploaded', async () => {
+    global.fetch = vi.fn().mockResolvedValue(upload(429))
+    const { default: ImageUpload } = await import('./ImageUpload.vue')
+    const wrapper = mount(ImageUpload, { props: { multiple: true } })
+    await pickFile(wrapper, ['a.png', 'b.png', 'c.png'])
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('יותר מדי ניסיונות, נסו שוב מאוחר יותר')
+    expect(wrapper.text()).toContain('לא הועלו 3 מתוך 3')
   })
 })

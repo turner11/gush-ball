@@ -475,4 +475,70 @@ describe('TeamContentSection', () => {
       expect(bodyOf('PATCH').image_url).toBeNull()
     })
   })
+
+  describe('bulk image upload', () => {
+    const IMG_FIELDS = [
+      { key: 'title', label: 'כותרת', type: 'text', required: true },
+      { key: 'url', label: 'כתובת', type: 'url', required: true, upload: true, multiple: true },
+    ]
+
+    async function setup({ failSecond = false } = {}) {
+      let uploads = 0
+      let posts = 0
+      mockFetch({
+        'GET /api/teams/1/images': () => jsonRes([]),
+        'POST /api/uploads': () => jsonRes({ url: `https://cdn/${++uploads}.png` }),
+        'POST /api/teams/1/images': () => {
+          posts += 1
+          if (failSecond && posts === 2) return { ok: false, status: 500, statusText: 'err', json: async () => ({}) }
+          return jsonRes({ id: posts })
+        },
+      })
+      const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+      const wrapper = mount(TeamContentSection, { props: { ownerId: 1, resource: 'images', heading: 'תמונות', fields: IMG_FIELDS } })
+      await flushPromises()
+      const input = wrapper.find('input[type="file"]')
+      const files = ['a.png', 'b.png', 'c.png'].map((name) => new File(['a'], name, { type: 'image/png' }))
+      Object.defineProperty(input.element, 'files', { value: files, configurable: true })
+      await input.trigger('change')
+      await flushPromises()
+      await wrapper.find('#images-title').setValue('גמר')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      return wrapper
+    }
+    const postBodies = () =>
+      global.fetch.mock.calls.filter(([u, o]) => u === '/api/teams/1/images' && o?.method === 'POST').map(([, o]) => JSON.parse(o.body))
+
+    it('a multiple upload field queues extra images and creates one item per image', async () => {
+      const wrapper = await setup()
+      expect(postBodies()).toEqual([1, 2, 3].map((n) => ({ title: 'גמר', url: `https://cdn/${n}.png` })))
+      expect(wrapper.find('#images-url').element.value).toBe('')
+    })
+
+    it('editing another item drops the queued extra images', async () => {
+      let uploads = 0
+      mockFetch({
+        'GET /api/teams/1/images': () => jsonRes([{ id: 9, title: 'ישן', url: 'https://cdn/old.png' }]),
+        'POST /api/uploads': () => jsonRes({ url: `https://cdn/${++uploads}.png` }),
+      })
+      const { default: TeamContentSection } = await import('./TeamContentSection.vue')
+      const wrapper = mount(TeamContentSection, { props: { ownerId: 1, resource: 'images', heading: 'תמונות', fields: IMG_FIELDS } })
+      await flushPromises()
+      const input = wrapper.find('input[type="file"]')
+      const files = ['a.png', 'b.png'].map((name) => new File(['a'], name, { type: 'image/png' }))
+      Object.defineProperty(input.element, 'files', { value: files, configurable: true })
+      await input.trigger('change')
+      await flushPromises()
+      expect(wrapper.text()).toContain('יתווספו עוד 1 תמונות')
+      await wrapper.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
+      expect(wrapper.text()).not.toContain('יתווספו עוד')
+    })
+
+    it('a partly failed bulk create keeps the unsaved images in the form', async () => {
+      const wrapper = await setup({ failSecond: true })
+      expect(wrapper.find('#images-url').element.value).toBe('https://cdn/2.png')
+      expect(wrapper.find('[role=alert]').text()).toContain('נשמרו 2 מתוך 3')
+    })
+  })
 })

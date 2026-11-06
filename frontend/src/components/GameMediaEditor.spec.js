@@ -66,6 +66,23 @@ describe('GameMediaEditor', () => {
     expect(wrapper.find('img').attributes('src')).toBe('https://cdn.example.com/b.jpg')
   })
 
+  it('picking several files adds one image row per file', async () => {
+    mockFetch()
+    const base = global.fetch
+    let n = 0
+    global.fetch = vi.fn((url, options) =>
+      url === '/api/uploads' ? Promise.resolve(res({ url: `https://cdn.example.com/n${++n}.jpg` })) : base(url, options),
+    )
+    const wrapper = await mountEditor()
+    const input = wrapper.find('input[type="file"]')
+    const files = ['x.png', 'y.png'].map((name) => new File(['a'], name, { type: 'image/png' }))
+    Object.defineProperty(input.element, 'files', { value: files, configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.findAll('img')).toHaveLength(3)
+  })
+
   it('shows a Hebrew message, not [object Object], on a validation error', async () => {
     mockFetch({ put: () => ({ ok: false, status: 422, json: async () => ({ detail: [{ msg: 'bad url' }] }) }) })
     const wrapper = await mountEditor()

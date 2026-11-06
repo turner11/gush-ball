@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 
 import ImageUpload from './ImageUpload.vue'
 import PlayerVideosEditor from './PlayerVideosEditor.vue'
@@ -38,7 +38,12 @@ async function save() {
   }
 }
 
-async function addImage(url) {
+// Bulk picks emit back to back: serialize the POSTs so each builds on the images the parent saved before it.
+let imageQueue = Promise.resolve()
+const addImage = (url) => (imageQueue = imageQueue.then(() => postImage(url)))
+
+async function postImage(url) {
+  await nextTick() // the previous 'saved' reaches props.player
   error.value = ''
   try {
     const image = await apiFetch(`/players/${props.player.id}/images`, { method: 'POST', body: { url } })
@@ -97,7 +102,7 @@ async function removeImage(image) {
         </li>
       </ul>
       <p v-else class="empty-state">אין תמונות עדיין</p>
-      <div ref="uploadWrap" class="mt-2"><ImageUpload label="העלאת תמונה" @uploaded="addImage" /></div>
+      <div ref="uploadWrap" class="mt-2"><ImageUpload multiple label="העלאת תמונות" @uploaded="addImage" /></div>
     </div>
 
     <div>

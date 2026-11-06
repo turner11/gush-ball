@@ -26,6 +26,6 @@ const add = (url) => emit('update:modelValue', [...props.modelValue, { url, titl
       </div>
       <button type="button" class="btn-danger-ghost" :data-test="`remove-image-${i}`" :aria-label="`הסרת תמונה ${i + 1}`" @click="remove(i)">הסרה</button>
     </div>
-    <ImageUpload label="הוספת תמונה" @uploaded="add" />
+    <ImageUpload multiple label="הוספת תמונות" @uploaded="add" />
   </fieldset>
 </template>
