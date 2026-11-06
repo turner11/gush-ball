@@ -7,7 +7,7 @@ import SearchInput from '../components/SearchInput.vue'
 import { fullAdmin, useAuth } from '../composables/useAuth'
 import { useLeagueFilter } from '../composables/useLeagueFilter'
 import { apiFetch } from '../lib/api'
-import { userLabel } from '../lib/format'
+import { scopeLabel, userLabel } from '../lib/format'
 import { matchesQuery } from '../lib/search'
 
 const ROLE_LABELS = { pending: 'ממתין', member: 'חבר', admin: 'מנהל' }
@@ -44,7 +44,7 @@ const shownUsers = computed(() =>
       matchesQuery(query.value, [u.username, u.display_name, u.email, ...u.memberships.flatMap((m) => [m.team_name, m.club])]),
   ),
 )
-const badge = (m) => `${m.team_name ?? m.club} · ${ROLE_LABELS[m.role]}`
+const badge = (m) => `${scopeLabel(m)} · ${ROLE_LABELS[m.role]}`
 
 async function load() {
   loading.value = true
@@ -80,7 +80,8 @@ async function onDeleteConfirmed() {
 }
 
 const assignFor = ref(null) // id of the user whose assign panel is open
-const assignTeamId = ref('')
+const assignScope = ref('team') // 'team' | 'club'
+const assignTarget = ref('') // team id, or club name when assignScope is 'club'
 const assigning = ref(false)
 const assignError = ref(null)
 const status = ref(null)
@@ -91,9 +92,20 @@ const assignOptions = (u) => {
   return teams.value.filter((t) => !taken.has(t.id)).map((t) => ({ value: String(t.id), label: t.name }))
 }
 
+const clubOptions = (u) => {
+  const admined = new Set(u.memberships.filter((m) => m.club && m.role === 'admin').map((m) => m.club))
+  const clubs = new Set(teams.value.map((t) => t.club).filter((c) => c && !admined.has(c)))
+  return [...clubs].map((c) => ({ value: c, label: c }))
+}
+// The server only lets an approved account be made admin (#270).
+const approved = (u) => u.memberships.some((m) => m.role !== 'pending')
+const pickOptions = (u) => (assignScope.value === 'club' ? clubOptions(u) : assignOptions(u))
+watch(assignScope, () => (assignTarget.value = ''))
+
 async function openAssign(u) {
   assignFor.value = u.id
-  assignTeamId.value = ''
+  assignScope.value = 'team'
+  assignTarget.value = ''
   assignError.value = null
   status.value = null
   await nextTick()
@@ -105,18 +117,34 @@ function closeAssign(u) {
   nextTick(() => document.getElementById(`assign-toggle-${u.id}`)?.focus())
 }
 
+async function assignTeam(u) {
+  const m = await apiFetch(`/users/${u.id}/teams/${assignTarget.value}`, { method: 'PUT' })
+  const i = u.memberships.findIndex((x) => x.team_id === m.team_id)
+  if (i === -1) u.memberships.push(m)
+  else u.memberships[i] = m
+  status.value = `${userLabel(u)} שויך/ה לקבוצה ${m.team_name}`
+}
+
+async function assignClub(u) {
+  const club = assignTarget.value
+  // ponytail: assign_team_admin grants on team.club; any team of the club works. Add a club-keyed endpoint if a teamless club ever needs an admin.
+  const team = teams.value.find((t) => t.club === club)
+  await apiFetch(`/teams/${team.id}/admins/${u.id}`, { method: 'PUT', body: { scope: 'club' } })
+  const existing = u.memberships.find((m) => m.club === club)
+  if (existing) existing.role = 'admin'
+  else u.memberships.push({ team_id: null, team_name: null, club, role: 'admin' })
+  status.value = `${userLabel(u)} מונה/תה למנהל/ת מועדון ${club}`
+}
+
 async function onAssign(u) {
   assigning.value = true
   assignError.value = null
+  const isClub = assignScope.value === 'club'
   try {
-    const m = await apiFetch(`/users/${u.id}/teams/${assignTeamId.value}`, { method: 'PUT' })
-    const i = u.memberships.findIndex((x) => x.team_id === m.team_id)
-    if (i === -1) u.memberships.push(m)
-    else u.memberships[i] = m
-    status.value = `${userLabel(u)} שויך/ה לקבוצה ${m.team_name}`
+    await (isClub ? assignClub(u) : assignTeam(u))
     closeAssign(u)
   } catch {
-    assignError.value = 'שגיאה בשיוך לקבוצה, נסו שוב'
+    assignError.value = isClub ? 'שגיאה במינוי מנהל המועדון, נסו שוב' : 'שגיאה בשיוך לקבוצה, נסו שוב'
   }
   assigning.value = false
 }
@@ -173,24 +201,54 @@ onMounted(() => {
               :id="`assign-toggle-${u.id}`"
               type="button"
               class="btn-secondary"
-              :aria-label="`שיוך ${userLabel(u)} לקבוצה`"
+              :aria-label="`שיוך ${userLabel(u)}`"
               :aria-expanded="assignFor === u.id"
               :aria-controls="`assign-panel-${u.id}`"
               @click="assignFor === u.id ? closeAssign(u) : openAssign(u)"
             >
-              שיוך לקבוצה
+              שיוך
             </button>
             <button type="button" class="btn-danger-ghost" :aria-label="`מחיקת ${userLabel(u)}`" @click="pendingDelete = u">
               מחיקה
             </button>
           </div>
           <div v-if="assignFor === u.id" :id="`assign-panel-${u.id}`" class="basis-full py-2">
-            <p v-if="!assignOptions(u).length" class="text-sm text-muted">המשתמש כבר חבר בכל הקבוצות</p>
+            <fieldset v-if="clubOptions(u).length || assignScope === 'club'" class="mb-2">
+              <legend class="field-label">סוג שיוך</legend>
+              <label class="flex min-h-11 items-center gap-2">
+                <input v-model="assignScope" type="radio" :name="`assign-scope-${u.id}`" value="team" class="size-5" />
+                חבר בקבוצה
+              </label>
+              <label class="flex min-h-11 items-center gap-2">
+                <input
+                  v-model="assignScope"
+                  type="radio"
+                  :name="`assign-scope-${u.id}`"
+                  value="club"
+                  class="size-5"
+                  :disabled="!approved(u)"
+                  :aria-describedby="approved(u) ? undefined : `assign-club-hint-${u.id}`"
+                />
+                מנהל מועדון
+              </label>
+              <p v-if="!approved(u)" :id="`assign-club-hint-${u.id}`" class="text-sm text-muted">
+                ניתן למנות רק משתמש מאושר (שייכו אותו לקבוצה קודם)
+              </p>
+            </fieldset>
+            <p v-if="!pickOptions(u).length" class="text-sm text-muted">
+              {{ assignScope === 'club' ? 'המשתמש כבר מנהל בכל המועדונים' : 'המשתמש כבר חבר בכל הקבוצות' }}
+            </p>
             <div v-else class="grid gap-2 sm:grid-cols-[16rem_auto_auto] sm:items-end">
-              <FilterCombobox :id="`assign-team-${u.id}`" v-model="assignTeamId" label="קבוצה" :options="assignOptions(u)" />
+              <FilterCombobox
+                :id="`assign-team-${u.id}`"
+                v-model="assignTarget"
+                :label="assignScope === 'club' ? 'מועדון' : 'קבוצה'"
+                :options="pickOptions(u)"
+              />
               <div class="flex gap-2">
-                <button type="button" class="btn-primary" :disabled="!assignTeamId || assigning" @click="onAssign(u)">
-                  {{ assigning ? 'משייך…' : 'שיוך' }}
+                <button type="button" class="btn-primary" :disabled="!assignTarget || assigning" @click="onAssign(u)">
+                  <template v-if="assignScope === 'club'">{{ assigning ? 'ממנה…' : 'מינוי' }}</template>
+                  <template v-else>{{ assigning ? 'משייך…' : 'שיוך' }}</template>
                 </button>
                 <button type="button" class="btn-secondary" @click="closeAssign(u)">ביטול</button>
               </div>
