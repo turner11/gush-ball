@@ -40,13 +40,25 @@ describe('AdminUsersView', () => {
     mockFetch({ 'GET /api/users': () => jsonRes(USERS) })
     const wrapper = await mountView()
 
-    expect(wrapper.text()).toContain('נוער · ממתין')
+    expect(wrapper.text()).toContain('קבוצה: נוער · ממתין')
     await wrapper.find('#admin-user-search').setValue('dana@')
     expect(wrapper.findAll('ul.card > li')).toHaveLength(1)
     expect(wrapper.text()).toContain('dana')
 
     await wrapper.find('#admin-user-search').setValue('nobody')
     expect(wrapper.text()).toContain('נקה חיפוש')
+  })
+
+  it('badges say whether a grant is on a club or a team', async () => {
+    const memberships = [
+      { team_id: 5, team_name: 'נוער', club: null, role: 'pending' },
+      { team_id: null, team_name: null, club: 'Gush', role: 'admin' },
+    ]
+    mockFetch({ 'GET /api/users': () => jsonRes([{ ...USERS[1], memberships }]) })
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).toContain('קבוצה: נוער · ממתין')
+    expect(wrapper.text()).toContain('מועדון: Gush · מנהל')
   })
 
   describe('league and team filters', () => {
@@ -143,7 +155,7 @@ describe('AdminUsersView', () => {
       })
       const wrapper = await mountView()
       const { default: FilterCombobox } = await import('../components/FilterCombobox.vue')
-      await wrapper.find('[aria-label="שיוך dana לקבוצה"]').trigger('click')
+      await wrapper.find('[aria-label="שיוך dana"]').trigger('click')
       await flushPromises()
       const combobox = () => wrapper.findAllComponents(FilterCombobox).find((c) => c.props('id') === 'assign-team-2')
       const pick = async (value) => {
@@ -191,6 +203,60 @@ describe('AdminUsersView', () => {
 
       expect(wrapper.find('[role="alert"]').text()).toContain('שגיאה בשיוך לקבוצה')
       expect(combobox()).toBeDefined()
+    })
+  })
+
+  describe('assign club admin', () => {
+    const CLUB_TEAMS = [
+      { id: 5, name: 'נוער', club: 'מועדון א', ibasketball_league_url: null },
+      { id: 6, name: 'בוגרים', club: 'מועדון ב', ibasketball_league_url: null },
+      { id: 7, name: 'ילדים', club: 'מועדון ב', ibasketball_league_url: null },
+      { id: 8, name: 'ריקה', club: 'מועדון ג', ibasketball_league_url: null },
+    ]
+    const MEMBER = { team_id: 6, team_name: 'בוגרים', club: null, role: 'member' }
+    const mounted = async (memberships, put = {}) => {
+      mockFetch({
+        'GET /api/users': () => jsonRes([USERS[0], { ...USERS[1], memberships }]),
+        'GET /api/teams': () => jsonRes(CLUB_TEAMS),
+        ...put,
+      })
+      const wrapper = await mountView()
+      const { default: FilterCombobox } = await import('../components/FilterCombobox.vue')
+      await wrapper.find('[aria-label="שיוך dana"]').trigger('click')
+      await flushPromises()
+      const clubRadio = () => wrapper.find('input[type="radio"][value="club"]')
+      const combobox = () => wrapper.findAllComponents(FilterCombobox).find((c) => c.props('id') === 'assign-team-2')
+      return { wrapper, clubRadio, combobox }
+    }
+
+    it("assigns a club admin via the club's team", async () => {
+      const { wrapper, clubRadio, combobox } = await mounted([MEMBER], {
+        'PUT /api/teams/6/admins/2': () => ({ ok: true, status: 204, json: async () => null }),
+      })
+      await clubRadio().setValue(true)
+      combobox().vm.$emit('update:modelValue', 'מועדון ב')
+      await flushPromises()
+      await wrapper.findAll('button').find((b) => b.text() === 'שיוך').trigger('click')
+      await flushPromises()
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/teams/6/admins/2',
+        expect.objectContaining({ method: 'PUT', body: JSON.stringify({ scope: 'club' }) }),
+      )
+      expect(wrapper.text()).toContain('מועדון: מועדון ב · מנהל')
+      expect(wrapper.text()).toContain('dana מונה/תה למנהל/ת מועדון מועדון ב')
+      expect(combobox()).toBeUndefined()
+    })
+
+    it('club option is disabled for a user with only pending grants', async () => {
+      const { clubRadio } = await mounted([{ team_id: 5, team_name: 'נוער', club: null, role: 'pending' }])
+      expect(clubRadio().attributes('disabled')).toBeDefined()
+    })
+
+    it('clubs the user already admins are not offered', async () => {
+      const { clubRadio, combobox } = await mounted([MEMBER, { team_id: null, team_name: null, club: 'מועדון ב', role: 'admin' }])
+      await clubRadio().setValue(true)
+      expect(combobox().props('options').map((o) => o.value)).toEqual(['מועדון א', 'מועדון ג'])
     })
   })
 
