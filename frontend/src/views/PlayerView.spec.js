@@ -451,15 +451,15 @@ describe('PlayerView', () => {
       const base = okFetch()
       let uploads = 0
       let posts = 0
-      let releaseFirst
-      const firstPost = new Promise((resolve) => (releaseFirst = resolve))
+      let release
+      const gate = new Promise((resolve) => (release = resolve)) // both POSTs resolve in the same tick
       const ok = (body) => ({ ok: true, status: 200, json: async () => body })
       global.fetch = vi.fn((url, options) => {
         if (url === '/api/uploads') return Promise.resolve(ok({ url: `/new${++uploads}.jpg` }))
         if (url === '/api/players/3/images') {
           const n = ++posts
           const image = ok({ id: 100 + n, url: `/new${n}.jpg` })
-          return n === 1 ? firstPost.then(() => image) : Promise.resolve(image)
+          return gate.then(() => image)
         }
         return base(url, options)
       })
@@ -472,7 +472,7 @@ describe('PlayerView', () => {
       Object.defineProperty(input.element, 'files', { value: files, configurable: true })
       await input.trigger('change')
       await flushPromises()
-      releaseFirst()
+      release()
       await flushPromises()
 
       expect(wrapper.findAll('#profile-form li')).toHaveLength(before + 2)

@@ -76,6 +76,7 @@ const formEl = ref(null)
 
 async function onEdit(item) {
   editingId.value = item.id
+  extraUrls.value = []
   for (const field of props.fields) {
     form[field.key] = item[field.key] ?? blank(field)
   }
@@ -273,9 +274,11 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
           :required="field.required"
           class="field-input"
         />
-        <ImageUpload v-if="field.upload" :multiple="field.multiple && !editingId" :label="field.label" :accept="field.accept" @uploaded="(url) => onUploaded(field, url)" />
-        <div v-if="field.multiple && extraUrls.length" class="mt-2 space-y-2">
-          <p class="text-sm text-muted">יתווספו עוד {{ extraUrls.length }} תמונות עם אותה כותרת ותיוגים</p>
+        <ImageUpload v-if="field.upload" :multiple="field.multiple && !editingId" :label="field.multiple ? `העלאת ${field.label}` : field.label" :accept="field.accept" @uploaded="(url) => onUploaded(field, url)" />
+        <!-- big enough to tell who is in the photo while tagging below -->
+        <img v-if="field.preview && form[field.key]" :src="form[field.key]" alt="תצוגה מקדימה" class="mt-2 max-h-72 w-full rounded-xl bg-raised object-contain" />
+                <div v-if="field.multiple && extraUrls.length" class="mt-2 space-y-2">
+          <p class="text-sm text-muted">יתווספו עוד {{ extraUrls.length }} תמונות עם אותה כותרת{{ fields.some((f) => f.key === 'player_ids') ? ' ותיוגים' : '' }}</p>
           <div class="flex flex-wrap gap-2">
             <div v-for="(url, i) in extraUrls" :key="url" class="flex flex-col items-start gap-1">
               <img :src="url" alt="" class="size-16 rounded-xl object-cover" />
@@ -283,9 +286,7 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
             </div>
           </div>
         </div>
-        <!-- big enough to tell who is in the photo while tagging below -->
-        <img v-if="field.preview && form[field.key]" :src="form[field.key]" alt="תצוגה מקדימה" class="mt-2 max-h-72 w-full rounded-xl bg-raised object-contain" />
-        </template>
+</template>
       </div>
 
       <p v-if="error" class="error-text" role="alert">{{ error }}</p>
