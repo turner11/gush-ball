@@ -247,7 +247,8 @@ onMounted(() => {
               />
               <div class="flex gap-2">
                 <button type="button" class="btn-primary" :disabled="!assignTarget || assigning" @click="onAssign(u)">
-                  {{ assigning ? 'משייך…' : 'שיוך' }}
+                  <template v-if="assignScope === 'club'">{{ assigning ? 'ממנה…' : 'מינוי' }}</template>
+                  <template v-else>{{ assigning ? 'משייך…' : 'שיוך' }}</template>
                 </button>
                 <button type="button" class="btn-secondary" @click="closeAssign(u)">ביטול</button>
               </div>

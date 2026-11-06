@@ -236,6 +236,7 @@ describe('AdminUsersView', () => {
       await clubRadio().setValue(true)
       combobox().vm.$emit('update:modelValue', 'מועדון ב')
       await flushPromises()
+      expect(wrapper.find('#assign-panel-2 .btn-primary').text()).toBe('מינוי')
       await wrapper.find('#assign-panel-2 .btn-primary').trigger('click')
       await flushPromises()
 
