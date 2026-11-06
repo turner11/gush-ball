@@ -150,11 +150,11 @@ def check_club_scope(db: Session, admin: AdminUser, club: str) -> None:
 
 
 def check_membership_scope(db: Session, admin: AdminUser, row: Membership) -> None:
-    """Who may approve a request or remove a request/member: a team's by whoever may write that team, a club's by a full admin only."""
+    """Who may approve a request or remove a request/member: a team's by whoever may write that team, a club's by that club's admin or a full admin."""
     if row.team_id is not None:
         check_team_scope(db, admin, row.team_id)
-    elif not admin.is_full_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only a full admin can manage club memberships")
+    else:
+        check_club_scope(db, admin, row.club)
 
 
 def covering_grant(team: Team) -> ColumnElement[bool]:
