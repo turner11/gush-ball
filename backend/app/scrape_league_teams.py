@@ -12,7 +12,7 @@ from bbstats import http_url_or_none
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Team, TeamRequest
+from app.models import League, Team, TeamRequest
 from app.scrape_club import _team_code
 from app.scrape_games import BASE, home_away_scores, ibasketball_url_or_none
 
@@ -38,12 +38,30 @@ def _fetch(league_ibasketball_id: int) -> list[dict]:
     return resp.json()
 
 
+def _fetch_search(query: str, league_ids: list[int]) -> list[dict]:
+    # ponytail: one page (per_page=100), so at most 100 hits; users narrow the query
+    resp = httpx.get(
+        BASE + "/sportspress/v2/teams",
+        params={
+            "search": query,
+            "leagues": ",".join(map(str, league_ids)),
+            "per_page": 100,
+            "_embed": "wp:featuredmedia",
+        },
+        timeout=15,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
 def _cached(key: Any, load: Callable[[], Any]) -> Any:
     cached = _cache.get(key)
     if cached and time.monotonic() - cached[0] < (TTL if cached[1] is not None else FAIL_TTL):
         if cached[1] is None:
             raise httpx.HTTPError(f"{key}: ibasketball failed under {FAIL_TTL}s ago, not retrying yet")
         return cached[1]
+    if len(_cache) >= 2000:
+        _cache.clear()  # ponytail: search keys are user-controlled; a blunt bound beats an LRU until it matters
     try:
         value = load()
     except httpx.HTTPError:
@@ -70,6 +88,7 @@ def _parse_teams(fetched: list[dict]) -> list[dict]:
                 "name": html.unescape(t["title"]["rendered"]),
                 "logo_url": http_url_or_none(media[0]["source_url"]) if media else None,
                 "ibasketball_team_url": url,
+                "league_ids": t.get("leagues", []),
             }
         )
     rows.sort(key=lambda r: r["name"])
@@ -127,14 +146,44 @@ def opponent_results(team_url: str, league_ibasketball_id: int, season: int) -> 
     return _cached((league_ibasketball_id, team_url), load)
 
 
-def league_teams(db: Session, league_ibasketball_id: int) -> list[dict]:
-    """The league's teams, each with `team_id` of our matching team (by IBBA code, never name) or None, and
-    `requested` when a team request for it is pending (#351)."""
-    ours = {
+def _our_team_ids(db: Session) -> dict[str, int]:
+    """Our teams' `Team.id` by IBBA team code."""
+    return {
         _team_code(url): team_id
         for team_id, url in db.execute(select(Team.id, Team.ibasketball_team_url))
         if url and _team_code(url)
     }
+
+
+def search_teams(db: Session, query: str) -> list[dict]:
+    """ibasketball teams of the current-season leagues whose name matches `query`, each with its `league` and
+    `team_id` of our matching team or None. Teams only in old seasons are dropped."""
+    leagues = {lg.ibasketball_id: lg for lg in db.scalars(select(League))}
+    if not leagues:
+        return []
+    rows = _cached(("search", query.casefold()), lambda: _parse_teams(_fetch_search(query, sorted(leagues))))
+    ours = _our_team_ids(db)
+    found = []
+    for row in rows:
+        league = next((leagues[i] for i in row["league_ids"] if i in leagues), None)
+        if league is None:
+            continue
+        found.append(
+            {
+                "name": row["name"],
+                "logo_url": row["logo_url"],
+                "ibasketball_team_url": row["ibasketball_team_url"],
+                "team_id": ours.get(_team_code(row["ibasketball_team_url"])),
+                "league": league,
+            }
+        )
+    return found
+
+
+def league_teams(db: Session, league_ibasketball_id: int) -> list[dict]:
+    """The league's teams, each with `team_id` of our matching team (by IBBA code, never name) or None, and
+    `requested` when a team request for it is pending (#351)."""
+    ours = _our_team_ids(db)
     pending = {
         _team_code(url)
         for url in db.scalars(select(TeamRequest.ibasketball_team_url).where(TeamRequest.status == "pending"))
