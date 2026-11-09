@@ -79,6 +79,11 @@ describe('AdminTeamPicker', () => {
     expect(router.currentRoute.value.path).toBe('/team_c/admin/players')
   })
 
+  it('hides the league picker in all-teams mode', async () => {
+    const wrapper = await mountPicker(LEAGUES, { allLabel: 'כל הקבוצות', all: true })
+    expect(box(wrapper, 'league-filter')).toBeUndefined()
+  })
+
   it('hides the league picker with fewer than two leagues', async () => {
     const wrapper = await mountPicker([LEAGUES[0]])
     expect(box(wrapper, 'league-filter')).toBeUndefined()

@@ -34,7 +34,7 @@ watch(leagueId, () => {
 <template>
   <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
     <FilterCombobox
-      v-if="leagueOptions.length > 1"
+      v-if="leagueOptions.length > 1 && !all"
       id="league-filter"
       v-model="leagueId"
       label="ליגה"
