@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
+import { pendingRequestCount } from '../composables/usePendingRequests'
 import { apiFetch } from '../lib/api'
 import { scopeLabel, userLabel } from '../lib/format'
 import ConfirmDialog from './ConfirmDialog.vue'
@@ -17,6 +18,10 @@ const pendingReject = ref(null) // the team request awaiting rejection
 const requests = computed(() => rows.value?.filter((r) => r.role === 'pending'))
 const members = computed(() => rows.value?.filter((r) => r.role === 'member'))
 const pendingCount = computed(() => (requests.value?.length ?? 0) + teamRequests.value.length)
+// Keep the layout badge in step after approve/reject; skip loading, where the count would read as a false 0.
+watch(pendingCount, (n) => {
+  if (rows.value !== null) pendingRequestCount.value = n
+})
 
 async function load() {
   loadFailed.value = false
