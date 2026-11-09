@@ -144,3 +144,81 @@ def test_league_teams_skips_team_with_non_ibasketball_link(
     fake_fetch["items"] = [_sp("טוב", 1), {**_sp("רע", 2), "link": bad}]
     names = [t["name"] for t in client.get("/leagues/10/teams").json()["teams"]]
     assert names == ["טוב"]
+
+
+@pytest.fixture
+def fake_search(monkeypatch: pytest.MonkeyPatch) -> dict:
+    state: dict[str, Any] = {"calls": [], "items": [], "error": None}
+
+    def fake(query: str, league_ids: list[int]) -> list[dict]:
+        state["calls"].append((query, league_ids))
+        if state["error"]:
+            raise state["error"]
+        return state["items"]
+
+    monkeypatch.setattr(scrape_league_teams, "_fetch_search", fake)
+    return state
+
+
+def test_team_search_returns_current_season_teams_with_league_and_our_team_id(
+    client: TestClient, db_session: Session, fake_search: dict
+) -> None:
+    _league(db_session, 10, "ליגת א")
+    _league(db_session, 11, "ליגת ב")
+    ours = _team(db_session, "שלנו", "ours", "https://ibasketball.co.il/team/123-%d7%90/")
+    fake_search["items"] = [
+        {**_sp("מכבי א", 456), "leagues": [999, 10]},
+        {**_sp("מכבי שלנו", 123), "leagues": [11]},
+        {**_sp("מכבי ישן", 789), "leagues": [999]},
+    ]
+    res = client.get("/leagues/teams", params={"q": " מכבי "})
+    assert res.status_code == 200
+    by_name = {t["name"]: t for t in res.json()}
+    assert set(by_name) == {"מכבי א", "מכבי שלנו"}
+    assert by_name["מכבי א"]["team_id"] is None
+    assert by_name["מכבי א"]["league"]["ibasketball_id"] == 10
+    assert by_name["מכבי שלנו"]["team_id"] == ours.id
+    assert fake_search["calls"] == [("מכבי", [10, 11])]
+
+
+def test_team_search_rejects_short_query_without_fetching(
+    client: TestClient, db_session: Session, fake_search: dict
+) -> None:
+    _league(db_session)
+    assert client.get("/leagues/teams", params={"q": "a"}).status_code == 422
+    assert fake_search["calls"] == []
+
+
+def test_team_search_502_when_ibasketball_down(client: TestClient, db_session: Session, fake_search: dict) -> None:
+    _league(db_session)
+    fake_search["error"] = httpx.ConnectError("down")
+    scrape_league_teams._cache.clear()
+    assert client.get("/leagues/teams", params={"q": "מכבי"}).status_code == 502
+
+
+def test_team_search_failure_short_circuits_other_queries(
+    client: TestClient, db_session: Session, fake_search: dict
+) -> None:
+    _league(db_session)
+    fake_search["error"] = httpx.ConnectError("down")
+    assert client.get("/leagues/teams", params={"q": "מכבי"}).status_code == 502
+    assert client.get("/leagues/teams", params={"q": "הפועל"}).status_code == 502
+    assert len(fake_search["calls"]) == 1
+
+
+def test_team_search_502_when_slots_saturated(client: TestClient, db_session: Session, fake_search: dict) -> None:
+    _league(db_session)
+    held = [scrape_league_teams._search_slots.acquire() for _ in range(4)]
+    try:
+        assert client.get("/leagues/teams", params={"q": "מכבי"}).status_code == 502
+    finally:
+        for _ in held:
+            scrape_league_teams._search_slots.release()
+    assert fake_search["calls"] == []
+
+
+def test_team_search_without_leagues_returns_empty_without_fetching(client: TestClient, fake_search: dict) -> None:
+    res = client.get("/leagues/teams", params={"q": "מכבי"})
+    assert res.status_code == 200
+    assert res.json() == []
+    assert fake_search["calls"] == []

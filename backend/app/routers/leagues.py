@@ -1,7 +1,8 @@
 import logging
+from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 
@@ -37,6 +38,26 @@ class LeagueTeamsOut(BaseModel):
 @router.get("", response_model=list[LeagueOut])
 def list_leagues(db: DbSession) -> list[League]:
     return list(db.scalars(select(League).order_by(League.name)))
+
+
+class TeamSearchOut(BaseModel):
+    name: str
+    logo_url: str | None
+    ibasketball_team_url: str
+    team_id: int | None
+    league: LeagueOut
+
+
+@router.get("/teams", response_model=list[TeamSearchOut])
+def search_teams(q: Annotated[str, Query(min_length=2, max_length=60)], db: DbSession) -> list[dict]:
+    query = q.strip()
+    if len(query) < 2:
+        return []
+    try:
+        return scrape_league_teams.search_teams(db, query)
+    except httpx.HTTPError:
+        log.exception("Searching teams for %r failed", query)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "ibasketball unreachable") from None
 
 
 @router.get("/{ibasketball_id}/teams", response_model=LeagueTeamsOut)
