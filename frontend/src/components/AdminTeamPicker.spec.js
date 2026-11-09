@@ -28,12 +28,12 @@ describe('AdminTeamPicker', () => {
     document.body.innerHTML = ''
   })
 
-  async function mountPicker(leagues = LEAGUES) {
+  async function mountPicker(leagues = LEAGUES, extraProps = {}) {
     global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => leagues }))
     const { default: AdminTeamPicker } = await import('./AdminTeamPicker.vue')
     const { useSelectedTeam } = await import('../composables/useSelectedTeam')
     useSelectedTeam().selectedTeamId.value = '1'
-    const wrapper = mount(AdminTeamPicker, { props: { teams: TEAMS }, global: { plugins: [router] }, attachTo: document.body })
+    const wrapper = mount(AdminTeamPicker, { props: { teams: TEAMS, ...extraProps }, global: { plugins: [router] }, attachTo: document.body })
     await flushPromises()
     return wrapper
   }
@@ -58,6 +58,24 @@ describe('AdminTeamPicker', () => {
     const wrapper = await mountPicker()
     box(wrapper, 'team-select').vm.$emit('update:modelValue', 'team_c')
     await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/team_c/admin/players')
+  })
+
+  it('with all-label, picking "all" emits update:all true and does not navigate', async () => {
+    const wrapper = await mountPicker(LEAGUES, { allLabel: 'כל הקבוצות' })
+    expect(box(wrapper, 'team-select').props('allLabel')).toBe('כל הקבוצות')
+    box(wrapper, 'team-select').vm.$emit('update:modelValue', '')
+    await flushPromises()
+    expect(wrapper.emitted('update:all').at(-1)).toEqual([true])
+    expect(router.currentRoute.value.path).toBe('/team_a/admin/players')
+  })
+
+  it('picking a team from all mode emits update:all false and navigates', async () => {
+    const wrapper = await mountPicker(LEAGUES, { allLabel: 'כל הקבוצות', all: true })
+    expect(box(wrapper, 'team-select').props('modelValue')).toBe('')
+    box(wrapper, 'team-select').vm.$emit('update:modelValue', 'team_c')
+    await flushPromises()
+    expect(wrapper.emitted('update:all').at(-1)).toEqual([false])
     expect(router.currentRoute.value.path).toBe('/team_c/admin/players')
   })
 

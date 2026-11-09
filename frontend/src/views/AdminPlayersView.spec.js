@@ -521,4 +521,57 @@ describe('AdminPlayersView', () => {
     await flushPromises()
     expect(patches[0]).not.toHaveProperty('user_id')
   })
+  describe('all-teams mode (#633)', () => {
+    const TWO = [
+      { id: 1, name: 'קבוצה א', name_en: 'Team A' },
+      { id: 2, name: 'קבוצה ב', name_en: 'Team B' },
+    ]
+    const ALL = () => [
+      ...PLAYERS,
+      { id: 11, team_id: 2, name: 'דני', name_en: null, jersey_number: 9, images: [], videos: [] },
+    ]
+
+    async function mountAll(extra = {}) {
+      mockFetch({
+        'GET /api/teams': () => jsonRes(TWO),
+        'GET /api/teams/1/players': () => jsonRes(PLAYERS),
+        'GET /api/players': () => jsonRes(ALL()),
+        ...extra,
+      })
+      await router.push('/team_a/admin/players')
+      const { default: AdminPlayersView } = await import('./AdminPlayersView.vue')
+      const wrapper = mount(AdminPlayersView, { global: { plugins: [router] }, attachTo: document.body })
+      await flushPromises()
+      wrapper.findAllComponents({ name: 'FilterCombobox' }).find((c) => c.props('id') === 'team-select').vm.$emit('update:modelValue', '')
+      await flushPromises()
+      return wrapper
+    }
+
+    it('choosing כל הקבוצות lists players of every team with their team name', async () => {
+      const wrapper = await mountAll()
+      expect(wrapper.text()).toContain('יוסי')
+      expect(wrapper.text()).toContain('דני')
+      expect(wrapper.text()).toContain('קבוצה ב')
+      expect(wrapper.find('#player-name').exists()).toBe(false)
+      expect(wrapper.text()).toContain('בחרו קבוצה כדי להוסיף שחקן.')
+    })
+
+    it("edit in all-teams mode jumps to the player's team with ?edit", async () => {
+      const wrapper = await mountAll()
+      const row = wrapper.findAll('tbody tr').find((r) => r.text().includes('דני'))
+      await row.findAll('button').find((b) => b.text() === 'עריכה').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.fullPath).toBe('/team_b/admin/players?edit=11')
+    })
+
+    it('delete in all-teams mode uses the player team id', async () => {
+      const del = vi.fn(() => ({ ok: true, status: 204, json: async () => null }))
+      const wrapper = await mountAll({ 'DELETE /api/teams/2/players/11': del })
+      const row = wrapper.findAll('tbody tr').find((r) => r.text().includes('דני'))
+      await row.findAll('button').find((b) => b.text() === 'מחיקה').trigger('click')
+      await flushPromises()
+      expect(del).toHaveBeenCalled()
+      expect(wrapper.text()).not.toContain('דני')
+    })
+  })
 })

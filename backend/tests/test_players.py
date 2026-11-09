@@ -736,3 +736,32 @@ def test_linked_user_edits_own_coach_row(client: TestClient, db_session: Session
     db_session.commit()
     response = client.patch(f"/teams/{own_team.id}/players/{coach.id}", json={"name": "New"})
     assert response.status_code == 200
+
+
+def test_admin_player_list_scoped_to_writable_teams(
+    team_admin_client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    mine = _player(db_session, own_team, name="Mine")
+    gone = _player(db_session, own_team, name="Gone")
+    gone.deleted_at = datetime.now(UTC)
+    _player(db_session, other_team, name="Theirs")
+    db_session.commit()
+    response = team_admin_client.get("/players")
+    assert response.status_code == 200
+    assert [(p["id"], p["team_id"]) for p in response.json()] == [(mine.id, own_team.id)]
+
+
+def test_admin_player_list_full_admin_sees_every_team(
+    admin_client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    _player(db_session, own_team, name="A")
+    _player(db_session, other_team, name="B")
+    response = admin_client.get("/players")
+    assert response.status_code == 200
+    assert sorted(p["name"] for p in response.json()) == ["A", "B"]
+
+
+def test_admin_player_list_requires_admin(client: TestClient, db_session: Session, own_team: Team) -> None:
+    assert client.get("/players").status_code == 401
+    _login_user(client, db_session, "m", Membership(team_id=own_team.id, role="member"))
+    assert client.get("/players").status_code == 403
