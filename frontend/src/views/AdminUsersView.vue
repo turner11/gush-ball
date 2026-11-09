@@ -5,6 +5,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import FilterCombobox from '../components/FilterCombobox.vue'
 import SearchInput from '../components/SearchInput.vue'
 import { fullAdmin, useAuth } from '../composables/useAuth'
+import { useFavorites } from '../composables/useFavorites'
 import { useLeagueFilter } from '../composables/useLeagueFilter'
 import { apiFetch } from '../lib/api'
 import { scopeLabel, userLabel } from '../lib/format'
@@ -21,9 +22,10 @@ const error = ref(null)
 const pendingDelete = ref(null)
 
 const teams = ref([])
+const { sortTeams } = useFavorites()
 const teamId = ref('') // '' = all teams
 const { leagueId, leagueOptions, teamsInLeague } = useLeagueFilter(teams)
-const teamOptions = computed(() => teamsInLeague.value.map((t) => ({ value: String(t.id), label: t.name })))
+const teamOptions = computed(() => sortTeams(teamsInLeague.value).map((t) => ({ value: String(t.id), label: t.name })))
 const filtering = computed(() => leagueId.value !== '' || teamId.value !== '')
 
 // A league or team filter keeps users with a grant on a team in scope, or on a club that owns one.
@@ -89,7 +91,7 @@ const status = ref(null)
 // A pending team stays listed: assigning it is the approve path.
 const assignOptions = (u) => {
   const taken = new Set(u.memberships.filter((m) => m.team_id && m.role !== 'pending').map((m) => m.team_id))
-  return teams.value.filter((t) => !taken.has(t.id)).map((t) => ({ value: String(t.id), label: t.name }))
+  return sortTeams(teams.value.filter((t) => !taken.has(t.id))).map((t) => ({ value: String(t.id), label: t.name }))
 }
 
 const clubOptions = (u) => {
