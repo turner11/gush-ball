@@ -18,15 +18,18 @@ const LEAGUES = [league(10, 'ליגת נערים א', '2026-7'), league(11, 'ל�
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 const fail = { ok: false, status: 500, statusText: 'err', json: async () => ({}) }
 
+let searchResult = () => ok([])
+
 function mockApi(teams, leagues) {
   global.fetch = vi.fn((url) => {
     if (url === '/api/teams') return Promise.resolve(typeof teams === 'function' ? teams() : ok(teams))
+    if (url.startsWith('/api/leagues/teams?q=')) return Promise.resolve(searchResult())
     if (url === '/api/leagues') return Promise.resolve(typeof leagues === 'function' ? leagues() : ok(leagues))
     return Promise.reject(new Error(`Unhandled fetch: ${url}`))
   })
 }
 
-async function mountView() {
+async function mountView(path = '/teams') {
   const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -35,7 +38,7 @@ async function mountView() {
       { path: '/:slug', component: { template: '<div/>' } },
     ],
   })
-  await router.push('/teams')
+  await router.push(path)
   const { default: TeamsView } = await import('./TeamsView.vue')
   const wrapper = mount(TeamsView, { global: { plugins: [router] } })
   await flushPromises()
@@ -47,6 +50,7 @@ const button = (w, text) => w.findAll('button').find((b) => b.text() === text)
 
 describe('TeamsView', () => {
   beforeEach(() => {
+    searchResult = () => ok([])
     vi.resetModules()
     localStorage.clear()
   })
@@ -169,5 +173,92 @@ describe('TeamsView', () => {
   it('shows the empty state when there are no leagues and no teams', async () => {
     mockApi([], [])
     expect((await mountView()).text()).toContain('אין ליגות עדיין.')
+  })
+
+  const scraped = (name, team_id, leagueId = 10) => ({
+    name,
+    logo_url: null,
+    ibasketball_team_url: `https://ibasketball.co.il/team/${name}/`,
+    team_id,
+    league: league(leagueId, 'ליגת נערים א', '2026-7'),
+  })
+  const searchCalls = () => global.fetch.mock.calls.filter(([u]) => u.startsWith('/api/leagues/teams'))
+  const withTimers = async (fn) => {
+    vi.useFakeTimers()
+    try {
+      await fn()
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+  const settle = async () => {
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPromises()
+  }
+
+  it('team search replaces the leagues with matching on-site teams, starts-with before substring', async () => {
+    mockApi(
+      [
+        { ...team(1, 'A', `${SEG}2026-7/`), name: 'הפועל מכבי' },
+        { ...team(2, 'B', `${SEG}2026-7/`), name: 'מכבי חיפה' },
+        { ...team(3, 'C', `${SEG}2026-7/`), name: 'אחר' },
+      ],
+      LEAGUES,
+    )
+    await withTimers(async () => {
+      const wrapper = await mountView('/teams?q=מכבי')
+      await settle()
+      expect(wrapper.text()).not.toContain('ליגת בוגרים')
+      expect(wrapper.findAll('a').map((a) => a.text())).toEqual([
+        expect.stringContaining('מכבי חיפה'),
+        expect.stringContaining('הפועל מכבי'),
+      ])
+    })
+  })
+
+  it('team search adds scraped-only teams linking to their league page, merged by match tier', async () => {
+    mockApi([{ ...team(1, 'A', `${SEG}2026-7/`), name: 'הפועל מכבי' }], LEAGUES)
+    searchResult = () => ok([scraped('מכבי רחוק', null, 11), scraped('הפועל מכבי', 1)])
+    await withTimers(async () => {
+      const wrapper = await mountView('/teams?q=מכבי')
+      await settle()
+      const links = wrapper.findAll('a')
+      expect(links.map((a) => a.attributes('href'))).toEqual(['/teams/11', '/a'])
+      expect(links[0].text()).toContain('לא באתר')
+    })
+  })
+
+  it('one-character team query filters locally without calling the search endpoint', async () => {
+    mockApi([{ ...team(1, 'A', `${SEG}2026-7/`), name: 'מכבי' }], LEAGUES)
+    await withTimers(async () => {
+      const wrapper = await mountView('/teams?q=מ')
+      await settle()
+      expect(wrapper.findAll('a').map((a) => a.attributes('href'))).toEqual(['/a'])
+      expect(searchCalls()).toHaveLength(0)
+    })
+  })
+
+  it('scraped search failure keeps on-site matches and offers retry', async () => {
+    mockApi([{ ...team(1, 'A', `${SEG}2026-7/`), name: 'מכבי' }], LEAGUES)
+    searchResult = () => fail
+    await withTimers(async () => {
+      const wrapper = await mountView('/teams?q=מכבי')
+      await settle()
+      expect(wrapper.findAll('a').map((a) => a.attributes('href'))).toEqual(['/a'])
+      expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+      searchResult = () => ok([scraped('מכבי רחוק', null)])
+      await button(wrapper, 'נסו שוב').trigger('click')
+      await flushPromises()
+      expect(wrapper.findAll('a')).toHaveLength(2)
+    })
+  })
+
+  it('switching to all leagues clears the team query', async () => {
+    mockApi([team(1, 'A', `${SEG}2026-7/`)], LEAGUES)
+    const wrapper = await mountView('/teams?q=קבוצה')
+    await button(wrapper, 'כל הליגות').trigger('click')
+    await flushPromises()
+    expect(window.location.search).not.toContain('q=')
+    expect(wrapper.find('input[type="search"]').element.value).toBe('')
   })
 })
