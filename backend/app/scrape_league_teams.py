@@ -3,6 +3,7 @@ played results in it (#537)."""
 
 import html
 import logging
+import threading
 import time
 from collections.abc import Callable
 from typing import Any
@@ -52,6 +53,25 @@ def _fetch_search(query: str, league_ids: list[int]) -> list[dict]:
     )
     resp.raise_for_status()
     return resp.json()
+
+
+_search_slots = threading.Semaphore(4)  # caps concurrent uncached searches so unique queries can't stall the API (#366)
+_SEARCH_FAILED = ("search",)  # shared failure marker: one failed search short-circuits all searches for FAIL_TTL
+
+
+def _load_search(query: str, league_ids: list[int]) -> list[dict]:
+    failed = _cache.get(_SEARCH_FAILED)
+    if failed and time.monotonic() - failed[0] < FAIL_TTL:
+        raise httpx.HTTPError(f"search: ibasketball failed under {FAIL_TTL}s ago, not retrying yet")
+    if not _search_slots.acquire(blocking=False):
+        raise httpx.HTTPError("search: too many concurrent ibasketball searches")
+    try:
+        return _parse_teams(_fetch_search(query, league_ids))
+    except httpx.HTTPError:
+        _cache[_SEARCH_FAILED] = (time.monotonic(), None)
+        raise
+    finally:
+        _search_slots.release()
 
 
 def _cached(key: Any, load: Callable[[], Any]) -> Any:
@@ -161,7 +181,7 @@ def search_teams(db: Session, query: str) -> list[dict]:
     leagues = {lg.ibasketball_id: lg for lg in db.scalars(select(League))}
     if not leagues:
         return []
-    rows = _cached(("search", query.casefold()), lambda: _parse_teams(_fetch_search(query, sorted(leagues))))
+    rows = _cached(("search", query.casefold()), lambda: _load_search(query, sorted(leagues)))
     ours = _our_team_ids(db)
     found = []
     for row in rows:

@@ -164,7 +164,7 @@ function clearSearch() {
     </template>
 
     <template v-else-if="teamQuery">
-      <p class="text-sm text-muted" aria-live="polite">{{ teamResults.length }} קבוצות</p>
+      <p class="text-sm text-muted" aria-live="polite">{{ teamResults.length === 1 ? 'קבוצה אחת' : `${teamResults.length} קבוצות` }}</p>
       <div v-if="teamResults.length" class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <TeamCard
           v-for="r in teamResults"
@@ -179,12 +179,11 @@ function clearSearch() {
           <span v-if="r.scraped" class="badge-muted">לא באתר</span>
         </TeamCard>
       </div>
-      <p v-else-if="scraped.loading" class="mt-3 text-sm text-muted" role="status">מחפש קבוצות נוספות…</p>
-      <div v-else-if="!scraped.failed" class="empty-state mt-3">
+      <div v-if="!teamResults.length && !scraped.loading && !scraped.failed" class="empty-state mt-3">
         <p>אין קבוצות התואמות לחיפוש "{{ teamQuery }}".</p>
         <button type="button" class="btn-secondary mt-3" @click="clearSearch">נקה חיפוש</button>
       </div>
-      <p v-if="scraped.loading && teamResults.length" class="mt-3 text-sm text-muted" role="status">מחפש קבוצות נוספות…</p>
+      <p v-if="scraped.loading" class="mt-3 text-sm text-muted" role="status">מחפש קבוצות נוספות…</p>
       <LoadError v-if="scraped.failed" class="mt-3" message="לא הצלחנו לחפש קבוצות באתר האיגוד" @retry="searchScraped(teamQuery)" />
     </template>
 

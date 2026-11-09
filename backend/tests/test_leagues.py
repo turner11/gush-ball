@@ -196,6 +196,27 @@ def test_team_search_502_when_ibasketball_down(client: TestClient, db_session: S
     assert client.get("/leagues/teams", params={"q": "מכבי"}).status_code == 502
 
 
+def test_team_search_failure_short_circuits_other_queries(
+    client: TestClient, db_session: Session, fake_search: dict
+) -> None:
+    _league(db_session)
+    fake_search["error"] = httpx.ConnectError("down")
+    assert client.get("/leagues/teams", params={"q": "מכבי"}).status_code == 502
+    assert client.get("/leagues/teams", params={"q": "הפועל"}).status_code == 502
+    assert len(fake_search["calls"]) == 1
+
+
+def test_team_search_502_when_slots_saturated(client: TestClient, db_session: Session, fake_search: dict) -> None:
+    _league(db_session)
+    held = [scrape_league_teams._search_slots.acquire() for _ in range(4)]
+    try:
+        assert client.get("/leagues/teams", params={"q": "מכבי"}).status_code == 502
+    finally:
+        for _ in held:
+            scrape_league_teams._search_slots.release()
+    assert fake_search["calls"] == []
+
+
 def test_team_search_without_leagues_returns_empty_without_fetching(client: TestClient, fake_search: dict) -> None:
     res = client.get("/leagues/teams", params={"q": "מכבי"})
     assert res.status_code == 200
