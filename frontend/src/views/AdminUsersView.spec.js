@@ -103,6 +103,13 @@ describe('AdminUsersView', () => {
       expect(names()).toEqual(['dana'])
     })
 
+    it('team filter options follow the shared team order', async () => {
+      const { wrapper } = await mounted()
+      const { default: FilterCombobox } = await import('../components/FilterCombobox.vue')
+      const filter = wrapper.findAllComponents(FilterCombobox).find((c) => c.props('id') === 'user-team-filter')
+      expect(filter.props('options').map((o) => o.value)).toEqual(['6', '7', '5', '8'])
+    })
+
     it('team filter narrows further and resets when the league excludes it', async () => {
       const { pick, names } = await mounted()
       await pick('user-league-filter', '2')
@@ -147,13 +154,13 @@ describe('AdminUsersView', () => {
       { id: 6, name: 'בוגרים', club: null, ibasketball_league_url: null },
     ]
     const MEMBER = { team_id: 6, team_name: 'בוגרים', club: null, role: 'member' }
-    const mounted = async (put, dana = USERS[1]) => {
+    const mounted = async (put, dana = USERS[1], { teams = TEAMS, viewer } = {}) => {
       mockFetch({
         'GET /api/users': () => jsonRes([USERS[0], dana]),
-        'GET /api/teams': () => jsonRes(TEAMS),
+        'GET /api/teams': () => jsonRes(teams),
         ...put,
       })
-      const wrapper = await mountView()
+      const wrapper = await mountView(viewer)
       const { default: FilterCombobox } = await import('../components/FilterCombobox.vue')
       await wrapper.find('[aria-label="שיוך dana"]').trigger('click')
       await flushPromises()
@@ -168,6 +175,19 @@ describe('AdminUsersView', () => {
       }
       return { wrapper, combobox, pick, submit }
     }
+
+    it('assign team options put starred teams first, then alphabetical', async () => {
+      const teams = [
+        { id: 5, name: 'נוער', club: null, ibasketball_league_url: null },
+        { id: 6, name: 'בוגרים', club: null, ibasketball_league_url: null },
+        { id: 9, name: 'גלבוע', club: null, ibasketball_league_url: null },
+      ]
+      const { combobox } = await mounted({}, { ...USERS[1], memberships: [] }, {
+        teams,
+        viewer: { username: 'admin', favorite_team_ids: [9] },
+      })
+      expect(combobox().props('options').map((o) => o.value)).toEqual(['9', '6', '5'])
+    })
 
     it('assigns a user to a team and shows the member badge', async () => {
       const { wrapper, combobox, pick, submit } = await mounted({ 'PUT /api/users/2/teams/6': () => jsonRes(MEMBER) })
