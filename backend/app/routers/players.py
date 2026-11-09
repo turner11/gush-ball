@@ -16,14 +16,16 @@ from pydantic import (
     computed_field,
 )
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app.deps import (
     DbSession,
     OptionalUser,
+    RequireAnyAdmin,
     RequireTeamAdmin,
     RequireUser,
+    admin_team_ids,
     can_write_team,
     check_player_self_or_team_admin,
     check_team_scope,
@@ -206,6 +208,21 @@ def create_player(
     db.commit()
     db.refresh(player)
     return _public_player(player, True)
+
+
+@router.get("/players", response_model=list[PlayerOut])
+def list_admin_players(db: DbSession, admin: RequireAnyAdmin) -> list[PlayerOut]:
+    """Every live player on the teams this admin can write (#633); powers "all teams" on the admin players page."""
+    # ponytail: unpaginated, client-side search; add a `q` param if the payload grows.
+    query = (
+        select(Player)
+        .where(Player.deleted_at.is_(None))
+        .options(selectinload(Player.images), selectinload(Player.videos))
+    )
+    scope = admin_team_ids(db, admin)
+    if scope is not None:
+        query = query.where(Player.team_id.in_(scope))
+    return [_public_player(p, True) for p in db.scalars(query)]
 
 
 @router.get("/teams/{team_id}/players", response_model=list[PlayerOut])

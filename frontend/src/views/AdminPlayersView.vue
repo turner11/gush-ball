@@ -1,9 +1,9 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { ownTeams } from '../composables/useAuth'
-import { useSelectedTeam } from '../composables/useSelectedTeam'
+import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import AdminTeamPicker from '../components/AdminTeamPicker.vue'
 import AppIcon from '../components/AppIcon.vue'
 import ImageUpload from '../components/ImageUpload.vue'
@@ -20,8 +20,13 @@ const players = ref([])
 const loading = ref(true)
 const query = ref('')
 const searchInput = ref(null)
+const allTeams = ref(false) // #633: every writable team's players, to find someone by name
+const teamName = computed(() => Object.fromEntries(teams.value.map((t) => [t.id, t.name])))
+const byName = (a, b) => a.name.localeCompare(b.name, 'he')
 const shownPlayers = computed(() =>
-  players.value.filter((p) => matchesQuery(query.value, [p.name, p.name_en, p.jersey_number])).sort(byRosterOrder),
+  players.value
+    .filter((p) => matchesQuery(query.value, [p.name, p.name_en, p.jersey_number]))
+    .sort(allTeams.value ? byName : byRosterOrder),
 )
 const deletedPlayers = ref(null) // null = hidden
 const editing = ref(null)
@@ -52,9 +57,30 @@ async function loadLinks(teamId) {
   linkedUserIds.value = Object.fromEntries(rows.map((r) => [r.player_id, r.user_id]))
 }
 
+const current = () => (allTeams.value ? 'all' : selectedTeamId.value) // what a load must still match to apply
+
+async function loadAllPlayers() {
+  loading.value = true
+  error.value = null
+  try {
+    const loaded = await apiFetch('/players')
+    if (current() !== 'all') return
+    players.value = loaded
+    links.value = {}
+    loading.value = false
+    await nextTick() // SearchInput renders once players exist
+    searchInput.value?.focus()
+  } catch {
+    if (current() === 'all') error.value = 'שגיאה בטעינת השחקנים, נסו שוב'
+  } finally {
+    if (current() === 'all') loading.value = false
+  }
+}
+
 async function loadPlayers() {
   query.value = ''
   deletedPlayers.value = null
+  if (allTeams.value) return loadAllPlayers()
   if (!selectedTeamId.value) {
     players.value = []
     loading.value = false
@@ -64,27 +90,35 @@ async function loadPlayers() {
   loading.value = true
   try {
     const loaded = await apiFetch(`/teams/${id}/players`)
-    if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
+    if (current() !== id) return // a newer team was selected meanwhile
     players.value = loaded
     await loadLinks(id)
-    if (id !== selectedTeamId.value) return
+    if (current() !== id) return
     // deep link from the player page (#496); re-checked per load since the layout may switch team after mount.
     // After loadLinks: startEdit reads the player's linked user, else saving would unlink the account.
     const linked = loaded.find((p) => p.id === Number(route.query.edit))
     if (linked) startEdit(linked)
   } finally {
-    if (id === selectedTeamId.value) loading.value = false
+    if (current() === id) loading.value = false
   }
 }
 
 const route = useRoute()
+const router = useRouter()
 
 onMounted(async () => {
   teams.value = ownTeams(await apiFetch('/teams'))
   await loadPlayers()
 })
 
-watch(selectedTeamId, loadPlayers)
+watch([selectedTeamId, allTeams], loadPlayers)
+
+// Editing needs the team's form, links and videos, so jump to the team page with the edit form open (#496).
+async function openInTeam(player) {
+  const team = teams.value.find((t) => t.id === player.team_id)
+  await router.push({ params: { slug: teamSlug(team) }, query: { edit: player.id } })
+  allTeams.value = false
+}
 
 function resetForm() {
   editing.value = null
@@ -124,7 +158,7 @@ async function onSaved(saved) {
 async function onDelete(player) {
   error.value = null
   try {
-    await apiFetch(`/teams/${selectedTeamId.value}/players/${player.id}`, { method: 'DELETE' })
+    await apiFetch(`/teams/${player.team_id}/players/${player.id}`, { method: 'DELETE' })
     players.value = players.value.filter((p) => p.id !== player.id)
   } catch {
     error.value = 'שגיאה במחיקת השחקן, נסו שוב'
@@ -199,7 +233,7 @@ async function deleteImage(player, image) {
   <section class="space-y-6">
     <div class="page-header">
       <h1 class="page-title">ניהול שחקנים</h1>
-      <AdminTeamPicker :teams="teams" />
+      <AdminTeamPicker v-model:all="allTeams" all-label="כל הקבוצות" :teams="teams" />
     </div>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
@@ -227,6 +261,7 @@ async function deleteImage(player, image) {
                 </td>
                 <td data-label="שם">
                   {{ player.name }}
+                  <span v-if="allTeams" class="block text-xs text-muted">{{ teamName[player.team_id] }}</span>
                   <span v-if="links[player.id]" class="badge-muted">{{ links[player.id] }}</span>
                 </td>
                 <td data-label="תמונות" class="max-sm:flex-wrap">
@@ -252,7 +287,7 @@ async function deleteImage(player, image) {
                 </td>
                 <td class="justify-end">
                   <span class="inline-flex gap-1">
-                    <button type="button" class="btn-ghost" @click="startEdit(player)">עריכה</button>
+                    <button type="button" class="btn-ghost" @click="allTeams ? openInTeam(player) : startEdit(player)">עריכה</button>
                     <button type="button" class="btn-danger-ghost" @click="onDelete(player)">מחיקה</button>
                   </span>
                 </td>
@@ -265,7 +300,9 @@ async function deleteImage(player, image) {
           <button type="button" class="btn-secondary mt-3" @click="clearSearch">נקה חיפוש</button>
         </div>
 
-        <div>
+        <p v-if="allTeams && error" class="error-text" role="alert">{{ error }}</p>
+
+        <div v-if="!allTeams">
           <button type="button" class="btn-secondary" :aria-expanded="deletedPlayers !== null" @click="toggleDeleted">שחקנים שנמחקו</button>
           <div v-if="deletedPlayers" class="table-wrap">
             <table class="mt-2 w-full text-start">
@@ -283,7 +320,9 @@ async function deleteImage(player, image) {
         </div>
       </div>
 
+      <p v-if="allTeams" class="card text-muted">בחרו קבוצה כדי להוסיף שחקן.</p>
       <PlayerForm
+        v-else
         id="player-form"
         ref="formEl"
         :key="formKey"
@@ -313,6 +352,6 @@ async function deleteImage(player, image) {
         </div>
       </PlayerForm>
     </div>
-    <a href="#player-form" class="fab lg:hidden" aria-label="הוספת שחקן"><AppIcon name="plus" /></a>
+    <a href="#player-form" v-if="!allTeams" class="fab lg:hidden" aria-label="הוספת שחקן"><AppIcon name="plus" /></a>
   </section>
 </template>

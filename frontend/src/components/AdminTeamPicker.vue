@@ -7,7 +7,9 @@ import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import FilterCombobox from './FilterCombobox.vue'
 
 // League + team pickers for the /:slug/admin/* pages; picking a team navigates to its slug.
-const props = defineProps({ teams: { type: Array, required: true } })
+// Optional `all-label` adds an 'all teams' row bound to `v-model:all`.
+const props = defineProps({ teams: { type: Array, required: true }, allLabel: { type: String, default: null } })
+const all = defineModel('all', { type: Boolean, default: false })
 
 const route = useRoute()
 const router = useRouter()
@@ -16,9 +18,14 @@ const { leagueId, leagueOptions, teamsInLeague } = useLeagueFilter(toRef(props, 
 
 const teamOptions = computed(() => teamsInLeague.value.map((t) => ({ value: teamSlug(t), label: t.name })))
 const goToTeam = (slug) => router.push({ params: { slug } })
+function pickTeam(slug) {
+  all.value = !slug
+  if (slug) goToTeam(slug)
+}
 
 // Picking a league jumps to its first team, so the team picker never shows a team outside the chosen league.
 watch(leagueId, () => {
+  all.value = false
   const [first] = teamsInLeague.value
   if (first && !teamsInLeague.value.some((t) => String(t.id) === selectedTeamId.value)) goToTeam(teamSlug(first))
 })
@@ -27,7 +34,7 @@ watch(leagueId, () => {
 <template>
   <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
     <FilterCombobox
-      v-if="leagueOptions.length > 1"
+      v-if="leagueOptions.length > 1 && !all"
       id="league-filter"
       v-model="leagueId"
       label="ליגה"
@@ -39,9 +46,10 @@ watch(leagueId, () => {
       id="team-select"
       label="קבוצה"
       :options="teamOptions"
-      :model-value="route.params.slug"
+      :all-label="allLabel"
+      :model-value="all ? '' : route.params.slug"
       class="w-full sm:w-64"
-      @update:model-value="goToTeam"
+      @update:model-value="pickTeam"
     />
   </div>
 </template>
