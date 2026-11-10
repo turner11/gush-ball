@@ -43,6 +43,31 @@ describe('FeaturedPosts', () => {
     expect(plain.find('section').classes()).toContain('bg-team')
   })
 
+  const loadImage = async (w, naturalWidth, naturalHeight) => {
+    const img = w.find('img:not([aria-hidden])')
+    Object.defineProperty(img.element, 'naturalWidth', { value: naturalWidth })
+    Object.defineProperty(img.element, 'naturalHeight', { value: naturalHeight })
+    await img.trigger('load')
+  }
+
+  it('shows a portrait image whole over a blurred copy of itself from sm up (#641)', async () => {
+    const w = mountIt([item(1, null, 'https://cdn/p.jpg')])
+    await loadImage(w, 600, 900)
+    const fg = w.find('img:not([aria-hidden])')
+    expect(fg.classes()).toContain('sm:object-contain')
+    expect(fg.classes()).toContain('object-cover')
+    const bg = w.find('img[aria-hidden="true"]')
+    expect(bg.attributes('src')).toBe('https://cdn/p.jpg')
+    expect(bg.classes()).toEqual(expect.arrayContaining(['blur-2xl', 'hidden', 'sm:block']))
+  })
+
+  it('keeps a landscape image as a full-bleed cover with no backdrop (#641)', async () => {
+    const w = mountIt([item(1, null, 'https://cdn/p.jpg')])
+    await loadImage(w, 1600, 900)
+    expect(w.find('img:not([aria-hidden])').classes()).not.toContain('sm:object-contain')
+    expect(w.findAll('img')).toHaveLength(1)
+  })
+
   it('a dot selects its slide, marks it current and stops auto-advance', async () => {
     const w = mountIt([item(1), item(2), item(3)])
     await dots(w)[1].trigger('click')
