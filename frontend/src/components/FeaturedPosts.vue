@@ -24,6 +24,12 @@ const readMoreTo = computed(() => {
 
 watch(() => props.items, () => (index.value = 0)) // posts reload after editing
 
+// #641: from sm up the banner is ~3:1, so a portrait or square photo is shown whole over a blurred copy instead of cropped. Keyed by URL so each slide remembers its orientation.
+const portrait = ref({})
+function onImageLoad(e) {
+  portrait.value[current.value.post.image_url] = e.target.naturalHeight >= e.target.naturalWidth
+}
+
 function select(i) {
   index.value = i
   paused.value = true // the user took control
@@ -41,7 +47,16 @@ onBeforeUnmount(() => clearInterval(timer))
   <section v-if="current" aria-roledescription="carousel" aria-label="עדכונים נבחרים" :aria-live="rotating ? 'off' : 'polite'" :class="current.post.image_url ? 'bg-black text-white' : 'bg-team text-on-team'" class="relative isolate min-w-0 overflow-hidden rounded-2xl p-6 shadow-card sm:p-10">
     <template v-if="current.post.image_url">
       <Transition name="flash">
-        <img :key="current.post.id" :src="current.post.image_url" alt="" class="absolute inset-0 -z-10 size-full object-cover" />
+        <div :key="current.post.id" class="absolute inset-0 -z-10">
+          <img v-if="portrait[current.post.image_url]" :src="current.post.image_url" alt="" aria-hidden="true" class="absolute inset-0 hidden size-full scale-110 object-cover opacity-60 blur-2xl sm:block" />
+          <img
+            :src="current.post.image_url"
+            alt=""
+            class="absolute inset-0 size-full object-cover"
+            :class="{ 'sm:object-contain': portrait[current.post.image_url] }"
+            @load="onImageLoad"
+          />
+        </div>
       </Transition>
       <div class="absolute inset-0 -z-10 bg-linear-to-t from-black/85 via-black/60 to-black/25" aria-hidden="true" />
     </template>
