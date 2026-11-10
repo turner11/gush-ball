@@ -9,6 +9,7 @@ import FavoriteStar from '../components/FavoriteStar.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { fullAdmin, previewMode, teamMember, useAuth } from '../composables/useAuth'
+import { loadPendingRequestCount, pendingBadge, pendingLabel } from '../composables/usePendingRequests'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug, useSelectedTeam, useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -79,6 +80,8 @@ const teamStyle = computed(() => {
 // The URL slug picks the team (useTeamFromRoute); slug-less pages follow the remembered team.
 const route = useRoute()
 const isHome = computed(() => ['home', 'team-home'].includes(route.name))
+watch(user, loadPendingRequestCount, { immediate: true })
+
 watch(selectedTeam, () => {
   if (!selectedTeam.value) return
   document.querySelector('link[rel="icon"]').href = selectedTeam.value.logo_url || LOGO_URL
@@ -212,18 +215,26 @@ onMounted(async () => {
               <DropdownMenuTrigger as-child>
                 <button
                   type="button"
-                  :aria-label="user.display_name + ' — תפריט חשבון'"
+                  :aria-label="user.display_name + ' — תפריט חשבון' + (pendingBadge ? ', ' + pendingLabel : '')"
                   :title="user.display_name"
-                  class="btn-icon"
+                  class="btn-icon relative"
                 >
                   <AppIcon name="user" />
+                  <span v-if="pendingBadge" class="badge-count absolute -top-0.5 -end-0.5" aria-hidden="true">{{ pendingBadge }}</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuContent align="start" :side-offset="4" class="menu-content">
                   <DropdownMenuLabel class="truncate px-3 py-1.5 text-xs text-muted" dir="auto">{{ user.display_name }}</DropdownMenuLabel>
                   <DropdownMenuItem v-if="user.is_admin" as-child>
-                    <RouterLink :to="teamBase + '/admin'" class="menu-item">ניהול</RouterLink>
+                    <RouterLink
+                      :to="teamBase + '/admin'"
+                      class="menu-item"
+                      :aria-label="pendingBadge ? 'ניהול, ' + pendingLabel : undefined"
+                    >
+                      ניהול
+                      <span v-if="pendingBadge" class="badge-count ms-auto" aria-hidden="true">{{ pendingBadge }}</span>
+                    </RouterLink>
                   </DropdownMenuItem>
                   <template v-if="user.is_admin">
                     <DropdownMenuItem

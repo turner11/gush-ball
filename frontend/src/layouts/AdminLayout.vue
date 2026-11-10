@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import AppIcon from '../components/AppIcon.vue'
@@ -7,10 +7,12 @@ import ErrorBoundary from '../components/ErrorBoundary.vue'
 import TabBar from '../components/TabBar.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { managesClubs, ownTeams, useAuth } from '../composables/useAuth'
+import { loadPendingRequestCount, pendingBadge, pendingLabel } from '../composables/usePendingRequests'
 import { useTeamFromRoute } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 
-const { logout } = useAuth()
+const { user, logout } = useAuth()
+watch(user, loadPendingRequestCount, { immediate: true })
 const router = useRouter()
 const route = useRoute()
 
@@ -20,7 +22,15 @@ const base = computed(() => (route.params.slug ? '/' + route.params.slug : ''))
 const isParent = (name) => route.meta.parent === name
 const parentAttrs = (name) => (isParent(name) ? { 'data-current': '', 'aria-current': 'true' } : {})
 const tabItems = computed(() => [
-  { to: base.value + '/admin', label: 'ראשי', icon: 'home', exact: true, current: isParent('admin-home') },
+  {
+    to: base.value + '/admin',
+    label: 'ראשי',
+    icon: 'home',
+    exact: true,
+    current: isParent('admin-home'),
+    badge: pendingBadge.value,
+    ariaLabel: pendingBadge.value ? 'ראשי, ' + pendingLabel.value : undefined,
+  },
   { to: base.value + '/admin/players', label: 'שחקנים', icon: 'users' },
   { to: base.value + '/admin/games', label: 'משחקים', icon: 'calendar' },
   { to: '/admin/standings', label: 'טבלה', icon: 'table' },
@@ -53,7 +63,10 @@ async function onLogout() {
         <RouterLink :to="base + '/admin'" class="inline-flex min-h-11 items-center font-black">ניהול</RouterLink>
         <nav aria-label="ניהול" class="ms-6 hidden md:block">
           <ul class="flex gap-5">
-            <li><RouterLink :to="base + '/admin'" class="nav-link" v-bind="parentAttrs('admin-home')">ראשי</RouterLink></li>
+            <li><RouterLink :to="base + '/admin'" class="nav-link gap-1.5" :aria-label="pendingBadge ? 'ראשי, ' + pendingLabel : undefined" v-bind="parentAttrs('admin-home')">
+              ראשי
+              <span v-if="pendingBadge" class="badge-count" aria-hidden="true">{{ pendingBadge }}</span>
+            </RouterLink></li>
             <li><RouterLink :to="base + '/admin/players'" class="nav-link">שחקנים</RouterLink></li>
             <li><RouterLink :to="base + '/admin/games'" class="nav-link">משחקים</RouterLink></li>
             <li><RouterLink to="/admin/standings" class="nav-link">טבלת ליגה</RouterLink></li>

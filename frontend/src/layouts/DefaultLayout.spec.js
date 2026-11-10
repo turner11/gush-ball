@@ -87,6 +87,40 @@ describe('DefaultLayout', () => {
     vi.restoreAllMocks()
   })
 
+  describe('pending-request badge (#639)', () => {
+    const pending = (n) => Array.from({ length: n }, (_, i) => ({ id: i, role: 'pending' }))
+    async function mountAs(me, memberships = [], teamRequests = []) {
+      mockFetch({
+        'GET /api/teams': () => jsonRes(TEAMS),
+        'GET /api/auth/me': () => jsonRes({ display_name: 'Dana', ...me }),
+        'GET /api/memberships': () => jsonRes([...memberships, { id: 99, role: 'member' }]),
+        'GET /api/team-requests': () => jsonRes(teamRequests),
+      })
+      const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+      const wrapper = mount(DefaultLayout, { global: { plugins: [router] } })
+      await flushPromises()
+      return wrapper
+    }
+    const trigger = (w) => w.find('button[aria-label*="תפריט חשבון"]')
+
+    it('shows the pending-request count on the account menu for a team admin', async () => {
+      const w = await mountAs({ is_admin: true, team_ids: [1] }, pending(2), [{ id: 8 }])
+      expect(trigger(w).find('.badge-count').text()).toBe('3')
+      expect(trigger(w).attributes('aria-label')).toContain('3 בקשות ממתינות')
+    })
+
+    it('never shows the badge or fetches requests for a full admin', async () => {
+      const w = await mountAs({ is_admin: true, team_ids: null }, pending(2))
+      expect(w.find('.badge-count').exists()).toBe(false)
+      expect(global.fetch.mock.calls.map((c) => c[0])).not.toContain('/api/memberships')
+    })
+
+    it('shows no badge when a team admin has nothing pending', async () => {
+      const w = await mountAs({ is_admin: true, team_ids: [1] })
+      expect(w.find('.badge-count').exists()).toBe(false)
+    })
+  })
+
   it('sets meta description from route meta with the selected team name', async () => {
     mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
 

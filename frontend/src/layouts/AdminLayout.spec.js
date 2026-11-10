@@ -46,7 +46,11 @@ describe('AdminLayout nav', () => {
     global.fetch = vi.fn((url) =>
       url === '/api/teams'
         ? Promise.resolve({ ok: true, status: 200, json: async () => TEAMS })
-        : Promise.reject(new Error('no fetch')),
+        : url === '/api/memberships'
+          ? Promise.resolve({ ok: true, status: 200, json: async () => [{ id: 1, role: 'pending' }, { id: 2, role: 'member' }] })
+          : url === '/api/team-requests'
+            ? Promise.resolve({ ok: true, status: 200, json: async () => [{ id: 8 }] })
+            : Promise.reject(new Error('no fetch')),
     )
   })
 
@@ -139,5 +143,11 @@ describe('AdminLayout nav', () => {
     expect(link(w, '/admin/teams').attributes('aria-current')).toBe('page')
     expect(link(w, '/admin/teams').attributes('data-current')).toBeUndefined()
     expect(w.find('[data-testid="tab-bar"] a[href="/admin/teams"]').attributes('aria-current')).toBe('page')
+  })
+
+  it('badges the ראשי link and tab with the pending count for a club admin (#639)', async () => {
+    const w = await mountAt('/admin', { is_admin: true, team_ids: [1], clubs: ['Gush'] })
+    expect(link(w, '/admin').find('.badge-count').text()).toBe('2')
+    expect(w.find('[data-testid="tab-bar"] a[href="/admin"] .badge-count').exists()).toBe(true)
   })
 })

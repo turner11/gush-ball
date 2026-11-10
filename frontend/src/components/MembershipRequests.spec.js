@@ -179,4 +179,17 @@ describe('MembershipRequests', () => {
     expect(wrapper.find('[role="alert"]').text()).toContain('שגיאה בעדכון הבקשה')
     expect(wrapper.text()).toContain('Dana Cohen')
   })
+
+  it('approving updates the shared pending count (#639)', async () => {
+    mockFetch({
+      'GET /api/memberships': () => jsonRes(ROWS),
+      'POST /api/memberships/3/approve': () => jsonRes(null, 204),
+    })
+    const { pendingRequestCount } = await import('../composables/usePendingRequests')
+    const wrapper = await mountQueue()
+    expect(pendingRequestCount.value).toBe(2)
+    await wrapper.find('button[aria-label="אישור הבקשה של Dana Cohen"]').trigger('click')
+    await flushPromises()
+    expect(pendingRequestCount.value).toBe(1)
+  })
 })
