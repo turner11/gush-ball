@@ -236,6 +236,18 @@ describe('StatsView', () => {
       expect(players().findAll('polyline.text-team')).toHaveLength(1)
     })
 
+    it('clicking a player line highlights it and selects that player in the dropdown', async () => {
+      mockFetch({ 'GET /api/teams/1/games': SCORED_GAMES, 'GET /api/teams/1/games/scorers': () => jsonRes(SCORERS) })
+      await router.push('/stats')
+      const wrapper = await mountView()
+      const select = wrapper.find('#highlight-player')
+      expect(select.element.value).toBe('2')
+      const chart = wrapper.findAll('svg[role=img]')[1]
+      await chart.findAll('polyline[data-hit]').find((h) => h.find('title').text() === 'אלף').trigger('click')
+      expect(select.element.value).toBe('1')
+      expect(chart.find('g.text-team circle title').text()).toContain('אלף')
+    })
+
     it('charts still render when the team has no BBStats games', async () => {
       mockFetch({ 'GET /api/teams/1/games': SCORED_GAMES, 'GET /api/teams/1/games/scorers': () => jsonRes(SCORERS) })
       await router.push('/stats')
