@@ -47,4 +47,22 @@ describe('LineChart', () => {
     expect(wrapper.findAll('line.text-win, line.text-loss')).toHaveLength(0)
     expect(wrapper.find('table.sr-only').text()).not.toContain('תוצאה')
   })
+
+  it('selectable: each line gets a hit area titled with its series name', () => {
+    const wrapper = mount(LineChart, { props: { ...props, selectable: true } })
+    const hits = wrapper.findAll('polyline[data-hit]')
+    expect(hits.map((h) => h.find('title').text())).toEqual(['נקודות', 'יריבה'])
+  })
+
+  it('selectable: clicking a line emits select with its key', async () => {
+    const wrapper = mount(LineChart, { props: { ...props, selectable: true } })
+    await wrapper.findAll('polyline[data-hit]')[1].trigger('click')
+    expect(wrapper.emitted('select')).toEqual([['b']])
+  })
+
+  it('not selectable by default: no hit areas', () => {
+    const wrapper = mount(LineChart, { props })
+    expect(wrapper.find('polyline[data-hit]').exists()).toBe(false)
+    expect(wrapper.find('.cursor-pointer').exists()).toBe(false)
+  })
 })
