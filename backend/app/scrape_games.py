@@ -467,6 +467,7 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
                 and game.status == GameStatus.SCHEDULED
                 and game.team_score is None
                 and game.opponent_score is None
+                and not game.scrape_suggestion_dismissed  # admin rejected this result
                 and game.scheduled_at.date() == incoming["scheduled_at"].date()
             ):
                 game.status, game.team_score, game.opponent_score = game_status, team_score, opponent_score
