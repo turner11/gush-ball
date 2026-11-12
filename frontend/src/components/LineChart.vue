@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 
 // Presentational line chart. labels: x categories, oldest first. series: [{ key, name, values: (number|null)[], emphasis }].
+// selectable: lines get a wide hover/click hit area (native <title> tooltip = series name) and click emits select(key).
+// ponytail: native tooltip has a browser delay, hover darkening is the instant cue; a one-point line has no hit area.
 // Always LTR whatever the page language (#625): oldest point on the left, y labels on the left.
 const props = defineProps({
   labels: { type: Array, required: true },
@@ -9,7 +11,9 @@ const props = defineProps({
   ariaLabel: { type: String, required: true },
   // 'W' | 'L' | null per label: draws a win/loss connector between series[0] and series[1] at that point.
   outcomes: { type: Array, default: () => [] },
+  selectable: { type: Boolean, default: false },
 })
+const emit = defineEmits(['select'])
 
 const W = 640
 const H = 240
@@ -58,8 +62,18 @@ const connectors = computed(() => {
         <text v-for="i in shownLabels" :key="i" :x="x(i)" :y="H - 8">{{ labels[i] }}</text>
       </g>
       <line v-for="c in connectors" :key="c.i" :class="c.cls" :x1="c.x" :x2="c.x" :y1="c.y1" :y2="c.y2" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
-      <g v-for="l in lines" :key="l.key" :class="l.cls" fill="none" stroke="currentColor">
-        <polyline :class="l.cls" :points="l.path" :stroke-width="l.width" :stroke-dasharray="l.dash" stroke-linejoin="round" stroke-linecap="round" />
+      <g
+        v-for="l in lines"
+        :key="l.key"
+        :class="[l.cls, selectable && 'group cursor-pointer']"
+        fill="none"
+        stroke="currentColor"
+        @click="selectable && emit('select', l.key)"
+      >
+        <polyline :class="[l.cls, selectable && l.emphasis === 'muted' && 'group-hover:text-muted']" :points="l.path" :stroke-width="l.width" :stroke-dasharray="l.dash" stroke-linejoin="round" stroke-linecap="round" />
+        <polyline v-if="selectable" data-hit :points="l.path" stroke="transparent" stroke-width="24" pointer-events="stroke">
+          <title>{{ l.name }}</title>
+        </polyline>
         <template v-if="l.emphasis !== 'muted'">
           <circle v-for="p in l.points" :key="p.i" :cx="p.x" :cy="p.y" r="5" fill="currentColor" stroke="none">
             <title>{{ l.name }} · {{ labels[p.i] }} · {{ p.v }}</title>

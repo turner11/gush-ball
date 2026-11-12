@@ -144,7 +144,7 @@ const pick = (event) => router.push({ query: event.target.value ? { game: event.
                   <option v-for="p in scorers" :key="p.id" :value="p.id">{{ p.name }}</option>
                 </select>
               </div>
-              <LineChart :labels="scorerLabels" :series="scorerSeries" aria-label="נקודות של כל שחקן לאורך העונה" />
+              <LineChart :labels="scorerLabels" :series="scorerSeries" aria-label="נקודות של כל שחקן לאורך העונה" selectable @select="chosenId = $event" />
             </template>
             <p v-else class="text-sm text-muted">הגרף יופיע אחרי שני משחקים עם קלעים</p>
           </div>
