@@ -459,6 +459,19 @@ def sync_team_games(db: Session, team: Team, auto_accept: bool = True) -> int:
                 "team_score": team_score,
                 "opponent_score": opponent_score,
             }
+            # #646: fill the result when the admin entered none (still the unplayed
+            # defaults) and the game is on the event's day — nothing is overwritten.
+            if (
+                team_score is not None
+                and opponent_score is not None
+                and game.status == GameStatus.SCHEDULED
+                and game.team_score is None
+                and game.opponent_score is None
+                and not game.scrape_suggestion_dismissed  # admin rejected this result
+                and game.scheduled_at.date() == incoming["scheduled_at"].date()
+            ):
+                game.status, game.team_score, game.opponent_score = game_status, team_score, opponent_score
+                log.info("Games sync: game %d result auto-applied (overridden game had none)", game.id)
             current = {
                 "opponent_name": game.opponent.name,
                 "is_home": game.is_home,
