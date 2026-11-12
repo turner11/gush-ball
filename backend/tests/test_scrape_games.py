@@ -464,6 +464,43 @@ def test_resync_skips_manually_overridden_game(
     assert game.scrape_suggestion_dismissed is False
 
 
+def _resync_overridden_with_result(db_session: Session, monkeypatch: pytest.MonkeyPatch, moved_to: datetime) -> Game:
+    team = _make_team(db_session)
+    fake = FakeApi([FUTURE_EVENT])
+    monkeypatch.setattr(scrape_games, "_get_json", fake)
+    scrape_games.sync_team_games(db_session, team, auto_accept=False)
+
+    game = db_session.query(Game).filter_by(source_event_id=9001).one()
+    game.is_manually_overridden = True
+    game.scheduled_at = moved_to
+    db_session.commit()
+
+    fake.events = [{**FUTURE_EVENT, "status": "publish", "main_results": [90, 88]}]
+    scrape_games.sync_team_games(db_session, team)
+    db_session.refresh(game)
+    return game
+
+
+def test_resync_fills_score_of_overridden_game_without_result(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    game = _resync_overridden_with_result(db_session, monkeypatch, datetime(2026, 10, 28, 20, 0))
+
+    assert (game.status, game.team_score, game.opponent_score) == (GameStatus.FINAL, 90, 88)
+    assert game.is_manually_overridden is True
+    assert game.scheduled_at == datetime(2026, 10, 28, 20, 0)
+    assert list(game.scrape_suggestion) == ["scheduled_at"]
+
+
+def test_resync_never_fills_score_of_overridden_game_on_another_day(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    game = _resync_overridden_with_result(db_session, monkeypatch, datetime(2026, 10, 30, 21, 0))
+
+    assert (game.status, game.team_score, game.opponent_score) == (GameStatus.SCHEDULED, None, None)
+    assert {"team_score", "opponent_score"} <= set(game.scrape_suggestion)
+
+
 def _sync_then_reissue(db_session: Session, monkeypatch: pytest.MonkeyPatch, reissued: dict, **edits) -> tuple[Team, Game]:
     team = _make_team(db_session)
     fake = FakeApi([FUTURE_EVENT])
