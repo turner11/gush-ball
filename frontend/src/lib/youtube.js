@@ -1,22 +1,35 @@
-// The youtube-nocookie embed URL for a YouTube link (watch, youtu.be, shorts, embed), or null for any other URL.
-export function youtubeEmbedUrl(url) {
+// The video id of a YouTube link (watch, youtu.be, shorts, embed), or null for any other URL.
+function youtubeId(url) {
   try {
     const u = new URL(url)
-    let id = null
-    if (u.hostname === 'youtu.be') id = u.pathname.slice(1)
-    else if (u.hostname.endsWith('youtube.com')) {
-      if (u.pathname === '/watch') id = u.searchParams.get('v')
-      else id = u.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1]
-    }
-    if (!id) return null
-    const { start, end } = videoSegment(url)
-    const query = new URLSearchParams()
-    if (start !== null) query.set('start', start)
-    if (end !== null) query.set('end', end)
-    return `https://www.youtube-nocookie.com/embed/${id}${query.size ? `?${query}` : ''}`
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1) || null
+    if (!u.hostname.endsWith('youtube.com')) return null
+    if (u.pathname === '/watch') return u.searchParams.get('v') || null
+    return u.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1] ?? null
   } catch {
     return null // not a URL: a plain link
   }
+}
+
+// The youtube-nocookie embed URL for a YouTube link, or null for any other URL.
+export function youtubeEmbedUrl(url) {
+  const id = youtubeId(url)
+  if (!id) return null
+  const { start, end } = videoSegment(url)
+  const query = new URLSearchParams()
+  if (start !== null) query.set('start', start)
+  if (end !== null) query.set('end', end)
+  return `https://www.youtube-nocookie.com/embed/${id}${query.size ? `?${query}` : ''}`
+}
+
+// The youtube.com watch URL at the clip start (youtube.com has no end param), or null for any other URL.
+export function youtubeWatchUrl(url) {
+  const id = youtubeId(url)
+  if (!id) return null
+  const query = new URLSearchParams({ v: id })
+  const { start } = videoSegment(url)
+  if (start !== null) query.set('t', start)
+  return `https://www.youtube.com/watch?${query}`
 }
 
 // Seconds from "90", "1:30", "1:02:03" (typed) or "90s", "1m30s", "1h2m3s" (YouTube's t=). Empty -> null, invalid -> NaN.
