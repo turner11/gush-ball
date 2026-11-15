@@ -5,7 +5,7 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -138,7 +138,16 @@ class GameMedia(BaseModel):
 class BriefingItem(BaseModel):
     title: VideoTitle
     text: Description = None
-    url: Url500 | None = None  # YouTube clips carry start/end as t=/end= (#650)
+    urls: list[Url500] = Field(default=[], max_length=10)  # YouTube clips carry start/end as t=/end= (#650)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_url(cls, data: object) -> object:
+        # ponytail: rows stored with one `url` (#658) convert on read and are rewritten on the next save;
+        # a JSON data migration can replace this if it ever matters.
+        if isinstance(data, dict) and "url" in data and "urls" not in data:
+            return {**{k: v for k, v in data.items() if k != "url"}, "urls": [data["url"]] if data["url"] else []}
+        return data
 
 
 Briefing = Annotated[list[BriefingItem], Field(max_length=20)]
