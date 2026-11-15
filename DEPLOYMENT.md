@@ -361,6 +361,30 @@ The code sends no request bodies, cookies, component props or local variables, a
 The nightly scrape (§5) needs no extra step: Coolify scheduled tasks run in the backend container and inherit
 `SENTRY_DSN`; a failing team is reported as an error event, and each run is also three `scrape` traces (one per kind; a thin run gives two, games and standings).
 
+## 11. Page shown during deploys
+
+Every deploy stops all four containers (db, backend, web, backup) for roughly 20-30 s, because Docker Compose resources get no
+rolling updates on Coolify ([docs](https://coolify.io/docs/knowledge-base/rolling-updates)). During that gap Coolify's proxy
+answers 503 "no available server". This section replaces that text with `frontend/proxy-error.html`
+([Coolify docs](https://coolify.io/docs/core/networking/proxy/maintenance-and-error-pages)). The setting is server-wide, so
+the other site on this machine gets the neutral "updating" version of the page.
+
+1. Open `frontend/proxy-error.html` on GitHub, click **Raw** and copy everything. In the copy, replace `gushball.example` in
+   the `GUSHBALL_HOSTS` line with the site's domain (the `PUBLIC_URL` value without `https://`). *Why:* the page shows the
+   GushBall version only on that hostname. *Verify:* the line reads `['<your-domain>', 'localhost']`.
+2. Coolify -> **Servers** -> the server -> **Proxy**. Under **Routing behavior**, set **Unknown requests** to **Use custom
+   request handling**. Leave **Redirect URL** empty. *Why:* a redirect takes priority over the page. If the section is
+   missing, update Coolify first (the upgrade notice in Coolify's sidebar), at a quiet hour, then come back.
+3. Paste the copy into **Custom error page (HTML)** and click **Save changes**. *Why:* Coolify serves this HTML, with status
+   503, whenever a domain has no running container. *Verify:* the field keeps the HTML after a page reload.
+4. Open `http://<server-ip>/` in a browser. *Why:* an unknown host hits the same fallback without taking the site down.
+   *Verify:* you see the neutral "האתר מתעדכן כרגע" card, not plain text; in DevTools -> Network the status is 503.
+5. In the resource, click **Redeploy**. While the log shows the containers restarting, open `https://<domain>/some-page` and
+   refresh. *Verify:* you see the GushBall "פסק זמן!" page, and within about 15 s after the deploy finishes it reloads into
+   the real page on the same URL.
+6. The repo file and Coolify's copy are separate; a deploy does not update Coolify's copy. After any edit to
+   `frontend/proxy-error.html`, repeat steps 1-3.
+
 ## Troubleshooting
 
 | Symptom | Likely cause |
@@ -369,6 +393,7 @@ The nightly scrape (§5) needs no extra step: Coolify scheduled tasks run in the
 | Backend exits on start, `session_secret` validation error | `SESSION_SECRET` missing or under 32 chars |
 | Backend can't connect to DB | `POSTGRES_PASSWORD` changed after the first boot (the DB keeps the old one) |
 | Domain returns 502 / "no available server" | Domain set on the wrong service (must be `web`), or `web` failed to start |
+| Plain "no available server" for about 20-30 s on every deploy | Expected gap (Compose has no rolling updates). If the GushBall page isn't shown, §11 isn't set up or the domain in `GUSHBALL_HOSTS` is wrong |
 | Admin login fails / CORS errors | `CORS_ORIGINS` doesn't match `https://<domain>` exactly |
 | No events in Sentry | `SENTRY_DSN` unset or not redeployed; `VITE_SENTRY_DSN` not available at build time (§10 step 6) |
 | Browser console: CSP `connect-src` blocks sentry.io | `connect-src` in `frontend/Caddyfile` lost `https://*.sentry.io` |
