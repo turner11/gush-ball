@@ -17,10 +17,11 @@ const saving = ref(false)
 const saveError = ref('')
 const form = reactive({ items: [] })
 
+const MAX_VIDEOS = 10 // matches the backend cap
 const orNull = (v) => v.trim() || null
 
 function fill(items) {
-  form.items = items.map((i) => ({ title: i.title, text: i.text ?? '', url: i.url ?? '' }))
+  form.items = items.map((i) => ({ title: i.title, text: i.text ?? '', urls: [...(i.urls ?? [])] }))
 }
 fill(props.items) // once, by design: the parent closes the editor on save
 
@@ -33,7 +34,7 @@ async function onSubmit() {
   saving.value = true
   saveError.value = ''
   try {
-    const body = form.items.map((i) => ({ title: i.title, text: orNull(i.text), url: orNull(i.url) }))
+    const body = form.items.map((i) => ({ title: i.title, text: orNull(i.text), urls: i.urls.map((u) => u.trim()).filter(Boolean) }))
     const items = await apiFetch(`/teams/${props.teamId}/games/${props.gameId}/briefing`, { method: 'PUT', body })
     emit('saved', items)
   } catch (e) {
@@ -53,11 +54,17 @@ async function onSubmit() {
         <label :for="`briefing-title-${i}`" class="field-label">כותרת פריט {{ i + 1 }}</label>
         <input :id="`briefing-title-${i}`" v-model="item.title" class="field-input" required maxlength="200" />
       </div>
-      <div>
-        <label :for="`briefing-url-${i}`" class="field-label">כתובת סרטון {{ i + 1 }} (לא חובה)</label>
-        <input :id="`briefing-url-${i}`" v-model="item.url" type="url" class="field-input" dir="ltr" inputmode="url" />
+      <div class="space-y-3 sm:col-span-2">
+        <div v-for="(_, j) in item.urls" :key="j" class="space-y-2">
+          <label :for="`briefing-url-${i}-${j}`" class="field-label">כתובת סרטון {{ j + 1 }} לפריט {{ i + 1 }}</label>
+          <div class="flex gap-2">
+            <input :id="`briefing-url-${i}-${j}`" v-model="item.urls[j]" type="url" class="field-input" dir="ltr" inputmode="url" />
+            <button type="button" class="btn-danger-ghost shrink-0" :aria-label="`הסרת סרטון ${j + 1} מפריט ${i + 1}`" @click="item.urls.splice(j, 1)">הסרה</button>
+          </div>
+          <VideoSegmentFields v-model="item.urls[j]" :id="`briefing-segment-${i}-${j}`" />
+        </div>
+        <button v-if="item.urls.length < MAX_VIDEOS" type="button" class="btn-ghost" :data-test="`add-video-${i}`" @click="item.urls.push('')">הוספת סרטון</button>
       </div>
-      <VideoSegmentFields v-model="item.url" :id="`briefing-segment-${i}`" class="sm:col-span-2" />
       <div class="sm:col-span-2">
         <label :for="`briefing-text-${i}`" class="field-label">טקסט {{ i + 1 }}</label>
         <textarea :id="`briefing-text-${i}`" v-model="item.text" class="field-input" rows="3" maxlength="2000"></textarea>
@@ -72,7 +79,7 @@ async function onSubmit() {
         <button type="button" class="btn-danger-ghost" :aria-label="`הסרת פריט ${i + 1}`" @click="form.items.splice(i, 1)">הסרה</button>
       </div>
     </div>
-    <button type="button" class="btn-secondary" data-test="add-item" @click="form.items.push({ title: '', text: '', url: '' })">הוספת פריט</button>
+    <button type="button" class="btn-secondary" data-test="add-item" @click="form.items.push({ title: '', text: '', urls: [''] })">הוספת פריט</button>
 
     <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
     <div class="sticky-actions">

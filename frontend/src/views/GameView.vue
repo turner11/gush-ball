@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import GameAverages from '../components/GameAverages.vue'
@@ -96,7 +96,35 @@ function onBriefingToggle(e) {
   }
 }
 
+// A cross-origin iframe never reports a play, but clicking or tabbing into one blurs the window and makes it
+// the active element: that is the video to enlarge. Keys are "item-video", so they reset with the list.
+const activeVideo = ref(null)
+function syncActiveVideo() {
+  const key = document.activeElement?.closest?.('[data-briefing-video]')?.dataset.briefingVideo
+  if (key) activeVideo.value = key
+}
+// Moving focus from one iframe to another fires no second window blur, so keep polling while the window is blurred.
+let blurPoll = null
+function onWindowBlur() {
+  syncActiveVideo()
+  blurPoll ??= setInterval(syncActiveVideo, 300)
+}
+function stopBlurPoll() {
+  clearInterval(blurPoll)
+  blurPoll = null
+}
+onMounted(() => {
+  window.addEventListener('blur', onWindowBlur)
+  window.addEventListener('focus', stopBlurPoll)
+})
+onUnmounted(() => {
+  window.removeEventListener('blur', onWindowBlur)
+  window.removeEventListener('focus', stopBlurPoll)
+  stopBlurPoll()
+})
+
 function onBriefingSaved(list) {
+  activeVideo.value = null
   game.value.briefing = list
   saved.value = 'briefing'
   toggleBriefing()
@@ -113,6 +141,7 @@ let restored = false // scroll restore applies to the page's first load only
 
 // DefaultLayout resolves the slug to selectedTeamId; fetching before that would use a stale remembered team.
 async function load() {
+  activeVideo.value = null
   if (!teamsLoaded.value) return
   notFound.value = loadError.value = false
   if (!selectedTeamId.value) {
@@ -243,8 +272,20 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
         <p v-else-if="!game.briefing.length" class="empty-state">עדיין אין תדריך למשחק.</p>
         <ol v-else class="space-y-6">
           <li v-for="(item, i) in game.briefing" :key="i" class="space-y-2">
-            <VideoCard v-if="item.url" :video="{ url: item.url, title: item.title }" :level="3" />
-            <h3 v-else class="font-bold">{{ item.title }}</h3>
+            <VideoCard v-if="item.urls.length === 1" :video="{ url: item.urls[0], title: item.title }" :level="3" />
+            <template v-else>
+              <h3 class="font-bold">{{ item.title }}</h3>
+              <ul v-if="item.urls.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <li
+                  v-for="(url, j) in item.urls"
+                  :key="j"
+                  :data-briefing-video="`${i}-${j}`"
+                  :class="activeVideo === `${i}-${j}` && 'sm:order-first sm:col-span-full'"
+                >
+                  <VideoCard :video="{ url, title: `דוגמה ${j + 1}` }" :level="4" />
+                </li>
+              </ul>
+            </template>
             <p v-if="item.text" class="max-w-prose whitespace-pre-line">{{ item.text }}</p>
           </li>
         </ol>
