@@ -20,13 +20,13 @@ const segment = computed(() => videoSegment(props.video.url))
       class="aspect-video w-full rounded-2xl border-0 bg-black"
     ></iframe>
     <a v-else :href="video.url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">{{ video.title }}<AppIcon name="external" /></a>
-    <div v-if="youtubeEmbedUrl(video.url)" class="flex items-start justify-between gap-2">
+    <div v-if="youtubeEmbedUrl(video.url)" class="flex items-baseline justify-between gap-2">
       <component :is="'h' + level" class="min-w-0 break-words font-bold">{{ video.title }}</component>
       <a
         :href="youtubeWatchUrl(video.url)"
         target="_blank"
         rel="noopener"
-        class="section-link shrink-0 text-sm"
+        class="section-link shrink-0"
         :aria-label="`צפייה ביוטיוב: ${video.title} (נפתח בלשונית חדשה)`"
       >יוטיוב<AppIcon name="external" /></a>
     </div>
