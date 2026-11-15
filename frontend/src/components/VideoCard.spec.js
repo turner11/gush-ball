@@ -31,8 +31,8 @@ describe('VideoCard', () => {
     expect(w.findAll('a')).toHaveLength(1)
   })
 
-  it('links to YouTube at the segment start', () => {
-    const link = card('https://youtu.be/xyz?t=90&end=130').find('a[href="https://www.youtube.com/watch?v=xyz&t=90"]')
+  it('links to YouTube with the whole segment', () => {
+    const link = card('https://youtu.be/xyz?t=90&end=130').find('a[href="https://www.youtube.com/embed/xyz?start=90&end=130"]')
     expect(link.exists()).toBe(true)
     expect(link.attributes('target')).toBe('_blank')
   })

@@ -310,7 +310,7 @@ describe('GameView', () => {
   it('puts the briefing after about and before scorers (#658)', async () => {
     mockFetch(ok({
       ...GAME,
-      briefing: [{ title: 'פתיחה', text: null, url: null }],
+      briefing: [{ title: 'פתיחה', text: null, urls: [] }],
       scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
     }))
     await memberUser()
@@ -322,8 +322,8 @@ describe('GameView', () => {
 
   describe('video briefing (#658)', () => {
     const ITEMS = [
-      { title: 'קליפ פתיחה', text: 'שימו לב לחסימה', url: 'https://www.youtube.com/watch?v=abc123&t=90&end=120' },
-      { title: 'הערות כלליות', text: 'טקסט חופשי', url: null },
+      { title: 'קליפ פתיחה', text: 'שימו לב לחסימה', urls: ['https://www.youtube.com/watch?v=abc123&t=90&end=120'] },
+      { title: 'הערות כלליות', text: 'טקסט חופשי', urls: [] },
     ]
 
     it('hides the briefing from non-members and in the anonymous preview', async () => {
@@ -348,6 +348,23 @@ describe('GameView', () => {
       expect(wrapper.get('iframe').attributes('src')).toContain('start=90&end=120')
       expect(text).toContain('שימו לב לחסימה')
       expect(text).toContain('טקסט חופשי')
+    })
+
+    it('multi-video item shows a grid and enlarges the played video', async () => {
+      const urls = ['https://youtu.be/a?t=1&end=2', 'https://youtu.be/b']
+      mockFetch(ok({ ...GAME, briefing: [{ title: 'דוגמאות', text: null, urls }] }))
+      await memberUser()
+      const { wrapper } = await mountAt(true)
+      const cells = wrapper.findAll('[data-briefing-video]')
+      expect(cells).toHaveLength(2)
+      expect(wrapper.findAll('iframe')).toHaveLength(2)
+      expect(wrapper.text()).toContain('דוגמה 2')
+
+      cells[1].get('iframe').element.focus()
+      window.dispatchEvent(new Event('blur'))
+      await flushPromises()
+      expect(cells[1].classes()).toContain('sm:col-span-full')
+      expect(cells[0].classes()).not.toContain('sm:col-span-full')
     })
 
     it('remembers a collapsed briefing across a reload', async () => {

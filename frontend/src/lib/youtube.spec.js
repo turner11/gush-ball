@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatTimestamp, parseTimestamp, videoSegment, withVideoSegment, youtubeEmbedUrl, youtubeWatchUrl } from './youtube'
+import { formatTimestamp, parseTimestamp, videoSegment, withVideoSegment, youtubeEmbedUrl, youtubeLinkUrl } from './youtube'
 
 describe('parseTimestamp', () => {
   it('reads typed and YouTube-style times', () => {
@@ -46,17 +46,19 @@ describe('withVideoSegment', () => {
   })
 })
 
-describe('youtubeWatchUrl', () => {
+describe('youtubeLinkUrl', () => {
   it('opens youtube.com at the clip start', () => {
-    expect(youtubeWatchUrl('https://youtu.be/xyz?t=90&end=120')).toBe('https://www.youtube.com/watch?v=xyz&t=90')
-    expect(youtubeWatchUrl('https://www.youtube.com/watch?v=abc&t=1m30s')).toBe('https://www.youtube.com/watch?v=abc&t=90')
+    expect(youtubeLinkUrl('https://youtu.be/xyz?t=90')).toBe('https://www.youtube.com/watch?v=xyz&t=90')
+    expect(youtubeLinkUrl('https://youtu.be/xyz?t=90&end=120')).toBe('https://www.youtube.com/embed/xyz?start=90&end=120')
+    expect(youtubeLinkUrl('https://youtu.be/xyz?end=120')).toBe('https://www.youtube.com/embed/xyz?end=120')
+    expect(youtubeLinkUrl('https://www.youtube.com/watch?v=abc&t=1m30s')).toBe('https://www.youtube.com/watch?v=abc&t=90')
   })
   it('normalises shorts and embed links to /watch', () => {
-    expect(youtubeWatchUrl('https://www.youtube.com/shorts/s1')).toBe('https://www.youtube.com/watch?v=s1')
-    expect(youtubeWatchUrl('https://www.youtube.com/embed/abc?start=5')).toBe('https://www.youtube.com/watch?v=abc&t=5')
+    expect(youtubeLinkUrl('https://www.youtube.com/shorts/s1')).toBe('https://www.youtube.com/watch?v=s1')
+    expect(youtubeLinkUrl('https://www.youtube.com/embed/abc?start=5')).toBe('https://www.youtube.com/watch?v=abc&t=5')
   })
   it('is null for non-YouTube urls', () => {
-    expect(youtubeWatchUrl('https://vimeo.com/1')).toBeNull()
-    expect(youtubeWatchUrl('not a url')).toBeNull()
+    expect(youtubeLinkUrl('https://vimeo.com/1')).toBeNull()
+    expect(youtubeLinkUrl('not a url')).toBeNull()
   })
 })

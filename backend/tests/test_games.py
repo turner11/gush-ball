@@ -894,8 +894,8 @@ def test_pending_review_lists_missing_game_and_keep_detaches_it(
 # --- video briefing (#658) ---
 
 BRIEFING = [
-    {"title": "פתיחה", "text": "נתחיל בהגנה", "url": "https://www.youtube.com/watch?v=abc&t=90&end=120"},
-    {"title": "הערות", "text": None, "url": None},
+    {"title": "פתיחה", "text": "נתחיל בהגנה", "urls": ["https://www.youtube.com/watch?v=abc&t=90&end=120"]},
+    {"title": "הערות", "text": None, "urls": []},
 ]
 
 
@@ -937,14 +937,19 @@ def test_put_briefing_replaces_list_reorders_and_does_not_flag_override(
     game = _make_game(db_session, team)
     url = f"/teams/{team.id}/games/{game.id}"
     body = [
-        {"title": "קליפ", "text": "", "url": "https://www.youtube.com/watch?v=abc&t=90&end=120"},
+        {
+            "title": "קליפ",
+            "text": "",
+            "urls": ["https://www.youtube.com/watch?v=abc&t=90&end=120", "https://youtu.be/d?t=5&end=9"],
+        },
         {"title": "הערות", "text": "טקסט"},
     ]
     assert admin_client.put(f"{url}/briefing", json=body).status_code == 200
     got = admin_client.get(url).json()["briefing"]
     assert [i["title"] for i in got] == ["קליפ", "הערות"]
-    assert "t=90&end=120" in got[0]["url"]
-    assert got[1]["url"] is None
+    assert "t=90&end=120" in got[0]["urls"][0]
+    assert "t=5&end=9" in got[0]["urls"][1]
+    assert got[1]["urls"] == []
 
     admin_client.put(f"{url}/briefing", json=body[::-1])
     assert [i["title"] for i in admin_client.get(url).json()["briefing"]] == ["הערות", "קליפ"]
@@ -952,6 +957,19 @@ def test_put_briefing_replaces_list_reorders_and_does_not_flag_override(
     assert admin_client.get(url).json()["briefing"] == []
     db_session.refresh(game)
     assert game.is_manually_overridden is False
+
+
+def test_briefing_legacy_url_reads_as_urls(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    game.briefing = [
+        {"title": "x", "text": None, "url": "https://youtu.be/a?t=5&end=9"},
+        {"title": "y", "text": None, "url": None},
+    ]
+    db_session.commit()
+    got = admin_client.get(f"/teams/{team.id}/games/{game.id}").json()["briefing"]
+    assert [i["urls"] for i in got] == [["https://youtu.be/a?t=5&end=9"], []]
+    assert all("url" not in i for i in got)
 
 
 def test_put_briefing_scope(
@@ -980,6 +998,8 @@ def test_put_briefing_validation(admin_client: TestClient, db_session: Session) 
     team = _make_team(db_session)
     game = _make_game(db_session, team)
     url = f"/teams/{team.id}/games/{game.id}/briefing"
-    assert admin_client.put(url, json=[{"title": "x", "url": "javascript:alert(1)"}]).status_code == 422
+    assert admin_client.put(url, json=[{"title": "x", "urls": ["javascript:alert(1)"]}]).status_code == 422
+    too_many = [{"title": "x", "urls": ["https://youtu.be/a"] * 11}]
+    assert admin_client.put(url, json=too_many).status_code == 422
     assert admin_client.put(url, json=[{"title": " "}]).status_code == 422
     assert admin_client.put(url, json=[{"title": "x"}] * 21).status_code == 422
