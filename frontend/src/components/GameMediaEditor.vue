@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 
 import ImageListEditor from './ImageListEditor.vue'
+import VideoSegmentFields from './VideoSegmentFields.vue'
 import { apiFetch } from '../lib/api'
 
 const props = defineProps({ teamId: { type: [Number, String], required: true }, gameId: { type: Number, required: true } })

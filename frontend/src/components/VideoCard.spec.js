@@ -36,4 +36,10 @@ describe('VideoCard', () => {
     expect(text).toContain('2:10')
     expect(card('https://youtu.be/xyz').text()).not.toContain('קטע')
   })
+
+  it('updates the segment label when the video changes', async () => {
+    const w = card('https://youtu.be/xyz?t=90&end=130')
+    await w.setProps({ video: { title: 'x', url: 'https://youtu.be/abc' } })
+    expect(w.text()).not.toContain('קטע')
+  })
 })
