@@ -85,6 +85,8 @@ class Game(Base):
     # ponytail: whole-list JSON like Club.about_images (#451); tables only if items need ids or tagging.
     videos: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     images: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    # Team-private video briefing (#658): [{title, text, url}], admin content, not a scrape field.
+    briefing: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     # ORM cascade too: delete_game uses db.delete and SQLite tests don't enforce FKs.
     lineup_snapshots: Mapped[list["LineupSnapshot"]] = relationship(cascade="all, delete-orphan")
     scorers: Mapped[list["GameScorer"]] = relationship(
