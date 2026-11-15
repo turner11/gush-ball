@@ -95,7 +95,6 @@ const featured = computed(() => featuredPosts(shownPosts.value, nextGame.value, 
 // The first post not already in the hero (API order: pinned first, then newest).
 const restPost = computed(() => shownPosts.value.find((p) => !featured.value.some((f) => f.post.id === p.id)) ?? null)
 
-// ponytail: same highest-id-is-newest rule; the media page lists the rest.
 const media = computed(() => teamMedia(videos.value, images.value, games.value))
 const latestVideos = computed(() => media.value.videos.slice(0, 2))
 
