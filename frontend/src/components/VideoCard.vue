@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { formatTimestamp, videoSegment, youtubeEmbedUrl, youtubeLinkUrl } from '../lib/youtube'
+import { formatTimestamp, videoSegment, youtubeEmbedUrl, youtubeWatchUrl } from '../lib/youtube'
 import AppIcon from './AppIcon.vue'
 
 // level: the heading level, so a card nests under whatever heading its page has
@@ -23,7 +23,7 @@ const segment = computed(() => videoSegment(props.video.url))
     <div v-if="youtubeEmbedUrl(video.url)" class="flex items-baseline justify-between gap-2">
       <component :is="'h' + level" class="min-w-0 break-words font-bold">{{ video.title }}</component>
       <a
-        :href="youtubeLinkUrl(video.url)"
+        :href="youtubeWatchUrl(video.url)"
         target="_blank"
         rel="noopener"
         class="section-link shrink-0"

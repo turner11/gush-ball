@@ -22,19 +22,12 @@ export function youtubeEmbedUrl(url) {
   return `https://www.youtube-nocookie.com/embed/${id}${query.size ? `?${query}` : ''}`
 }
 
-// A youtube.com link to the clip, or null for any other URL. /watch ignores end, so a clip with an end
-// links to the full-page embed player, the one youtube.com page that honours both start and end.
-export function youtubeLinkUrl(url) {
+// The youtube.com watch URL at the clip start (youtube.com has no end param), or null for any other URL.
+export function youtubeWatchUrl(url) {
   const id = youtubeId(url)
   if (!id) return null
-  const { start, end } = videoSegment(url)
-  if (end !== null) {
-    const query = new URLSearchParams()
-    if (start !== null) query.set('start', start)
-    query.set('end', end)
-    return `https://www.youtube.com/embed/${id}?${query}`
-  }
   const query = new URLSearchParams({ v: id })
+  const { start } = videoSegment(url)
   if (start !== null) query.set('t', start)
   return `https://www.youtube.com/watch?${query}`
 }
