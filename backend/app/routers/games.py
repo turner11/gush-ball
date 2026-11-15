@@ -146,7 +146,7 @@ class BriefingItem(BaseModel):
         # ponytail: rows stored with one `url` (#658) convert on read and are rewritten on the next save;
         # a JSON data migration can replace this if it ever matters.
         if isinstance(data, dict) and "url" in data and "urls" not in data:
-            return {**{k: v for k, v in data.items() if k != "url"}, "urls": [data["url"]] if data["url"] else []}
+            return {**data, "urls": [data["url"]] if data["url"] else []}
         return data
 
 

@@ -367,6 +367,30 @@ describe('GameView', () => {
       expect(cells[0].classes()).not.toContain('sm:col-span-full')
     })
 
+    it('enlarges the second video when focus moves iframe to iframe without another blur', async () => {
+      vi.useFakeTimers()
+      try {
+        const urls = ['https://youtu.be/a', 'https://youtu.be/b']
+        mockFetch(ok({ ...GAME, briefing: [{ title: 'דוגמאות', text: null, urls }] }))
+        await memberUser()
+        const { wrapper } = await mountAt(true)
+        const cells = wrapper.findAll('[data-briefing-video]')
+
+        cells[0].get('iframe').element.focus()
+        window.dispatchEvent(new Event('blur'))
+        await flushPromises()
+        expect(cells[0].classes()).toContain('sm:col-span-full')
+
+        cells[1].get('iframe').element.focus()
+        await vi.advanceTimersByTimeAsync(300)
+        expect(cells[1].classes()).toContain('sm:col-span-full')
+        expect(cells[0].classes()).not.toContain('sm:col-span-full')
+        wrapper.unmount()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('remembers a collapsed briefing across a reload', async () => {
       mockFetch(ok({ ...GAME, briefing: ITEMS }))
       await memberUser()

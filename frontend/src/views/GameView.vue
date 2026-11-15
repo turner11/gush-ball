@@ -99,12 +99,29 @@ function onBriefingToggle(e) {
 // A cross-origin iframe never reports a play, but clicking or tabbing into one blurs the window and makes it
 // the active element: that is the video to enlarge. Keys are "item-video", so they reset with the list.
 const activeVideo = ref(null)
-function onWindowBlur() {
+function syncActiveVideo() {
   const key = document.activeElement?.closest?.('[data-briefing-video]')?.dataset.briefingVideo
   if (key) activeVideo.value = key
 }
-onMounted(() => window.addEventListener('blur', onWindowBlur))
-onUnmounted(() => window.removeEventListener('blur', onWindowBlur))
+// Moving focus from one iframe to another fires no second window blur, so keep polling while the window is blurred.
+let blurPoll = null
+function onWindowBlur() {
+  syncActiveVideo()
+  blurPoll ??= setInterval(syncActiveVideo, 300)
+}
+function stopBlurPoll() {
+  clearInterval(blurPoll)
+  blurPoll = null
+}
+onMounted(() => {
+  window.addEventListener('blur', onWindowBlur)
+  window.addEventListener('focus', stopBlurPoll)
+})
+onUnmounted(() => {
+  window.removeEventListener('blur', onWindowBlur)
+  window.removeEventListener('focus', stopBlurPoll)
+  stopBlurPoll()
+})
 
 function onBriefingSaved(list) {
   activeVideo.value = null
