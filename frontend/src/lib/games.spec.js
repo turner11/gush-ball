@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { homeFirst, liveStatsUrl, played, result, scoringTotals, sheetCopyUrl } from './games'
+import { homeFirst, liveStatsUrl, played, result, scoringTotals, sheetCopyUrl, teamMedia } from './games'
 
 describe('played', () => {
   it('needs both scores', () => {
@@ -92,5 +92,38 @@ describe('scoringTotals', () => {
   it('is all zeros for no games', () => {
     const a = scoringTotals([])
     expect([a.all.n, a.W.n, a.L.n]).toEqual([0, 0, 0])
+  })
+})
+
+describe('teamMedia', () => {
+  const v = (title) => ({ url: `https://youtu.be/${title}`, title })
+  const older = { id: 1, scheduled_at: '2026-01-01T18:00:00', videos: [v('g-old')], images: [] }
+  const newer = { id: 2, scheduled_at: '2026-02-01T18:00:00', videos: [v('g-new1'), v('g-new2')], images: [] }
+
+  it('lists game videos newest game first, then team videos newest id first', () => {
+    const team = [{ id: 1, ...v('t1') }, { id: 3, ...v('t3') }]
+    const { videos } = teamMedia(team, [], [older, newer])
+    expect(videos.map((x) => x.title)).toEqual(['g-new1', 'g-new2', 'g-old', 't3', 't1'])
+  })
+
+  it('gives game items unique string ids', () => {
+    const { videos } = teamMedia([{ id: 1, ...v('t1') }], [], [older, newer])
+    const ids = videos.map((x) => x.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(ids.filter((id) => typeof id === 'string')).toHaveLength(3)
+  })
+
+  it('merges game images by date, undated team images last', () => {
+    const game = { id: 1, scheduled_at: '2026-01-10T18:00:00', videos: [], images: [{ url: '/g.jpg', title: null }] }
+    const team = [
+      { id: 5, url: '/new.jpg', created_at: '2026-03-01T10:00:00Z' },
+      { id: 4, url: '/old.jpg' },
+    ]
+    const { images } = teamMedia([], team, [game])
+    expect(images.map((x) => x.url)).toEqual(['/new.jpg', '/g.jpg', '/old.jpg'])
+  })
+
+  it('tolerates games without media fields', () => {
+    expect(teamMedia([], [], [{ id: 1, scheduled_at: '2026-01-01T18:00:00' }])).toEqual({ videos: [], images: [] })
   })
 })

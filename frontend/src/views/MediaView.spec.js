@@ -16,8 +16,8 @@ function jsonRes(body) {
   return { ok: true, status: 200, json: async () => body }
 }
 
-async function mountView({ videos = VIDEOS, images = IMAGES, query = {} } = {}) {
-  const data = { videos, images, players: [] }
+async function mountView({ videos = VIDEOS, images = IMAGES, games = [], query = {} } = {}) {
+  const data = { videos, images, games, players: [] }
   global.fetch = vi.fn((url) => {
     const kind = String(url).split('/').pop()
     if (!(kind in data)) return Promise.reject(new Error(`Unhandled fetch: ${url}`))
@@ -61,7 +61,7 @@ describe('MediaView', () => {
     global.fetch = vi.fn((url) => {
       const kind = String(url).split('/').pop()
       if (failing) return Promise.resolve({ ok: false, status: 500, json: async () => ({}) })
-      return Promise.resolve(jsonRes({ videos: VIDEOS, images: IMAGES }[kind]))
+      return Promise.resolve(jsonRes({ videos: VIDEOS, images: IMAGES, games: [] }[kind]))
     })
     const { default: MediaView } = await import('./MediaView.vue')
     const wrapper = mount(MediaView)
@@ -93,6 +93,19 @@ describe('MediaView', () => {
     const wrapper = await mountView()
     expect(wrapper.findAll('img').map((i) => i.attributes('alt'))).toEqual(['תמונה חדשה', 'תמונה ישנה'])
     expect(global.fetch.mock.calls.map(([u]) => String(u)).some((u) => u.endsWith('/posts'))).toBe(false)
+  })
+
+  it('includes game media in both tabs', async () => {
+    const games = [{
+      id: 5,
+      scheduled_at: '2026-01-01T18:00:00',
+      videos: [{ url: 'https://youtu.be/g', title: 'משחק' }],
+      images: [{ url: 'https://img/g.jpg', title: 'מהמשחק' }],
+    }]
+    const wrapper = await mountView({ games })
+    expect(wrapper.findAll('img').map((i) => i.attributes('alt'))).toContain('מהמשחק')
+    await openTab(wrapper, 'סרטונים')
+    expect(wrapper.findAll('article h2').map((h) => h.text())).toEqual(['משחק', 'חדש', 'אמצע', 'ישן'])
   })
 
   it('clicking an image opens the in-page viewer, not a new tab', async () => {

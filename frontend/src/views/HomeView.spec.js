@@ -486,6 +486,21 @@ describe('HomeView', () => {
     expect(wrapper.text()).not.toContain('ישן')
   })
 
+  const GAME = { id: 7, team_id: 1, scheduled_at: '2026-01-01T18:00:00', opponent: { name: 'x' } }
+
+  it("shows a game's videos in the videos section", async () => {
+    const games = [{ ...GAME, videos: [{ url: 'https://youtu.be/x', title: 'תקציר' }], images: [] }]
+    const wrapper = await mountWithTeam(TEAM, { games })
+    expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['תקציר'])
+  })
+
+  it('passes game images to the slideshow', async () => {
+    const games = [{ ...GAME, videos: [], images: [{ url: '/g.jpg', title: null }] }]
+    const wrapper = await mountWithTeam(TEAM, { games })
+    const { default: HomeSlideshow } = await import('../components/HomeSlideshow.vue')
+    expect(wrapper.findComponent(HomeSlideshow).props('images')).toEqual([expect.objectContaining({ url: '/g.jpg' })])
+  })
+
   it('links to all videos on the media page', async () => {
     const wrapper = await mountWithTeam(TEAM, { videos: [{ id: 1, title: 'א', url: 'https://vimeo.com/1' }] })
 
