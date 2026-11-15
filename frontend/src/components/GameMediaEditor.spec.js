@@ -37,6 +37,12 @@ describe('GameMediaEditor', () => {
     expect(wrapper.find('img').attributes('src')).toBe('https://cdn.example.com/a.jpg')
   })
 
+  it('shows segment inputs for a YouTube row', async () => {
+    mockFetch()
+    const wrapper = await mountEditor()
+    expect(wrapper.find('#video-segment-0-start').exists()).toBe(true)
+  })
+
   it('adds a video row, PUTs it with null title_en, and emits saved', async () => {
     const saved = { videos: [], images: [] }
     mockFetch({ put: () => res(saved) })

@@ -478,6 +478,7 @@ def test_player_videos_capped(client: TestClient, db_session: Session, own_team:
         ("https://www.youtube.com/watch?v=dQw4w9WgXcQ", 201),
         ("https://m.youtube.com/watch?v=dQw4w9WgXcQ", 201),
         ("https://youtu.be/dQw4w9WgXcQ", 201),
+        ("https://youtu.be/dQw4w9WgXcQ?t=90&end=120", 201),
         ("https://youtube.com/shorts/dQw4w9WgXcQ", 201),
         ("https://evil.test/watch?v=dQw4w9WgXcQ", 422),
         ("https://youtube.com.evil.test/watch?v=dQw4w9WgXcQ", 422),

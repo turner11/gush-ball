@@ -25,7 +25,7 @@ export const CONTENT_SECTIONS = {
     fields: [
       { key: 'title', label: 'כותרת', type: 'text', required: true },
       { key: 'title_en', label: 'כותרת (אנגלית)', type: 'text' },
-      { key: 'url', label: 'כתובת', type: 'url', required: true },
+      { key: 'url', label: 'כתובת', type: 'url', required: true, segment: true },
       { key: 'player_ids', label: 'תיוג שחקנים', type: 'players' },
     ],
   },

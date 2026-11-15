@@ -10,6 +10,7 @@ import { useTeamContent } from '../composables/useTeamContent'
 import AppIcon from './AppIcon.vue'
 import FilterCombobox from './FilterCombobox.vue'
 import ImageUpload from './ImageUpload.vue'
+import VideoSegmentFields from './VideoSegmentFields.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import PlayerTagsInput from './PlayerTagsInput.vue'
 
@@ -274,6 +275,7 @@ onMounted(() => Promise.all([props.fields.some((f) => f.type === 'game') && load
           :required="field.required"
           class="field-input"
         />
+        <VideoSegmentFields v-if="field.segment" v-model="form[field.key]" :id="`${resource}-${field.key}-segment`" />
         <ImageUpload v-if="field.upload" :multiple="field.multiple && !editingId" :label="field.multiple ? `העלאת ${field.label}` : field.label" :accept="field.accept" @uploaded="(url) => onUploaded(field, url)" />
         <!-- big enough to tell who is in the photo while tagging below -->
         <img v-if="field.preview && form[field.key]" :src="form[field.key]" alt="תצוגה מקדימה" class="mt-2 max-h-72 w-full rounded-xl bg-raised object-contain" />

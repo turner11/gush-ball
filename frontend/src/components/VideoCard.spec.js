@@ -29,4 +29,17 @@ describe('VideoCard', () => {
     expect(w.find('iframe').exists()).toBe(false)
     expect(w.find('a[href="https://vimeo.com/1"]').text()).toBe('ויימאו')
   })
+
+  it('labels a segment', () => {
+    const text = card('https://youtu.be/xyz?t=90&end=130').text()
+    expect(text).toContain('1:30')
+    expect(text).toContain('2:10')
+    expect(card('https://youtu.be/xyz').text()).not.toContain('קטע')
+  })
+
+  it('updates the segment label when the video changes', async () => {
+    const w = card('https://youtu.be/xyz?t=90&end=130')
+    await w.setProps({ video: { title: 'x', url: 'https://youtu.be/abc' } })
+    expect(w.text()).not.toContain('קטע')
+  })
 })
