@@ -11,35 +11,38 @@ import { canEditTeam } from '../composables/useAuth'
 import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { teamMedia } from '../lib/games'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
 
 const videos = ref([])
 const images = ref([])
+const games = ref([])
 const loading = ref(false)
 const loadError = ref(false)
 
 // DefaultLayout picks the default team; this view only follows the selection.
 const { selectedTeamId } = useSelectedTeam()
 
-// ponytail: the videos API has no ORDER BY, so highest id = newest. (Images arrive newest-first.)
-const newestFirst = (items) => [...items].sort((a, b) => b.id - a.id)
+const media = computed(() => teamMedia(videos.value, images.value, games.value))
 
 async function load() {
   loadError.value = false
   if (!selectedTeamId.value) {
-    videos.value = images.value = []
+    videos.value = images.value = games.value = []
     return
   }
   const id = selectedTeamId.value
   loading.value = true
   try {
-    const [v, i] = await Promise.all([
+    const [v, i, g] = await Promise.all([
       apiFetch(`/teams/${id}/videos`),
       apiFetch(`/teams/${id}/images`),
+      apiFetch(`/teams/${id}/games`),
     ])
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
-    videos.value = newestFirst(v)
+    videos.value = v
     images.value = i
+    games.value = g
   } catch {
     if (id === selectedTeamId.value) loadError.value = true
   } finally {
@@ -86,7 +89,7 @@ const tabs = [
       <TabsContent value="images">
         <TeamContentSection v-if="editing" :key="selectedTeamId" :owner-id="selectedTeamId" v-bind="CONTENT_SECTIONS.images" />
         <div v-else-if="loading" class="skeleton h-32" aria-busy="true" />
-        <ImageGallery v-else-if="images.length" :images="images" fallback-alt="תמונה של הקבוצה" />
+        <ImageGallery v-else-if="media.images.length" :images="media.images" fallback-alt="תמונה של הקבוצה" />
         <p v-else class="empty-state">אין תמונות עדיין.</p>
       </TabsContent>
 
@@ -96,8 +99,8 @@ const tabs = [
           <div class="skeleton h-32" />
           <div class="skeleton h-32" />
         </div>
-        <ul v-else-if="videos.length" class="grid gap-6 sm:grid-cols-2">
-          <li v-for="video in videos" :key="video.id"><VideoCard :video="video" :level="2" /></li>
+        <ul v-else-if="media.videos.length" class="grid gap-6 sm:grid-cols-2">
+          <li v-for="video in media.videos" :key="video.id"><VideoCard :video="video" :level="2" /></li>
         </ul>
         <p v-else class="empty-state">אין סרטונים עדיין.</p>
       </TabsContent>

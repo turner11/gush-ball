@@ -37,6 +37,8 @@ class TeamVideo(Base):
     # Tagged Player.ids. ponytail: JSON has no portable SQL "contains"; filter in Python, or move to
     # JSONB @> / an association table if indexed lookup is ever needed.
     player_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
+    # NULL for videos added before the audit log: no date is invented, they sort last.
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     team: Mapped["Team"] = relationship(back_populates="videos")
 

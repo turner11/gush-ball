@@ -74,6 +74,12 @@ class OpponentRead(BaseModel):
     address: str | None
 
 
+class GameVideo(BaseModel):
+    url: Url500
+    title: VideoTitle
+    title_en: VideoTitle | None = None
+
+
 class GameRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -88,6 +94,8 @@ class GameRead(BaseModel):
     has_stats: bool
     stats_url: str | None
     opponent: OpponentRead
+    videos: list[GameVideo] = []
+    images: list[TitledImage] = []
 
 
 class AdminGameRead(GameRead):
@@ -121,12 +129,6 @@ class ScorerHistoryOut(ScorerOut):
     scheduled_at: datetime
 
 
-class GameVideo(BaseModel):
-    url: Url500
-    title: VideoTitle
-    title_en: VideoTitle | None = None
-
-
 class GameMedia(BaseModel):
     videos: list[GameVideo] = Field(default=[], max_length=20)
     images: list[TitledImage] = Field(default=[], max_length=20)
@@ -134,8 +136,6 @@ class GameMedia(BaseModel):
 
 class GameDetailRead(GameRead):
     scorers: list[ScorerOut] = []
-    videos: list[GameVideo] = []
-    images: list[TitledImage] = []
 
 
 def _scorer_out(s: GameScorer) -> ScorerOut:
@@ -256,8 +256,6 @@ def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> G
     return GameDetailRead(
         **_public_game(game, show).model_dump(),
         scorers=_scorers(game),
-        videos=game.videos,
-        images=game.images,
     )
 
 

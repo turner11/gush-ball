@@ -81,3 +81,19 @@ export function scoringByPlayer(rows) {
   for (const r of rows) byPlayer.set(r.player_id, [...(byPlayer.get(r.player_id) ?? []), r])
   return byPlayer
 }
+
+// A team's videos and images with its games' media merged in, newest first.
+// Game items are dated by their game; undated (pre-audit) team items keep API order, last.
+export function teamMedia(teamVideos, teamImages, games) {
+  const newestGameFirst = [...games].sort((a, b) => byDate(b, a))
+  const fromGames = (field) =>
+    newestGameFirst.flatMap((g) =>
+      (g[field] ?? []).map((item, i) => ({ ...item, id: `game-${g.id}-${field}-${i}`, created_at: g.scheduled_at })),
+    )
+  const time = (x) => (x.created_at ? new Date(x.created_at).getTime() : -Infinity)
+  const newestFirst = (items) => items.sort((a, b) => time(b) - time(a)) // stable
+  return {
+    videos: newestFirst([...teamVideos, ...fromGames('videos')]),
+    images: newestFirst([...teamImages, ...fromGames('images')]),
+  }
+}

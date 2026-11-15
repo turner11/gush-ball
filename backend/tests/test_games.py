@@ -732,6 +732,21 @@ def test_put_media_replaces_lists_and_get_game_returns_them(admin_client: TestCl
     assert again.json() == {"videos": [], "images": []}
 
 
+def test_list_games_includes_game_media(admin_client: TestClient, client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    body = {
+        "videos": [{"url": "https://www.youtube.com/watch?v=abc", "title": "Highlights"}],
+        "images": [{"url": "https://cdn.example.com/a.jpg"}],
+    }
+    admin_client.put(f"/teams/{team.id}/games/{game.id}/media", json=body)
+
+    (listed,) = client.get(f"/teams/{team.id}/games").json()
+
+    assert listed["videos"] == [{"url": "https://www.youtube.com/watch?v=abc", "title": "Highlights", "title_en": None}]
+    assert listed["images"] == [{"url": "https://cdn.example.com/a.jpg", "title": None, "title_en": None}]
+
+
 def test_put_media_does_not_flag_manual_override(admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     game = _make_game(db_session, team)
