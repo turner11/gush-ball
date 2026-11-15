@@ -66,22 +66,27 @@ describe('LineChart', () => {
     return wrapper
   }
   const tip = (w) => w.find('[data-tooltip]')
+  // jsdom has no PointerEvent and VTU can't set clientX on a MouseEvent, so build a plain event
+  const pointer = (w, type, init) => {
+    const e = Object.assign(new Event(type, { bubbles: true }), init)
+    w.find('svg').element.dispatchEvent(e)
+    return w.vm.$nextTick()
+  }
 
   it('pointer over the chart shows a tooltip with the date and each series value at the nearest point', async () => {
     const wrapper = mountBox()
     expect(tip(wrapper).exists()).toBe(false)
-    await wrapper.find('svg').trigger('pointermove', { clientX: 330 })
+    await pointer(wrapper, 'pointermove', { clientX: 330 })
     for (const t of ['08.03', 'נקודות', '20', 'יריבה', '—']) expect(tip(wrapper).text()).toContain(t)
     expect(wrapper.findAll('circle[r="8"]')).toHaveLength(1)
   })
 
   it('mouse leave hides the tooltip; a touch leave keeps it', async () => {
     const wrapper = mountBox()
-    const svg = wrapper.find('svg')
-    await svg.trigger('pointerdown', { clientX: 330, pointerType: 'touch' })
-    await svg.trigger('pointerleave', { pointerType: 'touch' })
+    await pointer(wrapper, 'pointerdown', { clientX: 330, pointerType: 'touch' })
+    await pointer(wrapper, 'pointerleave', { pointerType: 'touch' })
     expect(tip(wrapper).exists()).toBe(true)
-    await svg.trigger('pointerleave', { pointerType: 'mouse' })
+    await pointer(wrapper, 'pointerleave', { pointerType: 'mouse' })
     expect(tip(wrapper).exists()).toBe(false)
   })
 
