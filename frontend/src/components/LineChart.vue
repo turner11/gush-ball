@@ -141,8 +141,9 @@ const connectors = computed(() => {
         <div class="truncate font-bold text-ink">
           {{ tip.heading }}<span v-if="tip.outcome" :class="tip.outcomeCls"> · {{ tip.outcome }}</span>
         </div>
-        <div v-for="r in tip.rows" :key="r.key" class="truncate text-muted">
-          {{ r.name }} <span class="font-black tabular-nums text-ink">{{ r.v }}</span>
+        <div v-for="r in tip.rows" :key="r.key" class="flex justify-between gap-2 text-muted">
+          <span class="truncate">{{ r.name }}</span>
+          <span class="shrink-0 font-black tabular-nums text-ink">{{ r.v }}</span>
         </div>
       </div>
     </div>
