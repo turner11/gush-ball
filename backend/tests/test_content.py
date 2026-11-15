@@ -422,6 +422,17 @@ def test_images_list_newest_first_undated_last(admin_client: TestClient, client:
     assert [i["id"] for i in client.get(url).json()] == [newer, older, undated]
 
 
+def test_videos_list_newest_first_undated_last(admin_client: TestClient, client: TestClient, team: Team, db_session: Session) -> None:
+    url = f"/teams/{team.id}/videos"
+    ids = [admin_client.post(url, json={"title": t, "url": "https://youtu.be/abc"}).json() for t in "abc"]
+    assert all(v["created_at"] for v in ids)
+    older, newer, undated = (v["id"] for v in ids)
+    for video_id, when in ((older, datetime(2026, 1, 1, tzinfo=UTC)), (newer, datetime(2026, 2, 1, tzinfo=UTC)), (undated, None)):
+        db_session.get(TeamVideo, video_id).created_at = when
+    db_session.commit()
+    assert [v["id"] for v in client.get(url).json()] == [newer, older, undated]
+
+
 @pytest.fixture()
 def club_id(db_session: Session) -> int:
     from app.models import Club

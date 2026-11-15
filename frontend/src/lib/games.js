@@ -83,18 +83,17 @@ export function scoringByPlayer(rows) {
 }
 
 // A team's videos and images with its games' media merged in, newest first.
-// ponytail: team videos have no date, so game videos always come first; reorder the concat if promos should lead.
+// Game items are dated by their game; undated (pre-audit) team items keep API order, last.
 export function teamMedia(teamVideos, teamImages, games) {
   const newestGameFirst = [...games].sort((a, b) => byDate(b, a))
-  const fromGames = (field, extra = () => ({})) =>
+  const fromGames = (field) =>
     newestGameFirst.flatMap((g) =>
-      (g[field] ?? []).map((item, i) => ({ ...item, id: `game-${g.id}-${field}-${i}`, ...extra(g) })),
+      (g[field] ?? []).map((item, i) => ({ ...item, id: `game-${g.id}-${field}-${i}`, created_at: g.scheduled_at })),
     )
   const time = (x) => (x.created_at ? new Date(x.created_at).getTime() : -Infinity)
+  const newestFirst = (items) => items.sort((a, b) => time(b) - time(a)) // stable
   return {
-    videos: [...fromGames('videos'), ...[...teamVideos].sort((a, b) => b.id - a.id)],
-    images: [...teamImages, ...fromGames('images', (g) => ({ created_at: g.scheduled_at }))].sort(
-      (a, b) => time(b) - time(a), // stable: undated team images keep API order, last
-    ),
+    videos: newestFirst([...teamVideos, ...fromGames('videos')]),
+    images: newestFirst([...teamImages, ...fromGames('images')]),
   }
 }

@@ -100,10 +100,14 @@ describe('teamMedia', () => {
   const older = { id: 1, scheduled_at: '2026-01-01T18:00:00', videos: [v('g-old')], images: [] }
   const newer = { id: 2, scheduled_at: '2026-02-01T18:00:00', videos: [v('g-new1'), v('g-new2')], images: [] }
 
-  it('lists game videos newest game first, then team videos newest id first', () => {
-    const team = [{ id: 1, ...v('t1') }, { id: 3, ...v('t3') }]
+  it('merges team and game videos by date, undated team videos last in API order', () => {
+    const team = [
+      { id: 3, ...v('t-mid'), created_at: '2026-01-15T10:00:00Z' },
+      { id: 2, ...v('t-undated2') },
+      { id: 1, ...v('t-undated1') },
+    ]
     const { videos } = teamMedia(team, [], [older, newer])
-    expect(videos.map((x) => x.title)).toEqual(['g-new1', 'g-new2', 'g-old', 't3', 't1'])
+    expect(videos.map((x) => x.title)).toEqual(['g-new1', 'g-new2', 't-mid', 'g-old', 't-undated2', 't-undated1'])
   })
 
   it('gives game items unique string ids', () => {

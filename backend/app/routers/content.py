@@ -103,6 +103,10 @@ class TitledUrlOut(BaseModel):
     player_ids: list[int]
 
 
+class TeamVideoOut(TitledUrlOut):
+    created_at: datetime | None
+
+
 class TeamImageCreate(TitledUrlCreate):
     hidden_from_home: bool = False
 
@@ -362,7 +366,7 @@ def _add_crud_routes(
 
 _add_crud_routes("links", TeamLink, TeamLinkCreate, TeamLinkUpdate, TeamLinkOut, "Link not found")
 _add_crud_routes(
-    "videos", TeamVideo, TitledUrlCreate, TitledUrlUpdate, TitledUrlOut, "Video not found"
+    "videos", TeamVideo, TitledUrlCreate, TitledUrlUpdate, TeamVideoOut, "Video not found"
 )
 _add_crud_routes(
     "images", TeamImage, TeamImageCreate, TeamImageUpdate, TeamImageOut, "Image not found"

@@ -474,9 +474,9 @@ describe('HomeView', () => {
   it('shows only the 2 newest videos', async () => {
     const wrapper = await mountWithTeam(TEAM, {
       videos: [
-        { id: 1, title: 'ישן', url: 'https://youtu.be/v1' },
-        { id: 2, title: 'אמצע', url: 'https://youtu.be/v2' },
-        { id: 3, title: 'חדש', url: 'https://youtu.be/v3' },
+        { id: 1, title: 'ישן', url: 'https://youtu.be/v1', created_at: '2026-01-01T10:00:00Z' },
+        { id: 2, title: 'אמצע', url: 'https://youtu.be/v2', created_at: '2026-02-01T10:00:00Z' },
+        { id: 3, title: 'חדש', url: 'https://youtu.be/v3', created_at: '2026-03-01T10:00:00Z' },
       ],
     })
 

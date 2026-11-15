@@ -3,9 +3,9 @@ import { routeLocationKey } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const VIDEOS = [
-  { id: 1, title: 'ישן', url: 'https://youtu.be/v1' },
-  { id: 3, title: 'חדש', url: 'https://youtu.be/v3' },
-  { id: 2, title: 'אמצע', url: 'https://youtu.be/v2' },
+  { id: 1, title: 'ישן', url: 'https://youtu.be/v1', created_at: '2025-12-01T10:00:00Z' },
+  { id: 3, title: 'חדש', url: 'https://youtu.be/v3', created_at: '2026-03-01T10:00:00Z' },
+  { id: 2, title: 'אמצע', url: 'https://youtu.be/v2', created_at: '2026-02-01T10:00:00Z' },
 ]
 const IMAGES = [
   { id: 1, title: 'תמונה חדשה', url: 'https://img/a.jpg' },
@@ -105,7 +105,7 @@ describe('MediaView', () => {
     const wrapper = await mountView({ games })
     expect(wrapper.findAll('img').map((i) => i.attributes('alt'))).toContain('מהמשחק')
     await openTab(wrapper, 'סרטונים')
-    expect(wrapper.findAll('article h2').map((h) => h.text())).toEqual(['משחק', 'חדש', 'אמצע', 'ישן'])
+    expect(wrapper.findAll('article h2').map((h) => h.text())).toEqual(['חדש', 'אמצע', 'משחק', 'ישן'])
   })
 
   it('clicking an image opens the in-page viewer, not a new tab', async () => {
