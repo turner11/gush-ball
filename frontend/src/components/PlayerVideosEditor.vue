@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
+import VideoSegmentFields from './VideoSegmentFields.vue'
 
 const props = defineProps({ player: { type: Object, required: true } })
 const emit = defineEmits(['change'])
@@ -80,6 +81,7 @@ async function remove(video) {
       />
       <p id="player-video-hint" class="text-sm text-muted">youtube.com או youtu.be</p>
     </div>
+    <VideoSegmentFields v-model="url" id="player-video-segment" />
     <button type="button" class="btn-secondary" data-testid="add-video" :disabled="adding" @click="add">
       {{ adding ? 'מוסיף…' : 'הוספת סרטון' }}
     </button>

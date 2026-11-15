@@ -29,6 +29,19 @@ describe('PlayerVideosEditor', () => {
     expect(wrapper.emitted('change')[0][0]).toEqual([EXISTING, created])
   })
 
+  it('sends the segment in the url', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 201, json: async () => ({ id: 6, title: 'חדש', url: 'x' }) }))
+    const wrapper = mountEditor()
+    await wrapper.find('#player-video-title').setValue('חדש')
+    await wrapper.find('#player-video-url').setValue('https://youtu.be/aaaaaaaaaaa')
+    const start = wrapper.find('#player-video-segment-start')
+    start.element.value = '0:30'
+    await start.trigger('change')
+    await wrapper.find('[data-testid="add-video"]').trigger('click')
+    await flushPromises()
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).url).toContain('t=30')
+  })
+
   it('removes a video and emits the filtered list', async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 204, json: async () => null }))
     const wrapper = mountEditor()

@@ -77,6 +77,7 @@ async function onSubmit() {
           <input :id="`video-url-${i}`" v-model="v.url" type="url" class="field-input" required dir="ltr" inputmode="url" />
         </div>
         <button type="button" class="btn-danger-ghost" :data-test="`remove-video-${i}`" :aria-label="`הסרת סרטון ${i + 1}`" @click="form.videos.splice(i, 1)">הסרה</button>
+        <VideoSegmentFields v-model="v.url" :id="`video-segment-${i}`" class="sm:col-span-4" />
       </div>
       <button type="button" class="btn-secondary" data-test="add-video" @click="form.videos.push({ title: '', title_en: '', url: '' })">הוספת סרטון</button>
     </fieldset>
