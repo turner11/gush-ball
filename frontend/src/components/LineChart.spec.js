@@ -60,6 +60,55 @@ describe('LineChart', () => {
     expect(wrapper.emitted('select')).toEqual([['b']])
   })
 
+  const mountBox = (extra = {}) => {
+    const wrapper = mount(LineChart, { props: { ...props, ...extra } })
+    wrapper.find('svg').element.getBoundingClientRect = () => ({ left: 0, top: 0, width: 640, height: 240 })
+    return wrapper
+  }
+  const tip = (w) => w.find('[data-tooltip]')
+
+  it('pointer over the chart shows a tooltip with the date and each series value at the nearest point', async () => {
+    const wrapper = mountBox()
+    expect(tip(wrapper).exists()).toBe(false)
+    await wrapper.find('svg').trigger('pointermove', { clientX: 330 })
+    for (const t of ['08.03', 'נקודות', '20', 'יריבה', '—']) expect(tip(wrapper).text()).toContain(t)
+    expect(wrapper.findAll('circle[r="8"]')).toHaveLength(1)
+  })
+
+  it('mouse leave hides the tooltip; a touch leave keeps it', async () => {
+    const wrapper = mountBox()
+    const svg = wrapper.find('svg')
+    await svg.trigger('pointerdown', { clientX: 330, pointerType: 'touch' })
+    await svg.trigger('pointerleave', { pointerType: 'touch' })
+    expect(tip(wrapper).exists()).toBe(true)
+    await svg.trigger('pointerleave', { pointerType: 'mouse' })
+    expect(tip(wrapper).exists()).toBe(false)
+  })
+
+  it('keyboard: focus shows the latest point, arrows move, Escape hides', async () => {
+    const wrapper = mountBox()
+    const svg = wrapper.find('svg')
+    await svg.trigger('focus')
+    expect(tip(wrapper).text()).toContain('15.03')
+    expect(tip(wrapper).text()).toContain('15')
+    await svg.trigger('keydown', { key: 'ArrowRight' })
+    expect(tip(wrapper).text()).toContain('15.03')
+    await svg.trigger('keydown', { key: 'ArrowLeft' })
+    expect(tip(wrapper).text()).toContain('08.03')
+    await svg.trigger('keydown', { key: 'Escape' })
+    expect(tip(wrapper).exists()).toBe(false)
+  })
+
+  it('outcomes appear in the tooltip heading; muted series stay out', async () => {
+    const wrapper = mountBox({
+      outcomes: ['W', null, 'L'],
+      series: [props.series[0], { ...props.series[1], emphasis: 'muted' }],
+    })
+    await wrapper.find('svg').trigger('focus')
+    expect(tip(wrapper).text()).toContain('הפסד')
+    expect(tip(wrapper).text()).not.toContain('יריבה')
+  })
+
   it('not selectable by default: no hit areas', () => {
     const wrapper = mount(LineChart, { props })
     expect(wrapper.find('polyline[data-hit]').exists()).toBe(false)
