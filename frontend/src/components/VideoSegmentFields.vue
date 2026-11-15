@@ -37,7 +37,6 @@ function change(which, event) {
           :value="shown(videoSegment(modelValue)[which])"
           type="text"
           dir="ltr"
-          inputmode="text"
           autocomplete="off"
           placeholder="0:00"
           :aria-describedby="error ? `${id}-hint ${id}-error` : `${id}-hint`"
