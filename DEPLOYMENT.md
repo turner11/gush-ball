@@ -369,7 +369,7 @@ answers 503 "no available server". This section replaces that text with `fronten
 ([Coolify docs](https://coolify.io/docs/core/networking/proxy/maintenance-and-error-pages)). The setting is server-wide, so
 the other site on this machine gets the neutral "updating" version of the page.
 
-1. Open `frontend/proxy-error.html` on GitHub, click **Raw** and copy everything. In the copy, replace `gushball.example` in
+1. Open [`frontend/proxy-error.html`](https://github.com/turner11/gush-ball/blob/master/frontend/proxy-error.html) on GitHub, click **Raw** (or open the [raw file](https://raw.githubusercontent.com/turner11/gush-ball/master/frontend/proxy-error.html)) and copy everything. In the copy, replace `gushball.example` in
    the `GUSHBALL_HOSTS` line with the site's domain (the `PUBLIC_URL` value without `https://`). *Why:* the page shows the
    GushBall version only on that hostname. *Verify:* the line reads `['<your-domain>', 'localhost']`.
 2. Coolify -> **Servers** -> the server -> **Proxy**. Under **Routing behavior**, set **Unknown requests** to **Use custom
@@ -382,6 +382,12 @@ the other site on this machine gets the neutral "updating" version of the page.
 5. In the resource, click **Redeploy**. While the log shows the containers restarting, open `https://<domain>/some-page` and
    refresh. *Verify:* you see the GushBall "פסק זמן!" page, and within about 15 s after the deploy finishes it reloads into
    the real page on the same URL.
+   *If you see the neutral "האתר מתעדכן כרגע" card instead of the GushBall page:* the domain in `GUSHBALL_HOSTS` doesn't
+   match. It must equal the address bar's hostname exactly: no `https://`, no path, no typo (a leading `www.` is ignored).
+   Fix it in the copy and repeat steps 1-3. If it still shows the neutral card, Coolify probably stripped the inline
+   `<script>` when saving. Then every host, including GushBall, shows the neutral card during deploys, which is still
+   better than plain text, and nothing more is needed. To get the GushBall version anyway, ask in a Coolify issue or
+   Discord whether the custom error page keeps scripts, or accept the neutral card.
 6. The repo file and Coolify's copy are separate; a deploy does not update Coolify's copy. After any edit to
    `frontend/proxy-error.html`, repeat steps 1-3.
 
