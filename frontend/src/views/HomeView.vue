@@ -19,7 +19,7 @@ import { useInlineEditor } from '../composables/useInlineEditor'
 import { teamSlug, useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { formatDateTime } from '../lib/format'
-import { gameAddress, played, splitGames } from '../lib/games'
+import { gameAddress, played, splitGames, teamMedia } from '../lib/games'
 import { featuredPosts, homePosts } from '../lib/posts'
 import { CONTENT_SECTIONS } from '../lib/teamContent'
 
@@ -96,7 +96,8 @@ const featured = computed(() => featuredPosts(shownPosts.value, nextGame.value, 
 const restPost = computed(() => shownPosts.value.find((p) => !featured.value.some((f) => f.post.id === p.id)) ?? null)
 
 // ponytail: same highest-id-is-newest rule; the media page lists the rest.
-const latestVideos = computed(() => [...videos.value].sort((x, y) => y.id - x.id).slice(0, 2))
+const media = computed(() => teamMedia(videos.value, images.value, games.value))
+const latestVideos = computed(() => media.value.videos.slice(0, 2))
 
 // The page plugin renders at a fixed `width` (180–500) and clips inside a narrower frame, so measure the frame first.
 // ponytail: measured once on mount; a resize/rotation keeps the first width until reload.
@@ -218,7 +219,7 @@ const hasSocialEmbed = computed(
           </ul>
         </section>
 
-        <section v-if="videos.length" class="space-y-2">
+        <section v-if="media.videos.length" class="space-y-2">
           <div class="section-header">
             <h2 class="section-title">סרטונים</h2>
             <RouterLink :to="base + '/media?tab=videos'" class="section-link">כל הסרטונים</RouterLink>
@@ -243,7 +244,7 @@ const hasSocialEmbed = computed(
           </ul>
         </section>
 
-        <HomeSlideshow :key="team.id" :images="images" :media-to="base + '/media'" />
+        <HomeSlideshow :key="team.id" :images="media.images" :media-to="base + '/media'" />
       </div>
 
       <aside v-if="showAside" class="min-w-0 space-y-4">
