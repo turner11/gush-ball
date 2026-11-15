@@ -889,3 +889,97 @@ def test_pending_review_lists_missing_game_and_keep_detaches_it(
     assert game.source_event_id is None
     assert admin_client.get(f"/teams/{team.id}/games/pending-review").json() == []
     assert admin_client.post(f"/teams/{team.id}/games/{game.id}/keep").status_code == 409
+
+
+# --- video briefing (#658) ---
+
+BRIEFING = [
+    {"title": "פתיחה", "text": "נתחיל בהגנה", "url": "https://www.youtube.com/watch?v=abc&t=90&end=120"},
+    {"title": "הערות", "text": None, "url": None},
+]
+
+
+@pytest.mark.parametrize(
+    ("who", "sees"),
+    [
+        ("anonymous", False),
+        ("none", False),
+        ("pending:own", False),
+        ("member:other", False),
+        ("member:club", False),
+        ("member:own", True),
+        ("admin:club", True),
+        ("full admin", True),
+    ],
+)
+def test_get_game_briefing_visibility(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team, who: str, sees: bool
+) -> None:
+    from tests.test_lineups import _login_as
+
+    own_team.club = "Gush"
+    game = _make_game(db_session, own_team)
+    game.briefing = BRIEFING
+    db_session.commit()
+    _login_as(client, db_session, who, own_team, other_team)
+
+    detail = client.get(f"/teams/{own_team.id}/games/{game.id}")
+    assert detail.status_code == 200
+    assert detail.json()["briefing"] == (BRIEFING if sees else None)
+    listing = client.get(f"/teams/{own_team.id}/games").json()
+    assert all("briefing" not in g for g in listing)
+
+
+def test_put_briefing_replaces_list_reorders_and_does_not_flag_override(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    url = f"/teams/{team.id}/games/{game.id}"
+    body = [
+        {"title": "קליפ", "text": "", "url": "https://www.youtube.com/watch?v=abc&t=90&end=120"},
+        {"title": "הערות", "text": "טקסט"},
+    ]
+    assert admin_client.put(f"{url}/briefing", json=body).status_code == 200
+    got = admin_client.get(url).json()["briefing"]
+    assert [i["title"] for i in got] == ["קליפ", "הערות"]
+    assert "t=90&end=120" in got[0]["url"]
+    assert got[1]["url"] is None
+
+    admin_client.put(f"{url}/briefing", json=body[::-1])
+    assert [i["title"] for i in admin_client.get(url).json()["briefing"]] == ["הערות", "קליפ"]
+    admin_client.put(f"{url}/briefing", json=[])
+    assert admin_client.get(url).json()["briefing"] == []
+    db_session.refresh(game)
+    assert game.is_manually_overridden is False
+
+
+def test_put_briefing_scope(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team, team_admin_client: TestClient
+) -> None:
+    own = _make_game(db_session, own_team)
+    other = _make_game(db_session, other_team)
+    item = [{"title": "x"}]
+    assert client.put(f"/teams/{own_team.id}/games/{own.id}/briefing", json=item).status_code == 200
+    assert client.put(f"/teams/{other_team.id}/games/{other.id}/briefing", json=item).status_code == 403
+
+
+@pytest.mark.parametrize("who", ["anonymous", "member:own"])
+def test_put_briefing_rejects_non_admins(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team, who: str
+) -> None:
+    from tests.test_lineups import _login_as
+
+    game = _make_game(db_session, own_team)
+    _login_as(client, db_session, who, own_team, other_team)
+    expected = 401 if who == "anonymous" else 403
+    assert client.put(f"/teams/{own_team.id}/games/{game.id}/briefing", json=[{"title": "x"}]).status_code == expected
+
+
+def test_put_briefing_validation(admin_client: TestClient, db_session: Session) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    url = f"/teams/{team.id}/games/{game.id}/briefing"
+    assert admin_client.put(url, json=[{"title": "x", "url": "javascript:alert(1)"}]).status_code == 422
+    assert admin_client.put(url, json=[{"title": " "}]).status_code == 422
+    assert admin_client.put(url, json=[{"title": "x"}] * 21).status_code == 422
