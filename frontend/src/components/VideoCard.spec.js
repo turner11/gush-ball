@@ -28,6 +28,13 @@ describe('VideoCard', () => {
     const w = card('https://vimeo.com/1', 'ויימאו')
     expect(w.find('iframe').exists()).toBe(false)
     expect(w.find('a[href="https://vimeo.com/1"]').text()).toBe('ויימאו')
+    expect(w.findAll('a')).toHaveLength(1)
+  })
+
+  it('links to YouTube at the segment start', () => {
+    const link = card('https://youtu.be/xyz?t=90&end=130').find('a[href="https://www.youtube.com/watch?v=xyz&t=90"]')
+    expect(link.exists()).toBe(true)
+    expect(link.attributes('target')).toBe('_blank')
   })
 
   it('labels a segment', () => {
