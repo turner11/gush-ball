@@ -6,6 +6,8 @@ import GameAverages from '../components/GameAverages.vue'
 import ImageGallery from '../components/ImageGallery.vue'
 import LoadError from '../components/LoadError.vue'
 import PostCard from '../components/PostCard.vue'
+import AppIcon from '../components/AppIcon.vue'
+import GameBriefingEditor from '../components/GameBriefingEditor.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
@@ -14,7 +16,7 @@ import GameStatsEditor from '../components/GameStatsEditor.vue'
 import GameStatsRowsEditor from '../components/GameStatsRowsEditor.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import VideoCard from '../components/VideoCard.vue'
-import { canEditTeam } from '../composables/useAuth'
+import { canEditTeam, teamMember } from '../composables/useAuth'
 import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -33,6 +35,7 @@ const loadError = ref(false)
 const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.params.slug } }))
 const canEdit = computed(() => !!game.value && canEditTeam(game.value.team_id))
 const { editing: editingScorers, toggleEl: scorersToggle, toggle: toggleScorers } = useInlineEditor(canEdit)
+const { editing: editingBriefing, toggleEl: briefingToggle, toggle: toggleBriefing } = useInlineEditor(canEdit)
 const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = useInlineEditor(canEdit)
 const { editing: editingStats, toggleEl: statsToggle, toggle: toggleStats } = useInlineEditor(canEdit)
 const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.images?.length))
@@ -46,8 +49,9 @@ function onStatsChange(e) {
   Object.assign(game.value, e)
   if ('has_stats' in e) rowsKey.value++
 }
-const saved = ref(null) // 'scorers' | 'media' | 'stats' | 'stats-removed': which save to confirm (the editor unmounts on save)
+const saved = ref(null) // 'scorers' | 'briefing' | 'media' | 'stats' | 'stats-removed': which save to confirm (the editor unmounts on save)
 watch(editingScorers, (open) => open && (saved.value = null))
+watch(editingBriefing, (open) => open && (saved.value = null))
 watch(editingMedia, (open) => open && (saved.value = null))
 watch(editingStats, (open) => open && (saved.value = null))
 
@@ -73,12 +77,39 @@ function onScorersSaved(list) {
   toggleScorers()
 }
 
+// Collapse state per game in localStorage, default open.
+// ponytail: one tiny key per collapsed game, never pruned; prune if it ever matters.
+const BRIEFING_CLOSED = 'gush-ball:briefing-closed:'
+function briefingOpen(id) {
+  try {
+    return localStorage.getItem(BRIEFING_CLOSED + id) === null
+  } catch {
+    return true
+  }
+}
+function onBriefingToggle(e) {
+  try {
+    if (e.target.open) localStorage.removeItem(BRIEFING_CLOSED + game.value.id)
+    else localStorage.setItem(BRIEFING_CLOSED + game.value.id, '1')
+  } catch {
+    // storage blocked: the card just won't remember
+  }
+}
+
+function onBriefingSaved(list) {
+  game.value.briefing = list
+  saved.value = 'briefing'
+  toggleBriefing()
+}
+
 function onMediaSaved(media) {
   game.value.videos = media.videos
   game.value.images = media.images
   saved.value = 'media'
   toggleMedia()
 }
+
+let restored = false // scroll restore applies to the page's first load only
 
 // DefaultLayout resolves the slug to selectedTeamId; fetching before that would use a stale remembered team.
 async function load() {
@@ -114,7 +145,12 @@ async function load() {
   if (game.value && id === selectedTeamId.value && route.hash) {
     await nextTick()
     document.getElementById(route.hash.slice(1))?.scrollIntoView({ block: 'start' })
+  } else if (game.value && id === selectedTeamId.value && !restored && history.state?.scroll) {
+    // vue-router restores the saved scroll before the async game renders, so its restore clamps to 0
+    await nextTick()
+    window.scrollTo(history.state.scroll)
   }
+  if (game.value) restored = true
 }
 
 watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: true })
@@ -170,6 +206,50 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
       <h2 class="section-title">על המשחק</h2>
       <p class="max-w-prose whitespace-pre-line">{{ game.description }}</p>
     </section>
+
+    <details
+      v-if="game.briefing && teamMember(game.team_id) && (game.briefing.length || canEdit)"
+      class="card group"
+      :open="briefingOpen(game.id)"
+      @toggle="onBriefingToggle"
+    >
+      <summary class="flex min-h-11 cursor-pointer items-center gap-2">
+        <h2 class="section-title">תדריך וידאו</h2>
+        <span class="badge badge-muted">{{ game.briefing.length }}</span>
+        <AppIcon name="chevron" class="ms-auto transition-transform group-open:rotate-180" />
+      </summary>
+      <div class="space-y-6 pt-3">
+        <div v-if="canEdit" class="section-header flex-wrap">
+          <p aria-live="polite" data-test="briefing-saved" class="ms-auto text-sm text-muted">{{ saved === 'briefing' ? 'התדריך נשמר' : '' }}</p>
+          <button
+            ref="briefingToggle"
+            type="button"
+            class="btn-secondary"
+            aria-controls="game-briefing-editor"
+            :aria-expanded="editingBriefing"
+            @click="toggleBriefing"
+          >
+            {{ editingBriefing ? 'סיום עריכה' : 'עריכת תדריך' }}
+          </button>
+        </div>
+        <GameBriefingEditor
+          v-if="editingBriefing"
+          id="game-briefing-editor"
+          :team-id="game.team_id"
+          :game-id="game.id"
+          :items="game.briefing"
+          @saved="onBriefingSaved"
+        />
+        <p v-else-if="!game.briefing.length" class="empty-state">עדיין אין תדריך למשחק.</p>
+        <ol v-else class="space-y-6">
+          <li v-for="(item, i) in game.briefing" :key="i" class="space-y-2">
+            <VideoCard v-if="item.url" :video="{ url: item.url, title: item.title }" :level="3" />
+            <h3 v-else class="font-bold">{{ item.title }}</h3>
+            <p v-if="item.text" class="max-w-prose whitespace-pre-line">{{ item.text }}</p>
+          </li>
+        </ol>
+      </div>
+    </details>
 
     <section v-if="game.scorers?.length || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">

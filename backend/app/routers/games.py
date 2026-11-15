@@ -14,6 +14,7 @@ from app.deps import (
     DbSession,
     OptionalUser,
     RequireTeamAdmin,
+    can_view_team_private,
     can_write_team,
     get_game_or_404,
     get_team_or_404,
@@ -134,8 +135,18 @@ class GameMedia(BaseModel):
     images: list[TitledImage] = Field(default=[], max_length=20)
 
 
+class BriefingItem(BaseModel):
+    title: VideoTitle
+    text: Description = None
+    url: Url500 | None = None  # YouTube clips carry start/end as t=/end= (#650)
+
+
+Briefing = Annotated[list[BriefingItem], Field(max_length=20)]
+
+
 class GameDetailRead(GameRead):
     scorers: list[ScorerOut] = []
+    briefing: list[BriefingItem] | None = None  # None = caller is not a team member; never on list payloads
 
 
 def _scorer_out(s: GameScorer) -> ScorerOut:
@@ -256,6 +267,7 @@ def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> G
     return GameDetailRead(
         **_public_game(game, show).model_dump(),
         scorers=_scorers(game),
+        briefing=game.briefing if can_view_team_private(db, user, team_id) else None,
     )
 
 
@@ -436,3 +448,18 @@ def replace_game_media(
     game.images = data["images"]
     db.commit()
     return GameMedia(videos=game.videos, images=game.images)
+
+
+@router.put("/{game_id}/briefing", response_model=list[BriefingItem])
+def replace_game_briefing(
+    team_id: int,
+    game_id: int,
+    payload: Briefing,
+    db: DbSession,
+    _admin_id: RequireTeamAdmin,
+) -> list[dict]:
+    """Replaces the game's whole video briefing (#658). A separate endpoint, never flags an override."""
+    game = get_game_or_404(db, team_id, game_id)
+    game.briefing = [item.model_dump(mode="json") for item in payload]  # json mode: HttpUrl -> str
+    db.commit()
+    return game.briefing

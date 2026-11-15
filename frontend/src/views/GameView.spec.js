@@ -32,7 +32,7 @@ function mockFetch(game, posts = []) { // posts null = the posts endpoint fails
 }
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 
-async function mountAt(teamsLoaded, teamId = '1', path = '/team_a/games/5') {
+async function mountAt(teamsLoaded, teamId = '1', path = '/team_a/games/5', beforeMount = null) {
   const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -45,6 +45,7 @@ async function mountAt(teamsLoaded, teamId = '1', path = '/team_a/games/5') {
   })
   router.push(path)
   await router.isReady()
+  beforeMount?.()
   const { useSelectedTeam } = await import('../composables/useSelectedTeam')
   const sel = useSelectedTeam()
   sel.selectedTeamId.value = teamId
@@ -53,6 +54,14 @@ async function mountAt(teamsLoaded, teamId = '1', path = '/team_a/games/5') {
   const wrapper = mount(GameView, { attachTo: document.body, global: { plugins: [router] } })
   await flushPromises()
   return { wrapper, sel, router }
+}
+
+const MEMBER = { id: 1, team_ids: [], member_team_ids: [1] }
+const ADMIN = { id: 1, team_ids: [1], member_team_ids: [1] }
+async function memberUser(user = MEMBER) {
+  const auth = await import('../composables/useAuth')
+  auth.useAuth().user.value = user
+  auth.previewMode.value = null
 }
 
 describe('GameView', () => {
@@ -296,6 +305,93 @@ describe('GameView', () => {
     const { wrapper } = await mountAt(true)
     expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['על המשחק', 'קלעים', 'ממוצעי נקודות', 'עדכונים', 'מדיה'])
     expect(wrapper.get('#game-posts-title').classes()).toContain('sr-only')
+  })
+
+  it('puts the briefing after about and before scorers (#658)', async () => {
+    mockFetch(ok({
+      ...GAME,
+      briefing: [{ title: 'פתיחה', text: null, url: null }],
+      scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
+    }))
+    await memberUser()
+    const { wrapper } = await mountAt(true)
+    const heads = wrapper.findAll('h2').map((h) => h.text())
+    expect(heads.indexOf('תדריך וידאו')).toBe(heads.indexOf('על המשחק') + 1)
+    expect(heads.indexOf('קלעים')).toBeGreaterThan(heads.indexOf('תדריך וידאו'))
+  })
+
+  describe('video briefing (#658)', () => {
+    const ITEMS = [
+      { title: 'קליפ פתיחה', text: 'שימו לב לחסימה', url: 'https://www.youtube.com/watch?v=abc123&t=90&end=120' },
+      { title: 'הערות כלליות', text: 'טקסט חופשי', url: null },
+    ]
+
+    it('hides the briefing from non-members and in the anonymous preview', async () => {
+      mockFetch(ok({ ...GAME, briefing: null }))
+      const first = await mountAt(true)
+      expect(first.wrapper.text()).not.toContain('תדריך וידאו')
+      first.wrapper.unmount()
+
+      mockFetch(ok({ ...GAME, briefing: ITEMS }))
+      await memberUser()
+      ;(await import('../composables/useAuth')).previewMode.value = 'anonymous'
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.text()).not.toContain('תדריך וידאו')
+    })
+
+    it('shows a member the items in order, a video item as an embed with its clip', async () => {
+      mockFetch(ok({ ...GAME, briefing: ITEMS }))
+      await memberUser()
+      const { wrapper } = await mountAt(true)
+      const text = wrapper.text()
+      expect(text.indexOf('קליפ פתיחה')).toBeLessThan(text.indexOf('הערות כלליות'))
+      expect(wrapper.get('iframe').attributes('src')).toContain('start=90&end=120')
+      expect(text).toContain('שימו לב לחסימה')
+      expect(text).toContain('טקסט חופשי')
+    })
+
+    it('remembers a collapsed briefing across a reload', async () => {
+      mockFetch(ok({ ...GAME, briefing: ITEMS }))
+      await memberUser()
+      const first = await mountAt(true)
+      const details = first.wrapper.get('details')
+      expect(details.element.open).toBe(true)
+      details.element.open = false
+      await details.trigger('toggle')
+      expect(localStorage.getItem('gush-ball:briefing-closed:5')).toBe('1')
+      first.wrapper.unmount()
+
+      vi.resetModules()
+      mockFetch(ok({ ...GAME, briefing: ITEMS }))
+      await memberUser()
+      const second = await mountAt(true)
+      const again = second.wrapper.get('details')
+      expect(again.element.open).toBe(false)
+      again.element.open = true
+      await again.trigger('toggle')
+      expect(localStorage.getItem('gush-ball:briefing-closed:5')).toBeNull()
+    })
+
+    it('restores the saved scroll position after the game loads', async () => {
+      mockFetch(ok({ ...GAME, briefing: ITEMS }))
+      const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+      const scroll = { left: 0, top: 500 }
+      await mountAt(true, '1', '/team_a/games/5', () => history.replaceState({ ...history.state, scroll }, ''))
+      expect(scrollTo).toHaveBeenCalledWith(scroll)
+    })
+
+    it('an admin sees the empty state and the edit button; a plain member sees no card', async () => {
+      mockFetch(ok({ ...GAME, briefing: [] }))
+      await memberUser(ADMIN)
+      const admin = await mountAt(true)
+      expect(admin.wrapper.text()).toContain('עדיין אין תדריך למשחק.')
+      expect(admin.wrapper.findAll('button').map((b) => b.text())).toContain('עריכת תדריך')
+      admin.wrapper.unmount()
+
+      await memberUser(MEMBER)
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.text()).not.toContain('תדריך וידאו')
+    })
   })
 
   it('preview hides the scorers and media edit buttons from a team admin (#468)', async () => {
