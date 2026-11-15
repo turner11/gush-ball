@@ -226,7 +226,7 @@ describe('StatsView', () => {
       expect(wrapper.findAll('svg[role=img]')).toHaveLength(2)
       const select = wrapper.find('#highlight-player')
       expect(select.element.value).toBe('2') // top total scorer
-      const highlighted = () => wrapper.findAll('svg[role=img]')[1].find('g.text-team circle title').text()
+      const highlighted = () => wrapper.findAll('svg[role=img]')[1].find('g.text-team polyline[data-hit] title').text()
       expect(highlighted()).toContain('בית')
       const players = () => wrapper.findAll('svg[role=img]')[1]
       expect(players().findAll('polyline.text-team')).toHaveLength(1)
@@ -245,7 +245,7 @@ describe('StatsView', () => {
       const chart = wrapper.findAll('svg[role=img]')[1]
       await chart.findAll('polyline[data-hit]').find((h) => h.find('title').text() === 'אלף').trigger('click')
       expect(select.element.value).toBe('1')
-      expect(chart.find('g.text-team circle title').text()).toContain('אלף')
+      expect(chart.find('g.text-team polyline[data-hit] title').text()).toContain('אלף')
     })
 
     it('charts still render when the team has no BBStats games', async () => {
