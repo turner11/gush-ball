@@ -19,6 +19,12 @@ const saveError = ref('')
 const form = reactive({ items: [] })
 
 const MAX_VIDEOS = 10 // matches the backend cap
+// Wording per list, so each editor names what it edits.
+const LABELS = {
+  briefing: { empty: 'אין פריטים בתדריך', save: 'שמירת תדריך', error: 'שגיאה בשמירת התדריך, נסו שוב' },
+  highlights: { empty: 'אין היילייטס', save: 'שמירת היילייטס', error: 'שגיאה בשמירת ההיילייטס, נסו שוב' },
+}
+const labels = LABELS[props.field]
 const orNull = (v) => v.trim() || null
 
 function fill(items) {
@@ -40,7 +46,7 @@ async function onSubmit() {
     emit('saved', items)
   } catch (e) {
     saveError.value =
-      e.status === 422 ? 'יש שדה לא תקין (קישור או אורך טקסט)' : e.status === 403 ? 'אין הרשאה' : 'שגיאה בשמירה, נסו שוב'
+      e.status === 422 ? 'יש שדה לא תקין (קישור או אורך טקסט)' : e.status === 403 ? 'אין הרשאה' : labels.error
   } finally {
     saving.value = false
   }
@@ -49,7 +55,7 @@ async function onSubmit() {
 
 <template>
   <form class="space-y-6" @submit.prevent="onSubmit">
-    <p v-if="!form.items.length" class="empty-state">אין פריטים</p>
+    <p v-if="!form.items.length" class="empty-state">{{ labels.empty }}</p>
     <div v-for="(item, i) in form.items" :key="i" class="grid gap-3 sm:grid-cols-2">
       <div>
         <label :for="`${field}-title-${i}`" class="field-label">כותרת פריט {{ i + 1 }}</label>
@@ -84,7 +90,7 @@ async function onSubmit() {
 
     <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
     <div class="sticky-actions">
-      <button type="submit" class="btn-primary" :disabled="saving">שמירה</button>
+      <button type="submit" class="btn-primary" :disabled="saving">{{ labels.save }}</button>
     </div>
   </form>
 </template>
