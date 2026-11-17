@@ -14,7 +14,6 @@ const GAME = {
   opponent_score: 70,
   description: 'משחק גמר מרגש',
   scorers: [],
-  videos: [],
   images: [],
   opponent: { id: 6, name: 'הפועל עבר', logo_url: null, source_url: null, address: 'רחוב הספורט 1, חיפה' },
 }
@@ -179,14 +178,13 @@ describe('GameView', () => {
   describe('media', () => {
     const withMedia = {
       ...GAME,
-      videos: [{ url: 'https://www.youtube.com/watch?v=abc123', title: 'תקציר', title_en: null }],
       images: [{ url: 'https://cdn.example.com/a.jpg', title: 'חגיגה', title_en: null }],
     }
 
-    it('renders a YouTube iframe and an image when the game has media', async () => {
+    it('renders the game images', async () => {
       mockFetch(ok(withMedia))
       const { wrapper } = await mountAt(true)
-      expect(wrapper.find('iframe').attributes('src')).toContain('abc123')
+      expect(wrapper.find('iframe').exists()).toBe(false)
       expect(wrapper.find('img[src="https://cdn.example.com/a.jpg"]').attributes('alt')).toBe('חגיגה')
     })
 
@@ -196,6 +194,14 @@ describe('GameView', () => {
       await wrapper.get('button[aria-label="הגדלת תמונה: חגיגה"]').trigger('click')
       expect(wrapper.get('dialog').attributes('open')).toBeDefined()
       expect(wrapper.get('dialog img').attributes('src')).toBe('https://cdn.example.com/a.jpg')
+    })
+
+    it('shows an admin with no images the empty state', async () => {
+      mockFetch(ok(GAME))
+      const { useAuth } = await import('../composables/useAuth')
+      useAuth().user.value = { id: 1, team_ids: [1] }
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.text()).toContain('עדיין לא נוספו תמונות.')
     })
 
     it('hides the media card from visitors when both lists are empty', async () => {
@@ -214,7 +220,7 @@ describe('GameView', () => {
       await wrapper.findAll('button').find((b) => b.text() === 'עריכת מדיה').trigger('click')
       expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(true)
       expect(wrapper.findAll('button').some((b) => b.text() === 'סיום עריכה')).toBe(true)
-      wrapper.findComponent(GameMediaEditor).vm.$emit('saved', { videos: [], images: [] })
+      wrapper.findComponent(GameMediaEditor).vm.$emit('saved', { images: [] })
       await flushPromises()
       expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(false)
     })
@@ -229,7 +235,7 @@ describe('GameView', () => {
       expect(note().text()).toBe('')
       const toggle = () => wrapper.findAll('button').find((b) => b.text() === 'עריכת מדיה')
       await toggle().trigger('click')
-      wrapper.findComponent(GameMediaEditor).vm.$emit('saved', { videos: [], images: [] })
+      wrapper.findComponent(GameMediaEditor).vm.$emit('saved', { images: [] })
       await flushPromises()
       expect(wrapper.findComponent(GameMediaEditor).exists()).toBe(false)
       expect(note().text()).toBe('המדיה נשמרה')
@@ -300,7 +306,7 @@ describe('GameView', () => {
     mockFetch(ok({
       ...GAME,
       scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
-      videos: [{ url: 'https://www.youtube.com/watch?v=abc123', title: 'תקציר', title_en: null }],
+      images: [{ url: 'https://cdn.example.com/a.jpg', title: null, title_en: null }],
     }), [{ id: 1, title: 'לקראת המשחק', body: 'b', game_id: 5 }])
     const { wrapper } = await mountAt(true)
     expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['על המשחק', 'קלעים', 'ממוצעי נקודות', 'עדכונים', 'מדיה'])
@@ -497,7 +503,7 @@ describe('GameView', () => {
   })
 
   it('preview hides the scorers and media edit buttons from a team admin (#468)', async () => {
-    mockFetch(ok({ ...GAME, scorers: [{ player_id: 2, name: 'x', points: 2 }], videos: [{ url: 'https://youtu.be/a', title: 't', title_en: null }] }))
+    mockFetch(ok({ ...GAME, scorers: [{ player_id: 2, name: 'x', points: 2 }], images: [{ url: '/a.jpg', title: null, title_en: null }] }))
     const { useAuth, previewMode } = await import('../composables/useAuth')
     useAuth().user.value = { id: 1, team_ids: [1] }
     previewMode.value = 'member'

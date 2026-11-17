@@ -99,7 +99,7 @@ describe('MediaView', () => {
     const games = [{
       id: 5,
       scheduled_at: '2026-01-01T18:00:00',
-      videos: [{ url: 'https://youtu.be/g', title: 'משחק' }],
+      highlights: [{ title: 'משחק', urls: ['https://youtu.be/g'] }],
       images: [{ url: 'https://img/g.jpg', title: 'מהמשחק' }],
     }]
     const wrapper = await mountView({ games })

@@ -3,14 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const GAME = {
   id: 5,
-  videos: [{ url: 'https://www.youtube.com/watch?v=abc', title: 'תקציר', title_en: null }],
   images: [{ url: 'https://cdn.example.com/a.jpg', title: null, title_en: null }],
 }
 const res = (body, status = 200) => ({ ok: true, status, json: async () => body })
 
 function mockFetch({ put } = {}) {
   global.fetch = vi.fn((url, options = {}) => {
-    if (options.method === 'PUT') return Promise.resolve(put ? put() : res({ videos: [], images: [] }))
+    if (options.method === 'PUT') return Promise.resolve(put ? put() : res({ images: [] }))
     if (url === '/api/teams/1/games/5') return Promise.resolve(res(GAME))
     return Promise.reject(new Error(`Unhandled fetch: ${url}`))
   })
@@ -29,32 +28,24 @@ describe('GameMediaEditor', () => {
   beforeEach(() => vi.resetModules())
   afterEach(() => vi.restoreAllMocks())
 
-  it('prefills video and image rows from the game', async () => {
+  it('prefills image rows from the game and has no video fields', async () => {
     mockFetch()
     const wrapper = await mountEditor()
-    expect(wrapper.find('#video-title-0').element.value).toBe('תקציר')
-    expect(wrapper.find('#video-url-0').element.value).toBe('https://www.youtube.com/watch?v=abc')
     expect(wrapper.find('img').attributes('src')).toBe('https://cdn.example.com/a.jpg')
+    expect(wrapper.find('#video-title-0').exists()).toBe(false)
   })
 
-  it('shows segment inputs for a YouTube row', async () => {
-    mockFetch()
-    const wrapper = await mountEditor()
-    expect(wrapper.find('#video-segment-0-start').exists()).toBe(true)
-  })
-
-  it('adds a video row, PUTs it with null title_en, and emits saved', async () => {
-    const saved = { videos: [], images: [] }
+  it('PUTs only images and emits saved', async () => {
+    const saved = { images: [] }
     mockFetch({ put: () => res(saved) })
     const wrapper = await mountEditor()
-    await wrapper.find('[data-test=add-video]').trigger('click')
-    await wrapper.find('#video-title-1').setValue('משחק מלא')
-    await wrapper.find('#video-url-1').setValue('https://veo.co/m/1')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
     expect(putCall()[0]).toBe('/api/teams/1/games/5/media')
-    expect(JSON.parse(putCall()[1].body).videos[1]).toEqual({ url: 'https://veo.co/m/1', title: 'משחק מלא', title_en: null })
+    expect(JSON.parse(putCall()[1].body)).toEqual({
+      images: [{ url: 'https://cdn.example.com/a.jpg', title: null, title_en: null }],
+    })
     expect(wrapper.emitted('saved')[0][0]).toEqual(saved)
     expect(wrapper.find('[aria-live=polite]').text()).toBe('המדיה נשמרה')
   })

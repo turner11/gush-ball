@@ -13,7 +13,7 @@ const CLUB = { id: 5, name: 'מכבי', name_en: 'Maccabi', ibasketball_url: nul
 const PLAYER = { id: 1, team_id: 1, name: 'יוסי כהן', jersey_number: 7, images: [{ id: 1, url: '/p.jpg' }], videos: [], is_coach: false }
 const GAME = {
   id: 1, team_id: 1, is_home: true, scheduled_at: '2020-05-01T18:00:00', status: 'final', has_stats: false,
-  team_score: 80, opponent_score: 70, description: 'משחק גמר', scorers: [], videos: [], images: [],
+  team_score: 80, opponent_score: 70, description: 'משחק גמר', scorers: [], images: [],
   opponent: { id: 6, name: 'הפועל עבר', logo_url: null, source_url: null, address: null },
 }
 const POST = { id: 1, title: 'ניצחון', body: 'תוכן', pinned: false, created_at: '2020-05-02T10:00:00' }

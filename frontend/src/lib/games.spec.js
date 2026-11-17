@@ -97,8 +97,12 @@ describe('scoringTotals', () => {
 
 describe('teamMedia', () => {
   const v = (title) => ({ url: `https://youtu.be/${title}`, title })
-  const older = { id: 1, scheduled_at: '2026-01-01T18:00:00', videos: [v('g-old')], images: [] }
-  const newer = { id: 2, scheduled_at: '2026-02-01T18:00:00', videos: [v('g-new1'), v('g-new2')], images: [] }
+  const older = { id: 1, scheduled_at: '2026-01-01T18:00:00', highlights: [{ title: 'g-old', urls: [v('g-old').url] }], images: [] }
+  const newer = { id: 2, scheduled_at: '2026-02-01T18:00:00', highlights: [
+      { title: 'g-new1', urls: [v('g-new1').url] },
+      { title: 'g-new2', urls: [v('g-new2').url] },
+    ],
+    images: [] }
 
   it('merges team and game videos by date, undated team videos last in API order', () => {
     const team = [
@@ -110,19 +114,18 @@ describe('teamMedia', () => {
     expect(videos.map((x) => x.title)).toEqual(['g-new1', 'g-new2', 't-mid', 'g-old', 't-undated2', 't-undated1'])
   })
 
-  it("puts a game's highlights in its videos, one per url, before its media videos", () => {
+  it("puts a game's highlights in its videos, one per url", () => {
     const game = {
       ...older,
       highlights: [
         { title: 'סל', text: 'd', urls: ['https://youtu.be/u1', 'https://youtu.be/u2'] },
         { title: 'ריק', urls: [] },
       ],
-      videos: [v('m')],
     }
     const { videos } = teamMedia([], [], [game])
-    expect(videos.map((x) => x.title)).toEqual(['סל 1', 'סל 2', 'm'])
-    expect(videos.map((x) => x.text)).toEqual(['d', 'd', undefined])
-    expect(new Set(videos.map((x) => x.id)).size).toBe(3)
+    expect(videos.map((x) => x.title)).toEqual(['סל 1', 'סל 2'])
+    expect(videos.map((x) => x.text)).toEqual(['d', 'd'])
+    expect(new Set(videos.map((x) => x.id)).size).toBe(2)
   })
 
   it('gives game items unique string ids', () => {
@@ -133,7 +136,7 @@ describe('teamMedia', () => {
   })
 
   it('merges game images by date, undated team images last', () => {
-    const game = { id: 1, scheduled_at: '2026-01-10T18:00:00', videos: [], images: [{ url: '/g.jpg', title: null }] }
+    const game = { id: 1, scheduled_at: '2026-01-10T18:00:00', images: [{ url: '/g.jpg', title: null }] }
     const team = [
       { id: 5, url: '/new.jpg', created_at: '2026-03-01T10:00:00Z' },
       { id: 4, url: '/old.jpg' },

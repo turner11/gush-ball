@@ -706,45 +706,32 @@ def test_put_media_replaces_lists_and_get_game_returns_them(admin_client: TestCl
     team = _make_team(db_session)
     game = _make_game(db_session, team)
     url = f"/teams/{team.id}/games/{game.id}"
-    body = {
-        "videos": [
-            {"url": "https://www.youtube.com/watch?v=abc", "title": "Highlights"},
-            {"url": "https://veo.co/m/1", "title": "Full game", "title_en": "Full"},
-        ],
-        "images": [{"url": "https://cdn.example.com/a.jpg"}],
-    }
-    expected = {
-        "videos": [
-            {"url": "https://www.youtube.com/watch?v=abc", "title": "Highlights", "title_en": None},
-            {"url": "https://veo.co/m/1", "title": "Full game", "title_en": "Full"},
-        ],
-        "images": [{"url": "https://cdn.example.com/a.jpg", "title": None, "title_en": None}],
-    }
+    body = {"images": [{"url": "https://cdn.example.com/a.jpg"}]}
+    expected = [{"url": "https://cdn.example.com/a.jpg", "title": None, "title_en": None}]
 
     put = admin_client.put(f"{url}/media", json=body)
 
     assert put.status_code == 200
-    assert put.json() == expected
+    assert put.json() == {"images": expected}
+    assert "videos" not in put.json()
     detail = admin_client.get(url).json()
-    assert (detail["videos"], detail["images"]) == (expected["videos"], expected["images"])
+    assert detail["images"] == expected
+    assert "videos" not in detail
 
     again = admin_client.put(f"{url}/media", json={"images": []})
-    assert again.json() == {"videos": [], "images": []}
+    assert again.json() == {"images": []}
 
 
 def test_list_games_includes_game_media(admin_client: TestClient, client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     game = _make_game(db_session, team)
-    body = {
-        "videos": [{"url": "https://www.youtube.com/watch?v=abc", "title": "Highlights"}],
-        "images": [{"url": "https://cdn.example.com/a.jpg"}],
-    }
+    body = {"images": [{"url": "https://cdn.example.com/a.jpg"}]}
     admin_client.put(f"/teams/{team.id}/games/{game.id}/media", json=body)
 
     (listed,) = client.get(f"/teams/{team.id}/games").json()
 
-    assert listed["videos"] == [{"url": "https://www.youtube.com/watch?v=abc", "title": "Highlights", "title_en": None}]
     assert listed["images"] == [{"url": "https://cdn.example.com/a.jpg", "title": None, "title_en": None}]
+    assert "videos" not in listed
 
 
 def test_put_media_does_not_flag_manual_override(admin_client: TestClient, db_session: Session) -> None:
@@ -761,17 +748,14 @@ def test_put_media_does_not_flag_manual_override(admin_client: TestClient, db_se
     assert game.needs_review == before
 
 
-def test_put_media_rejects_bad_url_and_missing_video_title(admin_client: TestClient, db_session: Session) -> None:
+def test_put_media_rejects_too_many_images(admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     game = _make_game(db_session, team)
-    url = f"/teams/{team.id}/games/{game.id}/media"
     image = {"url": "https://cdn.example.com/a.jpg"}
 
-    bad_url = admin_client.put(url, json={"videos": [{"url": "javascript:alert(1)", "title": "x"}]})
-    no_title = admin_client.put(url, json={"videos": [{"url": "https://veo.co/m/1", "title": ""}]})
-    too_many = admin_client.put(url, json={"images": [image] * 21})
+    too_many = admin_client.put(f"/teams/{team.id}/games/{game.id}/media", json={"images": [image] * 21})
 
-    assert (bad_url.status_code, no_title.status_code, too_many.status_code) == (422, 422, 422)
+    assert too_many.status_code == 422
 
 
 def test_put_media_scope(
@@ -784,17 +768,6 @@ def test_put_media_scope(
     assert team_admin_client.put(f"/teams/{own_team.id}/games/{own_game.id}/media", json={}).status_code == 200
     client.post("/auth/logout")
     assert client.put(f"/teams/{own_team.id}/games/{own_game.id}/media", json={}).status_code == 401
-
-
-def test_put_media_accepts_long_english_video_title(admin_client: TestClient, db_session: Session) -> None:
-    team = _make_team(db_session)
-    game = _make_game(db_session, team)
-    video = {"url": "https://veo.co/m/1", "title": "x", "title_en": "e" * 200}
-
-    res = admin_client.put(f"/teams/{team.id}/games/{game.id}/media", json={"videos": [video]})
-
-    assert res.status_code == 200
-    assert res.json()["videos"][0]["title_en"] == "e" * 200
 
 
 def _scored_game(db_session: Session, team: Team, opponent: str, day: int, scorers: list[tuple[Player, int]], **kw) -> Game:
