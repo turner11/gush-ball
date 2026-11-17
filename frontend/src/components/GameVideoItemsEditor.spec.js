@@ -10,11 +10,11 @@ const putCall = () => global.fetch.mock.calls.find((c) => c[1]?.method === 'PUT'
 
 async function mountEditor(put) {
   global.fetch = vi.fn(() => Promise.resolve(put))
-  const { default: Editor } = await import('./GameBriefingEditor.vue')
-  return mount(Editor, { props: { teamId: 1, gameId: 5, items: ITEMS } })
+  const { default: Editor } = await import('./GameVideoItemsEditor.vue')
+  return mount(Editor, { props: { teamId: 1, gameId: 5, items: ITEMS, field: 'briefing' } })
 }
 
-describe('GameBriefingEditor', () => {
+describe('GameVideoItemsEditor', () => {
   beforeEach(() => vi.resetModules())
   afterEach(() => vi.restoreAllMocks())
 
@@ -53,5 +53,15 @@ describe('GameBriefingEditor', () => {
     await flushPromises()
     expect(wrapper.find('[role=alert]').text()).not.toBe('')
     expect(wrapper.findAll('input').length).toBeGreaterThan(0)
+  })
+
+  it('saves highlights to their own endpoint with field-prefixed ids', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => [] }))
+    const { default: Editor } = await import('./GameVideoItemsEditor.vue')
+    const wrapper = mount(Editor, { props: { teamId: 1, gameId: 5, items: ITEMS, field: 'highlights' } })
+    expect(wrapper.find('#highlights-url-0-0').exists()).toBe(true)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(putCall()[0]).toBe('/api/teams/1/games/5/highlights')
   })
 })

@@ -891,7 +891,7 @@ def test_pending_review_lists_missing_game_and_keep_detaches_it(
     assert admin_client.post(f"/teams/{team.id}/games/{game.id}/keep").status_code == 409
 
 
-# --- video briefing (#658) ---
+# --- video items: briefing (#658) + highlights (#665) ---
 
 BRIEFING = [
     {"title": "פתיחה", "text": "נתחיל בהגנה", "urls": ["https://www.youtube.com/watch?v=abc&t=90&end=120"]},
@@ -930,8 +930,24 @@ def test_get_game_briefing_visibility(
     assert all("briefing" not in g for g in listing)
 
 
-def test_put_briefing_replaces_list_reorders_and_does_not_flag_override(
-    admin_client: TestClient, db_session: Session
+def test_get_game_highlights_are_public(client: TestClient, db_session: Session, own_team: Team) -> None:
+    game = _make_game(db_session, own_team)
+    game.highlights = BRIEFING
+    game.briefing = BRIEFING
+    db_session.commit()
+    detail = client.get(f"/teams/{own_team.id}/games/{game.id}").json()
+    assert detail["highlights"] == BRIEFING
+    assert detail["briefing"] is None
+    listing = client.get(f"/teams/{own_team.id}/games").json()
+    assert [g["highlights"] for g in listing] == [BRIEFING]
+    assert all("briefing" not in g for g in listing)
+    everyone = client.get("/games", params={"from": "2025-12-31", "to": "2026-01-02"}).json()
+    assert [g["highlights"] for g in everyone] == [BRIEFING]
+
+
+@pytest.mark.parametrize("field", ["briefing", "highlights"])
+def test_put_video_items_replaces_list_reorders_and_does_not_flag_override(
+    admin_client: TestClient, db_session: Session, field: str
 ) -> None:
     team = _make_team(db_session)
     game = _make_game(db_session, team)
@@ -944,17 +960,17 @@ def test_put_briefing_replaces_list_reorders_and_does_not_flag_override(
         },
         {"title": "הערות", "text": "טקסט"},
     ]
-    assert admin_client.put(f"{url}/briefing", json=body).status_code == 200
-    got = admin_client.get(url).json()["briefing"]
+    assert admin_client.put(f"{url}/{field}", json=body).status_code == 200
+    got = admin_client.get(url).json()[field]
     assert [i["title"] for i in got] == ["קליפ", "הערות"]
     assert "t=90&end=120" in got[0]["urls"][0]
     assert "t=5&end=9" in got[0]["urls"][1]
     assert got[1]["urls"] == []
 
-    admin_client.put(f"{url}/briefing", json=body[::-1])
-    assert [i["title"] for i in admin_client.get(url).json()["briefing"]] == ["הערות", "קליפ"]
-    admin_client.put(f"{url}/briefing", json=[])
-    assert admin_client.get(url).json()["briefing"] == []
+    admin_client.put(f"{url}/{field}", json=body[::-1])
+    assert [i["title"] for i in admin_client.get(url).json()[field]] == ["הערות", "קליפ"]
+    admin_client.put(f"{url}/{field}", json=[])
+    assert admin_client.get(url).json()[field] == []
     db_session.refresh(game)
     assert game.is_manually_overridden is False
 
@@ -972,32 +988,40 @@ def test_briefing_legacy_url_reads_as_urls(admin_client: TestClient, db_session:
     assert all("url" not in i for i in got)
 
 
-def test_put_briefing_scope(
-    client: TestClient, db_session: Session, own_team: Team, other_team: Team, team_admin_client: TestClient
+@pytest.mark.parametrize("field", ["briefing", "highlights"])
+def test_put_video_items_scope(
+    client: TestClient,
+    db_session: Session,
+    own_team: Team,
+    other_team: Team,
+    team_admin_client: TestClient,
+    field: str,
 ) -> None:
     own = _make_game(db_session, own_team)
     other = _make_game(db_session, other_team)
     item = [{"title": "x"}]
-    assert client.put(f"/teams/{own_team.id}/games/{own.id}/briefing", json=item).status_code == 200
-    assert client.put(f"/teams/{other_team.id}/games/{other.id}/briefing", json=item).status_code == 403
+    assert client.put(f"/teams/{own_team.id}/games/{own.id}/{field}", json=item).status_code == 200
+    assert client.put(f"/teams/{other_team.id}/games/{other.id}/{field}", json=item).status_code == 403
 
 
+@pytest.mark.parametrize("field", ["briefing", "highlights"])
 @pytest.mark.parametrize("who", ["anonymous", "member:own"])
-def test_put_briefing_rejects_non_admins(
-    client: TestClient, db_session: Session, own_team: Team, other_team: Team, who: str
+def test_put_video_items_rejects_non_admins(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team, who: str, field: str
 ) -> None:
     from tests.test_lineups import _login_as
 
     game = _make_game(db_session, own_team)
     _login_as(client, db_session, who, own_team, other_team)
     expected = 401 if who == "anonymous" else 403
-    assert client.put(f"/teams/{own_team.id}/games/{game.id}/briefing", json=[{"title": "x"}]).status_code == expected
+    assert client.put(f"/teams/{own_team.id}/games/{game.id}/{field}", json=[{"title": "x"}]).status_code == expected
 
 
-def test_put_briefing_validation(admin_client: TestClient, db_session: Session) -> None:
+@pytest.mark.parametrize("field", ["briefing", "highlights"])
+def test_put_video_items_validation(admin_client: TestClient, db_session: Session, field: str) -> None:
     team = _make_team(db_session)
     game = _make_game(db_session, team)
-    url = f"/teams/{team.id}/games/{game.id}/briefing"
+    url = f"/teams/{team.id}/games/{game.id}/{field}"
     assert admin_client.put(url, json=[{"title": "x", "urls": ["javascript:alert(1)"]}]).status_code == 422
     too_many = [{"title": "x", "urls": ["https://youtu.be/a"] * 11}]
     assert admin_client.put(url, json=too_many).status_code == 422

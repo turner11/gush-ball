@@ -10,6 +10,7 @@ const props = defineProps({
   teamId: { type: [Number, String], required: true },
   gameId: { type: Number, required: true },
   items: { type: Array, required: true },
+  field: { type: String, required: true }, // 'briefing' | 'highlights': which list this edits, and its endpoint
 })
 const emit = defineEmits(['saved'])
 
@@ -35,11 +36,11 @@ async function onSubmit() {
   saveError.value = ''
   try {
     const body = form.items.map((i) => ({ title: i.title, text: orNull(i.text), urls: i.urls.map((u) => u.trim()).filter(Boolean) }))
-    const items = await apiFetch(`/teams/${props.teamId}/games/${props.gameId}/briefing`, { method: 'PUT', body })
+    const items = await apiFetch(`/teams/${props.teamId}/games/${props.gameId}/${props.field}`, { method: 'PUT', body })
     emit('saved', items)
   } catch (e) {
     saveError.value =
-      e.status === 422 ? 'יש שדה לא תקין (קישור או אורך טקסט)' : e.status === 403 ? 'אין הרשאה' : 'שגיאה בשמירת התדריך, נסו שוב'
+      e.status === 422 ? 'יש שדה לא תקין (קישור או אורך טקסט)' : e.status === 403 ? 'אין הרשאה' : 'שגיאה בשמירה, נסו שוב'
   } finally {
     saving.value = false
   }
@@ -48,26 +49,26 @@ async function onSubmit() {
 
 <template>
   <form class="space-y-6" @submit.prevent="onSubmit">
-    <p v-if="!form.items.length" class="empty-state">אין פריטים בתדריך</p>
+    <p v-if="!form.items.length" class="empty-state">אין פריטים</p>
     <div v-for="(item, i) in form.items" :key="i" class="grid gap-3 sm:grid-cols-2">
       <div>
-        <label :for="`briefing-title-${i}`" class="field-label">כותרת פריט {{ i + 1 }}</label>
-        <input :id="`briefing-title-${i}`" v-model="item.title" class="field-input" required maxlength="200" />
+        <label :for="`${field}-title-${i}`" class="field-label">כותרת פריט {{ i + 1 }}</label>
+        <input :id="`${field}-title-${i}`" v-model="item.title" class="field-input" required maxlength="200" />
       </div>
       <div class="space-y-3 sm:col-span-2">
         <div v-for="(_, j) in item.urls" :key="j" class="space-y-2">
-          <label :for="`briefing-url-${i}-${j}`" class="field-label">כתובת סרטון {{ j + 1 }} לפריט {{ i + 1 }}</label>
+          <label :for="`${field}-url-${i}-${j}`" class="field-label">כתובת סרטון {{ j + 1 }} לפריט {{ i + 1 }}</label>
           <div class="flex gap-2">
-            <input :id="`briefing-url-${i}-${j}`" v-model="item.urls[j]" type="url" class="field-input" dir="ltr" inputmode="url" />
+            <input :id="`${field}-url-${i}-${j}`" v-model="item.urls[j]" type="url" class="field-input" dir="ltr" inputmode="url" />
             <button type="button" class="btn-danger-ghost shrink-0" :aria-label="`הסרת סרטון ${j + 1} מפריט ${i + 1}`" @click="item.urls.splice(j, 1)">הסרה</button>
           </div>
-          <VideoSegmentFields v-model="item.urls[j]" :id="`briefing-segment-${i}-${j}`" />
+          <VideoSegmentFields v-model="item.urls[j]" :id="`${field}-segment-${i}-${j}`" />
         </div>
         <button v-if="item.urls.length < MAX_VIDEOS" type="button" class="btn-ghost" :data-test="`add-video-${i}`" @click="item.urls.push('')">הוספת סרטון</button>
       </div>
       <div class="sm:col-span-2">
-        <label :for="`briefing-text-${i}`" class="field-label">טקסט {{ i + 1 }}</label>
-        <textarea :id="`briefing-text-${i}`" v-model="item.text" class="field-input" rows="3" maxlength="2000"></textarea>
+        <label :for="`${field}-text-${i}`" class="field-label">טקסט {{ i + 1 }}</label>
+        <textarea :id="`${field}-text-${i}`" v-model="item.text" class="field-input" rows="3" maxlength="2000"></textarea>
       </div>
       <div class="flex flex-wrap gap-1 sm:col-span-2">
         <button type="button" class="btn-ghost" :aria-label="`הזזה למעלה ${i + 1}`" :disabled="i === 0" @click="move(i, -1)">
@@ -83,7 +84,7 @@ async function onSubmit() {
 
     <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>
     <div class="sticky-actions">
-      <button type="submit" class="btn-primary" :disabled="saving">שמירת תדריך</button>
+      <button type="submit" class="btn-primary" :disabled="saving">שמירה</button>
     </div>
   </form>
 </template>

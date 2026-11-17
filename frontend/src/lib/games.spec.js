@@ -110,6 +110,21 @@ describe('teamMedia', () => {
     expect(videos.map((x) => x.title)).toEqual(['g-new1', 'g-new2', 't-mid', 'g-old', 't-undated2', 't-undated1'])
   })
 
+  it("puts a game's highlights in its videos, one per url, before its media videos", () => {
+    const game = {
+      ...older,
+      highlights: [
+        { title: 'סל', text: 'd', urls: ['https://youtu.be/u1', 'https://youtu.be/u2'] },
+        { title: 'ריק', urls: [] },
+      ],
+      videos: [v('m')],
+    }
+    const { videos } = teamMedia([], [], [game])
+    expect(videos.map((x) => x.title)).toEqual(['סל 1', 'סל 2', 'm'])
+    expect(videos.map((x) => x.text)).toEqual(['d', 'd', undefined])
+    expect(new Set(videos.map((x) => x.id)).size).toBe(3)
+  })
+
   it('gives game items unique string ids', () => {
     const { videos } = teamMedia([{ id: 1, ...v('t1') }], [], [older, newer])
     const ids = videos.map((x) => x.id)

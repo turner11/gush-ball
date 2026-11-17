@@ -81,6 +81,24 @@ class GameVideo(BaseModel):
     title_en: VideoTitle | None = None
 
 
+class VideoItem(BaseModel):
+    title: VideoTitle
+    text: Description = None
+    urls: list[Url500] = Field(default=[], max_length=10)  # YouTube clips carry start/end as t=/end= (#650)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_url(cls, data: object) -> object:
+        # ponytail: rows stored with one `url` (#658) convert on read and are rewritten on the next save;
+        # a JSON data migration can replace this if it ever matters.
+        if isinstance(data, dict) and "url" in data and "urls" not in data:
+            return {**data, "urls": [data["url"]] if data["url"] else []}
+        return data
+
+
+VideoItems = Annotated[list[VideoItem], Field(max_length=20)]
+
+
 class GameRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -97,6 +115,7 @@ class GameRead(BaseModel):
     opponent: OpponentRead
     videos: list[GameVideo] = []
     images: list[TitledImage] = []
+    highlights: list[VideoItem] = []  # public (#665); the team-private briefing is detail-only
 
 
 class AdminGameRead(GameRead):
@@ -135,27 +154,9 @@ class GameMedia(BaseModel):
     images: list[TitledImage] = Field(default=[], max_length=20)
 
 
-class BriefingItem(BaseModel):
-    title: VideoTitle
-    text: Description = None
-    urls: list[Url500] = Field(default=[], max_length=10)  # YouTube clips carry start/end as t=/end= (#650)
-
-    @model_validator(mode="before")
-    @classmethod
-    def _legacy_url(cls, data: object) -> object:
-        # ponytail: rows stored with one `url` (#658) convert on read and are rewritten on the next save;
-        # a JSON data migration can replace this if it ever matters.
-        if isinstance(data, dict) and "url" in data and "urls" not in data:
-            return {**data, "urls": [data["url"]] if data["url"] else []}
-        return data
-
-
-Briefing = Annotated[list[BriefingItem], Field(max_length=20)]
-
-
 class GameDetailRead(GameRead):
     scorers: list[ScorerOut] = []
-    briefing: list[BriefingItem] | None = None  # None = caller is not a team member; never on list payloads
+    briefing: list[VideoItem] | None = None  # None = caller is not a team member; never on list payloads
 
 
 def _scorer_out(s: GameScorer) -> ScorerOut:
@@ -459,11 +460,11 @@ def replace_game_media(
     return GameMedia(videos=game.videos, images=game.images)
 
 
-@router.put("/{game_id}/briefing", response_model=list[BriefingItem])
+@router.put("/{game_id}/briefing", response_model=list[VideoItem])
 def replace_game_briefing(
     team_id: int,
     game_id: int,
-    payload: Briefing,
+    payload: VideoItems,
     db: DbSession,
     _admin_id: RequireTeamAdmin,
 ) -> list[dict]:
@@ -472,3 +473,18 @@ def replace_game_briefing(
     game.briefing = [item.model_dump(mode="json") for item in payload]  # json mode: HttpUrl -> str
     db.commit()
     return game.briefing
+
+
+@router.put("/{game_id}/highlights", response_model=list[VideoItem])
+def replace_game_highlights(
+    team_id: int,
+    game_id: int,
+    payload: VideoItems,
+    db: DbSession,
+    _admin_id: RequireTeamAdmin,
+) -> list[dict]:
+    """Replaces the game's whole highlights list (#665). A separate endpoint, never flags an override."""
+    game = get_game_or_404(db, team_id, game_id)
+    game.highlights = [item.model_dump(mode="json") for item in payload]
+    db.commit()
+    return game.highlights

@@ -320,6 +320,66 @@ describe('GameView', () => {
     expect(heads.indexOf('קלעים')).toBeGreaterThan(heads.indexOf('תדריך וידאו'))
   })
 
+  describe('highlights (#665)', () => {
+    const HL = [{ title: 'שלשה', text: 'מהפינה', urls: ['https://www.youtube.com/watch?v=abc123&t=5&end=9'] }]
+    const heads = (wrapper) => wrapper.findAll('h2').map((h) => h.text())
+    const buttons = (wrapper) => wrapper.findAll('button').map((b) => b.text())
+
+    it('shows highlights to anonymous visitors', async () => {
+      mockFetch(ok({ ...GAME, highlights: HL }))
+      const { wrapper } = await mountAt(true)
+      expect(heads(wrapper)).toContain('היילייטס')
+      expect(wrapper.get('iframe').attributes('src')).toContain('start=5&end=9')
+      expect(wrapper.text()).toContain('שלשה')
+      expect(wrapper.text()).toContain('מהפינה')
+      expect(buttons(wrapper)).not.toContain('עריכת היילייטס')
+    })
+
+    it('hides an empty highlights section from fans but shows it to editors', async () => {
+      mockFetch(ok({ ...GAME, highlights: [] }))
+      const fan = await mountAt(true)
+      expect(heads(fan.wrapper)).not.toContain('היילייטס')
+      fan.wrapper.unmount()
+
+      await memberUser(ADMIN)
+      const { wrapper } = await mountAt(true)
+      expect(heads(wrapper)).toContain('היילייטס')
+      expect(wrapper.text()).toContain('עדיין אין היילייטס למשחק.')
+      expect(buttons(wrapper)).toContain('עריכת היילייטס')
+    })
+
+    it('puts highlights after the briefing and before scorers', async () => {
+      mockFetch(ok({
+        ...GAME,
+        highlights: HL,
+        briefing: [{ title: 'פתיחה', text: null, urls: [] }],
+        scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
+      }))
+      await memberUser()
+      const { wrapper } = await mountAt(true)
+      expect(heads(wrapper).slice(0, 4)).toEqual(['על המשחק', 'תדריך וידאו', 'היילייטס', 'קלעים'])
+    })
+
+    it('saves highlights from the inline editor', async () => {
+      mockFetch(ok({ ...GAME, highlights: [] }))
+      const base = global.fetch
+      global.fetch = vi.fn((url, opts) =>
+        url === '/api/teams/1/games/5/highlights' ? Promise.resolve(ok(HL)) : base(url, opts),
+      )
+      await memberUser(ADMIN)
+      const { wrapper } = await mountAt(true)
+      await wrapper.findAll('button').find((b) => b.text() === 'עריכת היילייטס').trigger('click')
+      await wrapper.get('#highlights-title-0').setValue('שלשה')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      const put = global.fetch.mock.calls.find((c) => c[1]?.method === 'PUT')
+      expect(put[0]).toBe('/api/teams/1/games/5/highlights')
+      expect(wrapper.find('form').exists()).toBe(false)
+      expect(wrapper.text()).toContain('שלשה')
+      expect(wrapper.get('[data-test="highlights-saved"]').text()).toBe('ההיילייטס נשמרו')
+    })
+  })
+
   describe('video briefing (#658)', () => {
     const ITEMS = [
       { title: 'קליפ פתיחה', text: 'שימו לב לחסימה', urls: ['https://www.youtube.com/watch?v=abc123&t=90&end=120'] },
@@ -355,7 +415,7 @@ describe('GameView', () => {
       mockFetch(ok({ ...GAME, briefing: [{ title: 'דוגמאות', text: null, urls }] }))
       await memberUser()
       const { wrapper } = await mountAt(true)
-      const cells = wrapper.findAll('[data-briefing-video]')
+      const cells = wrapper.findAll('[data-video-key]')
       expect(cells).toHaveLength(2)
       expect(wrapper.findAll('iframe')).toHaveLength(2)
       expect(wrapper.text()).toContain('דוגמה 2')
@@ -374,7 +434,7 @@ describe('GameView', () => {
         mockFetch(ok({ ...GAME, briefing: [{ title: 'דוגמאות', text: null, urls }] }))
         await memberUser()
         const { wrapper } = await mountAt(true)
-        const cells = wrapper.findAll('[data-briefing-video]')
+        const cells = wrapper.findAll('[data-video-key]')
 
         cells[0].get('iframe').element.focus()
         window.dispatchEvent(new Event('blur'))
