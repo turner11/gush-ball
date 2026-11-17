@@ -16,7 +16,6 @@ import GameScoreboard from '../components/GameScoreboard.vue'
 import GameStatsEditor from '../components/GameStatsEditor.vue'
 import GameStatsRowsEditor from '../components/GameStatsRowsEditor.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
-import VideoCard from '../components/VideoCard.vue'
 import { canEditTeam, teamMember } from '../composables/useAuth'
 import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
@@ -40,7 +39,7 @@ const { editing: editingBriefing, toggleEl: briefingToggle, toggle: toggleBriefi
 const { editing: editingHighlights, toggleEl: highlightsToggle, toggle: toggleHighlights } = useInlineEditor(canEdit)
 const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = useInlineEditor(canEdit)
 const { editing: editingStats, toggleEl: statsToggle, toggle: toggleStats } = useInlineEditor(canEdit)
-const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.images?.length))
+const hasMedia = computed(() => !!game.value?.images?.length)
 const gamePosts = computed(() => posts.value.filter((p) => p.game_id === game.value?.id))
 const address = computed(() => gameAddress(game.value, team.value))
 
@@ -112,7 +111,6 @@ function onHighlightsSaved(list) {
 }
 
 function onMediaSaved(media) {
-  game.value.videos = media.videos
   game.value.images = media.images
   saved.value = 'media'
   toggleMedia()
@@ -360,12 +358,9 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
       </div>
       <GameMediaEditor v-if="editingMedia" id="game-media-editor" :team-id="game.team_id" :game-id="game.id" @saved="onMediaSaved" />
       <template v-else-if="hasMedia">
-        <ul v-if="game.videos?.length" class="grid gap-6 sm:grid-cols-2">
-          <li v-for="(v, i) in game.videos" :key="i"><VideoCard :video="v" /></li>
-        </ul>
         <ImageGallery v-if="game.images?.length" :images="game.images" :fallback-alt="'נגד ' + game.opponent.name" />
       </template>
-      <p v-else class="empty-state">עדיין לא נוספו סרטונים או תמונות.</p>
+      <p v-else class="empty-state">עדיין לא נוספו תמונות.</p>
     </section>
   </div>
 </template>

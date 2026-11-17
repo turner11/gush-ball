@@ -84,7 +84,7 @@ export function scoringByPlayer(rows) {
 
 // A team's videos and images with its games' media merged in, newest first.
 // Game items are dated by their game; undated (pre-audit) team items keep API order, last.
-// A game's videos are its highlights (one per url, #665) followed by its media videos.
+// A game's videos are its highlights, one per url (#665, #667).
 export function teamMedia(teamVideos, teamImages, games) {
   const newestGameFirst = [...games].sort((a, b) => byDate(b, a))
   const fromGames = (field, itemsOf = (g) => g[field] ?? []) =>
@@ -98,7 +98,7 @@ export function teamMedia(teamVideos, teamImages, games) {
   const time = (x) => (x.created_at ? new Date(x.created_at).getTime() : -Infinity)
   const newestFirst = (items) => items.sort((a, b) => time(b) - time(a)) // stable
   return {
-    videos: newestFirst([...teamVideos, ...fromGames('videos', (g) => [...highlightVideos(g), ...(g.videos ?? [])])]),
+    videos: newestFirst([...teamVideos, ...fromGames('videos', highlightVideos)]),
     images: newestFirst([...teamImages, ...fromGames('images')]),
   }
 }

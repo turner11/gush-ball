@@ -83,7 +83,6 @@ class Game(Base):
     stats_rows: Mapped[list[list[str]]] = mapped_column(JSON, default=list, server_default="[]")
     # Admin content, not scrape fields: editing them never flags an override.
     # ponytail: whole-list JSON like Club.about_images (#451); tables only if items need ids or tagging.
-    videos: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     images: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     # Team-private video briefing (#658): [{title, text, urls}], admin content, not a scrape field.
     briefing: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")

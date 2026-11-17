@@ -2,7 +2,6 @@
 import { onMounted, reactive, ref } from 'vue'
 
 import ImageListEditor from './ImageListEditor.vue'
-import VideoSegmentFields from './VideoSegmentFields.vue'
 import { apiFetch } from '../lib/api'
 
 const props = defineProps({ teamId: { type: [Number, String], required: true }, gameId: { type: Number, required: true } })
@@ -13,12 +12,11 @@ const loadError = ref(false)
 const saving = ref(false)
 const saveError = ref('')
 const justSaved = ref(false)
-const form = reactive({ videos: [], images: [] })
+const form = reactive({ images: [] })
 
 const orNull = (v) => v.trim() || null
 
 function fill(media) {
-  form.videos = media.videos.map((v) => ({ ...v, title_en: v.title_en ?? '' }))
   form.images = media.images.map((i) => ({ ...i, title: i.title ?? '', title_en: i.title_en ?? '' }))
 }
 
@@ -38,7 +36,6 @@ async function onSubmit() {
   justSaved.value = false
   try {
     const body = {
-      videos: form.videos.map((v) => ({ url: v.url, title: v.title, title_en: orNull(v.title_en) })),
       images: form.images.map((i) => ({ url: i.url, title: orNull(i.title), title_en: orNull(i.title_en) })),
     }
     const media = await apiFetch(`/teams/${props.teamId}/games/${props.gameId}/media`, { method: 'PUT', body })
@@ -61,28 +58,6 @@ async function onSubmit() {
   </div>
   <p v-else-if="loadError" class="error-text" role="alert">שגיאה בטעינת המשחק, נסו שוב</p>
   <form v-else class="space-y-6" @submit.prevent="onSubmit">
-    <fieldset class="space-y-3">
-      <legend class="section-title">סרטונים</legend>
-      <p v-if="!form.videos.length" class="empty-state">אין סרטונים</p>
-      <div v-for="(v, i) in form.videos" :key="i" class="grid items-end gap-2 sm:grid-cols-[1fr_1fr_2fr_auto]">
-        <div>
-          <label :for="`video-title-${i}`" class="field-label">כותרת סרטון {{ i + 1 }}</label>
-          <input :id="`video-title-${i}`" v-model="v.title" class="field-input" required maxlength="200" />
-        </div>
-        <div>
-          <label :for="`video-title-en-${i}`" class="field-label">כותרת סרטון {{ i + 1 }} (אנגלית)</label>
-          <input :id="`video-title-en-${i}`" v-model="v.title_en" class="field-input" maxlength="200" dir="ltr" lang="en" />
-        </div>
-        <div>
-          <label :for="`video-url-${i}`" class="field-label">כתובת סרטון {{ i + 1 }}</label>
-          <input :id="`video-url-${i}`" v-model="v.url" type="url" class="field-input" required dir="ltr" inputmode="url" />
-        </div>
-        <button type="button" class="btn-danger-ghost" :data-test="`remove-video-${i}`" :aria-label="`הסרת סרטון ${i + 1}`" @click="form.videos.splice(i, 1)">הסרה</button>
-        <VideoSegmentFields v-model="v.url" :id="`video-segment-${i}`" class="sm:col-span-4" />
-      </div>
-      <button type="button" class="btn-secondary" data-test="add-video" @click="form.videos.push({ title: '', title_en: '', url: '' })">הוספת סרטון</button>
-    </fieldset>
-
     <ImageListEditor v-model="form.images" />
 
     <p v-if="saveError" class="error-text" role="alert">{{ saveError }}</p>

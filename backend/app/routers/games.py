@@ -75,12 +75,6 @@ class OpponentRead(BaseModel):
     address: str | None
 
 
-class GameVideo(BaseModel):
-    url: Url500
-    title: VideoTitle
-    title_en: VideoTitle | None = None
-
-
 class VideoItem(BaseModel):
     title: VideoTitle
     text: Description = None
@@ -113,7 +107,6 @@ class GameRead(BaseModel):
     has_stats: bool
     stats_url: str | None
     opponent: OpponentRead
-    videos: list[GameVideo] = []
     images: list[TitledImage] = []
     highlights: list[VideoItem] = []  # public (#665); the team-private briefing is detail-only
 
@@ -150,7 +143,6 @@ class ScorerHistoryOut(ScorerOut):
 
 
 class GameMedia(BaseModel):
-    videos: list[GameVideo] = Field(default=[], max_length=20)
     images: list[TitledImage] = Field(default=[], max_length=20)
 
 
@@ -454,10 +446,9 @@ def replace_game_media(
     """Replaces the game's whole media block. A separate endpoint, not PATCH: never flags an override."""
     game = get_game_or_404(db, team_id, game_id)
     data = payload.model_dump(mode="json")  # json mode: HttpUrl -> str; reassigning tracks the JSON change
-    game.videos = data["videos"]
     game.images = data["images"]
     db.commit()
-    return GameMedia(videos=game.videos, images=game.images)
+    return GameMedia(images=game.images)
 
 
 @router.put("/{game_id}/briefing", response_model=list[VideoItem])
