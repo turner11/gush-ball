@@ -369,6 +369,7 @@ describe('GameView', () => {
       await memberUser(ADMIN)
       const { wrapper } = await mountAt(true)
       await wrapper.findAll('button').find((b) => b.text() === 'עריכת היילייטס').trigger('click')
+      await wrapper.get('[data-test="add-item"]').trigger('click')
       await wrapper.get('#highlights-title-0').setValue('שלשה')
       await wrapper.get('form').trigger('submit')
       await flushPromises()

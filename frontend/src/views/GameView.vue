@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import GameAverages from '../components/GameAverages.vue'
@@ -7,7 +7,8 @@ import ImageGallery from '../components/ImageGallery.vue'
 import LoadError from '../components/LoadError.vue'
 import PostCard from '../components/PostCard.vue'
 import AppIcon from '../components/AppIcon.vue'
-import GameBriefingEditor from '../components/GameBriefingEditor.vue'
+import GameVideoItems from '../components/GameVideoItems.vue'
+import GameVideoItemsEditor from '../components/GameVideoItemsEditor.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
@@ -36,6 +37,7 @@ const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.
 const canEdit = computed(() => !!game.value && canEditTeam(game.value.team_id))
 const { editing: editingScorers, toggleEl: scorersToggle, toggle: toggleScorers } = useInlineEditor(canEdit)
 const { editing: editingBriefing, toggleEl: briefingToggle, toggle: toggleBriefing } = useInlineEditor(canEdit)
+const { editing: editingHighlights, toggleEl: highlightsToggle, toggle: toggleHighlights } = useInlineEditor(canEdit)
 const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = useInlineEditor(canEdit)
 const { editing: editingStats, toggleEl: statsToggle, toggle: toggleStats } = useInlineEditor(canEdit)
 const hasMedia = computed(() => !!(game.value?.videos?.length || game.value?.images?.length))
@@ -49,9 +51,10 @@ function onStatsChange(e) {
   Object.assign(game.value, e)
   if ('has_stats' in e) rowsKey.value++
 }
-const saved = ref(null) // 'scorers' | 'briefing' | 'media' | 'stats' | 'stats-removed': which save to confirm (the editor unmounts on save)
+const saved = ref(null) // 'scorers' | 'briefing' | 'highlights' | 'media' | 'stats' | 'stats-removed': which save to confirm (the editor unmounts on save)
 watch(editingScorers, (open) => open && (saved.value = null))
 watch(editingBriefing, (open) => open && (saved.value = null))
+watch(editingHighlights, (open) => open && (saved.value = null))
 watch(editingMedia, (open) => open && (saved.value = null))
 watch(editingStats, (open) => open && (saved.value = null))
 
@@ -96,38 +99,16 @@ function onBriefingToggle(e) {
   }
 }
 
-// A cross-origin iframe never reports a play, but clicking or tabbing into one blurs the window and makes it
-// the active element: that is the video to enlarge. Keys are "item-video", so they reset with the list.
-const activeVideo = ref(null)
-function syncActiveVideo() {
-  const key = document.activeElement?.closest?.('[data-briefing-video]')?.dataset.briefingVideo
-  if (key) activeVideo.value = key
-}
-// Moving focus from one iframe to another fires no second window blur, so keep polling while the window is blurred.
-let blurPoll = null
-function onWindowBlur() {
-  syncActiveVideo()
-  blurPoll ??= setInterval(syncActiveVideo, 300)
-}
-function stopBlurPoll() {
-  clearInterval(blurPoll)
-  blurPoll = null
-}
-onMounted(() => {
-  window.addEventListener('blur', onWindowBlur)
-  window.addEventListener('focus', stopBlurPoll)
-})
-onUnmounted(() => {
-  window.removeEventListener('blur', onWindowBlur)
-  window.removeEventListener('focus', stopBlurPoll)
-  stopBlurPoll()
-})
-
 function onBriefingSaved(list) {
-  activeVideo.value = null
   game.value.briefing = list
   saved.value = 'briefing'
   toggleBriefing()
+}
+
+function onHighlightsSaved(list) {
+  game.value.highlights = list
+  saved.value = 'highlights'
+  toggleHighlights()
 }
 
 function onMediaSaved(media) {
@@ -141,7 +122,6 @@ let restored = false // scroll restore applies to the page's first load only
 
 // DefaultLayout resolves the slug to selectedTeamId; fetching before that would use a stale remembered team.
 async function load() {
-  activeVideo.value = null
   if (!teamsLoaded.value) return
   notFound.value = loadError.value = false
   if (!selectedTeamId.value) {
@@ -261,8 +241,9 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
             {{ editingBriefing ? 'סיום עריכה' : 'עריכת תדריך' }}
           </button>
         </div>
-        <GameBriefingEditor
+        <GameVideoItemsEditor
           v-if="editingBriefing"
+          field="briefing"
           id="game-briefing-editor"
           :team-id="game.team_id"
           :game-id="game.id"
@@ -270,27 +251,39 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
           @saved="onBriefingSaved"
         />
         <p v-else-if="!game.briefing.length" class="empty-state">עדיין אין תדריך למשחק.</p>
-        <ol v-else class="space-y-6">
-          <li v-for="(item, i) in game.briefing" :key="i" class="space-y-2">
-            <VideoCard v-if="item.urls.length === 1" :video="{ url: item.urls[0], title: item.title }" :level="3" />
-            <template v-else>
-              <h3 class="font-bold">{{ item.title }}</h3>
-              <ul v-if="item.urls.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <li
-                  v-for="(url, j) in item.urls"
-                  :key="j"
-                  :data-briefing-video="`${i}-${j}`"
-                  :class="activeVideo === `${i}-${j}` && 'sm:order-first sm:col-span-full'"
-                >
-                  <VideoCard :video="{ url, title: `דוגמה ${j + 1}` }" :level="4" />
-                </li>
-              </ul>
-            </template>
-            <p v-if="item.text" class="max-w-prose whitespace-pre-line">{{ item.text }}</p>
-          </li>
-        </ol>
+        <GameVideoItems v-else :items="game.briefing" />
       </div>
     </details>
+
+    <section v-if="game.highlights?.length || canEdit" class="card space-y-3">
+      <div class="section-header flex-wrap">
+        <h2 class="section-title">היילייטס</h2>
+        <span class="badge badge-muted">{{ game.highlights?.length ?? 0 }}</span>
+        <p v-if="canEdit" aria-live="polite" data-test="highlights-saved" class="ms-auto text-sm text-muted">{{ saved === 'highlights' ? 'ההיילייטס נשמרו' : '' }}</p>
+        <button
+          v-if="canEdit"
+          ref="highlightsToggle"
+          type="button"
+          class="btn-secondary"
+          aria-controls="game-highlights-editor"
+          :aria-expanded="editingHighlights"
+          @click="toggleHighlights"
+        >
+          {{ editingHighlights ? 'סיום עריכה' : 'עריכת היילייטס' }}
+        </button>
+      </div>
+      <GameVideoItemsEditor
+        v-if="editingHighlights"
+        id="game-highlights-editor"
+        field="highlights"
+        :team-id="game.team_id"
+        :game-id="game.id"
+        :items="game.highlights ?? []"
+        @saved="onHighlightsSaved"
+      />
+      <GameVideoItems v-else-if="game.highlights?.length" :items="game.highlights" />
+      <p v-else class="empty-state">עדיין אין היילייטס למשחק.</p>
+    </section>
 
     <section v-if="game.scorers?.length || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">
