@@ -24,6 +24,12 @@ describe('VideoCard', () => {
     expect(root.find('h3').text()).toBe('הכותרת')
   })
 
+  it('shows the description when present', () => {
+    const withText = mount(VideoCard, { props: { video: { title: 't', url: 'https://youtu.be/x', text: 'תיאור' } } })
+    expect(withText.text()).toContain('תיאור')
+    expect(card('https://youtu.be/x').findAll('p').filter((p) => p.text() === 'תיאור')).toHaveLength(0)
+  })
+
   it('links non-YouTube urls', () => {
     const w = card('https://vimeo.com/1', 'ויימאו')
     expect(w.find('iframe').exists()).toBe(false)

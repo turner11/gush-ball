@@ -8,15 +8,27 @@ const ITEMS = [
 ]
 const putCall = () => global.fetch.mock.calls.find((c) => c[1]?.method === 'PUT')
 
-async function mountEditor(put) {
+async function mountEditor(put, props = {}) {
   global.fetch = vi.fn(() => Promise.resolve(put))
-  const { default: Editor } = await import('./GameBriefingEditor.vue')
-  return mount(Editor, { props: { teamId: 1, gameId: 5, items: ITEMS } })
+  const { default: Editor } = await import('./GameVideoItemsEditor.vue')
+  return mount(Editor, { props: { teamId: 1, gameId: 5, items: ITEMS, field: 'briefing', ...props } })
 }
 
-describe('GameBriefingEditor', () => {
+describe('GameVideoItemsEditor', () => {
   beforeEach(() => vi.resetModules())
   afterEach(() => vi.restoreAllMocks())
+
+  it.each([
+    ['briefing', 'אין פריטים בתדריך', 'שמירת תדריך', 'שגיאה בשמירת התדריך, נסו שוב'],
+    ['highlights', 'אין היילייטס', 'שמירת היילייטס', 'שגיאה בשמירת ההיילייטס, נסו שוב'],
+  ])('names its own list (%s) in the empty state, save button and error', async (field, empty, save, error) => {
+    const wrapper = await mountEditor({ ok: false, status: 500, json: async () => ({}) }, { field, items: [] })
+    expect(wrapper.text()).toContain(empty)
+    expect(wrapper.find('button[type="submit"]').text()).toBe(save)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').text()).toBe(error)
+  })
 
   it('moves, removes and saves the list as PUT body', async () => {
     const response = [{ title: 'ב', text: null, urls: [] }, { title: 'א', text: 'טקסט א', urls: ['https://youtu.be/a'] }]
@@ -53,5 +65,15 @@ describe('GameBriefingEditor', () => {
     await flushPromises()
     expect(wrapper.find('[role=alert]').text()).not.toBe('')
     expect(wrapper.findAll('input').length).toBeGreaterThan(0)
+  })
+
+  it('saves highlights to their own endpoint with field-prefixed ids', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => [] }))
+    const { default: Editor } = await import('./GameVideoItemsEditor.vue')
+    const wrapper = mount(Editor, { props: { teamId: 1, gameId: 5, items: ITEMS, field: 'highlights' } })
+    expect(wrapper.find('#highlights-url-0-0').exists()).toBe(true)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(putCall()[0]).toBe('/api/teams/1/games/5/highlights')
   })
 })

@@ -35,5 +35,6 @@ const segment = computed(() => videoSegment(props.video.url))
       <template v-else-if="segment.start !== null">מ-<span dir="ltr">{{ formatTimestamp(segment.start) }}</span></template>
       <template v-else>עד <span dir="ltr">{{ formatTimestamp(segment.end) }}</span></template>
     </p>
+    <p v-if="video.text" class="line-clamp-3 max-w-prose whitespace-pre-line text-sm text-muted">{{ video.text }}</p>
   </article>
 </template>
