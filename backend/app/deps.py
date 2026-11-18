@@ -184,7 +184,7 @@ SELF_EDITABLE_PLAYER_FIELDS = {"name", "name_en"}
 
 
 def can_edit_player(db: Session, user: AdminUser | None, player: Player) -> bool:
-    """Team writers, or the linked user while they hold a live grant covering the team (#365). Gates the private briefing."""
+    """Team writers, or the linked user while they hold a live grant covering the team (#365)."""
     if user is None:
         return False
     return can_write_team(db, user, player.team_id) or (

@@ -533,6 +533,18 @@ describe('PlayerView', () => {
       previewMode.value = null
     })
 
+    it('is hidden from an admin in the member preview but kept for the linked player', async () => {
+      await signInWith(ITEMS, { username: 'a', is_full_admin: true, player_ids: [] })
+      const { previewMode } = await import('../composables/useAuth')
+      previewMode.value = 'member'
+      expect((await mountAt('/players/3')).text()).not.toContain(TITLE)
+      previewMode.value = null
+      await signInWith(ITEMS)
+      previewMode.value = 'member'
+      expect((await mountAt('/players/3')).text()).toContain(TITLE)
+      previewMode.value = null
+    })
+
     it('the linked player sees the items and saves an edit', async () => {
       await signInWith(ITEMS)
       const wrapper = await mountAt('/players/3')

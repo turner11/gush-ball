@@ -10,7 +10,7 @@ import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
 import VideoItems from '../components/VideoItems.vue'
 import VideoItemsEditor from '../components/VideoItemsEditor.vue'
-import { canEditTeam, viewer } from '../composables/useAuth'
+import { canEditTeam, previewMode, viewer } from '../composables/useAuth'
 import { useInlineEditor } from '../composables/useInlineEditor'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -42,7 +42,7 @@ async function closeEditor() {
 }
 const player = ref(null)
 // Private briefing (#670): the API sends it only to those allowed (player, coach, team admins); viewer honours the anonymous preview.
-const canSeeBriefing = computed(() => !!player.value?.briefing && !!viewer.value)
+const canSeeBriefing = computed(() => !!player.value?.briefing && !!viewer.value && (!previewMode.value || isMine.value))
 const { editing: editingBriefing, toggleEl: briefingToggle, toggle: toggleBriefing } = useInlineEditor(canSeeBriefing)
 const briefingSaved = ref(false)
 watch(editingBriefing, (open) => open && (briefingSaved.value = false))
