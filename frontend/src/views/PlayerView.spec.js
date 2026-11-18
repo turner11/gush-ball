@@ -540,7 +540,7 @@ describe('PlayerView', () => {
       expect(wrapper.text()).toContain('פתיחה')
       expect(wrapper.find('iframe').attributes('src')).toContain('start=90&end=120')
       await wrapper.find('[aria-controls="player-briefing-editor"]').trigger('click')
-      await wrapper.find('#player-briefing-editor form').trigger('submit')
+      await wrapper.find('form#player-briefing-editor').trigger('submit')
       await flushPromises()
       const put = global.fetch.mock.calls.find((c) => c[1]?.method === 'PUT')
       expect(put[0]).toBe('/api/players/3/briefing')

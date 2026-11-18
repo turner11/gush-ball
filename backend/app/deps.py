@@ -183,6 +183,33 @@ def self_editable_player_ids(db: Session, user: AdminUser) -> list[int]:
 SELF_EDITABLE_PLAYER_FIELDS = {"name", "name_en"}
 
 
+def can_edit_player(db: Session, user: AdminUser | None, player: Player) -> bool:
+    """Team writers, or the linked user while they hold a live grant covering the team (#365). Gates the private briefing."""
+    if user is None:
+        return False
+    return can_write_team(db, user, player.team_id) or (
+        player.user_id == user.id and has_covering_grant(db, user.id, player.team)
+    )
+
+
+def can_access_player_briefing(db: Session, user: AdminUser | None, player: Player) -> bool:
+    """Private briefing (#670): whoever `can_edit_player`, or a user linked to a coach row of the same team, with a
+    live grant covering it. Deliberately not part of `can_edit_player`: a coach gets no other right on teammates."""
+    if user is None:
+        return False
+    if can_edit_player(db, user, player):
+        return True
+    coach_id = db.scalar(
+        select(Player.id).where(
+            Player.team_id == player.team_id,
+            Player.user_id == user.id,
+            Player.is_coach.is_(True),
+            Player.deleted_at.is_(None),
+        )
+    )
+    return coach_id is not None and has_covering_grant(db, user.id, player.team)
+
+
 def check_player_self_or_team_admin(
     db: Session, user: AdminUser, player: Player, fields: frozenset[str] | set[str] = frozenset()
 ) -> None:
@@ -191,7 +218,7 @@ def check_player_self_or_team_admin(
     grant covering the team (#365)."""
     if can_write_team(db, user, player.team_id):
         return
-    if player.user_id != user.id or not has_covering_grant(db, user.id, player.team):
+    if not can_edit_player(db, user, player):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
     blocked = sorted(set(fields) - SELF_EDITABLE_PLAYER_FIELDS)
     if blocked:

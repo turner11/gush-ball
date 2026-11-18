@@ -852,3 +852,38 @@ def test_put_player_briefing_scope(
     assert client.put(f"/players/{theirs.id}/briefing", json=ITEMS).status_code == 200
     assert client.put(f"/players/{theirs.id}/briefing", json=[{"title": "x"}] * 21).status_code == 422
     assert client.put(f"/players/{gone.id}/briefing", json=[]).status_code == 404
+
+
+def test_coach_of_same_team_reads_and_replaces_briefing(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    coach = _login_user(client, db_session, "coach", Membership(team_id=own_team.id, role="member"))
+    row = _player(db_session, own_team, "Coach", user=coach, number=None)
+    row.is_coach = True
+    mate = _player(db_session, own_team, "Mate", number=6)
+    foreign = _player(db_session, other_team, "Foreign")
+    db_session.commit()
+    assert client.get(f"/players/{mate.id}").json()["briefing"] == []
+    assert client.put(f"/players/{mate.id}/briefing", json=ITEMS).status_code == 200
+    assert client.get(f"/players/{mate.id}").json()["briefing"][0]["title"] == "פתיחה"
+    assert client.get(f"/players/{foreign.id}").json()["briefing"] is None
+    assert client.put(f"/players/{foreign.id}/briefing", json=[]).status_code == 403
+    # the coach right is briefing-only
+    assert client.patch(f"/teams/{own_team.id}/players/{mate.id}", json={"name": "X"}).status_code == 403
+
+
+def test_coach_of_another_team_and_plain_teammate_get_no_briefing(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    mate = _player(db_session, own_team, "Mate")
+    away = _make_user(db_session, "away", Membership(team_id=other_team.id, role="member"))
+    away_row = _player(db_session, other_team, "AwayCoach", user=away, number=None)
+    away_row.is_coach = True
+    plain = _make_user(db_session, "plain", Membership(team_id=own_team.id, role="member"))
+    _player(db_session, own_team, "Plain", user=plain, number=8)
+    db_session.commit()
+    for name in ("away", "plain"):
+        assert client.post("/auth/login", json={"username": name, "password": "password123"}).status_code == 200
+        assert client.get(f"/players/{mate.id}").json()["briefing"] is None
+        assert client.put(f"/players/{mate.id}/briefing", json=[]).status_code == 403
+        client.post("/auth/logout")

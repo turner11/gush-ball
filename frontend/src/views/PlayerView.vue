@@ -8,7 +8,10 @@ import LoadError from '../components/LoadError.vue'
 import PlayerCard from '../components/PlayerCard.vue'
 import PlayerProfileForm from '../components/PlayerProfileForm.vue'
 import VideoCard from '../components/VideoCard.vue'
+import VideoItems from '../components/VideoItems.vue'
+import VideoItemsEditor from '../components/VideoItemsEditor.vue'
 import { canEditTeam, viewer } from '../composables/useAuth'
+import { useInlineEditor } from '../composables/useInlineEditor'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
 import { gameDayLabel, scoringByPlayer } from '../lib/games'
@@ -23,7 +26,13 @@ const isMine = computed(() => !!player.value && !!viewer.value?.player_ids?.incl
 const canEdit = computed(() => isMine.value || (!!player.value && canEditTeam(player.value.team_id)))
 
 function onSaved(updated) {
-  player.value = updated
+  player.value = { ...player.value, ...updated } // the profile PATCH has no `briefing`: keep it
+}
+
+function onBriefingSaved(list) {
+  player.value.briefing = list
+  briefingSaved.value = true
+  toggleBriefing()
 }
 
 async function closeEditor() {
@@ -32,6 +41,11 @@ async function closeEditor() {
   editButton.value?.focus()
 }
 const player = ref(null)
+// Private briefing (#670): the API sends it only to those allowed (player, coach, team admins); viewer honours the anonymous preview.
+const canSeeBriefing = computed(() => !!player.value?.briefing && !!viewer.value)
+const { editing: editingBriefing, toggleEl: briefingToggle, toggle: toggleBriefing } = useInlineEditor(canSeeBriefing)
+const briefingSaved = ref(false)
+watch(editingBriefing, (open) => open && (briefingSaved.value = false))
 const team = ref(null)
 const loading = ref(true)
 const notFound = ref(false)
@@ -159,6 +173,34 @@ watch(() => route.params.id, load, { immediate: true })
         </div>
       </header>
       <PlayerProfileForm v-if="canEdit && editing" :player="player" :with-name="isMine" @saved="onSaved" @cancel="closeEditor" />
+      <section v-if="canSeeBriefing" class="card space-y-3">
+        <div class="section-header flex-wrap">
+          <h2 class="section-title">תדריך וידאו אישי</h2>
+          <span class="badge badge-muted">{{ player.briefing.length }}</span>
+          <p aria-live="polite" data-test="player-briefing-saved" class="ms-auto text-sm text-muted">{{ briefingSaved ? 'התדריך נשמר' : '' }}</p>
+          <button
+            ref="briefingToggle"
+            type="button"
+            class="btn-secondary"
+            aria-controls="player-briefing-editor"
+            :aria-expanded="editingBriefing"
+            @click="toggleBriefing"
+          >
+            {{ editingBriefing ? 'סיום עריכה' : 'עריכת תדריך' }}
+          </button>
+        </div>
+        <p class="text-sm text-muted">גלוי רק לשחקן, למאמנים ולמנהלי הקבוצה</p>
+        <VideoItemsEditor
+          v-if="editingBriefing"
+          id="player-briefing-editor"
+          field="briefing"
+          :endpoint="`/players/${player.id}/briefing`"
+          :items="player.briefing"
+          @saved="onBriefingSaved"
+        />
+        <p v-else-if="!player.briefing.length" class="empty-state">עדיין אין תדריך וידאו.</p>
+        <VideoItems v-else :items="player.briefing" />
+      </section>
       <section v-if="scoring.length" class="card space-y-4">
         <h2 class="section-title">סטטיסטיקה</h2>
         <div class="grid grid-cols-3 gap-3">
