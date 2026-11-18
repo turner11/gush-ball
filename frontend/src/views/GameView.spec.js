@@ -489,16 +489,31 @@ describe('GameView', () => {
     })
 
     it('an admin sees the empty state and the edit button; a plain member sees no card', async () => {
-      mockFetch(ok({ ...GAME, briefing: [] }))
+      mockFetch(ok({ ...GAME, briefing: [], can_edit_briefing: true }))
       await memberUser(ADMIN)
       const admin = await mountAt(true)
       expect(admin.wrapper.text()).toContain('עדיין אין תדריך למשחק.')
       expect(admin.wrapper.findAll('button').map((b) => b.text())).toContain('עריכת תדריך')
       admin.wrapper.unmount()
 
+      mockFetch(ok({ ...GAME, briefing: [] }))
       await memberUser(MEMBER)
       const { wrapper } = await mountAt(true)
       expect(wrapper.text()).not.toContain('תדריך וידאו')
+    })
+
+    it('a team coach (a member the server lets edit) gets the briefing edit button only (#670)', async () => {
+      mockFetch(ok({ ...GAME, briefing: [], highlights: [], can_edit_briefing: true }))
+      await memberUser(MEMBER)
+      const { wrapper } = await mountAt(true)
+      const labels = wrapper.findAll('button').map((b) => b.text())
+      expect(labels).toContain('עריכת תדריך')
+      expect(labels).not.toContain('עריכת קלעים')
+      wrapper.unmount()
+
+      ;(await import('../composables/useAuth')).previewMode.value = 'member'
+      const preview = await mountAt(true)
+      expect(preview.wrapper.findAll('button').map((b) => b.text())).not.toContain('עריכת תדריך')
     })
   })
 

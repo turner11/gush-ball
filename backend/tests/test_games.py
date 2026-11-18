@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.models import Game, GameScorer, GameStatus, Opponent, Player, Team
+from app.models import Game, GameScorer, GameStatus, Membership, Opponent, Player, Team
 
 
 def _make_team(db_session: Session, name: str = "Gush Ball A") -> Team:
@@ -1000,3 +1000,41 @@ def test_put_video_items_validation(admin_client: TestClient, db_session: Sessio
     assert admin_client.put(url, json=too_many).status_code == 422
     assert admin_client.put(url, json=[{"title": " "}]).status_code == 422
     assert admin_client.put(url, json=[{"title": "x"}] * 21).status_code == 422
+
+
+def test_coach_of_team_edits_game_briefing_only(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    from tests.test_players import _login_user, _make_user, _player
+
+    game = _make_game(db_session, own_team)
+    url = f"/teams/{own_team.id}/games/{game.id}"
+    away = _make_user(db_session, "away", Membership(team_id=other_team.id, role="member"))
+    _player(db_session, other_team, "AwayCoach", user=away, number=None).is_coach = True
+    plain = _make_user(db_session, "plain", Membership(team_id=own_team.id, role="member"))
+    _player(db_session, own_team, "Plain", user=plain, number=8)
+    db_session.commit()
+    for name in ("away", "plain"):  # coach of another team, plain teammate
+        assert client.post("/auth/login", json={"username": name, "password": "password123"}).status_code == 200
+        assert client.get(url).json()["can_edit_briefing"] is False
+        assert client.put(f"{url}/briefing", json=[]).status_code == 403
+        client.post("/auth/logout")
+
+    coach = _login_user(client, db_session, "coach", Membership(team_id=own_team.id, role="member"))
+    _player(db_session, own_team, "Coach", user=coach, number=None).is_coach = True
+    db_session.commit()
+    assert client.get(url).json()["can_edit_briefing"] is True
+    assert client.put(f"{url}/briefing", json=BRIEFING).status_code == 200
+    assert client.get(url).json()["briefing"][0]["title"] == "פתיחה"
+    # the coach right is briefing-only
+    assert client.put(f"{url}/highlights", json=[]).status_code == 403
+
+
+def test_team_admin_sees_can_edit_briefing(client: TestClient, db_session: Session, own_team: Team) -> None:
+    from tests.test_players import _login_user
+
+    game = _make_game(db_session, own_team)
+    url = f"/teams/{own_team.id}/games/{game.id}"
+    assert client.get(url).json()["can_edit_briefing"] is False
+    _login_user(client, db_session, "ta", Membership(team_id=own_team.id, role="admin"))
+    assert client.get(url).json()["can_edit_briefing"] is True
