@@ -508,6 +508,56 @@ describe('PlayerView', () => {
     })
   })
 
+  describe('private video briefing (#670)', () => {
+    const ITEMS = [{ title: 'פתיחה', text: 'נתחיל בהגנה', urls: ['https://www.youtube.com/watch?v=abc&t=90&end=120'] }]
+    const TITLE = 'תדריך וידאו אישי'
+    const respond = (body) => Promise.resolve({ ok: true, status: 200, json: async () => body })
+    const signInWith = async (briefing, me = { username: 'a', player_ids: [3] }) => {
+      const base = okFetch()
+      global.fetch = vi.fn((url, options) =>
+        url === '/api/auth/me' ? respond(me)
+          : url === '/api/players/3' ? respond({ ...PLAYER, briefing })
+          : url === '/api/players/3/briefing' ? respond(JSON.parse(options.body))
+          : base(url),
+      )
+      await useAuth().checkSession()
+    }
+
+    it('is hidden when the API sends no briefing or in the anonymous preview', async () => {
+      await signInWith(null)
+      expect((await mountAt('/players/3')).text()).not.toContain(TITLE)
+      await signInWith(ITEMS, { username: 'a', is_full_admin: true, player_ids: [] })
+      const { previewMode } = await import('../composables/useAuth')
+      previewMode.value = 'anonymous'
+      expect((await mountAt('/players/3')).text()).not.toContain(TITLE)
+      previewMode.value = null
+    })
+
+    it('the linked player sees the items and saves an edit', async () => {
+      await signInWith(ITEMS)
+      const wrapper = await mountAt('/players/3')
+      expect(wrapper.text()).toContain(TITLE)
+      expect(wrapper.text()).toContain('פתיחה')
+      expect(wrapper.find('iframe').attributes('src')).toContain('start=90&end=120')
+      await wrapper.find('[aria-controls="player-briefing-editor"]').trigger('click')
+      await wrapper.find('#player-briefing-editor form').trigger('submit')
+      await flushPromises()
+      const put = global.fetch.mock.calls.find((c) => c[1]?.method === 'PUT')
+      expect(put[0]).toBe('/api/players/3/briefing')
+      expect(wrapper.find('#player-briefing-editor').exists()).toBe(false)
+      expect(wrapper.find('[data-test="player-briefing-saved"]').text()).toBe('התדריך נשמר')
+    })
+
+    it('a profile save keeps the briefing', async () => {
+      await signInWith(ITEMS)
+      const wrapper = await mountAt('/players/3')
+      await wrapper.find('[aria-controls="profile-form"]').trigger('click')
+      wrapper.findComponent({ name: 'PlayerProfileForm' }).vm.$emit('saved', { ...PLAYER, images: [], videos: [] })
+      await flushPromises()
+      expect(wrapper.text()).toContain(TITLE)
+    })
+  })
+
   const row = (game_id, day, player_id, points) => ({
     game_id, scheduled_at: `2026-03-${day}T18:00:00`, opponent_name: `יריבה ${game_id}`, player_id, name: 'x', jersey_number: 1, points,
   })

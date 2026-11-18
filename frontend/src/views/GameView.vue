@@ -7,8 +7,8 @@ import ImageGallery from '../components/ImageGallery.vue'
 import LoadError from '../components/LoadError.vue'
 import PostCard from '../components/PostCard.vue'
 import AppIcon from '../components/AppIcon.vue'
-import GameVideoItems from '../components/GameVideoItems.vue'
-import GameVideoItemsEditor from '../components/GameVideoItemsEditor.vue'
+import VideoItems from '../components/VideoItems.vue'
+import VideoItemsEditor from '../components/VideoItemsEditor.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
@@ -239,17 +239,16 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
             {{ editingBriefing ? 'סיום עריכה' : 'עריכת תדריך' }}
           </button>
         </div>
-        <GameVideoItemsEditor
+        <VideoItemsEditor
           v-if="editingBriefing"
           field="briefing"
           id="game-briefing-editor"
-          :team-id="game.team_id"
-          :game-id="game.id"
+          :endpoint="`/teams/${game.team_id}/games/${game.id}/briefing`"
           :items="game.briefing"
           @saved="onBriefingSaved"
         />
         <p v-else-if="!game.briefing.length" class="empty-state">עדיין אין תדריך למשחק.</p>
-        <GameVideoItems v-else :items="game.briefing" />
+        <VideoItems v-else :items="game.briefing" />
       </div>
     </details>
 
@@ -270,16 +269,15 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
           {{ editingHighlights ? 'סיום עריכה' : 'עריכת היילייטס' }}
         </button>
       </div>
-      <GameVideoItemsEditor
+      <VideoItemsEditor
         v-if="editingHighlights"
         id="game-highlights-editor"
         field="highlights"
-        :team-id="game.team_id"
-        :game-id="game.id"
+        :endpoint="`/teams/${game.team_id}/games/${game.id}/highlights`"
         :items="game.highlights ?? []"
         @saved="onHighlightsSaved"
       />
-      <GameVideoItems v-else-if="game.highlights?.length" :items="game.highlights" />
+      <VideoItems v-else-if="game.highlights?.length" :items="game.highlights" />
       <p v-else class="empty-state">עדיין אין היילייטס למשחק.</p>
     </section>
 
