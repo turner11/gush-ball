@@ -8,33 +8,67 @@ import { useAuth, viewer } from '../composables/useAuth'
 import { useFavorites } from '../composables/useFavorites'
 import { teamSlug } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
+import { leagueKey } from '../lib/leagues'
 import LoadError from '../components/LoadError.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { checked, checkSession } = useAuth()
-const data = ref(null) // null = loading
+const league = ref(null) // null = loading
+const ours = ref([]) // GET /teams, kept to match the ibasketball list
+const onSite = ref([])
+const others = ref(null) // null = ibasketball list still loading; else the not-on-site rows
+const othersFailed = ref(false)
+const notFound = ref(false)
 const errorStatus = ref(null)
 const confirming = ref(null) // the not-on-site team awaiting the request confirmation
 const busy = ref(false)
 const requestError = ref('')
 const notice = ref(null) // { text, account } after a request
 
+// Our own teams come from the DB and show at once; ibasketball's list is slow and fills in after.
 async function load() {
-  data.value = null
+  league.value = null
+  onSite.value = []
+  others.value = null
+  othersFailed.value = false
+  notFound.value = false
   errorStatus.value = null
+  const pending = fetchOthers() // start now so the total time is the slower call, not the sum
+  pending.catch(() => {}) // loadOthers reports the failure
   try {
-    const [ours, result] = await Promise.all([apiFetch('/teams'), apiFetch(`/leagues/${route.params.leagueId}/teams`)])
-    const byId = new Map(ours.map((t) => [t.id, t]))
-    data.value = {
-      league: result.league,
-      onSite: result.teams.filter((t) => byId.has(t.team_id)).map((t) => byId.get(t.team_id)),
-      notOnSite: result.teams.filter((t) => !byId.has(t.team_id)),
-    }
+    const [teams, leagues] = await Promise.all([apiFetch('/teams'), apiFetch('/leagues')])
+    ours.value = teams
+    league.value = leagues.find((l) => l.ibasketball_id === Number(route.params.leagueId)) ?? null
   } catch (err) {
     errorStatus.value = err.status ?? 0
     return
   }
+  if (!league.value) {
+    notFound.value = true
+    return
+  }
+  onSite.value = ours.value.filter((t) => leagueKey(t.ibasketball_league_url) === leagueKey(league.value.url))
+  await loadOthers(pending)
+}
+
+const fetchOthers = () => apiFetch(`/leagues/${route.params.leagueId}/teams`)
+
+async function loadOthers(pending = fetchOthers()) {
+  others.value = null
+  othersFailed.value = false
+  let result
+  try {
+    result = await pending
+  } catch {
+    othersFailed.value = true
+    return
+  }
+  const byId = new Map(ours.value.map((t) => [t.id, t]))
+  const listed = new Set(onSite.value.map((t) => t.id))
+  // union: a team whose code matches but whose league URL is stale still shows
+  for (const t of result.teams) if (byId.has(t.team_id) && !listed.has(t.team_id)) onSite.value.push(byId.get(t.team_id))
+  others.value = result.teams.filter((t) => !byId.has(t.team_id))
   await openRequestFromLogin()
 }
 watch(() => route.params.leagueId, load, { immediate: true })
@@ -53,7 +87,7 @@ async function ask(t) {
 // Back from login with ?request=<team url>: reopen the confirm for that team.
 async function openRequestFromLogin() {
   const wanted = route.query.request
-  const t = data.value.notOnSite.find((x) => x.ibasketball_team_url === wanted && !x.requested)
+  const t = others.value.find((x) => x.ibasketball_team_url === wanted && !x.requested)
   if (!t) return
   if (!checked.value) await checkSession()
   if (viewer.value) confirming.value = t
@@ -71,7 +105,7 @@ async function submitRequest() {
   try {
     const { status } = await apiFetch('/team-requests', {
       method: 'POST',
-      body: { league_id: data.value.league.ibasketball_id, ibasketball_team_url: t.ibasketball_team_url },
+      body: { league_id: league.value.ibasketball_id, ibasketball_team_url: t.ibasketball_team_url },
     })
     if (status === 'approved') {
       await load() // the team moves to "on the site"
@@ -90,25 +124,25 @@ async function submitRequest() {
 }
 
 const { sortTeams } = useFavorites()
-const onSiteTeams = computed(() => sortTeams(data.value?.onSite ?? []))
-const empty = computed(() => data.value && !data.value.onSite.length && !data.value.notOnSite.length)
+const onSiteTeams = computed(() => sortTeams(onSite.value))
+const empty = computed(() => others.value !== null && !onSite.value.length && !others.value.length)
 </script>
 
 <template>
   <div>
     <RouterLink :to="{ name: 'teams' }" class="section-link mb-3 inline-block">→ חזרה לקבוצות</RouterLink>
 
-    <h1 v-if="!data" class="sr-only">ליגה</h1>
-    <div v-if="errorStatus === 404" class="empty-state">
+    <h1 v-if="!league" class="sr-only">ליגה</h1>
+    <div v-if="notFound" class="empty-state">
       <p>הליגה לא נמצאה</p>
       <RouterLink :to="{ name: 'teams' }" class="btn-secondary mt-3">חזרה לקבוצות</RouterLink>
     </div>
-    <LoadError v-else-if="errorStatus !== null" message="לא הצלחנו לטעון את קבוצות הליגה מאתר האיגוד" @retry="load" />
-    <div v-else-if="data === null" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-busy="true">
+    <LoadError v-else-if="errorStatus !== null" message="שגיאה בטעינת הליגה" @retry="load" />
+    <div v-else-if="!league" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-busy="true">
       <div v-for="n in 8" :key="n" class="skeleton h-36"></div>
     </div>
     <template v-else>
-      <div class="page-header"><h1 class="page-title">{{ data.league.name }}</h1></div>
+      <div class="page-header"><h1 class="page-title">{{ league.name }}</h1></div>
       <p v-if="notice" class="mb-4 text-sm" role="status">
         {{ notice.text }}
         <RouterLink v-if="notice.account" to="/account" class="section-link">למעקב</RouterLink>
@@ -116,16 +150,26 @@ const empty = computed(() => data.value && !data.value.onSite.length && !data.va
       <p v-if="requestError" class="error-text mb-4" role="alert">{{ requestError }}</p>
       <p v-if="empty" class="empty-state">אין קבוצות בליגה הזו עדיין.</p>
       <div v-else class="space-y-10 sm:space-y-14">
-        <section v-if="data.onSite.length">
-          <h2 v-if="data.notOnSite.length" class="section-title">קבוצות באתר</h2>
+        <section v-if="onSite.length">
+          <h2 v-if="others === null || others?.length" class="section-title">קבוצות באתר</h2>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             <TeamCard v-for="team in onSiteTeams" :key="team.id" :team-id="team.id" :name="team.name" :logo-url="team.logo_url" :to="'/' + teamSlug(team)" />
           </div>
         </section>
-        <section v-if="data.notOnSite.length">
-          <h2 v-if="data.onSite.length" class="section-title">עוד בליגה</h2>
+        <section v-if="othersFailed">
+          <LoadError message="לא הצלחנו לטעון את שאר קבוצות הליגה מאתר האיגוד" @retry="loadOthers()" />
+        </section>
+        <section v-else-if="others === null" aria-busy="true">
+          <h2 v-if="onSite.length" class="section-title">עוד בליגה</h2>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            <TeamCard v-for="t in data.notOnSite" :key="t.ibasketball_team_url" :name="t.name" :logo-url="t.logo_url">
+            <div v-for="n in 4" :key="n" class="skeleton h-36"></div>
+          </div>
+          <p class="mt-3 text-sm text-muted" role="status">טוען את שאר קבוצות הליגה…</p>
+        </section>
+        <section v-else-if="others.length">
+          <h2 v-if="onSite.length" class="section-title">עוד בליגה</h2>
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <TeamCard v-for="t in others" :key="t.ibasketball_team_url" :name="t.name" :logo-url="t.logo_url">
               <span v-if="t.requested" class="badge-muted">ממתין לאישור</span>
               <button
                 v-else
