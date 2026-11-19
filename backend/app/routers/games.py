@@ -5,7 +5,7 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -14,21 +14,22 @@ from app.deps import (
     DbSession,
     OptionalUser,
     RequireTeamAdmin,
+    RequireTeamBriefingEditor,
+    can_edit_team_briefing,
     can_view_team_private,
     can_write_team,
     get_game_or_404,
     get_team_or_404,
 )
 from app.models import Game, GameScorer, GameStatus, League, Player, get_or_create_opponent
-from app.routers.players import VideoTitle
-from app.routers.teams import TitledImage, Url500
+from app.routers.players import Description, VideoItem, VideoItems
+from app.routers.teams import TitledImage
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/teams/{team_id}/games", tags=["games"])
 club_router = APIRouter(prefix="/games", tags=["games"])
 MAX_CLUB_WINDOW_DAYS = 31
 
-Description = Annotated[str | None, Field(max_length=2000)]
 OpponentName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 
 
@@ -73,24 +74,6 @@ class OpponentRead(BaseModel):
     logo_url: str | None
     source_url: str | None
     address: str | None
-
-
-class VideoItem(BaseModel):
-    title: VideoTitle
-    text: Description = None
-    urls: list[Url500] = Field(default=[], max_length=10)  # YouTube clips carry start/end as t=/end= (#650)
-
-    @model_validator(mode="before")
-    @classmethod
-    def _legacy_url(cls, data: object) -> object:
-        # ponytail: rows stored with one `url` (#658) convert on read and are rewritten on the next save;
-        # a JSON data migration can replace this if it ever matters.
-        if isinstance(data, dict) and "url" in data and "urls" not in data:
-            return {**data, "urls": [data["url"]] if data["url"] else []}
-        return data
-
-
-VideoItems = Annotated[list[VideoItem], Field(max_length=20)]
 
 
 class GameRead(BaseModel):
@@ -149,6 +132,7 @@ class GameMedia(BaseModel):
 class GameDetailRead(GameRead):
     scorers: list[ScorerOut] = []
     briefing: list[VideoItem] | None = None  # None = caller is not a team member; never on list payloads
+    can_edit_briefing: bool = False  # team writers and the team's coaches (#670)
 
 
 def _scorer_out(s: GameScorer) -> ScorerOut:
@@ -270,6 +254,7 @@ def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> G
         **_public_game(game, show).model_dump(),
         scorers=_scorers(game),
         briefing=game.briefing if can_view_team_private(db, user, team_id) else None,
+        can_edit_briefing=can_edit_team_briefing(db, user, game.team),
     )
 
 
@@ -457,9 +442,10 @@ def replace_game_briefing(
     game_id: int,
     payload: VideoItems,
     db: DbSession,
-    _admin_id: RequireTeamAdmin,
+    _editor_id: RequireTeamBriefingEditor,
 ) -> list[dict]:
-    """Replaces the game's whole video briefing (#658). A separate endpoint, never flags an override."""
+    """Replaces the game's whole video briefing (#658): team writers or a coach of the team (#670). A separate
+    endpoint, never flags an override."""
     game = get_game_or_404(db, team_id, game_id)
     game.briefing = [item.model_dump(mode="json") for item in payload]  # json mode: HttpUrl -> str
     db.commit()

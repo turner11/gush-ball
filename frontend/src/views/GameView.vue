@@ -7,8 +7,8 @@ import ImageGallery from '../components/ImageGallery.vue'
 import LoadError from '../components/LoadError.vue'
 import PostCard from '../components/PostCard.vue'
 import AppIcon from '../components/AppIcon.vue'
-import GameVideoItems from '../components/GameVideoItems.vue'
-import GameVideoItemsEditor from '../components/GameVideoItemsEditor.vue'
+import VideoItems from '../components/VideoItems.vue'
+import VideoItemsEditor from '../components/VideoItemsEditor.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
@@ -16,7 +16,7 @@ import GameScoreboard from '../components/GameScoreboard.vue'
 import GameStatsEditor from '../components/GameStatsEditor.vue'
 import GameStatsRowsEditor from '../components/GameStatsRowsEditor.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
-import { canEditTeam, teamMember } from '../composables/useAuth'
+import { canEditTeam, previewMode, teamMember } from '../composables/useAuth'
 import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -35,7 +35,9 @@ const loadError = ref(false)
 const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.params.slug } }))
 const canEdit = computed(() => !!game.value && canEditTeam(game.value.team_id))
 const { editing: editingScorers, toggleEl: scorersToggle, toggle: toggleScorers } = useInlineEditor(canEdit)
-const { editing: editingBriefing, toggleEl: briefingToggle, toggle: toggleBriefing } = useInlineEditor(canEdit)
+// A team coach (#670) edits the briefing only; the server says who may, the admin preview hides it like canEditTeam.
+const canEditBriefing = computed(() => !!game.value?.can_edit_briefing && !previewMode.value)
+const { editing: editingBriefing, toggleEl: briefingToggle, toggle: toggleBriefing } = useInlineEditor(canEditBriefing)
 const { editing: editingHighlights, toggleEl: highlightsToggle, toggle: toggleHighlights } = useInlineEditor(canEdit)
 const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = useInlineEditor(canEdit)
 const { editing: editingStats, toggleEl: statsToggle, toggle: toggleStats } = useInlineEditor(canEdit)
@@ -215,7 +217,7 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
     </section>
 
     <details
-      v-if="game.briefing && teamMember(game.team_id) && (game.briefing.length || canEdit)"
+      v-if="game.briefing && teamMember(game.team_id) && (game.briefing.length || canEditBriefing)"
       class="card group"
       :open="briefingOpen(game.id)"
       @toggle="onBriefingToggle"
@@ -226,7 +228,7 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
         <AppIcon name="chevron" class="ms-auto transition-transform group-open:rotate-180" />
       </summary>
       <div class="space-y-6 pt-3">
-        <div v-if="canEdit" class="section-header flex-wrap">
+        <div v-if="canEditBriefing" class="section-header flex-wrap">
           <p aria-live="polite" data-test="briefing-saved" class="ms-auto text-sm text-muted">{{ saved === 'briefing' ? 'התדריך נשמר' : '' }}</p>
           <button
             ref="briefingToggle"
@@ -239,17 +241,16 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
             {{ editingBriefing ? 'סיום עריכה' : 'עריכת תדריך' }}
           </button>
         </div>
-        <GameVideoItemsEditor
+        <VideoItemsEditor
           v-if="editingBriefing"
           field="briefing"
           id="game-briefing-editor"
-          :team-id="game.team_id"
-          :game-id="game.id"
+          :endpoint="`/teams/${game.team_id}/games/${game.id}/briefing`"
           :items="game.briefing"
           @saved="onBriefingSaved"
         />
         <p v-else-if="!game.briefing.length" class="empty-state">עדיין אין תדריך למשחק.</p>
-        <GameVideoItems v-else :items="game.briefing" />
+        <VideoItems v-else :items="game.briefing" />
       </div>
     </details>
 
@@ -270,16 +271,15 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
           {{ editingHighlights ? 'סיום עריכה' : 'עריכת היילייטס' }}
         </button>
       </div>
-      <GameVideoItemsEditor
+      <VideoItemsEditor
         v-if="editingHighlights"
         id="game-highlights-editor"
         field="highlights"
-        :team-id="game.team_id"
-        :game-id="game.id"
+        :endpoint="`/teams/${game.team_id}/games/${game.id}/highlights`"
         :items="game.highlights ?? []"
         @saved="onHighlightsSaved"
       />
-      <GameVideoItems v-else-if="game.highlights?.length" :items="game.highlights" />
+      <VideoItems v-else-if="game.highlights?.length" :items="game.highlights" />
       <p v-else class="empty-state">עדיין אין היילייטס למשחק.</p>
     </section>
 

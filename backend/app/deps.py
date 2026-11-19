@@ -183,6 +183,41 @@ def self_editable_player_ids(db: Session, user: AdminUser) -> list[int]:
 SELF_EDITABLE_PLAYER_FIELDS = {"name", "name_en"}
 
 
+def can_edit_player(db: Session, user: AdminUser | None, player: Player) -> bool:
+    """Team writers, or the linked user while they hold a live grant covering the team (#365)."""
+    if user is None:
+        return False
+    return can_write_team(db, user, player.team_id) or (
+        player.user_id == user.id and has_covering_grant(db, user.id, player.team)
+    )
+
+
+def is_team_coach(db: Session, user: AdminUser | None, team: Team) -> bool:
+    """A user linked to a live coach row (#472) of `team` who still holds a grant covering it. Briefing rights only
+    (#670): never folded into `can_write_team` or `can_edit_player`."""
+    if user is None:
+        return False
+    coach_id = db.scalar(
+        select(Player.id).where(
+            Player.team_id == team.id,
+            Player.user_id == user.id,
+            Player.is_coach.is_(True),
+            Player.deleted_at.is_(None),
+        )
+    )
+    return coach_id is not None and has_covering_grant(db, user.id, team)
+
+
+def can_access_player_briefing(db: Session, user: AdminUser | None, player: Player) -> bool:
+    """Private briefing (#670): whoever `can_edit_player`, or a coach of the player's team."""
+    return can_edit_player(db, user, player) or is_team_coach(db, user, player.team)
+
+
+def can_edit_team_briefing(db: Session, user: AdminUser | None, team: Team) -> bool:
+    """Game video briefings (#658): whoever may write the team, or a coach of it (#670)."""
+    return can_write_team(db, user, team.id) or is_team_coach(db, user, team)
+
+
 def check_player_self_or_team_admin(
     db: Session, user: AdminUser, player: Player, fields: frozenset[str] | set[str] = frozenset()
 ) -> None:
@@ -191,7 +226,7 @@ def check_player_self_or_team_admin(
     grant covering the team (#365)."""
     if can_write_team(db, user, player.team_id):
         return
-    if player.user_id != user.id or not has_covering_grant(db, user.id, player.team):
+    if not can_edit_player(db, user, player):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
     blocked = sorted(set(fields) - SELF_EDITABLE_PLAYER_FIELDS)
     if blocked:
@@ -226,6 +261,17 @@ def require_team_admin(team_id: int, admin: RequireAnyAdmin, db: DbSession) -> i
 
 
 RequireTeamAdmin = Annotated[int, Depends(require_team_admin)]
+
+
+def require_team_briefing_editor(team_id: int, user: RequireUser, db: DbSession) -> int:
+    """`require_team_admin`, widened to the team's coaches (#670). A dependency, so it runs before body validation."""
+    team = db.get(Team, team_id)
+    if team is None or not can_edit_team_briefing(db, user, team):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Not allowed to edit team {team_id} briefings")
+    return user.id
+
+
+RequireTeamBriefingEditor = Annotated[int, Depends(require_team_briefing_editor)]
 
 
 def require_club_admin(club_id: int, admin: RequireAnyAdmin, db: DbSession) -> int:

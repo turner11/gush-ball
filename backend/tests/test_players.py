@@ -766,3 +766,124 @@ def test_admin_player_list_requires_admin(client: TestClient, db_session: Sessio
     assert client.get("/players").status_code == 401
     _login_user(client, db_session, "m", Membership(team_id=own_team.id, role="member"))
     assert client.get("/players").status_code == 403
+
+
+# --- private video briefing (#670) ---
+
+ITEMS = [
+    {"title": "פתיחה", "text": "נתחיל בהגנה", "urls": ["https://www.youtube.com/watch?v=abc&t=90&end=120"]},
+    {"title": "הערות", "text": None, "urls": []},
+]
+
+
+@pytest.mark.parametrize(
+    ("who", "sees"),
+    [
+        ("anonymous", False),
+        ("member:teammate", False),
+        ("admin:other_team", False),
+        ("pending:linked", False),
+        ("member:linked", True),
+        ("admin:own", True),
+        ("admin:club", True),
+        ("full admin", True),
+    ],
+)
+def test_get_player_briefing_visibility(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team, who: str, sees: bool
+) -> None:
+    own_team.club = "Gush"
+    db_session.commit()
+    linked = _make_user(db_session, "linked", Membership(team_id=own_team.id, role="pending" if who == "pending:linked" else "member"))
+    player = _player(db_session, own_team, user=linked)
+    player.briefing = ITEMS
+    db_session.commit()
+    logins = {
+        "member:linked": "linked",
+        "pending:linked": "linked",
+        "member:teammate": Membership(team_id=own_team.id, role="member"),
+        "admin:other_team": Membership(team_id=other_team.id, role="admin"),
+        "admin:own": Membership(team_id=own_team.id, role="admin"),
+        "admin:club": Membership(club="Gush", role="admin"),
+    }
+    if who == "full admin":
+        db_session.add(AdminUser(username="boss", password_hash=hash_password("password123"), is_full_admin=True))
+        db_session.commit()
+        assert client.post("/auth/login", json={"username": "boss", "password": "password123"}).status_code == 200
+    elif who in ("member:linked", "pending:linked"):
+        assert client.post("/auth/login", json={"username": "linked", "password": "password123"}).status_code == 200
+    elif who != "anonymous":
+        _login_user(client, db_session, "viewer", logins[who])
+
+    assert client.get(f"/players/{player.id}").json()["briefing"] == (ITEMS if sees else None)
+    roster = client.get(f"/teams/{own_team.id}/players").json()
+    assert roster and all("briefing" not in p for p in roster)
+
+
+def test_linked_user_replaces_own_briefing(client: TestClient, db_session: Session, own_team: Team) -> None:
+    user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
+    player = _player(db_session, own_team, user=user)
+    url = f"/players/{player.id}/briefing"
+    assert client.put(url, json=ITEMS).status_code == 200
+    got = client.get(f"/players/{player.id}").json()["briefing"]
+    assert [i["title"] for i in got] == ["פתיחה", "הערות"]
+    assert got[0]["urls"] == ["https://www.youtube.com/watch?v=abc&t=90&end=120"]
+    assert client.put(url, json=ITEMS[::-1]).json()[0]["title"] == "הערות"
+    assert client.put(url, json=[]).json() == []
+    assert client.get(f"/players/{player.id}").json()["briefing"] == []
+
+
+def test_put_player_briefing_scope(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    mate = _make_user(db_session, "mate", Membership(team_id=own_team.id, role="member"))
+    mine = _player(db_session, own_team, "Mine", user=mate)
+    theirs = _player(db_session, own_team, "Theirs", number=6)
+    foreign = _player(db_session, other_team, "Foreign")
+    gone = _player(db_session, own_team, "Gone", number=7)
+    gone.deleted_at = datetime.now(UTC)
+    db_session.commit()
+    assert client.put(f"/players/{mine.id}/briefing", json=[]).status_code == 401
+    assert client.post("/auth/login", json={"username": "mate", "password": "password123"}).status_code == 200
+    assert client.put(f"/players/{theirs.id}/briefing", json=[]).status_code == 403
+    client.post("/auth/logout")
+    _login_user(client, db_session, "ta", Membership(team_id=own_team.id, role="admin"))
+    assert client.put(f"/players/{foreign.id}/briefing", json=[]).status_code == 403
+    assert client.put(f"/players/{theirs.id}/briefing", json=ITEMS).status_code == 200
+    assert client.put(f"/players/{theirs.id}/briefing", json=[{"title": "x"}] * 21).status_code == 422
+    assert client.put(f"/players/{gone.id}/briefing", json=[]).status_code == 404
+
+
+def test_coach_of_same_team_reads_and_replaces_briefing(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    coach = _login_user(client, db_session, "coach", Membership(team_id=own_team.id, role="member"))
+    row = _player(db_session, own_team, "Coach", user=coach, number=None)
+    row.is_coach = True
+    mate = _player(db_session, own_team, "Mate", number=6)
+    foreign = _player(db_session, other_team, "Foreign")
+    db_session.commit()
+    assert client.get(f"/players/{mate.id}").json()["briefing"] == []
+    assert client.put(f"/players/{mate.id}/briefing", json=ITEMS).status_code == 200
+    assert client.get(f"/players/{mate.id}").json()["briefing"][0]["title"] == "פתיחה"
+    assert client.get(f"/players/{foreign.id}").json()["briefing"] is None
+    assert client.put(f"/players/{foreign.id}/briefing", json=[]).status_code == 403
+    # the coach right is briefing-only
+    assert client.patch(f"/teams/{own_team.id}/players/{mate.id}", json={"name": "X"}).status_code == 403
+
+
+def test_coach_of_another_team_and_plain_teammate_get_no_briefing(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team
+) -> None:
+    mate = _player(db_session, own_team, "Mate")
+    away = _make_user(db_session, "away", Membership(team_id=other_team.id, role="member"))
+    away_row = _player(db_session, other_team, "AwayCoach", user=away, number=None)
+    away_row.is_coach = True
+    plain = _make_user(db_session, "plain", Membership(team_id=own_team.id, role="member"))
+    _player(db_session, own_team, "Plain", user=plain, number=8)
+    db_session.commit()
+    for name in ("away", "plain"):
+        assert client.post("/auth/login", json={"username": name, "password": "password123"}).status_code == 200
+        assert client.get(f"/players/{mate.id}").json()["briefing"] is None
+        assert client.put(f"/players/{mate.id}/briefing", json=[]).status_code == 403
+        client.post("/auth/logout")

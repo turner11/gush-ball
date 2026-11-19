@@ -7,10 +7,9 @@ import { apiFetch } from '../lib/api'
 
 // The page already loaded the list, so it comes in as a prop (no fetch, no loading state of its own).
 const props = defineProps({
-  teamId: { type: [Number, String], required: true },
-  gameId: { type: Number, required: true },
+  endpoint: { type: String, required: true }, // PUT path without /api
   items: { type: Array, required: true },
-  field: { type: String, required: true }, // 'briefing' | 'highlights': which list this edits, and its endpoint
+  field: { type: String, required: true }, // 'briefing' | 'highlights': wording and id prefix
 })
 const emit = defineEmits(['saved'])
 
@@ -42,7 +41,7 @@ async function onSubmit() {
   saveError.value = ''
   try {
     const body = form.items.map((i) => ({ title: i.title, text: orNull(i.text), urls: i.urls.map((u) => u.trim()).filter(Boolean) }))
-    const items = await apiFetch(`/teams/${props.teamId}/games/${props.gameId}/${props.field}`, { method: 'PUT', body })
+    const items = await apiFetch(props.endpoint, { method: 'PUT', body })
     emit('saved', items)
   } catch (e) {
     saveError.value =
