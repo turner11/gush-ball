@@ -216,43 +216,10 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
       <p class="max-w-prose whitespace-pre-line">{{ game.description }}</p>
     </section>
 
-    <details
-      v-if="game.briefing && teamMember(game.team_id) && (game.briefing.length || canEditBriefing)"
-      class="card group"
-      :open="briefingOpen(game.id)"
-      @toggle="onBriefingToggle"
-    >
-      <summary class="flex min-h-11 cursor-pointer items-center gap-2">
-        <h2 class="section-title">תדריך וידאו</h2>
-        <span class="badge badge-muted">{{ game.briefing.length }}</span>
-        <AppIcon name="chevron" class="ms-auto transition-transform group-open:rotate-180" />
-      </summary>
-      <div class="space-y-6 pt-3">
-        <div v-if="canEditBriefing" class="section-header flex-wrap">
-          <p aria-live="polite" data-test="briefing-saved" class="ms-auto text-sm text-muted">{{ saved === 'briefing' ? 'התדריך נשמר' : '' }}</p>
-          <button
-            ref="briefingToggle"
-            type="button"
-            class="btn-secondary"
-            aria-controls="game-briefing-editor"
-            :aria-expanded="editingBriefing"
-            @click="toggleBriefing"
-          >
-            {{ editingBriefing ? 'סיום עריכה' : 'עריכת תדריך' }}
-          </button>
-        </div>
-        <VideoItemsEditor
-          v-if="editingBriefing"
-          field="briefing"
-          id="game-briefing-editor"
-          :endpoint="`/teams/${game.team_id}/games/${game.id}/briefing`"
-          :items="game.briefing"
-          @saved="onBriefingSaved"
-        />
-        <p v-else-if="!game.briefing.length" class="empty-state">עדיין אין תדריך למשחק.</p>
-        <VideoItems v-else :items="game.briefing" />
-      </div>
-    </details>
+    <section v-if="gamePosts.length" class="space-y-3" aria-labelledby="game-posts-title">
+      <h2 id="game-posts-title" class="sr-only">עדכונים</h2>
+      <PostCard v-for="post in gamePosts" :key="post.id" :post="post" />
+    </section>
 
     <section v-if="game.highlights?.length || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">
@@ -335,10 +302,43 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
 
     <GameAverages :team="team" :opponent="game.opponent" :game-id="game.id" />
 
-    <section v-if="gamePosts.length" class="space-y-3" aria-labelledby="game-posts-title">
-      <h2 id="game-posts-title" class="sr-only">עדכונים</h2>
-      <PostCard v-for="post in gamePosts" :key="post.id" :post="post" />
-    </section>
+    <details
+      v-if="game.briefing && teamMember(game.team_id) && (game.briefing.length || canEditBriefing)"
+      class="card group"
+      :open="briefingOpen(game.id)"
+      @toggle="onBriefingToggle"
+    >
+      <summary class="flex min-h-11 cursor-pointer items-center gap-2">
+        <h2 class="section-title">תדריך וידאו</h2>
+        <span class="badge badge-muted">{{ game.briefing.length }}</span>
+        <AppIcon name="chevron" class="ms-auto transition-transform group-open:rotate-180" />
+      </summary>
+      <div class="space-y-6 pt-3">
+        <div v-if="canEditBriefing" class="section-header flex-wrap">
+          <p aria-live="polite" data-test="briefing-saved" class="ms-auto text-sm text-muted">{{ saved === 'briefing' ? 'התדריך נשמר' : '' }}</p>
+          <button
+            ref="briefingToggle"
+            type="button"
+            class="btn-secondary"
+            aria-controls="game-briefing-editor"
+            :aria-expanded="editingBriefing"
+            @click="toggleBriefing"
+          >
+            {{ editingBriefing ? 'סיום עריכה' : 'עריכת תדריך' }}
+          </button>
+        </div>
+        <VideoItemsEditor
+          v-if="editingBriefing"
+          field="briefing"
+          id="game-briefing-editor"
+          :endpoint="`/teams/${game.team_id}/games/${game.id}/briefing`"
+          :items="game.briefing"
+          @saved="onBriefingSaved"
+        />
+        <p v-else-if="!game.briefing.length" class="empty-state">עדיין אין תדריך למשחק.</p>
+        <VideoItems v-else :items="game.briefing" />
+      </div>
+    </details>
 
     <section v-if="hasMedia || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">
