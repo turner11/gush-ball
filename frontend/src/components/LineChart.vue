@@ -147,7 +147,8 @@ const connectors = computed(() => {
         </div>
       </div>
     </div>
-    <table class="sr-only">
+    <!-- sr-only on a wrapper: a <table> ignores width:1px and would widen the page (#676) -->
+    <div class="sr-only"><table>
       <caption>{{ ariaLabel }}</caption>
       <thead>
         <tr>
@@ -163,6 +164,6 @@ const connectors = computed(() => {
           <td v-if="outcomes.length">{{ OUTCOME_LABEL[outcomes[i]] ?? '' }}</td>
         </tr>
       </tbody>
-    </table>
+    </table></div>
   </div>
 </template>
