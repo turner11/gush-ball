@@ -17,7 +17,9 @@ describe('LineChart', () => {
     const wrapper = mount(LineChart, { props })
     expect(wrapper.find('svg').attributes('aria-label')).toBe('נקודות לאורך העונה')
     expect(wrapper.findAll('polyline')).toHaveLength(2)
-    const table = wrapper.find('table.sr-only')
+    const table = wrapper.find('.sr-only table')
+    // a <table> ignores width:1px, so the hiding must sit on a block wrapper or the page widens (#676)
+    expect(wrapper.find('table').classes()).not.toContain('sr-only')
     expect(table.findAll('tbody tr')).toHaveLength(3)
     for (const v of ['10', '20', '15', '25']) expect(table.text()).toContain(v)
     expect(table.text()).toContain('01.03')
@@ -38,14 +40,14 @@ describe('LineChart', () => {
     const wrapper = mount(LineChart, { props: { ...props, outcomes: ['W', null, 'L'] } })
     expect(wrapper.findAll('line.text-win')).toHaveLength(1)
     expect(wrapper.findAll('line.text-loss')).toHaveLength(1)
-    expect(wrapper.find('table.sr-only').text()).toContain('ניצחון')
-    expect(wrapper.find('table.sr-only').text()).toContain('הפסד')
+    expect(wrapper.find('.sr-only table').text()).toContain('ניצחון')
+    expect(wrapper.find('.sr-only table').text()).toContain('הפסד')
   })
 
   it('draws no connectors and no outcome column without outcomes', () => {
     const wrapper = mount(LineChart, { props })
     expect(wrapper.findAll('line.text-win, line.text-loss')).toHaveLength(0)
-    expect(wrapper.find('table.sr-only').text()).not.toContain('תוצאה')
+    expect(wrapper.find('.sr-only table').text()).not.toContain('תוצאה')
   })
 
   it('selectable: each line gets a hit area titled with its series name', () => {
