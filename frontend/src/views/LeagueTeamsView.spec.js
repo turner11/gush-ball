@@ -2,7 +2,10 @@ import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const OURS = [{ id: 1, name: 'קבוצה שלנו', name_en: 'Team A', logo_url: 'https://cdn.example.com/a.png' }]
+const OURS = [
+  { id: 1, name: 'קבוצה שלנו', name_en: 'Team A', logo_url: 'https://cdn.example.com/a.png', ibasketball_league_url: 'u' },
+  { id: 2, name: 'קבוצה מליגה אחרת', name_en: 'Team B', logo_url: null, ibasketball_league_url: 'other' },
+]
 const sp = (name, team_id = null) => ({ name, logo_url: null, ibasketball_team_url: `https://x/team/${name}/`, team_id })
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
@@ -16,6 +19,7 @@ function mockApi(leagueRes, extra = {}, me = err(401)) {
   calls = []
   const all = {
     'GET /api/teams': () => ok(OURS),
+    'GET /api/leagues': () => ok([LEAGUE]),
     'GET /api/leagues/10/teams': typeof leagueRes === 'function' ? leagueRes : () => leagueRes,
     'GET /api/auth/me': () => me,
     ...extra,
@@ -71,15 +75,46 @@ describe('LeagueTeamsView', () => {
     expect(wrapper.findAll('a').filter((a) => a.text().includes('קבוצה זרה'))).toHaveLength(0)
   })
 
-  it('404 shows league-not-found with a way back; other errors offer retry', async () => {
-    mockApi(err(404))
+  it('shows our teams and the league name before the ibasketball list arrives', async () => {
+    let resolve
+    mockApi(() => new Promise((r) => (resolve = r)))
+    const wrapper = await mountView()
+    expect(wrapper.find('h1').text()).toBe('ליגת א')
+    expect(wrapper.findAll('a').some((a) => a.attributes('href') === '/team_a')).toBe(true)
+    expect(wrapper.text()).not.toContain('קבוצה מליגה אחרת')
+    expect(wrapper.find('[role="status"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true)
+    expect(wrapper.find(REQUEST_BUTTON).exists()).toBe(false)
+
+    resolve(foreignLeague())
+    await flushPromises()
+    expect(wrapper.find(REQUEST_BUTTON).exists()).toBe(true)
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-busy="true"]').exists()).toBe(false)
+  })
+
+  it('a failed ibasketball list keeps our teams and retries only the league list', async () => {
+    let n = 0
+    mockApi(() => (n++ ? foreignLeague() : err(502)))
+    const wrapper = await mountView()
+    expect(wrapper.findAll('a').some((a) => a.attributes('href') === '/team_a')).toBe(true)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.find(REQUEST_BUTTON).exists()).toBe(true)
+    expect(called('GET /api/teams')).toHaveLength(1)
+    expect(called('GET /api/leagues/10/teams')).toHaveLength(2)
+  })
+
+  it('an unknown league shows league-not-found with a way back; a fast error offers retry', async () => {
+    mockApi(err(404), { 'GET /api/leagues': () => ok([]) })
     let wrapper = await mountView()
     expect(wrapper.text()).toContain('הליגה לא נמצאה')
     expect(wrapper.find('a[href="/teams"]').exists()).toBe(true)
 
     vi.resetModules()
-    let calls = 0
-    mockApi(() => (calls++ ? ok({ league: LEAGUE, teams: [sp('x')] }) : err(502)))
+    let n = 0
+    mockApi(foreignLeague(), { 'GET /api/teams': () => (n++ ? ok(OURS) : err(502)) })
     wrapper = await mountView()
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
     await wrapper.find('button').trigger('click')
@@ -88,7 +123,7 @@ describe('LeagueTeamsView', () => {
   })
 
   it('empty league shows an empty state', async () => {
-    mockApi(ok({ league: LEAGUE, teams: [] }))
+    mockApi(ok({ league: LEAGUE, teams: [] }), { 'GET /api/teams': () => ok([]) })
     expect((await mountView()).text()).toContain('אין קבוצות בליגה הזו עדיין.')
   })
 
