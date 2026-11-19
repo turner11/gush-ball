@@ -302,28 +302,20 @@ describe('GameView', () => {
     expect(wrapper.text()).toContain('הפועל עבר')
   })
 
-  it('orders the cards: about, scorers, stats, posts, then media (#539, #581)', async () => {
+  it('orders the sections: about, posts, highlights, scorers, stats, averages, briefing, media (#673)', async () => {
     mockFetch(ok({
       ...GAME,
+      highlights: [{ title: 'שלשה', text: null, urls: [] }],
+      briefing: [{ title: 'פתיחה', text: null, urls: [] }],
       scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
       images: [{ url: 'https://cdn.example.com/a.jpg', title: null, title_en: null }],
     }), [{ id: 1, title: 'לקראת המשחק', body: 'b', game_id: 5 }])
+    await memberUser(ADMIN)
     const { wrapper } = await mountAt(true)
-    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual(['על המשחק', 'קלעים', 'ממוצעי נקודות', 'עדכונים', 'מדיה'])
+    expect(wrapper.findAll('h2').map((h) => h.text())).toEqual([
+      'על המשחק', 'עדכונים', 'היילייטס', 'קלעים', 'סטטיסטיקת חמישיות', 'ממוצעי נקודות', 'תדריך וידאו', 'מדיה',
+    ])
     expect(wrapper.get('#game-posts-title').classes()).toContain('sr-only')
-  })
-
-  it('puts the briefing after about and before scorers (#658)', async () => {
-    mockFetch(ok({
-      ...GAME,
-      briefing: [{ title: 'פתיחה', text: null, urls: [] }],
-      scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
-    }))
-    await memberUser()
-    const { wrapper } = await mountAt(true)
-    const heads = wrapper.findAll('h2').map((h) => h.text())
-    expect(heads.indexOf('תדריך וידאו')).toBe(heads.indexOf('על המשחק') + 1)
-    expect(heads.indexOf('קלעים')).toBeGreaterThan(heads.indexOf('תדריך וידאו'))
   })
 
   describe('highlights (#665)', () => {
@@ -352,18 +344,6 @@ describe('GameView', () => {
       expect(heads(wrapper)).toContain('היילייטס')
       expect(wrapper.text()).toContain('עדיין אין היילייטס למשחק.')
       expect(buttons(wrapper)).toContain('עריכת היילייטס')
-    })
-
-    it('puts highlights after the briefing and before scorers', async () => {
-      mockFetch(ok({
-        ...GAME,
-        highlights: HL,
-        briefing: [{ title: 'פתיחה', text: null, urls: [] }],
-        scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
-      }))
-      await memberUser()
-      const { wrapper } = await mountAt(true)
-      expect(heads(wrapper).slice(0, 4)).toEqual(['על המשחק', 'תדריך וידאו', 'היילייטס', 'קלעים'])
     })
 
     it('saves highlights from the inline editor', async () => {
