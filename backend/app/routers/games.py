@@ -14,6 +14,8 @@ from app.deps import (
     DbSession,
     OptionalUser,
     RequireTeamAdmin,
+    RequireTeamBriefingEditor,
+    can_edit_team_briefing,
     can_view_team_private,
     can_write_team,
     get_game_or_404,
@@ -130,6 +132,7 @@ class GameMedia(BaseModel):
 class GameDetailRead(GameRead):
     scorers: list[ScorerOut] = []
     briefing: list[VideoItem] | None = None  # None = caller is not a team member; never on list payloads
+    can_edit_briefing: bool = False  # team writers and the team's coaches (#670)
 
 
 def _scorer_out(s: GameScorer) -> ScorerOut:
@@ -251,6 +254,7 @@ def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> G
         **_public_game(game, show).model_dump(),
         scorers=_scorers(game),
         briefing=game.briefing if can_view_team_private(db, user, team_id) else None,
+        can_edit_briefing=can_edit_team_briefing(db, user, game.team),
     )
 
 
@@ -438,9 +442,10 @@ def replace_game_briefing(
     game_id: int,
     payload: VideoItems,
     db: DbSession,
-    _admin_id: RequireTeamAdmin,
+    _editor_id: RequireTeamBriefingEditor,
 ) -> list[dict]:
-    """Replaces the game's whole video briefing (#658). A separate endpoint, never flags an override."""
+    """Replaces the game's whole video briefing (#658): team writers or a coach of the team (#670). A separate
+    endpoint, never flags an override."""
     game = get_game_or_404(db, team_id, game_id)
     game.briefing = [item.model_dump(mode="json") for item in payload]  # json mode: HttpUrl -> str
     db.commit()
