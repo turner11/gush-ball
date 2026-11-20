@@ -118,6 +118,7 @@ function pickPasted() {
 }
 const rate = ref(1) // the player's playback rate, as it reports it
 function onRateChange(r) {
+  if (r === rate.value) return // a load at ×1 is not news; only a real change is announced
   rate.value = r
   status.value = `מהירות ×${r}`
 }

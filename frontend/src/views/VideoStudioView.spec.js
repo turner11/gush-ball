@@ -141,6 +141,13 @@ describe('VideoStudioView', () => {
     expect(wrapper.text()).not.toContain('×1.5')
   })
 
+  it('loading a video at ×1 does not announce the speed', async () => {
+    respond({ ...GAME, video_urls: [SRC, 'https://www.youtube.com/watch?v=zzzzzzzzzzz'] })
+    wrapper = await mountStudio()
+    await wrapper.findAll('button').find((b) => b.text() === 'סרטון 2').trigger('click')
+    expect(wrapper.find('[data-test="status"]').text()).toBe('')
+  })
+
   it('the larger-video toggle persists', async () => {
     respond()
     wrapper = await mountStudio()
