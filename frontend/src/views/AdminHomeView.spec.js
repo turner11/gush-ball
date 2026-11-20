@@ -353,4 +353,17 @@ describe('AdminHomeView', () => {
     auth.user.value = { username: 't', team_id: 1, team_ids: [1], clubs: [] }
     expect(clubsCard(mountFull(AdminHomeView)).exists()).toBe(false)
   })
+
+  it('full admin on a team admin page lays 8 cards out in 4 columns', async () => {
+    mockSyncApis()
+    router.addRoute({ path: '/:slug/admin', name: 'team-admin', component: { template: '<div/>' } })
+    router.addRoute({ path: '/:slug/studio', name: 'team-studio', component: { template: '<div/>' } })
+    router.push('/team_a/admin')
+    await router.isReady()
+    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 'a' }
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const nav = mountFull(AdminHomeView).find('nav')
+    expect(nav.findAll('a')).toHaveLength(8)
+    expect(nav.classes()).toContain('lg:grid-cols-4')
+  })
 })

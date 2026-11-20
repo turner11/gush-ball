@@ -23,7 +23,8 @@ const route = useRoute()
 const slug = computed(() => route.params.slug)
 const base = computed(() => (slug.value ? '/' + slug.value : ''))
 // ponytail: a literal per count so Tailwind sees it; the club card shows only for non-full admins
-const navCols = computed(() => ({ 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6' })[4 + (slug.value ? 1 : 0) + (!fullAdmin.value && managesClubs.value ? 1 : 0)])
+// one entry per card count (4 base + studio + clubs + users + audit); 7 and 8 wrap as 4 columns
+const navCols = computed(() => ({ 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6', 7: 'lg:grid-cols-4', 8: 'lg:grid-cols-4' })[4 + (slug.value ? 1 : 0) + (managesClubs.value ? 1 : 0) + 2 * fullAdmin.value])
 
 const { user } = useAuth()
 const pickTeams = computed(() => !user.value?.team_id) // full and club admins both choose teams
