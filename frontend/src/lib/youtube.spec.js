@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatTimestamp, parseTimestamp, videoSegment, withVideoSegment, youtubeEmbedUrl, youtubeWatchUrl } from './youtube'
+import { stepRate, formatTimestamp, parseTimestamp, videoSegment, withVideoSegment, youtubeEmbedUrl, youtubeWatchUrl } from './youtube'
 
 describe('parseTimestamp', () => {
   it('reads typed and YouTube-style times', () => {
@@ -58,5 +58,25 @@ describe('youtubeWatchUrl', () => {
   it('is null for non-YouTube urls', () => {
     expect(youtubeWatchUrl('https://vimeo.com/1')).toBeNull()
     expect(youtubeWatchUrl('not a url')).toBeNull()
+  })
+})
+
+describe('stepRate', () => {
+  const rates = [0.25, 0.5, 1, 1.5, 2]
+  it('moves to the next or previous rate', () => {
+    expect(stepRate(rates, 1, 1)).toBe(1.5)
+    expect(stepRate(rates, 1, -1)).toBe(0.5)
+  })
+  it('stops at the ends', () => {
+    expect(stepRate(rates, 2, 1)).toBe(2)
+    expect(stepRate(rates, 0.25, -1)).toBe(0.25)
+  })
+  it('handles a current rate that is not in the list', () => {
+    expect(stepRate(rates, 1.1, 1)).toBe(1.5)
+    expect(stepRate(rates, 1.1, -1)).toBe(1)
+  })
+  it('keeps the rate when the list has only 1', () => {
+    expect(stepRate([1], 1, 1)).toBe(1)
+    expect(stepRate([1], 1, -1)).toBe(1)
   })
 })

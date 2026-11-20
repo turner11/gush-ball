@@ -14,6 +14,7 @@ const PLAYERS = [
 ]
 
 let clips
+let players
 let created
 let clipsError = null
 function respond(game = GAME) {
@@ -59,22 +60,35 @@ async function mountStudio(url = '/team_a/games/5/studio') {
 }
 
 const press = async (code, key = code, target = document.body) => {
-  target.dispatchEvent(new KeyboardEvent('keydown', { code, key, bubbles: true, cancelable: true }))
+  const event = new KeyboardEvent('keydown', { code, key, bubbles: true, cancelable: true })
+  target.dispatchEvent(event)
   await flushPromises()
+  return event
 }
 
 describe('VideoStudioView', () => {
   let wrapper
   beforeEach(() => {
     localStorage.clear()
+    players = []
     window.YT = {
       Player: class {
+        constructor(_el, opts) {
+          this.opts = opts
+          this.seekTo = vi.fn()
+          this.setPlaybackRate = vi.fn((r) => {
+            this.rate = r
+            this.opts.events.onPlaybackRateChange?.({ data: r })
+          })
+          players.push(this)
+        }
         getCurrentTime() { return 100 }
         getPlayerState() { return 2 }
+        getAvailablePlaybackRates() { return [0.5, 1, 1.5, 2] }
+        getPlaybackRate() { return this.rate ?? 1 }
         playVideo() {}
         pauseVideo() {}
         loadVideoById() {}
-        seekTo() {}
         destroy() {}
       },
     }
@@ -92,6 +106,41 @@ describe('VideoStudioView', () => {
     expect(wrapper.find('iframe, [aria-keyshortcuts="M"]').exists()).toBe(false)
     await press('KeyM', 'm')
     expect(calls('POST')).toHaveLength(0)
+  })
+
+  it('arrows seek 10s and comma/period 3s, without scrolling', async () => {
+    respond()
+    wrapper = await mountStudio()
+    expect((await press('ArrowRight')).defaultPrevented).toBe(true)
+    expect(players[0].seekTo).toHaveBeenLastCalledWith(110, true)
+    await press('ArrowLeft')
+    expect(players[0].seekTo).toHaveBeenLastCalledWith(90, true)
+    await press('Comma', ',')
+    expect(players[0].seekTo).toHaveBeenLastCalledWith(97, true)
+  })
+
+  it('= speeds up and - slows down, showing the rate', async () => {
+    respond()
+    wrapper = await mountStudio()
+    await press('Equal', '=')
+    expect(players[0].setPlaybackRate).toHaveBeenLastCalledWith(1.5)
+    expect(wrapper.text()).toContain('×1.5')
+    await press('Minus', '-')
+    expect(players[0].setPlaybackRate).toHaveBeenLastCalledWith(1)
+    expect(wrapper.text()).toContain('×1')
+    expect(wrapper.text()).not.toContain('×1.5')
+  })
+
+  it('the larger-video toggle persists', async () => {
+    respond()
+    wrapper = await mountStudio()
+    const toggle = () => wrapper.findAll('button').find((b) => b.text() === 'וידאו גדול')
+    await toggle().trigger('click')
+    expect(toggle().attributes('aria-pressed')).toBe('true')
+    expect(JSON.parse(localStorage.getItem('gush-ball:studio')).theater).toBe(true)
+    wrapper.unmount()
+    wrapper = await mountStudio()
+    expect(toggle().attributes('aria-pressed')).toBe('true')
   })
 
   it('M marks a moment 8s before to 3s after the current time', async () => {
