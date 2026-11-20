@@ -44,7 +44,7 @@ onUnmounted(() => {
 
 <template>
   <ol ref="root" class="space-y-6">
-    <li v-for="(group, i) in groups" :key="group.section ?? i" class="space-y-2">
+    <li v-for="(group, i) in groups" :key="i" class="space-y-2">
       <!-- one video: its card carries the section as its title -->
       <template v-if="group.clips.length === 1 && isVideo(group.clips[0])">
         <VideoCard :video="{ url: clipUrl(group.clips[0]), title: group.section ?? 'קטע' }" :level="3" />
