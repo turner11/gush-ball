@@ -28,10 +28,10 @@ export function momentRange(now, before = 8, after = 3) {
 // H and B belong to a game; a game-less clip can only be P (mirrors ClipIn._consistent).
 export const needsGame = (field) => field === 'is_highlight' || field === 'in_game_briefing'
 
-// The studio's stored preferences, each field sanitised. `after >= 1` keeps end > start, so M never sends a 422.
+// The studio's stored preferences (panel, larger video, moment window), each field sanitised. `after >= 1` keeps end > start, so M never sends a 422.
 export function studioPrefs(raw) {
   const int = (value, min, fallback) => (Number.isInteger(value) && value >= min && value <= 60 ? value : fallback)
-  return { shortcutsOpen: !!raw?.shortcutsOpen, before: int(raw?.before, 0, 8), after: int(raw?.after, 1, 3) }
+  return { shortcutsOpen: !!raw?.shortcutsOpen, theater: !!raw?.theater, before: int(raw?.before, 0, 8), after: int(raw?.after, 1, 3) }
 }
 
 // The clip's start or end moved by delta seconds: { start, end }, or null when that would leave start < 0 or end <= start.
@@ -65,6 +65,12 @@ export function studioAction(event) {
   if (event.target?.closest?.('input, textarea, select, [contenteditable]')) return null
   if (event.code === 'BracketLeft') return { name: event.shiftKey ? 'nudgeEnd' : 'nudgeStart', delta: -1 }
   if (event.code === 'BracketRight') return { name: event.shiftKey ? 'nudgeEnd' : 'nudgeStart', delta: 1 }
+  if (event.code === 'ArrowLeft') return { name: 'seek', delta: -10 } // literal, not mirrored for RTL
+  if (event.code === 'ArrowRight') return { name: 'seek', delta: 10 }
+  if (event.code === 'Comma') return { name: 'seek', delta: -3 }
+  if (event.code === 'Period') return { name: 'seek', delta: 3 }
+  if (event.code === 'Minus') return { name: 'rate', step: -1 }
+  if (event.code === 'Equal') return { name: 'rate', step: 1 }
   if (/^\d$/.test(event.key)) return { name: 'digit', digit: event.key }
   // a focused button or link already acts on Space/Enter
   if ((event.code === 'Space' || event.code === 'Enter') && event.target?.closest?.('button, a, summary')) return null

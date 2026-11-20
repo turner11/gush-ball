@@ -31,7 +31,7 @@ const teamRoute = computed(() => ({ name: 'team-home', params: { slug: route.par
 const teamStudioRoute = computed(() => ({ name: 'team-studio', params: { slug: route.params.slug } }))
 const allowed = computed(() => canEdit.value && !previewMode.value)
 
-// Shortcuts panel and moment window, kept in this browser (#683).
+// Shortcuts panel, larger-video mode and moment window, kept in this browser (#683).
 const PREFS_KEY = 'gush-ball:studio'
 function loadPrefs() {
   try {
@@ -116,7 +116,17 @@ function pickPasted() {
   showVideo(pasted.value.trim())
   pasted.value = ''
 }
+const rate = ref(1) // the player's playback rate, as it reports it
+function onRateChange(r) {
+  rate.value = r
+  status.value = `מהירות ×${r}`
+}
+function seekBy(delta) {
+  if (!activeUrl.value) return
+  player.value?.seek(Math.max(0, (player.value.currentTime() ?? 0) + delta))
+}
 function retryPlayer() {
+  rate.value = 1 // a remounted player starts at 1
   playerFailed.value = false
   playerKey.value++
 }
@@ -196,6 +206,8 @@ async function deleteSelected() {
 
 const HANDLERS = {
   toggle: () => player.value?.toggle(),
+  seek: (a) => seekBy(a.delta),
+  rate: (a) => player.value?.stepRate(a.step),
   moment: addMoment,
   markStart: () => markBound('start'),
   markEnd: () => markBound('end'),
@@ -234,7 +246,7 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
 
 <template>
   <h1 v-if="loading || !team" class="sr-only">סטודיו וידאו</h1>
-  <div v-if="loading" class="mx-auto max-w-6xl space-y-4" aria-busy="true">
+  <div v-if="loading" class="space-y-4" aria-busy="true">
     <div class="skeleton aspect-video w-full"></div>
     <div class="skeleton h-40"></div>
   </div>
@@ -251,7 +263,7 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
     <RouterLink :to="game ? gameRoute : teamRoute" class="section-link">{{ game ? 'לעמוד המשחק' : 'לעמוד הקבוצה' }}</RouterLink>
   </div>
 
-  <div v-else-if="team" class="mx-auto max-w-6xl">
+  <div v-else-if="team">
     <header class="page-header">
       <div>
         <p class="eyebrow">{{ team.name }}</p>
@@ -273,7 +285,7 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
       </div>
     </header>
 
-    <div class="space-y-6 lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-6 lg:space-y-0">
+    <div class="space-y-6" :class="!prefs.theater && 'lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-6 lg:space-y-0'">
       <div class="min-w-0 space-y-4">
         <div class="flex flex-wrap items-start gap-3">
           <div v-if="game?.video_urls?.length" class="segmented flex-wrap" role="group" aria-label="סרטון משחק">
@@ -299,23 +311,25 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
         </div>
 
         <template v-if="activeUrl">
-          <div v-if="playerFailed" class="aspect-video w-full space-y-3 rounded-2xl border border-line bg-sunken p-6">
+          <div v-if="playerFailed" class="mx-auto aspect-video w-full space-y-3 lg:max-w-[calc((100dvh-9rem)*16/9)] rounded-2xl border border-line bg-sunken p-6">
             <p class="error-text" role="alert">הנגן לא נטען</p>
             <button type="button" class="btn-secondary" @click="retryPlayer">נסו שוב</button>
           </div>
-          <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" @error="playerFailed = true" />
+          <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto lg:max-w-[calc((100dvh-9rem)*16/9)]" @error="playerFailed = true" @ratechange="onRateChange" />
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-secondary" aria-keyshortcuts="Space" @click="player?.toggle()">ניגון / השהיה <kbd class="kbd">Space</kbd></button>
             <button type="button" class="btn-primary" aria-keyshortcuts="M" @click="addMoment">סימון רגע <kbd class="kbd">M</kbd></button>
             <button type="button" class="btn-secondary" aria-keyshortcuts="I" @click="markBound('start')">התחלה כאן <kbd class="kbd">I</kbd></button>
             <button type="button" class="btn-secondary" aria-keyshortcuts="O" @click="markBound('end')">סוף כאן <kbd class="kbd">O</kbd></button>
+            <button type="button" class="btn-ghost hidden lg:inline-flex" :aria-pressed="prefs.theater" @click="prefs.theater = !prefs.theater">וידאו גדול</button>
+            <span class="badge-muted self-center">מהירות <span dir="ltr" class="tabular-nums">×{{ rate }}</span></span>
           </div>
         </template>
         <p v-else class="empty-state">{{ game ? 'הוסיפו צילומי משחק בעמוד המשחק או הדביקו קישור YouTube' : 'הדביקו קישור YouTube: סקאוטינג, עונה קודמת או כל סרטון' }}</p>
         <p class="text-sm text-muted" aria-live="polite" data-test="status">{{ status }}</p>
       </div>
 
-      <div class="min-w-0 space-y-4">
+      <div class="min-w-0 space-y-4" :class="prefs.theater && 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0'">
         <StudioShortcuts v-if="prefs.shortcutsOpen" v-model:before="prefs.before" v-model:after="prefs.after" :with-game="!!game" />
         <section class="card" aria-label="הקטע הנבחר">
           <StudioClipEditor

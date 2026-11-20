@@ -1,4 +1,10 @@
 // The video id of a YouTube link (watch, youtu.be, shorts, embed), or null for any other URL.
+// The playback rate one step faster (step 1) or slower (-1) in the player's sorted rates, or `current` at the end.
+export function stepRate(rates, current, step) {
+  const next = step > 0 ? rates.find((r) => r > current) : rates.findLast((r) => r < current)
+  return next ?? current
+}
+
 export function youtubeId(url) {
   try {
     const u = new URL(url)
