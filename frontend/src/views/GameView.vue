@@ -7,8 +7,7 @@ import ImageGallery from '../components/ImageGallery.vue'
 import LoadError from '../components/LoadError.vue'
 import PostCard from '../components/PostCard.vue'
 import AppIcon from '../components/AppIcon.vue'
-import VideoItems from '../components/VideoItems.vue'
-import VideoItemsEditor from '../components/VideoItemsEditor.vue'
+import VideoClips from '../components/VideoClips.vue'
 import GameMediaEditor from '../components/GameMediaEditor.vue'
 import GameLocationLinks from '../components/GameLocationLinks.vue'
 import GameScorersEditor from '../components/GameScorersEditor.vue'
@@ -33,14 +32,13 @@ const loading = ref(true)
 const notFound = ref(false)
 const loadError = ref(false)
 
+const studioRoute = computed(() => ({ name: 'game-studio', params: { slug: route.params.slug, id: route.params.id } }))
 const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.params.slug } }))
 const canEdit = computed(() => !!game.value && canEditTeam(game.value.team_id))
 const { editing: editingScorers, toggleEl: scorersToggle, toggle: toggleScorers } = useInlineEditor(canEdit)
-// A team coach (#670) edits the briefing only; the server says who may, the admin preview hides it like canEditTeam.
+// A team coach (#670) may open the video studio; the server says who may, the admin preview hides it like canEditTeam.
 const canEditBriefing = computed(() => !!game.value?.can_edit_briefing && !previewMode.value)
-const { editing: editingBriefing, toggleEl: briefingToggle, toggle: toggleBriefing } = useInlineEditor(canEditBriefing)
 const { editing: editingFootage, toggleEl: footageToggle, toggle: toggleFootage } = useInlineEditor(canEditBriefing)
-const { editing: editingHighlights, toggleEl: highlightsToggle, toggle: toggleHighlights } = useInlineEditor(canEdit)
 const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = useInlineEditor(canEdit)
 const { editing: editingStats, toggleEl: statsToggle, toggle: toggleStats } = useInlineEditor(canEdit)
 const hasMedia = computed(() => !!game.value?.images?.length)
@@ -54,11 +52,9 @@ function onStatsChange(e) {
   Object.assign(game.value, e)
   if ('has_stats' in e) rowsKey.value++
 }
-const saved = ref(null) // 'scorers' | 'briefing' | 'footage' | 'highlights' | 'media' | 'stats' | 'stats-removed': which save to confirm (the editor unmounts on save)
+const saved = ref(null) // 'scorers' | 'footage' | 'media' | 'stats' | 'stats-removed': which save to confirm (the editor unmounts on save)
 watch(editingScorers, (open) => open && (saved.value = null))
-watch(editingBriefing, (open) => open && (saved.value = null))
 watch(editingFootage, (open) => open && (saved.value = null))
-watch(editingHighlights, (open) => open && (saved.value = null))
 watch(editingMedia, (open) => open && (saved.value = null))
 watch(editingStats, (open) => open && (saved.value = null))
 
@@ -103,22 +99,10 @@ function onBriefingToggle(e) {
   }
 }
 
-function onBriefingSaved(list) {
-  game.value.briefing = list
-  saved.value = 'briefing'
-  toggleBriefing()
-}
-
 function onFootageSaved(list) {
   game.value.video_urls = list
   saved.value = 'footage'
   toggleFootage()
-}
-
-function onHighlightsSaved(list) {
-  game.value.highlights = list
-  saved.value = 'highlights'
-  toggleHighlights()
 }
 
 function onMediaSaved(media) {
@@ -194,7 +178,10 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
         <p class="eyebrow">{{ team.name }}</p>
         <h1 class="page-title">נגד {{ game.opponent.name }}</h1>
       </div>
-      <RouterLink :to="scheduleRoute" class="section-link">ללוח המשחקים</RouterLink>
+      <div class="flex flex-wrap items-center gap-3">
+        <RouterLink v-if="canEditBriefing" :to="studioRoute" class="btn-primary">סטודיו וידאו</RouterLink>
+        <RouterLink :to="scheduleRoute" class="section-link">ללוח המשחקים</RouterLink>
+      </div>
     </header>
 
     <section class="card sm:p-8">
@@ -230,33 +217,12 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
       <PostCard v-for="post in gamePosts" :key="post.id" :post="post" />
     </section>
 
-    <section v-if="game.highlights?.length || canEdit" class="card space-y-3">
+    <section v-if="game.highlights?.length" class="card space-y-3">
       <div class="section-header flex-wrap">
         <h2 class="section-title">היילייטס</h2>
-        <span class="badge badge-muted">{{ game.highlights?.length ?? 0 }}</span>
-        <p v-if="canEdit" aria-live="polite" data-test="highlights-saved" class="ms-auto text-sm text-muted">{{ saved === 'highlights' ? 'ההיילייטס נשמרו' : '' }}</p>
-        <button
-          v-if="canEdit"
-          ref="highlightsToggle"
-          type="button"
-          class="btn-secondary"
-          aria-controls="game-highlights-editor"
-          :aria-expanded="editingHighlights"
-          @click="toggleHighlights"
-        >
-          {{ editingHighlights ? 'סיום עריכה' : 'עריכת היילייטס' }}
-        </button>
+        <span class="badge badge-muted">{{ game.highlights.length }}</span>
       </div>
-      <VideoItemsEditor
-        v-if="editingHighlights"
-        id="game-highlights-editor"
-        field="highlights"
-        :endpoint="`/teams/${game.team_id}/games/${game.id}/highlights`"
-        :items="game.highlights ?? []"
-        @saved="onHighlightsSaved"
-      />
-      <VideoItems v-else-if="game.highlights?.length" :items="game.highlights" />
-      <p v-else class="empty-state">עדיין אין היילייטס למשחק.</p>
+      <VideoClips :clips="game.highlights" />
     </section>
 
     <section v-if="game.scorers?.length || canEdit" class="card space-y-3">
@@ -323,29 +289,11 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
         <AppIcon name="chevron" class="ms-auto transition-transform group-open:rotate-180" />
       </summary>
       <div class="space-y-6 pt-3">
-        <div v-if="canEditBriefing" class="section-header flex-wrap">
-          <p aria-live="polite" data-test="briefing-saved" class="ms-auto text-sm text-muted">{{ saved === 'briefing' ? 'התדריך נשמר' : '' }}</p>
-          <button
-            ref="briefingToggle"
-            type="button"
-            class="btn-secondary"
-            aria-controls="game-briefing-editor"
-            :aria-expanded="editingBriefing"
-            @click="toggleBriefing"
-          >
-            {{ editingBriefing ? 'סיום עריכה' : 'עריכת תדריך' }}
-          </button>
-        </div>
-        <VideoItemsEditor
-          v-if="editingBriefing"
-          field="briefing"
-          id="game-briefing-editor"
-          :endpoint="`/teams/${game.team_id}/games/${game.id}/briefing`"
-          :items="game.briefing"
-          @saved="onBriefingSaved"
-        />
-        <p v-else-if="!game.briefing.length" class="empty-state">עדיין אין תדריך למשחק.</p>
-        <VideoItems v-else :items="game.briefing" />
+        <template v-if="!game.briefing.length">
+          <p class="empty-state">עדיין אין תדריך למשחק.</p>
+          <RouterLink :to="studioRoute" class="section-link">לחיתוך קטעים בסטודיו</RouterLink>
+        </template>
+        <VideoClips v-else :clips="game.briefing" />
       </div>
     </details>
 

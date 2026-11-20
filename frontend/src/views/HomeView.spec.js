@@ -489,7 +489,7 @@ describe('HomeView', () => {
   const GAME = { id: 7, team_id: 1, scheduled_at: '2026-01-01T18:00:00', opponent: { name: 'x' } }
 
   it("shows a game's videos in the videos section", async () => {
-    const games = [{ ...GAME, highlights: [{ title: 'תקציר', urls: ['https://youtu.be/x'] }], images: [] }]
+    const games = [{ ...GAME, highlights: [{ id: 1, section: 'תקציר', source_url: 'https://youtu.be/x', start: null, end: null, note: null }], images: [] }]
     const wrapper = await mountWithTeam(TEAM, { games })
     expect(wrapper.findAll('article h3').map((h) => h.text())).toEqual(['תקציר'])
   })

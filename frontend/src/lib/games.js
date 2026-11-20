@@ -1,4 +1,5 @@
 import { formatGameDate } from './format'
+import { clipUrl } from './clips'
 
 // Comparator: earliest game first.
 export const byDate = (a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)
@@ -84,7 +85,7 @@ export function scoringByPlayer(rows) {
 
 // A team's videos and images with its games' media merged in, newest first.
 // Game items are dated by their game; undated (pre-audit) team items keep API order, last.
-// A game's videos are its highlights, one per url (#665, #667).
+// A game's videos are its highlight clips that have a source (#665, #667, #682); text-only clips have no video.
 export function teamMedia(teamVideos, teamImages, games) {
   const newestGameFirst = [...games].sort((a, b) => byDate(b, a))
   const fromGames = (field, itemsOf = (g) => g[field] ?? []) =>
@@ -92,9 +93,7 @@ export function teamMedia(teamVideos, teamImages, games) {
       itemsOf(g).map((item, i) => ({ ...item, id: `game-${g.id}-${field}-${i}`, created_at: g.scheduled_at })),
     )
   const highlightVideos = (g) =>
-    (g.highlights ?? []).flatMap((h) =>
-      (h.urls ?? []).map((url, j, urls) => ({ url, title: urls.length > 1 ? `${h.title} ${j + 1}` : h.title, text: h.text })),
-    )
+    (g.highlights ?? []).filter((c) => c.source_url).map((c) => ({ url: clipUrl(c), title: c.section ?? 'היילייטס', text: c.note }))
   const time = (x) => (x.created_at ? new Date(x.created_at).getTime() : -Infinity)
   const newestFirst = (items) => items.sort((a, b) => time(b) - time(a)) // stable
   return {
