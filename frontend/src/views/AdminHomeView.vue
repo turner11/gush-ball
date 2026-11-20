@@ -20,7 +20,10 @@ import { useTeams } from '../composables/useTeams'
 
 // The slug (when present) scopes the players/games links to one team.
 const route = useRoute()
-const base = computed(() => (route.params.slug ? '/' + route.params.slug : ''))
+const slug = computed(() => route.params.slug)
+const base = computed(() => (slug.value ? '/' + slug.value : ''))
+// ponytail: a literal per count so Tailwind sees it; the club card shows only for non-full admins
+const navCols = computed(() => ({ 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6' })[4 + (slug.value ? 1 : 0) + (!fullAdmin.value && managesClubs.value ? 1 : 0)])
 
 const { user } = useAuth()
 const pickTeams = computed(() => !user.value?.team_id) // full and club admins both choose teams
@@ -76,7 +79,7 @@ onMounted(async () => {
       <h1 class="page-title">אזור ניהול</h1>
       <RouterLink to="/account" class="section-link">החשבון שלי</RouterLink>
     </div>
-    <nav class="grid grid-cols-2 gap-3 max-lg:[&>:last-child:nth-child(odd)]:col-span-2" :class="!fullAdmin && managesClubs ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
+    <nav class="grid grid-cols-2 gap-3 max-lg:[&>:last-child:nth-child(odd)]:col-span-2" :class="navCols">
       <RouterLink :to="base + '/admin/players'" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
         <span class="block font-extrabold">ניהול שחקנים</span>
@@ -96,6 +99,11 @@ onMounted(async () => {
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="grid" /></span>
         <span class="block font-extrabold">ניהול קבוצות</span>
         <span class="block text-sm text-muted">קבוצות, מיתוג ותוכן</span>
+      </RouterLink>
+      <RouterLink v-if="slug" :to="{ name: 'team-studio', params: { slug } }" class="card space-y-2 transition hover:border-team">
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="play" /></span>
+        <span class="block font-extrabold">סטודיו וידאו</span>
+        <span class="block text-sm text-muted">חיתוך קטעים לתדריך שחקנים</span>
       </RouterLink>
       <RouterLink
         v-if="managesClubs"

@@ -217,6 +217,10 @@ watch(() => route.params.id, load, { immediate: true })
         </div>
         <p v-else class="text-sm text-muted">אין תמונות עדיין.</p>
       </section>
+      <section v-if="player.highlights?.length" class="space-y-2">
+        <h2 class="section-title">היילייטס</h2>
+        <VideoClips :clips="player.highlights" />
+      </section>
       <section v-if="videos.length || canEdit" class="space-y-2">
         <h2 class="section-title">סרטונים</h2>
         <ul v-if="videos.length" class="grid gap-6 sm:grid-cols-2">

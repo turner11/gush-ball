@@ -90,6 +90,19 @@ describe('AdminHomeView', () => {
     expect(html.indexOf('membership-requests-stub')).toBeLessThan(html.indexOf('sync-failures-stub'))
   })
 
+  it('a team admin home links to that team studio', async () => {
+    mockFetch({ 'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }), 'GET /api/teams': () => jsonRes(TEAMS) })
+    router.addRoute({ path: '/:slug/admin', name: 'team-admin', component: { template: '<div/>' } })
+    router.addRoute({ path: '/:slug/studio', name: 'team-studio', component: { template: '<div/>' } })
+    router.push('/team_a/admin')
+    await router.isReady()
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
+    await flushPromises()
+
+    expect(wrapper.find('a[href="/team_a/studio"]').exists()).toBe(true)
+  })
+
   it('links to the account page', async () => {
     mockFetch({ 'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }), 'GET /api/teams': () => jsonRes(TEAMS) })
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')

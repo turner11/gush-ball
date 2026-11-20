@@ -15,14 +15,19 @@ const PLAYERS = [
 
 let clips
 let created
+let clipsError = null
 function respond(game = GAME) {
+  clipsError = null
   clips = []
   created = 100
   apiFetch.mockImplementation(async (path, opts = {}) => {
     if (path === '/teams/1') return { id: 1, name: 'גוש' }
     if (path === '/teams/1/games/5') return game
     if (path === '/teams/1/players') return PLAYERS
-    if (path === '/teams/1/clips' && !opts.method) return clips
+    if (path === '/teams/1/clips' && !opts.method) {
+      if (clipsError) throw clipsError
+      return clips
+    }
     if (path === '/teams/1/clips' && opts.method === 'POST') return { id: ++created, ...opts.body }
     if (opts.method === 'PATCH' || opts.method === 'DELETE') return null
     throw new Error(`Unhandled ${path}`)
@@ -30,23 +35,25 @@ function respond(game = GAME) {
 }
 const calls = (method) => apiFetch.mock.calls.filter((c) => c[1]?.method === method)
 
-async function mountStudio() {
+async function mountStudio(url = '/team_a/games/5/studio') {
   const router = createRouter({
     history: createWebHistory(),
     routes: [
       { path: '/:slug/games/:id', name: 'game', component: { template: '<div/>' } },
       { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' } },
       { path: '/:slug/games/:id/studio', name: 'game-studio', component: { template: '<div/>' } },
+      { path: '/:slug/studio', name: 'team-studio', component: { template: '<div/>' } },
+      { path: '/:slug', name: 'team-home', component: { template: '<div/>' } },
     ],
   })
-  router.push('/team_a/games/5/studio')
+  router.push(url)
   await router.isReady()
   const { useSelectedTeam } = await import('../composables/useSelectedTeam')
   const sel = useSelectedTeam()
   sel.selectedTeamId.value = '1'
   sel.teamsLoaded.value = true
-  const { default: GameStudioView } = await import('./GameStudioView.vue')
-  const wrapper = mount(GameStudioView, { attachTo: document.body, global: { plugins: [router] } })
+  const { default: VideoStudioView } = await import('./VideoStudioView.vue')
+  const wrapper = mount(VideoStudioView, { attachTo: document.body, global: { plugins: [router] } })
   await flushPromises()
   return wrapper
 }
@@ -56,9 +63,10 @@ const press = async (code, key = code, target = document.body) => {
   await flushPromises()
 }
 
-describe('GameStudioView', () => {
+describe('VideoStudioView', () => {
   let wrapper
   beforeEach(() => {
+    localStorage.clear()
     window.YT = {
       Player: class {
         getCurrentTime() { return 100 }
@@ -162,5 +170,83 @@ describe('GameStudioView', () => {
     await flushPromises()
     expect(calls('POST')).toHaveLength(2)
     expect(wrapper.findAll('ol button')).toHaveLength(1)
+  })
+
+  describe('team studio (#683)', () => {
+    const gameless = (id, source_url = SRC) => ({ ...stored(id, source_url), game_id: null, in_player_briefing: true })
+    const pasteUrl = async () => {
+      await wrapper.get('#studio-url').setValue(SRC)
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+    }
+
+    it('lists only the game-less clips and offers only the P destination', async () => {
+      respond()
+      clips.push(stored(1, SRC), gameless(2))
+      wrapper = await mountStudio('/team_a/studio')
+      expect(wrapper.findAll('ol button')).toHaveLength(1)
+      expect(wrapper.get('h1').text()).toBe('סטודיו וידאו')
+      expect(wrapper.find('[aria-keyshortcuts="P"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-keyshortcuts="H"]').exists()).toBe(false)
+      expect(wrapper.find('[aria-keyshortcuts="B"]').exists()).toBe(false)
+      await press('KeyH', 'h')
+      expect(calls('PATCH')).toHaveLength(0)
+    })
+
+    it('M after pasting a link POSTs a game-less P clip', async () => {
+      respond()
+      wrapper = await mountStudio('/team_a/studio')
+      await pasteUrl()
+      await press('KeyM', 'm')
+      expect(calls('POST')[0][1].body).toMatchObject({ game_id: null, in_player_briefing: true, source_url: SRC })
+    })
+
+    it('shows the no-permission state when the clips list is forbidden', async () => {
+      respond()
+      clipsError = { status: 403 }
+      wrapper = await mountStudio('/team_a/studio')
+      expect(wrapper.text()).toContain('הסטודיו פתוח למנהלי הקבוצה ולמאמן')
+    })
+
+    it('the game studio links to the team studio', async () => {
+      respond()
+      wrapper = await mountStudio()
+      expect(wrapper.text()).toContain('סטודיו קבוצתי')
+    })
+  })
+
+  describe('shortcuts panel and moment window (#683)', () => {
+    it('? opens the panel, the button closes it, and a new visit finds it open', async () => {
+      respond()
+      wrapper = await mountStudio()
+      expect(wrapper.find('#studio-shortcuts').exists()).toBe(false)
+      await press('Slash', '?')
+      expect(wrapper.find('#studio-shortcuts').exists()).toBe(true)
+      expect(wrapper.get('[aria-controls="studio-shortcuts"]').attributes('aria-expanded')).toBe('true')
+      wrapper.unmount()
+      wrapper = await mountStudio()
+      expect(wrapper.find('#studio-shortcuts').exists()).toBe(true)
+      await wrapper.get('[aria-controls="studio-shortcuts"]').trigger('click')
+      expect(wrapper.find('#studio-shortcuts').exists()).toBe(false)
+    })
+
+    it('the edited window sets what M marks', async () => {
+      respond()
+      wrapper = await mountStudio()
+      await press('Slash', '?')
+      await wrapper.get('#studio-before').setValue(5)
+      await wrapper.get('#studio-after').setValue(2)
+      await press('KeyM', 'm')
+      expect(calls('POST')[0][1].body).toMatchObject({ start: 95, end: 102 })
+    })
+
+    it('still works with storage blocked, using 8/3', async () => {
+      respond()
+      const spies = ['getItem', 'setItem'].map((m) => vi.spyOn(Storage.prototype, m).mockImplementation(() => { throw new Error('blocked') }))
+      wrapper = await mountStudio()
+      await press('KeyM', 'm')
+      expect(calls('POST')[0][1].body).toMatchObject({ start: 92, end: 103 })
+      spies.forEach((s) => s.mockRestore())
+    })
   })
 })

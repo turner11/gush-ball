@@ -80,4 +80,14 @@ describe('useClipStudio', () => {
     expect(s.clips.value.map((c) => c.id)).toEqual([3, 1])
     expect(s.sections.value).toEqual(['a', 'b'])
   })
+
+  it('without a game it lists the game-less clips and adds them as P', async () => {
+    const row = (id, game_id) => ({ id, team_id: 1, game_id, player_ids: [] })
+    apiFetch.mockImplementation(async (path, opts = {}) => (opts.method === 'POST' ? { id: 9 } : [row(1, 5), row(2, null)]))
+    const s = useClipStudio(ref(1), ref(null))
+    await s.load()
+    expect(s.clips.value.map((c) => c.id)).toEqual([2])
+    s.add({ source_url: 'u', start: 1, end: 4 })
+    expect(calls('POST')[0][1].body).toMatchObject({ game_id: null, in_player_briefing: true, is_highlight: false })
+  })
 })

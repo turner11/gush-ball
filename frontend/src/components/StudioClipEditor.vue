@@ -1,7 +1,7 @@
 <script setup>
 import { useTemplateRef } from 'vue'
 
-import { nudge } from '../lib/clips'
+import { needsGame, nudge } from '../lib/clips'
 import { formatTimestamp } from '../lib/youtube'
 
 // The selected clip's controls (#682). Pure: it emits what the user changed, the studio saves it.
@@ -67,7 +67,7 @@ const text = (field, value) => emit('change', { [field]: value.trim() || null })
 
     <div class="segmented flex-wrap" role="group" aria-label="יעד הקטע">
       <button
-        v-for="d in DESTINATIONS"
+        v-for="d in DESTINATIONS.filter((d) => !needsGame(d.field) || clip.game_id !== null)"
         :key="d.field"
         type="button"
         class="segmented-item"

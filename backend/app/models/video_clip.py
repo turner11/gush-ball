@@ -53,12 +53,22 @@ def timeline(clips: list[VideoClip], video_urls: list[str] | tuple[str, ...] = (
     return sorted(clips, key=key)
 
 
-def player_briefing(team_clips: list[VideoClip], player: "Player", games: dict[int, "Game"]) -> list[VideoClip]:
-    """The team's P clips tagged with `player`, newest game first (game-less clips last), timeline order within a game."""
-    mine = [c for c in team_clips if c.in_player_briefing and player.id in (c.player_ids or [])]
-    mine = timeline(mine)
+def _newest_game_first(clips: list[VideoClip], games: dict[int, "Game"]) -> list[VideoClip]:
+    """Stable sort: newest game first, game-less clips last."""
     return sorted(
-        mine,
+        clips,
         key=lambda c: games[c.game_id].scheduled_at.timestamp() if c.game_id in games else float("-inf"),
         reverse=True,
     )
+
+
+def player_briefing(team_clips: list[VideoClip], player: "Player", games: dict[int, "Game"]) -> list[VideoClip]:
+    """The team's P clips tagged with `player`, newest game first (game-less clips last), timeline order within a game."""
+    mine = [c for c in team_clips if c.in_player_briefing and player.id in (c.player_ids or [])]
+    return _newest_game_first(timeline(mine), games)
+
+
+def player_highlights(team_clips: list[VideoClip], player: "Player", public_games: dict[int, "Game"]) -> list[VideoClip]:
+    """The H clips tagging `player` from public games, newest game first (#683)."""
+    mine = [c for c in team_clips if c.is_highlight and c.game_id in public_games and player.id in (c.player_ids or [])]
+    return _newest_game_first(timeline(mine), public_games)

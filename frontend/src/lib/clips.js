@@ -19,10 +19,19 @@ export function groupBySection(clips) {
   return [...groups.values()]
 }
 
-// "Mark a moment" at `now` seconds: a clip from 8s before to 3s after.
-export function momentRange(now) {
+// "Mark a moment" at `now` seconds: a clip from `before` seconds before to `after` seconds after.
+export function momentRange(now, before = 8, after = 3) {
   const whole = Math.floor(now)
-  return { start: Math.max(0, whole - 8), end: whole + 3 }
+  return { start: Math.max(0, whole - before), end: whole + after }
+}
+
+// H and B belong to a game; a game-less clip can only be P (mirrors ClipIn._consistent).
+export const needsGame = (field) => field === 'is_highlight' || field === 'in_game_briefing'
+
+// The studio's stored preferences, each field sanitised. `after >= 1` keeps end > start, so M never sends a 422.
+export function studioPrefs(raw) {
+  const int = (value, min, fallback) => (Number.isInteger(value) && value >= min && value <= 60 ? value : fallback)
+  return { shortcutsOpen: !!raw?.shortcutsOpen, before: int(raw?.before, 0, 8), after: int(raw?.after, 1, 3) }
 }
 
 // The clip's start or end moved by delta seconds: { start, end }, or null when that would leave start < 0 or end <= start.
@@ -59,6 +68,7 @@ export function studioAction(event) {
   if (/^\d$/.test(event.key)) return { name: 'digit', digit: event.key }
   // a focused button or link already acts on Space/Enter
   if ((event.code === 'Space' || event.code === 'Enter') && event.target?.closest?.('button, a, summary')) return null
+  if (event.key === '?' || (event.code === 'Slash' && event.shiftKey)) return { name: 'shortcuts' }
   const name = KEYS[event.code]
   return name ? { name } : null
 }

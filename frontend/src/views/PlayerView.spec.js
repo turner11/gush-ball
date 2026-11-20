@@ -508,6 +508,20 @@ describe('PlayerView', () => {
     })
   })
 
+  describe('public highlights (#683)', () => {
+    const clip = { id: 1, game_id: 5, section: 'שליש ראשון', note: null, source_url: 'https://www.youtube.com/watch?v=abcdefghijk', start: 10, end: 20, player_ids: [3] }
+    it('lists the highlight clips under היילייטס', async () => {
+      withPlayer({ highlights: [clip] })
+      const wrapper = await mountAt('/players/3')
+      expect(wrapper.findAll('h2').map((h) => h.text())).toContain('היילייטס')
+      expect(wrapper.text()).toContain('שליש ראשון')
+    })
+    it('has no such section when there are none', async () => {
+      withPlayer({ highlights: [] })
+      expect((await mountAt('/players/3')).text()).not.toContain('היילייטס')
+    })
+  })
+
   describe('private video briefing (#670)', () => {
     const ITEMS = [{ id: 1, game_id: null, section: 'פתיחה', note: 'נתחיל בהגנה', source_url: 'https://www.youtube.com/watch?v=abcdefghijk', start: 90, end: 120, player_ids: [3] }]
     const TITLE = 'תדריך וידאו אישי'
