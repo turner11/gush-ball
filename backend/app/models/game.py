@@ -88,6 +88,8 @@ class Game(Base):
     briefing: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     # Public game highlights (#665): same [{title, text, urls}] shape as briefing; admin content, not a scrape field.
     highlights: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    # Full-game footage (#681): YouTube URLs the studio (#682) cuts from; team writers + coach only, never public.
+    video_urls: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
     # ORM cascade too: delete_game uses db.delete and SQLite tests don't enforce FKs.
     lineup_snapshots: Mapped[list["LineupSnapshot"]] = relationship(cascade="all, delete-orphan")
     scorers: Mapped[list["GameScorer"]] = relationship(

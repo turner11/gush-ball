@@ -17,6 +17,7 @@ import GameStatsEditor from '../components/GameStatsEditor.vue'
 import GameStatsRowsEditor from '../components/GameStatsRowsEditor.vue'
 import GameStatsLink from '../components/GameStatsLink.vue'
 import { canEditTeam, previewMode, teamMember } from '../composables/useAuth'
+import GameVideoUrlsEditor from '../components/GameVideoUrlsEditor.vue'
 import { useInlineEditor } from '../composables/useInlineEditor'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
@@ -38,6 +39,7 @@ const { editing: editingScorers, toggleEl: scorersToggle, toggle: toggleScorers 
 // A team coach (#670) edits the briefing only; the server says who may, the admin preview hides it like canEditTeam.
 const canEditBriefing = computed(() => !!game.value?.can_edit_briefing && !previewMode.value)
 const { editing: editingBriefing, toggleEl: briefingToggle, toggle: toggleBriefing } = useInlineEditor(canEditBriefing)
+const { editing: editingFootage, toggleEl: footageToggle, toggle: toggleFootage } = useInlineEditor(canEditBriefing)
 const { editing: editingHighlights, toggleEl: highlightsToggle, toggle: toggleHighlights } = useInlineEditor(canEdit)
 const { editing: editingMedia, toggleEl: mediaToggle, toggle: toggleMedia } = useInlineEditor(canEdit)
 const { editing: editingStats, toggleEl: statsToggle, toggle: toggleStats } = useInlineEditor(canEdit)
@@ -52,9 +54,10 @@ function onStatsChange(e) {
   Object.assign(game.value, e)
   if ('has_stats' in e) rowsKey.value++
 }
-const saved = ref(null) // 'scorers' | 'briefing' | 'highlights' | 'media' | 'stats' | 'stats-removed': which save to confirm (the editor unmounts on save)
+const saved = ref(null) // 'scorers' | 'briefing' | 'footage' | 'highlights' | 'media' | 'stats' | 'stats-removed': which save to confirm (the editor unmounts on save)
 watch(editingScorers, (open) => open && (saved.value = null))
 watch(editingBriefing, (open) => open && (saved.value = null))
+watch(editingFootage, (open) => open && (saved.value = null))
 watch(editingHighlights, (open) => open && (saved.value = null))
 watch(editingMedia, (open) => open && (saved.value = null))
 watch(editingStats, (open) => open && (saved.value = null))
@@ -104,6 +107,12 @@ function onBriefingSaved(list) {
   game.value.briefing = list
   saved.value = 'briefing'
   toggleBriefing()
+}
+
+function onFootageSaved(list) {
+  game.value.video_urls = list
+  saved.value = 'footage'
+  toggleFootage()
 }
 
 function onHighlightsSaved(list) {
@@ -339,6 +348,41 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
         <VideoItems v-else :items="game.briefing" />
       </div>
     </details>
+
+    <section v-if="game.video_urls && canEditBriefing" class="card space-y-3">
+      <div class="section-header flex-wrap">
+        <h2 class="section-title">צילומי המשחק</h2>
+        <span class="badge badge-muted">{{ game.video_urls.length }}</span>
+        <p aria-live="polite" data-test="footage-saved" class="ms-auto text-sm text-muted">{{ saved === 'footage' ? 'הצילומים נשמרו' : '' }}</p>
+        <button
+          ref="footageToggle"
+          type="button"
+          class="btn-secondary"
+          aria-controls="game-footage-editor"
+          :aria-expanded="editingFootage"
+          @click="toggleFootage"
+        >
+          {{ editingFootage ? 'סיום עריכה' : 'עריכת צילומים' }}
+        </button>
+      </div>
+      <p class="text-sm text-muted">סרטוני משחק מלאים מ-YouTube לחיתוך קטעים. גלוי רק למאמנים ולמנהלי הקבוצה.</p>
+      <GameVideoUrlsEditor
+        v-if="editingFootage"
+        id="game-footage-editor"
+        :endpoint="`/teams/${game.team_id}/games/${game.id}/video-urls`"
+        :urls="game.video_urls"
+        @saved="onFootageSaved"
+      />
+      <ul v-else-if="game.video_urls.length" class="space-y-1">
+        <li v-for="(url, i) in game.video_urls" :key="url + i" class="min-w-0">
+          <a :href="url" target="_blank" rel="noopener" class="flex min-h-11 min-w-0 items-center gap-2 text-sm text-muted hover:text-ink">
+            <span class="shrink-0">סרטון {{ i + 1 }}</span>
+            <span dir="ltr" class="truncate">{{ url }}</span>
+          </a>
+        </li>
+      </ul>
+      <p v-else class="empty-state">עדיין לא נוספו צילומי משחק.</p>
+    </section>
 
     <section v-if="hasMedia || canEdit" class="card space-y-3">
       <div class="section-header flex-wrap">
