@@ -307,15 +307,58 @@ describe('GameView', () => {
       ...GAME,
       highlights: [{ title: 'שלשה', text: null, urls: [] }],
       briefing: [{ title: 'פתיחה', text: null, urls: [] }],
+      video_urls: [],
+      can_edit_briefing: true,
       scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
       images: [{ url: 'https://cdn.example.com/a.jpg', title: null, title_en: null }],
     }), [{ id: 1, title: 'לקראת המשחק', body: 'b', game_id: 5 }])
     await memberUser(ADMIN)
     const { wrapper } = await mountAt(true)
     expect(wrapper.findAll('h2').map((h) => h.text())).toEqual([
-      'על המשחק', 'עדכונים', 'היילייטס', 'קלעים', 'סטטיסטיקת חמישיות', 'ממוצעי נקודות', 'תדריך וידאו', 'מדיה',
+      'על המשחק', 'עדכונים', 'היילייטס', 'קלעים', 'סטטיסטיקת חמישיות', 'ממוצעי נקודות', 'תדריך וידאו', 'צילומי המשחק', 'מדיה',
     ])
     expect(wrapper.get('#game-posts-title').classes()).toContain('sr-only')
+  })
+
+  describe('full-game footage (#681)', () => {
+    const URL = 'https://www.youtube.com/watch?v=abcdefghijk'
+    const toggle = (w, label) => w.findAll('button').find((b) => b.text() === label)
+
+    it('an editor sees the footage card with links and the edit button', async () => {
+      mockFetch(ok({ ...GAME, video_urls: [URL], can_edit_briefing: true }))
+      await memberUser(MEMBER)
+      const { wrapper } = await mountAt(true)
+      expect(wrapper.findAll('h2').map((h) => h.text())).toContain('צילומי המשחק')
+      expect(wrapper.find(`a[href="${URL}"]`).exists()).toBe(true)
+      expect(toggle(wrapper, 'עריכת צילומים')).toBeTruthy()
+    })
+
+    it('a member without video_urls, and an editor in preview, see no footage card', async () => {
+      mockFetch(ok({ ...GAME, video_urls: null }))
+      await memberUser(MEMBER)
+      const plain = await mountAt(true)
+      expect(plain.wrapper.text()).not.toContain('צילומי המשחק')
+      plain.wrapper.unmount()
+
+      mockFetch(ok({ ...GAME, video_urls: [URL], can_edit_briefing: true }))
+      ;(await import('../composables/useAuth')).previewMode.value = 'member'
+      const preview = await mountAt(true)
+      expect(preview.wrapper.text()).not.toContain('צילומי המשחק')
+    })
+
+    it('saving updates the list and shows the saved note', async () => {
+      const second = 'https://youtu.be/lmnopqrstuv'
+      mockFetch(ok({ ...GAME, video_urls: [URL], can_edit_briefing: true }))
+      const base = global.fetch
+      global.fetch = vi.fn((url, opts) => (opts?.method === 'PUT' ? Promise.resolve(ok([URL, second])) : base(url, opts)))
+      await memberUser(MEMBER)
+      const { wrapper } = await mountAt(true)
+      await toggle(wrapper, 'עריכת צילומים').trigger('click')
+      await wrapper.find('#game-footage-editor').trigger('submit')
+      await flushPromises()
+      expect(wrapper.find(`a[href="${second}"]`).exists()).toBe(true)
+      expect(wrapper.get('[data-test="footage-saved"]').text()).toBe('הצילומים נשמרו')
+    })
   })
 
   describe('highlights (#665)', () => {

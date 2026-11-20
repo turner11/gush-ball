@@ -1018,6 +1018,8 @@ def test_coach_of_team_edits_game_briefing_only(
         assert client.post("/auth/login", json={"username": name, "password": "password123"}).status_code == 200
         assert client.get(url).json()["can_edit_briefing"] is False
         assert client.put(f"{url}/briefing", json=[]).status_code == 403
+        assert client.get(url).json()["video_urls"] is None
+        assert client.put(f"{url}/video-urls", json=[]).status_code == 403
         client.post("/auth/logout")
 
     coach = _login_user(client, db_session, "coach", Membership(team_id=own_team.id, role="member"))
@@ -1026,6 +1028,8 @@ def test_coach_of_team_edits_game_briefing_only(
     assert client.get(url).json()["can_edit_briefing"] is True
     assert client.put(f"{url}/briefing", json=BRIEFING).status_code == 200
     assert client.get(url).json()["briefing"][0]["title"] == "פתיחה"
+    assert client.put(f"{url}/video-urls", json=[FOOTAGE[0]]).status_code == 200
+    assert client.get(url).json()["video_urls"] == [FOOTAGE[0]]
     # the coach right is briefing-only
     assert client.put(f"{url}/highlights", json=[]).status_code == 403
 
@@ -1038,3 +1042,57 @@ def test_team_admin_sees_can_edit_briefing(client: TestClient, db_session: Sessi
     assert client.get(url).json()["can_edit_briefing"] is False
     _login_user(client, db_session, "ta", Membership(team_id=own_team.id, role="admin"))
     assert client.get(url).json()["can_edit_briefing"] is True
+
+
+# --- full-game footage (#681) ---
+
+FOOTAGE = ["https://www.youtube.com/watch?v=abcdefghijk", "https://youtu.be/lmnopqrstuv"]
+
+
+@pytest.mark.parametrize(
+    ("who", "sees"),
+    [("anonymous", False), ("member:own", False), ("admin:club", True), ("full admin", True)],
+)
+def test_get_game_video_urls_visibility(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team, who: str, sees: bool
+) -> None:
+    from tests.test_lineups import _login_as
+
+    own_team.club = "Gush"
+    game = _make_game(db_session, own_team)
+    game.video_urls = FOOTAGE
+    db_session.commit()
+    _login_as(client, db_session, who, own_team, other_team)
+
+    detail = client.get(f"/teams/{own_team.id}/games/{game.id}").json()
+    assert detail["video_urls"] == (FOOTAGE if sees else None)
+    assert all("video_urls" not in g for g in client.get(f"/teams/{own_team.id}/games").json())
+    assert all("video_urls" not in g for g in client.get("/games", params={"from": "2025-12-31", "to": "2026-01-02"}).json())
+
+
+def test_put_video_urls_replaces_list_and_does_not_flag_override(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    team = _make_team(db_session)
+    game = _make_game(db_session, team)
+    url = f"/teams/{team.id}/games/{game.id}"
+    assert admin_client.put(f"{url}/video-urls", json=FOOTAGE).status_code == 200
+    assert admin_client.get(url).json()["video_urls"] == FOOTAGE
+    assert admin_client.put(f"{url}/video-urls", json=[]).status_code == 200
+    assert admin_client.get(url).json()["video_urls"] == []
+    db_session.refresh(game)
+    assert game.is_manually_overridden is False
+
+
+def test_put_video_urls_validation_and_scope(
+    client: TestClient, db_session: Session, own_team: Team, other_team: Team, team_admin_client: TestClient
+) -> None:
+    own = _make_game(db_session, own_team)
+    other = _make_game(db_session, other_team)
+    url = f"/teams/{own_team.id}/games/{own.id}/video-urls"
+    assert client.put(url, json=["https://vimeo.com/1"]).status_code == 422
+    assert client.put(url, json=["javascript:alert(1)"]).status_code == 422
+    assert client.put(url, json=["https://youtu.be/abcdefghijk"] * 11).status_code == 422
+    assert client.put(f"/teams/{other_team.id}/games/{other.id}/video-urls", json=[]).status_code == 403
+    client.post("/auth/logout")
+    assert client.put(url, json=[]).status_code == 401
