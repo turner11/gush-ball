@@ -26,6 +26,13 @@ describe('groupBySection', () => {
   })
 })
 
+describe('groupBySection across games', () => {
+  it('keeps one section of two games apart, in the order given', () => {
+    const clips = [{ id: 1, game_id: 9, section: 'a' }, { id: 2, game_id: 8, section: 'a' }, { id: 3, game_id: 9, section: 'a' }]
+    expect(groupBySection(clips).map((g) => g.clips.map((c) => c.id))).toEqual([[1, 3], [2]])
+  })
+})
+
 describe('momentRange', () => {
   it('is 8s before to 3s after, never before 0', () => {
     expect(momentRange(100.9)).toEqual({ start: 92, end: 103 })

@@ -7,12 +7,13 @@ export function clipUrl(clip) {
   return withVideoSegment(clip.source_url, clip.start, clip.end)
 }
 
-// [{ section, clips }] in order of first appearance; clips without a section form one group (section null).
+// [{ section, clips }] in order of first appearance, one group per game and section (a player's briefing spans games); clips without a section form one group (section null).
 export function groupBySection(clips) {
   const groups = new Map()
   for (const clip of clips) {
-    const key = clip.section ?? null
-    if (!groups.has(key)) groups.set(key, { section: key, clips: [] })
+    const section = clip.section ?? null
+    const key = `${clip.game_id ?? ''}|${section ?? ''}`
+    if (!groups.has(key)) groups.set(key, { section, clips: [] })
     groups.get(key).clips.push(clip)
   }
   return [...groups.values()]

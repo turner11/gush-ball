@@ -37,6 +37,15 @@ def test_item_clips_converts_shapes_segments_text_and_non_youtube() -> None:
     assert migration._seconds("1h2m3s") == 3723 and migration._seconds("abc") is None and migration._seconds("") is None
 
 
+def test_item_clips_keeps_an_unparseable_t_and_any_youtube_host() -> None:
+    # t=1:30 is not a duration: the param stays in the URL rather than being lost
+    kept = migration._item_clips({"url": f"{YT}abcdefghijk&t=1:30"})
+    assert [_fields(c) for c in kept] == [(f"{YT}abcdefghijk&t=1%3A30", None, None, None, None)]
+    # any *youtube.com host (music., gaming., ...) is split like the frontend youtubeId does
+    music = migration._item_clips({"url": "https://music.youtube.com/watch?v=abcdefghijk&t=5"})
+    assert [_fields(c) for c in music] == [("https://music.youtube.com/watch?v=abcdefghijk", 5, None, None, None)]
+
+
 def test_migrate_writes_highlight_briefing_and_player_clips() -> None:
     engine = create_engine("sqlite://")
     with engine.begin() as conn:

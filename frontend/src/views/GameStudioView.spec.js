@@ -96,6 +96,26 @@ describe('GameStudioView', () => {
     expect(wrapper.findAll('ol button')).toHaveLength(1)
   })
 
+  const SRC2 = 'https://www.youtube.com/watch?v=zzzzzzzzzzz'
+  const stored = (id, source_url) => ({ id, game_id: 5, source_url, start: 1, end: 9, section: null, note: null, is_highlight: false, in_game_briefing: false, in_player_briefing: false, player_ids: [] })
+
+  it('selects the newest clip after load, so the keys act on it', async () => {
+    respond()
+    clips.push(stored(1, SRC), stored(2, SRC))
+    wrapper = await mountStudio()
+    await press('KeyH', 'h')
+    expect(calls('PATCH')[0][0]).toBe('/teams/1/clips/2')
+  })
+
+  it('I with a clip of another video selected starts a new clip instead of editing it', async () => {
+    respond()
+    clips.push(stored(1, SRC2)) // selected on load; the player shows SRC
+    wrapper = await mountStudio()
+    await press('KeyI', 'i')
+    expect(calls('PATCH')).toHaveLength(0)
+    expect(calls('POST')[0][1].body).toMatchObject({ source_url: SRC, start: 100 })
+  })
+
   it('M typed in the section field does nothing', async () => {
     respond()
     wrapper = await mountStudio()

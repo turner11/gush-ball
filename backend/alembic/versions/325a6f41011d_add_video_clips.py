@@ -21,7 +21,6 @@ down_revision: str | Sequence[str] | None = "b93343e6a7be"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-_YOUTUBE_HOSTS = {"youtu.be", "youtube.com", "www.youtube.com", "m.youtube.com"}
 _DURATION = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?")
 
 _clips = sa.table(
@@ -50,19 +49,22 @@ def _seconds(value: str) -> int | None:
 
 
 def _split_segment(url: str) -> tuple[str, int | None, int | None]:
-    """A YouTube URL's t/start and end params moved out of the URL; any other URL comes back verbatim."""
+    """A YouTube URL's t/start and end params moved out of the URL; any other URL comes back verbatim.
+
+    A param that isn't a duration (`t=1:30`) stays in the URL rather than being lost. The host test matches
+    the frontend `youtubeId`: youtu.be or any *youtube.com.
+    """
     parts = urlsplit(url)
-    if parts.hostname not in _YOUTUBE_HOSTS:
+    host = parts.hostname or ""
+    if host != "youtu.be" and not host.endswith("youtube.com"):
         return url, None, None
     query = parse_qsl(parts.query, keep_blank_values=True)
-    values = dict(query)
-    start = _seconds(values["t"]) if "t" in values else None
-    if start is None and "start" in values:
-        start = _seconds(values["start"])
-    end = _seconds(values["end"]) if "end" in values else None
+    values = {k: _seconds(v) for k, v in query if k in ("t", "start", "end")}
+    start = values.get("t") if values.get("t") is not None else values.get("start")
+    end = values.get("end")
     if end is not None and end <= (start or 0):
         end = None
-    kept = [(k, v) for k, v in query if k not in ("t", "start", "end")]
+    kept = [(k, v) for k, v in query if values.get(k) is None]
     return urlunsplit(parts._replace(query=urlencode(kept))), start, end
 
 

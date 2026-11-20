@@ -121,7 +121,8 @@ function addMoment() {
 function markBound(which) {
   if (!activeUrl.value) return
   const now = Math.floor(player.value?.currentTime() ?? 0)
-  const clip = selected.value
+  // a clip of another video is not the one on screen: its bounds would take this video's time
+  const clip = youtubeId(selected.value?.source_url) === youtubeId(activeUrl.value) ? selected.value : null
   if (!clip) {
     add({ source_url: withVideoSegment(activeUrl.value, null, null), [which]: now })
   } else {

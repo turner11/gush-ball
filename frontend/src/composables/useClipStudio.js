@@ -27,7 +27,7 @@ export function useClipStudio(teamId, gameId) {
   async function load() {
     const rows = await apiFetch(`/teams/${teamId.value}/clips`)
     all.value = rows.map((row) => wrap(row))
-    selectedUid.value = null
+    selectedUid.value = clips.value[0]?.uid ?? null // the newest clip of this game
   }
 
   async function saveLoop(clip) {
