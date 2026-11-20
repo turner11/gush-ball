@@ -22,7 +22,8 @@ from app.deps import (
     get_team_or_404,
 )
 from app.models import Game, GameScorer, GameStatus, League, Player, get_or_create_opponent
-from app.routers.players import Description, VideoItem, VideoItems, YouTubeUrl
+from app.routers.content import ClipRead
+from app.routers.players import Description, YouTubeUrl
 from app.routers.teams import TitledImage
 
 log = logging.getLogger(__name__)
@@ -91,7 +92,7 @@ class GameRead(BaseModel):
     stats_url: str | None
     opponent: OpponentRead
     images: list[TitledImage] = []
-    highlights: list[VideoItem] = []  # public (#665); the team-private briefing is detail-only
+    highlights: list[ClipRead] = []  # public (#665); the team-private briefing is detail-only
 
 
 class AdminGameRead(GameRead):
@@ -125,7 +126,7 @@ class ScorerHistoryOut(ScorerOut):
     scheduled_at: datetime
 
 
-GameVideoUrls = Annotated[list[YouTubeUrl], Field(max_length=10)]  # same cap as VideoItem.urls
+GameVideoUrls = Annotated[list[YouTubeUrl], Field(max_length=10)]  # at most 10 full-game videos
 
 
 class GameMedia(BaseModel):
@@ -134,7 +135,7 @@ class GameMedia(BaseModel):
 
 class GameDetailRead(GameRead):
     scorers: list[ScorerOut] = []
-    briefing: list[VideoItem] | None = None  # None = caller is not a team member; never on list payloads
+    briefing: list[ClipRead] | None = None  # None = caller is not a team member; never on list payloads
     can_edit_briefing: bool = False  # team writers and the team's coaches (#670)
     video_urls: list[str] | None = None  # None = caller can't edit briefings (#681); never on list payloads
 
@@ -187,7 +188,7 @@ def create_game(
 def list_games(team_id: int, db: DbSession, user: OptionalUser) -> list[GameRead]:
     get_team_or_404(db, team_id)
     show = can_write_team(db, user, team_id)
-    games = db.scalars(select(Game).where(Game.team_id == team_id, Game.is_public))
+    games = db.scalars(select(Game).options(selectinload(Game.clips)).where(Game.team_id == team_id, Game.is_public))
     return [_public_game(g, show) for g in games]
 
 
@@ -201,7 +202,7 @@ def list_club_games(db: DbSession, from_: Annotated[date, Query(alias="from")], 
         )
     games = db.scalars(
         select(Game)
-        .options(selectinload(Game.opponent))
+        .options(selectinload(Game.opponent), selectinload(Game.clips))
         .where(
             Game.is_public,
             Game.scheduled_at >= datetime.combine(from_, time.min),
@@ -442,22 +443,6 @@ def replace_game_media(
     return GameMedia(images=game.images)
 
 
-@router.put("/{game_id}/briefing", response_model=list[VideoItem])
-def replace_game_briefing(
-    team_id: int,
-    game_id: int,
-    payload: VideoItems,
-    db: DbSession,
-    _editor_id: RequireTeamBriefingEditor,
-) -> list[dict]:
-    """Replaces the game's whole video briefing (#658): team writers or a coach of the team (#670). A separate
-    endpoint, never flags an override."""
-    game = get_game_or_404(db, team_id, game_id)
-    game.briefing = [item.model_dump(mode="json") for item in payload]  # json mode: HttpUrl -> str
-    db.commit()
-    return game.briefing
-
-
 @router.put("/{game_id}/video-urls", response_model=list[str])
 def replace_game_video_urls(
     team_id: int,
@@ -473,17 +458,3 @@ def replace_game_video_urls(
     db.commit()
     return game.video_urls
 
-
-@router.put("/{game_id}/highlights", response_model=list[VideoItem])
-def replace_game_highlights(
-    team_id: int,
-    game_id: int,
-    payload: VideoItems,
-    db: DbSession,
-    _admin_id: RequireTeamAdmin,
-) -> list[dict]:
-    """Replaces the game's whole highlights list (#665). A separate endpoint, never flags an override."""
-    game = get_game_or_404(db, team_id, game_id)
-    game.highlights = [item.model_dump(mode="json") for item in payload]
-    db.commit()
-    return game.highlights

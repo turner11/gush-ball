@@ -36,6 +36,7 @@ async function mountAt(teamsLoaded, teamId = '1', path = '/team_a/games/5', befo
     history: createWebHistory(),
     routes: [
       { path: '/:slug/games/:id', name: 'game', component: { template: '<div/>' } },
+      { path: '/:slug/games/:id/studio', name: 'game-studio', component: { template: '<div/>' } },
       { path: '/:slug/schedule', name: 'schedule', component: { template: '<div/>' } },
       { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
       { path: '/:slug/admin/players', name: 'admin-players', component: { template: '<div/>' } },
@@ -55,6 +56,7 @@ async function mountAt(teamsLoaded, teamId = '1', path = '/team_a/games/5', befo
   return { wrapper, sel, router }
 }
 
+const clip = (fields) => ({ id: 1, game_id: 5, source_url: null, start: null, end: null, section: null, note: null, player_ids: [], ...fields })
 const MEMBER = { id: 1, team_ids: [], member_team_ids: [1] }
 const ADMIN = { id: 1, team_ids: [1], member_team_ids: [1] }
 async function memberUser(user = MEMBER) {
@@ -305,8 +307,8 @@ describe('GameView', () => {
   it('orders the sections: about, posts, highlights, scorers, stats, averages, briefing, media (#673)', async () => {
     mockFetch(ok({
       ...GAME,
-      highlights: [{ title: 'שלשה', text: null, urls: [] }],
-      briefing: [{ title: 'פתיחה', text: null, urls: [] }],
+      highlights: [clip({ section: 'שלשה', note: 'הערה' })],
+      briefing: [clip({ section: 'פתיחה', note: 'הערה' })],
       video_urls: [],
       can_edit_briefing: true,
       scorers: [{ player_id: 11, name: 'אלף', jersey_number: 7, points: 22 }],
@@ -362,58 +364,59 @@ describe('GameView', () => {
   })
 
   describe('highlights (#665)', () => {
-    const HL = [{ title: 'שלשה', text: 'מהפינה', urls: ['https://www.youtube.com/watch?v=abc123&t=5&end=9'] }]
+    const HL = [clip({ section: 'שלשה', note: 'מהפינה', source_url: 'https://www.youtube.com/watch?v=abcdefghijk', start: 5, end: 9 })]
     const heads = (wrapper) => wrapper.findAll('h2').map((h) => h.text())
-    const buttons = (wrapper) => wrapper.findAll('button').map((b) => b.text())
 
-    it('shows highlights to anonymous visitors', async () => {
+    it('shows highlights to anonymous visitors, with no edit button', async () => {
       mockFetch(ok({ ...GAME, highlights: HL }))
       const { wrapper } = await mountAt(true)
       expect(heads(wrapper)).toContain('היילייטס')
       expect(wrapper.get('iframe').attributes('src')).toContain('start=5&end=9')
       expect(wrapper.text()).toContain('שלשה')
       expect(wrapper.text()).toContain('מהפינה')
-      expect(buttons(wrapper)).not.toContain('עריכת היילייטס')
+      expect(wrapper.findAll('button').map((b) => b.text())).not.toContain('עריכת היילייטס')
     })
 
-    it('hides an empty highlights section from fans but shows it to editors', async () => {
+    it('hides an empty highlights section from everyone', async () => {
       mockFetch(ok({ ...GAME, highlights: [] }))
-      const fan = await mountAt(true)
-      expect(heads(fan.wrapper)).not.toContain('היילייטס')
-      fan.wrapper.unmount()
-
       await memberUser(ADMIN)
       const { wrapper } = await mountAt(true)
-      expect(heads(wrapper)).toContain('היילייטס')
-      expect(wrapper.text()).toContain('עדיין אין היילייטס למשחק.')
-      expect(buttons(wrapper)).toContain('עריכת היילייטס')
+      expect(heads(wrapper)).not.toContain('היילייטס')
+    })
+  })
+
+  describe('video studio link (#682)', () => {
+    const studioLink = (wrapper) => wrapper.findAll('a').find((a) => a.text() === 'סטודיו וידאו')
+
+    it('shows editors a link to the studio, nobody else', async () => {
+      mockFetch(ok({ ...GAME, can_edit_briefing: true }))
+      await memberUser(MEMBER)
+      const editor = await mountAt(true)
+      expect(studioLink(editor.wrapper).attributes('href')).toBe('/team_a/games/5/studio')
+      editor.wrapper.unmount()
+
+      mockFetch(ok({ ...GAME, can_edit_briefing: false }))
+      const { wrapper } = await mountAt(true)
+      expect(studioLink(wrapper)).toBeUndefined()
     })
 
-    it('saves highlights from the inline editor', async () => {
-      mockFetch(ok({ ...GAME, highlights: [] }))
-      const base = global.fetch
-      global.fetch = vi.fn((url, opts) =>
-        url === '/api/teams/1/games/5/highlights' ? Promise.resolve(ok(HL)) : base(url, opts),
-      )
-      await memberUser(ADMIN)
+    it('hides the link in the member preview', async () => {
+      mockFetch(ok({ ...GAME, can_edit_briefing: true }))
+      await memberUser(MEMBER)
+      ;(await import('../composables/useAuth')).previewMode.value = 'member'
       const { wrapper } = await mountAt(true)
-      await wrapper.findAll('button').find((b) => b.text() === 'עריכת היילייטס').trigger('click')
-      await wrapper.get('[data-test="add-item"]').trigger('click')
-      await wrapper.get('#highlights-title-0').setValue('שלשה')
-      await wrapper.get('form').trigger('submit')
-      await flushPromises()
-      const put = global.fetch.mock.calls.find((c) => c[1]?.method === 'PUT')
-      expect(put[0]).toBe('/api/teams/1/games/5/highlights')
-      expect(wrapper.find('form').exists()).toBe(false)
-      expect(wrapper.text()).toContain('שלשה')
-      expect(wrapper.get('[data-test="highlights-saved"]').text()).toBe('ההיילייטס נשמרו')
+      expect(studioLink(wrapper)).toBeUndefined()
     })
   })
 
   describe('video briefing (#658)', () => {
     const ITEMS = [
-      { title: 'קליפ פתיחה', text: 'שימו לב לחסימה', urls: ['https://www.youtube.com/watch?v=abc123&t=90&end=120'] },
-      { title: 'הערות כלליות', text: 'טקסט חופשי', urls: [] },
+      clip({ id: 1, section: 'קליפ פתיחה', note: 'שימו לב לחסימה', source_url: 'https://www.youtube.com/watch?v=abcdefghijk', start: 90, end: 120 }),
+      clip({ id: 2, section: 'הערות כלליות', note: 'טקסט חופשי', source_url: null }),
+    ]
+    const TWO = (title = 'דוגמאות') => [
+      clip({ id: 1, section: title, source_url: 'https://youtu.be/aaaaaaaaaaa', start: 1, end: 2 }),
+      clip({ id: 2, section: title, source_url: 'https://youtu.be/bbbbbbbbbbb' }),
     ]
 
     it('hides the briefing from non-members and in the anonymous preview', async () => {
@@ -429,7 +432,7 @@ describe('GameView', () => {
       expect(wrapper.text()).not.toContain('תדריך וידאו')
     })
 
-    it('shows a member the items in order, a video item as an embed with its clip', async () => {
+    it('shows a member the clips in order, a video as an embed with its segment, read-only', async () => {
       mockFetch(ok({ ...GAME, briefing: ITEMS }))
       await memberUser()
       const { wrapper } = await mountAt(true)
@@ -438,17 +441,16 @@ describe('GameView', () => {
       expect(wrapper.get('iframe').attributes('src')).toContain('start=90&end=120')
       expect(text).toContain('שימו לב לחסימה')
       expect(text).toContain('טקסט חופשי')
+      expect(wrapper.findAll('button').map((b) => b.text())).not.toContain('עריכת תדריך')
     })
 
-    it('multi-video item shows a grid and enlarges the played video', async () => {
-      const urls = ['https://youtu.be/a?t=1&end=2', 'https://youtu.be/b']
-      mockFetch(ok({ ...GAME, briefing: [{ title: 'דוגמאות', text: null, urls }] }))
+    it('a section with two videos shows a grid and enlarges the played video', async () => {
+      mockFetch(ok({ ...GAME, briefing: TWO() }))
       await memberUser()
       const { wrapper } = await mountAt(true)
       const cells = wrapper.findAll('[data-video-key]')
       expect(cells).toHaveLength(2)
       expect(wrapper.findAll('iframe')).toHaveLength(2)
-      expect(wrapper.text()).not.toContain('דוגמה')
       expect(wrapper.findAll('[data-video-key] h4')).toHaveLength(0)
       expect(cells[1].get('iframe').attributes('title')).toBe('דוגמאות 2')
 
@@ -462,8 +464,7 @@ describe('GameView', () => {
     it('enlarges the second video when focus moves iframe to iframe without another blur', async () => {
       vi.useFakeTimers()
       try {
-        const urls = ['https://youtu.be/a', 'https://youtu.be/b']
-        mockFetch(ok({ ...GAME, briefing: [{ title: 'דוגמאות', text: null, urls }] }))
+        mockFetch(ok({ ...GAME, briefing: TWO() }))
         await memberUser()
         const { wrapper } = await mountAt(true)
         const cells = wrapper.findAll('[data-video-key]')
@@ -513,32 +514,18 @@ describe('GameView', () => {
       expect(scrollTo).toHaveBeenCalledWith(scroll)
     })
 
-    it('an admin sees the empty state and the edit button; a plain member sees no card', async () => {
+    it('an editor sees the empty state and a studio link; a plain member sees no card', async () => {
       mockFetch(ok({ ...GAME, briefing: [], can_edit_briefing: true }))
       await memberUser(ADMIN)
       const admin = await mountAt(true)
       expect(admin.wrapper.text()).toContain('עדיין אין תדריך למשחק.')
-      expect(admin.wrapper.findAll('button').map((b) => b.text())).toContain('עריכת תדריך')
+      expect(admin.wrapper.findAll('a').map((a) => a.text())).toContain('לחיתוך קטעים בסטודיו')
       admin.wrapper.unmount()
 
       mockFetch(ok({ ...GAME, briefing: [] }))
       await memberUser(MEMBER)
       const { wrapper } = await mountAt(true)
       expect(wrapper.text()).not.toContain('תדריך וידאו')
-    })
-
-    it('a team coach (a member the server lets edit) gets the briefing edit button only (#670)', async () => {
-      mockFetch(ok({ ...GAME, briefing: [], highlights: [], can_edit_briefing: true }))
-      await memberUser(MEMBER)
-      const { wrapper } = await mountAt(true)
-      const labels = wrapper.findAll('button').map((b) => b.text())
-      expect(labels).toContain('עריכת תדריך')
-      expect(labels).not.toContain('עריכת קלעים')
-      wrapper.unmount()
-
-      ;(await import('../composables/useAuth')).previewMode.value = 'member'
-      const preview = await mountAt(true)
-      expect(preview.wrapper.findAll('button').map((b) => b.text())).not.toContain('עריכת תדריך')
     })
   })
 

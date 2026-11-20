@@ -22,6 +22,7 @@ from app.models.standing_row import StandingRow
 from app.models.team import Team
 from app.models.team_request import TeamRequest
 from app.models.user import AdminUser
+from app.models.video_clip import VideoClip
 
 __all__ = [
     "AdminUser",
@@ -49,6 +50,7 @@ __all__ = [
     "TeamPost",
     "TeamRequest",
     "TeamVideo",
+    "VideoClip",
     "get_or_create_club",
     "get_or_create_opponent",
 ]

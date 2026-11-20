@@ -1,5 +1,5 @@
 // The video id of a YouTube link (watch, youtu.be, shorts, embed), or null for any other URL.
-function youtubeId(url) {
+export function youtubeId(url) {
   try {
     const u = new URL(url)
     if (u.hostname === 'youtu.be') return u.pathname.slice(1) || null
@@ -74,4 +74,22 @@ export function withVideoSegment(url, start, end) {
     else u.searchParams.set(key, value)
   }
   return u.toString()
+}
+
+// The YouTube IFrame API (the studio's player), loaded once. A failed load resets so the next call retries.
+let apiPromise = null
+export function loadYouTubeApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT)
+  apiPromise ??= new Promise((resolve, reject) => {
+    window.onYouTubeIframeAPIReady = () => resolve(window.YT)
+    const script = document.createElement('script')
+    script.src = 'https://www.youtube.com/iframe_api'
+    script.onerror = () => {
+      apiPromise = null
+      script.remove()
+      reject(new Error('YouTube IFrame API failed to load'))
+    }
+    document.head.append(script)
+  })
+  return apiPromise
 }

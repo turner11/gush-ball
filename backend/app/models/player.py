@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, ForeignKey, String, false
+from sqlalchemy import ForeignKey, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -25,8 +25,6 @@ class Player(Base):
     birth_date_checked: Mapped[bool] = mapped_column(default=False, server_default=false())
     deleted_at: Mapped[datetime | None] = mapped_column(default=None)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("admin_users.id", ondelete="SET NULL"), index=True, default=None)
-    # Private video briefing (#670): [{title, text, urls}], same shape as Game.briefing.
-    briefing: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
 
     team: Mapped["Team"] = relationship(back_populates="players")
     images: Mapped[list["PlayerImage"]] = relationship(

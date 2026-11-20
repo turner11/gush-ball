@@ -509,7 +509,7 @@ describe('PlayerView', () => {
   })
 
   describe('private video briefing (#670)', () => {
-    const ITEMS = [{ title: 'פתיחה', text: 'נתחיל בהגנה', urls: ['https://www.youtube.com/watch?v=abc&t=90&end=120'] }]
+    const ITEMS = [{ id: 1, game_id: null, section: 'פתיחה', note: 'נתחיל בהגנה', source_url: 'https://www.youtube.com/watch?v=abcdefghijk', start: 90, end: 120, player_ids: [3] }]
     const TITLE = 'תדריך וידאו אישי'
     const respond = (body) => Promise.resolve({ ok: true, status: 200, json: async () => body })
     const signInWith = async (briefing, me = { username: 'a', player_ids: [3] }) => {
@@ -517,7 +517,6 @@ describe('PlayerView', () => {
       global.fetch = vi.fn((url, options) =>
         url === '/api/auth/me' ? respond(me)
           : url === '/api/players/3' ? respond({ ...PLAYER, briefing })
-          : url === '/api/players/3/briefing' ? respond(JSON.parse(options.body))
           : base(url),
       )
       await useAuth().checkSession()
@@ -545,19 +544,14 @@ describe('PlayerView', () => {
       previewMode.value = null
     })
 
-    it('the linked player sees the items and saves an edit', async () => {
+    it('the linked player sees the clips read-only', async () => {
       await signInWith(ITEMS)
       const wrapper = await mountAt('/players/3')
       expect(wrapper.text()).toContain(TITLE)
       expect(wrapper.text()).toContain('פתיחה')
       expect(wrapper.find('iframe').attributes('src')).toContain('start=90&end=120')
-      await wrapper.find('[aria-controls="player-briefing-editor"]').trigger('click')
-      await wrapper.find('form#player-briefing-editor').trigger('submit')
-      await flushPromises()
-      const put = global.fetch.mock.calls.find((c) => c[1]?.method === 'PUT')
-      expect(put[0]).toBe('/api/players/3/briefing')
-      expect(wrapper.find('#player-briefing-editor').exists()).toBe(false)
-      expect(wrapper.find('[data-test="player-briefing-saved"]').text()).toBe('התדריך נשמר')
+      expect(wrapper.find('[aria-controls="player-briefing-editor"]').exists()).toBe(false)
+      expect(global.fetch.mock.calls.some((c) => c[1]?.method === 'PUT')).toBe(false)
     })
 
     it('a profile save keeps the briefing', async () => {

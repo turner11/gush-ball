@@ -97,12 +97,9 @@ describe('scoringTotals', () => {
 
 describe('teamMedia', () => {
   const v = (title) => ({ url: `https://youtu.be/${title}`, title })
-  const older = { id: 1, scheduled_at: '2026-01-01T18:00:00', highlights: [{ title: 'g-old', urls: [v('g-old').url] }], images: [] }
-  const newer = { id: 2, scheduled_at: '2026-02-01T18:00:00', highlights: [
-      { title: 'g-new1', urls: [v('g-new1').url] },
-      { title: 'g-new2', urls: [v('g-new2').url] },
-    ],
-    images: [] }
+  const clip = (title) => ({ id: title, section: title, source_url: v(title).url, start: null, end: null, note: null })
+  const older = { id: 1, scheduled_at: '2026-01-01T18:00:00', highlights: [clip('g-old')], images: [] }
+  const newer = { id: 2, scheduled_at: '2026-02-01T18:00:00', highlights: [clip('g-new1'), clip('g-new2')], images: [] }
 
   it('merges team and game videos by date, undated team videos last in API order', () => {
     const team = [
@@ -114,17 +111,21 @@ describe('teamMedia', () => {
     expect(videos.map((x) => x.title)).toEqual(['g-new1', 'g-new2', 't-mid', 'g-old', 't-undated2', 't-undated1'])
   })
 
-  it("puts a game's highlights in its videos, one per url", () => {
+  it("puts a game's highlight clips in its videos, with their segment, skipping text-only notes", () => {
     const game = {
       ...older,
       highlights: [
-        { title: 'סל', text: 'd', urls: ['https://youtu.be/u1', 'https://youtu.be/u2'] },
-        { title: 'ריק', urls: [] },
+        { id: 1, section: 'סל', note: 'd', source_url: 'https://www.youtube.com/watch?v=aaaaaaaaaaa', start: 5, end: 9 },
+        { id: 2, section: 'הערה', note: 'x', source_url: null },
+        { id: 3, section: null, note: null, source_url: 'https://vimeo.com/1' },
       ],
     }
     const { videos } = teamMedia([], [], [game])
-    expect(videos.map((x) => x.title)).toEqual(['סל 1', 'סל 2'])
-    expect(videos.map((x) => x.text)).toEqual(['d', 'd'])
+    expect(videos.map((x) => x.title)).toEqual(['סל', 'היילייטס'])
+    expect(videos.map((x) => x.text)).toEqual(['d', null])
+    expect(videos[0].url).toContain('t=5')
+    expect(videos[0].url).toContain('end=9')
+    expect(videos[1].url).toBe('https://vimeo.com/1')
     expect(new Set(videos.map((x) => x.id)).size).toBe(2)
   })
 
