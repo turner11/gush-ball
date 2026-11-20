@@ -128,7 +128,12 @@ function seekBy(delta) {
   stopPreview()
   player.value?.seek(Math.max(0, (player.value.currentTime() ?? 0) + delta))
 }
+function onPlayerError() {
+  stopPreview()
+  playerFailed.value = true
+}
 function retryPlayer() {
+  stopPreview()
   playerFailed.value = false
   playerKey.value++
 }
@@ -157,19 +162,25 @@ function selectClip(clip) {
 // (without pausing: the user took over); Space and speed changes do not.
 const previewing = ref(false)
 let previewTimer = null
+let previewArmed = false // a tick has seen t < end: before that the player's time may be stale from before the seek
 const canPreview = computed(() => !!youtubeId(selected.value?.source_url) && selected.value.start !== null && selected.value.end !== null)
 function stopPreview() {
   clearInterval(previewTimer)
   previewTimer = null
+  previewArmed = false
   previewing.value = false
 }
 function checkPreview(end) {
   if (!player.value?.playing()) return // paused, or a new video still loading: its time is not the clip's
   const t = player.value.currentTime()
-  if (t < end) return
+  if (t < end) {
+    previewArmed = true
+    return
+  }
+  // Not armed and just past the end: a stale time, not the end. Far past it: the user jumped with the player's own bar.
+  if (!previewArmed && t < end + 2) return
   stopPreview()
   // ponytail: the 2 s margin covers 250 ms polling up to x2; a throttled background tab can overshoot it and not pause.
-  // Track the previous tick if that matters. Past it, the user jumped with the player's own bar: leave them playing.
   if (t >= end + 2) return
   player.value.pause()
   status.value = 'סוף הקטע'
@@ -361,7 +372,7 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
             <p class="error-text" role="alert">הנגן לא נטען</p>
             <button type="button" class="btn-secondary" @click="retryPlayer">נסו שוב</button>
           </div>
-          <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto lg:max-w-[calc((100dvh-9rem)*16/9)]" @error="playerFailed = true" @ratechange="onRateChange" />
+          <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto lg:max-w-[calc((100dvh-9rem)*16/9)]" @error="onPlayerError" @ratechange="onRateChange" />
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-secondary" aria-keyshortcuts="Space" @click="player?.toggle()">ניגון / השהיה <kbd class="kbd">Space</kbd></button>
             <button type="button" class="btn-primary" aria-keyshortcuts="M" @click="addMoment">סימון רגע <kbd class="kbd">M</kbd></button>

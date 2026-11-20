@@ -388,6 +388,46 @@ describe('VideoStudioView', () => {
       expect(players[0].pauseVideo).not.toHaveBeenCalled()
     })
 
+    it('a stale player time just past the end right after R does not pause', async () => {
+      respond()
+      clips.push(stored(SRC))
+      wrapper = await mountStudio()
+      Object.assign(players[0], { state: 1, time: 9.5 }) // playing; getCurrentTime not yet refreshed after the seek
+      await press('KeyR', 'ר')
+      await tick(1, 9.5)
+      expect(players[0].pauseVideo).not.toHaveBeenCalled()
+      expect(btn().attributes('aria-pressed')).toBe('true')
+      await tick(1, 5)
+      await tick(1, 9)
+      expect(players[0].pauseVideo).toHaveBeenCalled()
+    })
+
+    it('switching the video tab or pasting a link cancels the preview without pausing', async () => {
+      respond({ ...GAME, video_urls: [SRC, SRC2] })
+      clips.push(stored(SRC))
+      wrapper = await mountStudio()
+      await press('KeyR', 'ר')
+      await wrapper.findAll('button').find((b) => b.text() === 'סרטון 2').trigger('click')
+      expect(btn().attributes('aria-pressed')).toBe('false')
+      await press('KeyR', 'ר')
+      await wrapper.get('#studio-url').setValue(SRC2)
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(btn().attributes('aria-pressed')).toBe('false')
+      await tick(1, 9)
+      expect(players[0].pauseVideo).not.toHaveBeenCalled()
+    })
+
+    it('a player error cancels the preview', async () => {
+      respond()
+      clips.push(stored(SRC))
+      wrapper = await mountStudio()
+      await press('KeyR', 'ר')
+      players[0].opts.events.onError()
+      await flushPromises()
+      expect(btn().attributes('aria-pressed')).toBe('false')
+    })
+
     it('a text note or a clip without an end has no preview', async () => {
       respond()
       clips.push(stored(null), { ...stored(SRC), id: 2, end: null })
