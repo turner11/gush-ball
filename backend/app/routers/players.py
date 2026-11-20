@@ -15,7 +15,6 @@ from pydantic import (
     StringConstraints,
     UrlConstraints,
     computed_field,
-    model_validator,
 )
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -36,8 +35,9 @@ from app.deps import (
     get_team_or_404,
     has_covering_grant,
 )
-from app.models import AdminUser, Player, PlayerImage, PlayerVideo, Team
-from app.routers.teams import Url500
+from app.models import AdminUser, Player, PlayerImage, PlayerVideo, Team, VideoClip
+from app.models.video_clip import player_briefing
+from app.routers.content import ClipRead
 
 router = APIRouter(tags=["players"])
 
@@ -66,24 +66,6 @@ def _require_youtube(url: HttpUrl) -> HttpUrl:
 YouTubeUrl = Annotated[HttpUrl, UrlConstraints(max_length=500), AfterValidator(_require_youtube)]
 VideoTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 Description = Annotated[str | None, Field(max_length=2000)]
-
-
-class VideoItem(BaseModel):
-    title: VideoTitle
-    text: Description = None
-    urls: list[Url500] = Field(default=[], max_length=10)  # YouTube clips carry start/end as t=/end= (#650)
-
-    @model_validator(mode="before")
-    @classmethod
-    def _legacy_url(cls, data: object) -> object:
-        # ponytail: rows stored with one `url` (#658) convert on read and are rewritten on the next save;
-        # a JSON data migration can replace this if it ever matters.
-        if isinstance(data, dict) and "url" in data and "urls" not in data:
-            return {**data, "urls": [data["url"]] if data["url"] else []}
-        return data
-
-
-VideoItems = Annotated[list[VideoItem], Field(max_length=20)]
 
 
 ISRAEL = ZoneInfo("Asia/Jerusalem")
@@ -165,7 +147,7 @@ class PlayerOut(BaseModel):
 
 
 class PlayerDetailOut(PlayerOut):
-    briefing: list[VideoItem] | None = None  # None = caller may not see it; never on list payloads (#670)
+    briefing: list[ClipRead] | None = None  # None = caller may not see it; never on list payloads (#670)
 
 
 def _roster_order(player: Player) -> tuple:
@@ -333,24 +315,17 @@ def restore_player(team_id: int, player_id: int, db: DbSession, _admin_id: Requi
     return _public_player(player, True)
 
 
+def _player_briefing(player: Player) -> list[VideoClip]:
+    return player_briefing(player.team.clips, player, {g.id: g for g in player.team.games})
+
+
 @router.get("/players/{player_id}", response_model=PlayerDetailOut)
 def get_player(player_id: int, db: DbSession, user: OptionalUser) -> PlayerDetailOut:
     player = _get_player_or_404(db, player_id)
     if player.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
     public = _public_player(player, can_write_team(db, user, player.team_id))
-    return PlayerDetailOut(**public.model_dump(), briefing=player.briefing if can_access_player_briefing(db, user, player) else None)
-
-
-@router.put("/players/{player_id}/briefing", response_model=list[VideoItem])
-def replace_player_briefing(player_id: int, payload: VideoItems, db: DbSession, user: RequireUser) -> list[dict]:
-    """Replaces the player's private video briefing (#670): the linked player, a coach of the team or whoever may write it."""
-    player = _get_player_or_404(db, player_id)
-    if not can_access_player_briefing(db, user, player):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this team")
-    player.briefing = [item.model_dump(mode="json") for item in payload]  # json mode: HttpUrl -> str
-    db.commit()
-    return player.briefing
+    return PlayerDetailOut(**public.model_dump(), briefing=_player_briefing(player) if can_access_player_briefing(db, user, player) else None)
 
 
 @router.post(

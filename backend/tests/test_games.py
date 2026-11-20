@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.models import Game, GameScorer, GameStatus, Membership, Opponent, Player, Team
+from app.models import Game, GameScorer, GameStatus, Membership, Opponent, Player, Team, VideoClip
 
 
 def _make_team(db_session: Session, name: str = "Gush Ball A") -> Team:
@@ -864,12 +864,16 @@ def test_pending_review_lists_missing_game_and_keep_detaches_it(
     assert admin_client.post(f"/teams/{team.id}/games/{game.id}/keep").status_code == 409
 
 
-# --- video items: briefing (#658) + highlights (#665) ---
+# --- video clips: briefing (#658) + highlights (#665), now VideoClip rows (#682) ---
 
-BRIEFING = [
-    {"title": "פתיחה", "text": "נתחיל בהגנה", "urls": ["https://www.youtube.com/watch?v=abc&t=90&end=120"]},
-    {"title": "הערות", "text": None, "urls": []},
-]
+YT = "https://www.youtube.com/watch?v="
+
+
+def _clip(db_session: Session, team: Team, game: Game | None, **fields: object) -> VideoClip:
+    clip = VideoClip(team_id=team.id, game_id=game.id if game else None, **fields)
+    db_session.add(clip)
+    db_session.commit()
+    return clip
 
 
 @pytest.mark.parametrize(
@@ -892,114 +896,57 @@ def test_get_game_briefing_visibility(
 
     own_team.club = "Gush"
     game = _make_game(db_session, own_team)
-    game.briefing = BRIEFING
-    db_session.commit()
+    clip = _clip(db_session, own_team, game, source_url=f"{YT}abcdefghijk", start=90, end=120, section="open", in_game_briefing=True)
     _login_as(client, db_session, who, own_team, other_team)
 
     detail = client.get(f"/teams/{own_team.id}/games/{game.id}")
     assert detail.status_code == 200
-    assert detail.json()["briefing"] == (BRIEFING if sees else None)
+    expected = [
+        {"id": clip.id, "game_id": game.id, "source_url": f"{YT}abcdefghijk", "start": 90, "end": 120, "section": "open", "note": None, "player_ids": []}
+    ]
+    assert detail.json()["briefing"] == (expected if sees else None)
     listing = client.get(f"/teams/{own_team.id}/games").json()
     assert all("briefing" not in g for g in listing)
 
 
 def test_get_game_highlights_are_public(client: TestClient, db_session: Session, own_team: Team) -> None:
     game = _make_game(db_session, own_team)
-    game.highlights = BRIEFING
-    game.briefing = BRIEFING
-    db_session.commit()
+    _clip(db_session, own_team, game, source_url=f"{YT}aaaaaaaaaaa", is_highlight=True, in_player_briefing=True)
+    _clip(db_session, own_team, game, source_url=f"{YT}bbbbbbbbbbb", in_game_briefing=True)
     detail = client.get(f"/teams/{own_team.id}/games/{game.id}").json()
-    assert detail["highlights"] == BRIEFING
+    assert [c["source_url"] for c in detail["highlights"]] == [f"{YT}aaaaaaaaaaa"]
     assert detail["briefing"] is None
+    assert not {"is_highlight", "in_game_briefing", "in_player_briefing"} & set(detail["highlights"][0])
     listing = client.get(f"/teams/{own_team.id}/games").json()
-    assert [g["highlights"] for g in listing] == [BRIEFING]
+    assert [[c["source_url"] for c in g["highlights"]] for g in listing] == [[f"{YT}aaaaaaaaaaa"]]
     assert all("briefing" not in g for g in listing)
     everyone = client.get("/games", params={"from": "2025-12-31", "to": "2026-01-02"}).json()
-    assert [g["highlights"] for g in everyone] == [BRIEFING]
+    assert [[c["source_url"] for c in g["highlights"]] for g in everyone] == [[f"{YT}aaaaaaaaaaa"]]
 
 
-@pytest.mark.parametrize("field", ["briefing", "highlights"])
-def test_put_video_items_replaces_list_reorders_and_does_not_flag_override(
-    admin_client: TestClient, db_session: Session, field: str
-) -> None:
+def test_game_clips_in_timeline_order(admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     game = _make_game(db_session, team)
-    url = f"/teams/{team.id}/games/{game.id}"
-    body = [
-        {
-            "title": "קליפ",
-            "text": "",
-            "urls": ["https://www.youtube.com/watch?v=abc&t=90&end=120", "https://youtu.be/d?t=5&end=9"],
-        },
-        {"title": "הערות", "text": "טקסט"},
-    ]
-    assert admin_client.put(f"{url}/{field}", json=body).status_code == 200
-    got = admin_client.get(url).json()[field]
-    assert [i["title"] for i in got] == ["קליפ", "הערות"]
-    assert "t=90&end=120" in got[0]["urls"][0]
-    assert "t=5&end=9" in got[0]["urls"][1]
-    assert got[1]["urls"] == []
-
-    admin_client.put(f"{url}/{field}", json=body[::-1])
-    assert [i["title"] for i in admin_client.get(url).json()[field]] == ["הערות", "קליפ"]
-    admin_client.put(f"{url}/{field}", json=[])
-    assert admin_client.get(url).json()[field] == []
-    db_session.refresh(game)
-    assert game.is_manually_overridden is False
+    first, second = f"{YT}aaaaaaaaaaa", f"{YT}bbbbbbbbbbb"
+    game.video_urls = [first, second]
+    for fields in (
+        {"source_url": second, "start": 5},
+        {"source_url": first, "start": 50},
+        {"source_url": None, "note": "text first"},
+        {"source_url": first, "start": 10},
+    ):
+        _clip(db_session, team, game, is_highlight=True, **fields)
+    got = admin_client.get(f"/teams/{team.id}/games/{game.id}").json()["highlights"]
+    assert [(c["source_url"], c["start"]) for c in got] == [(None, None), (first, 10), (first, 50), (second, 5)]
 
 
-def test_briefing_legacy_url_reads_as_urls(admin_client: TestClient, db_session: Session) -> None:
+def test_delete_game_deletes_its_clips(admin_client: TestClient, db_session: Session) -> None:
     team = _make_team(db_session)
     game = _make_game(db_session, team)
-    game.briefing = [
-        {"title": "x", "text": None, "url": "https://youtu.be/a?t=5&end=9"},
-        {"title": "y", "text": None, "url": None},
-    ]
-    db_session.commit()
-    got = admin_client.get(f"/teams/{team.id}/games/{game.id}").json()["briefing"]
-    assert [i["urls"] for i in got] == [["https://youtu.be/a?t=5&end=9"], []]
-    assert all("url" not in i for i in got)
-
-
-@pytest.mark.parametrize("field", ["briefing", "highlights"])
-def test_put_video_items_scope(
-    client: TestClient,
-    db_session: Session,
-    own_team: Team,
-    other_team: Team,
-    team_admin_client: TestClient,
-    field: str,
-) -> None:
-    own = _make_game(db_session, own_team)
-    other = _make_game(db_session, other_team)
-    item = [{"title": "x"}]
-    assert client.put(f"/teams/{own_team.id}/games/{own.id}/{field}", json=item).status_code == 200
-    assert client.put(f"/teams/{other_team.id}/games/{other.id}/{field}", json=item).status_code == 403
-
-
-@pytest.mark.parametrize("field", ["briefing", "highlights"])
-@pytest.mark.parametrize("who", ["anonymous", "member:own"])
-def test_put_video_items_rejects_non_admins(
-    client: TestClient, db_session: Session, own_team: Team, other_team: Team, who: str, field: str
-) -> None:
-    from tests.test_lineups import _login_as
-
-    game = _make_game(db_session, own_team)
-    _login_as(client, db_session, who, own_team, other_team)
-    expected = 401 if who == "anonymous" else 403
-    assert client.put(f"/teams/{own_team.id}/games/{game.id}/{field}", json=[{"title": "x"}]).status_code == expected
-
-
-@pytest.mark.parametrize("field", ["briefing", "highlights"])
-def test_put_video_items_validation(admin_client: TestClient, db_session: Session, field: str) -> None:
-    team = _make_team(db_session)
-    game = _make_game(db_session, team)
-    url = f"/teams/{team.id}/games/{game.id}/{field}"
-    assert admin_client.put(url, json=[{"title": "x", "urls": ["javascript:alert(1)"]}]).status_code == 422
-    too_many = [{"title": "x", "urls": ["https://youtu.be/a"] * 11}]
-    assert admin_client.put(url, json=too_many).status_code == 422
-    assert admin_client.put(url, json=[{"title": " "}]).status_code == 422
-    assert admin_client.put(url, json=[{"title": "x"}] * 21).status_code == 422
+    _clip(db_session, team, game, is_highlight=True)
+    kept = _clip(db_session, team, None, in_player_briefing=True)
+    assert admin_client.delete(f"/teams/{team.id}/games/{game.id}").status_code == 204
+    assert db_session.scalars(select(VideoClip.id)).all() == [kept.id]
 
 
 def test_coach_of_team_edits_game_briefing_only(
@@ -1017,7 +964,6 @@ def test_coach_of_team_edits_game_briefing_only(
     for name in ("away", "plain"):  # coach of another team, plain teammate
         assert client.post("/auth/login", json={"username": name, "password": "password123"}).status_code == 200
         assert client.get(url).json()["can_edit_briefing"] is False
-        assert client.put(f"{url}/briefing", json=[]).status_code == 403
         assert client.get(url).json()["video_urls"] is None
         assert client.put(f"{url}/video-urls", json=[]).status_code == 403
         client.post("/auth/logout")
@@ -1026,12 +972,8 @@ def test_coach_of_team_edits_game_briefing_only(
     _player(db_session, own_team, "Coach", user=coach, number=None).is_coach = True
     db_session.commit()
     assert client.get(url).json()["can_edit_briefing"] is True
-    assert client.put(f"{url}/briefing", json=BRIEFING).status_code == 200
-    assert client.get(url).json()["briefing"][0]["title"] == "פתיחה"
     assert client.put(f"{url}/video-urls", json=[FOOTAGE[0]]).status_code == 200
     assert client.get(url).json()["video_urls"] == [FOOTAGE[0]]
-    # the coach right is briefing-only
-    assert client.put(f"{url}/highlights", json=[]).status_code == 403
 
 
 def test_team_admin_sees_can_edit_briefing(client: TestClient, db_session: Session, own_team: Team) -> None:

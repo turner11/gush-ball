@@ -7,7 +7,16 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.main import app
-from app.models import AdminUser, Membership, Player, PlayerImage, PlayerVideo, Team
+from app.models import (
+    AdminUser,
+    Game,
+    Membership,
+    Player,
+    PlayerImage,
+    PlayerVideo,
+    Team,
+    VideoClip,
+)
 from app.routers import players
 from app.routers.players import ISRAEL, age_on
 from app.security import hash_password
@@ -770,10 +779,12 @@ def test_admin_player_list_requires_admin(client: TestClient, db_session: Sessio
 
 # --- private video briefing (#670) ---
 
-ITEMS = [
-    {"title": "פתיחה", "text": "נתחיל בהגנה", "urls": ["https://www.youtube.com/watch?v=abc&t=90&end=120"]},
-    {"title": "הערות", "text": None, "urls": []},
-]
+def _p_clip(db: Session, team: Team, player_ids: list[int], game: Game | None = None, **fields: object) -> VideoClip:
+    fields = {"in_player_briefing": True, "source_url": "https://youtu.be/abcdefghijk", **fields}
+    clip = VideoClip(team_id=team.id, game_id=game.id if game else None, player_ids=player_ids, **fields)
+    db.add(clip)
+    db.commit()
+    return clip
 
 
 @pytest.mark.parametrize(
@@ -796,8 +807,9 @@ def test_get_player_briefing_visibility(
     db_session.commit()
     linked = _make_user(db_session, "linked", Membership(team_id=own_team.id, role="pending" if who == "pending:linked" else "member"))
     player = _player(db_session, own_team, user=linked)
-    player.briefing = ITEMS
-    db_session.commit()
+    _p_clip(db_session, own_team, [player.id], section="mine")
+    _p_clip(db_session, own_team, [player.id + 100], section="someone else")
+    _p_clip(db_session, own_team, [player.id], in_player_briefing=False, section="not P")
     logins = {
         "member:linked": "linked",
         "pending:linked": "linked",
@@ -815,46 +827,30 @@ def test_get_player_briefing_visibility(
     elif who != "anonymous":
         _login_user(client, db_session, "viewer", logins[who])
 
-    assert client.get(f"/players/{player.id}").json()["briefing"] == (ITEMS if sees else None)
+    got = client.get(f"/players/{player.id}").json()["briefing"]
+    assert (None if got is None else [c["section"] for c in got]) == (["mine"] if sees else None)
     roster = client.get(f"/teams/{own_team.id}/players").json()
     assert roster and all("briefing" not in p for p in roster)
 
 
-def test_linked_user_replaces_own_briefing(client: TestClient, db_session: Session, own_team: Team) -> None:
+def test_player_briefing_newest_game_first(client: TestClient, db_session: Session, own_team: Team) -> None:
+    from datetime import datetime as dt
+
+    from tests.test_games import _make_game
+
     user = _login_user(client, db_session, "me", Membership(team_id=own_team.id, role="member"))
     player = _player(db_session, own_team, user=user)
-    url = f"/players/{player.id}/briefing"
-    assert client.put(url, json=ITEMS).status_code == 200
-    got = client.get(f"/players/{player.id}").json()["briefing"]
-    assert [i["title"] for i in got] == ["פתיחה", "הערות"]
-    assert got[0]["urls"] == ["https://www.youtube.com/watch?v=abc&t=90&end=120"]
-    assert client.put(url, json=ITEMS[::-1]).json()[0]["title"] == "הערות"
-    assert client.put(url, json=[]).json() == []
-    assert client.get(f"/players/{player.id}").json()["briefing"] == []
-
-
-def test_put_player_briefing_scope(
-    client: TestClient, db_session: Session, own_team: Team, other_team: Team
-) -> None:
-    mate = _make_user(db_session, "mate", Membership(team_id=own_team.id, role="member"))
-    mine = _player(db_session, own_team, "Mine", user=mate)
-    theirs = _player(db_session, own_team, "Theirs", number=6)
-    foreign = _player(db_session, other_team, "Foreign")
-    gone = _player(db_session, own_team, "Gone", number=7)
-    gone.deleted_at = datetime.now(UTC)
+    old, new = _make_game(db_session, own_team), _make_game(db_session, own_team)
+    old.scheduled_at, new.scheduled_at = dt(2026, 1, 1, 18), dt(2026, 3, 1, 18)
     db_session.commit()
-    assert client.put(f"/players/{mine.id}/briefing", json=[]).status_code == 401
-    assert client.post("/auth/login", json={"username": "mate", "password": "password123"}).status_code == 200
-    assert client.put(f"/players/{theirs.id}/briefing", json=[]).status_code == 403
-    client.post("/auth/logout")
-    _login_user(client, db_session, "ta", Membership(team_id=own_team.id, role="admin"))
-    assert client.put(f"/players/{foreign.id}/briefing", json=[]).status_code == 403
-    assert client.put(f"/players/{theirs.id}/briefing", json=ITEMS).status_code == 200
-    assert client.put(f"/players/{theirs.id}/briefing", json=[{"title": "x"}] * 21).status_code == 422
-    assert client.put(f"/players/{gone.id}/briefing", json=[]).status_code == 404
+    _p_clip(db_session, own_team, [player.id], game=old, section="old")
+    _p_clip(db_session, own_team, [player.id], game=None, section="no game")
+    _p_clip(db_session, own_team, [player.id, 99999], game=new, section="new")  # 99999: a player that no longer exists
+    got = client.get(f"/players/{player.id}").json()["briefing"]
+    assert [c["section"] for c in got] == ["new", "old", "no game"]
 
 
-def test_coach_of_same_team_reads_and_replaces_briefing(
+def test_coach_of_same_team_sees_tagged_briefing_only(
     client: TestClient, db_session: Session, own_team: Team, other_team: Team
 ) -> None:
     coach = _login_user(client, db_session, "coach", Membership(team_id=own_team.id, role="member"))
@@ -862,12 +858,9 @@ def test_coach_of_same_team_reads_and_replaces_briefing(
     row.is_coach = True
     mate = _player(db_session, own_team, "Mate", number=6)
     foreign = _player(db_session, other_team, "Foreign")
-    db_session.commit()
-    assert client.get(f"/players/{mate.id}").json()["briefing"] == []
-    assert client.put(f"/players/{mate.id}/briefing", json=ITEMS).status_code == 200
-    assert client.get(f"/players/{mate.id}").json()["briefing"][0]["title"] == "פתיחה"
+    _p_clip(db_session, own_team, [mate.id], section="x")
+    assert [c["section"] for c in client.get(f"/players/{mate.id}").json()["briefing"]] == ["x"]
     assert client.get(f"/players/{foreign.id}").json()["briefing"] is None
-    assert client.put(f"/players/{foreign.id}/briefing", json=[]).status_code == 403
     # the coach right is briefing-only
     assert client.patch(f"/teams/{own_team.id}/players/{mate.id}", json={"name": "X"}).status_code == 403
 
@@ -885,5 +878,4 @@ def test_coach_of_another_team_and_plain_teammate_get_no_briefing(
     for name in ("away", "plain"):
         assert client.post("/auth/login", json={"username": name, "password": "password123"}).status_code == 200
         assert client.get(f"/players/{mate.id}").json()["briefing"] is None
-        assert client.put(f"/players/{mate.id}/briefing", json=[]).status_code == 403
         client.post("/auth/logout")

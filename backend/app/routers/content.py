@@ -1,4 +1,4 @@
-"""CRUD for a team's five content resources (links/videos/images/posts/plays), plus a club's posts and images.
+"""CRUD for a team's five content resources (links/videos/images/posts/plays), plus a team's video clips (#682) and a club's posts and images.
 
 The tables stay separate (see CLAUDE.md), but their routes are identical apart from the
 schemas, so they're registered once per resource by `_add_crud_routes` below. Plays' list is
@@ -16,6 +16,7 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
+    Field,
     HttpUrl,
     StringConstraints,
     model_validator,
@@ -29,9 +30,20 @@ from app.deps import (
     get_team_or_404,
     require_club_admin,
     require_team_admin,
+    require_team_briefing_editor,
     require_team_member,
 )
-from app.models import ClubImage, ClubPost, TeamImage, TeamLink, TeamPlay, TeamPost, TeamVideo
+from app.models import (
+    ClubImage,
+    ClubPost,
+    TeamImage,
+    TeamLink,
+    TeamPlay,
+    TeamPost,
+    TeamVideo,
+    VideoClip,
+)
+from app.routers.teams import Url500
 
 router = APIRouter(tags=["content"])
 
@@ -51,6 +63,7 @@ class _Owner:
 
 TEAM = _Owner("team", get_team_or_404, require_team_admin)
 CLUB = _Owner("club", get_club_or_404, require_club_admin)
+TEAM_BRIEFING = _Owner("team", get_team_or_404, require_team_briefing_editor)  # team writers + the team's coach (#670)
 
 
 class TeamLinkCreate(BaseModel):
@@ -269,9 +282,55 @@ class TeamPlayOut(BaseModel):
     sort_order: int | None
 
 
+class ClipIn(BaseModel):
+    """A clip's whole editable state: the studio always sends all of it (create and PATCH alike)."""
+
+    game_id: int | None = None
+    source_url: Url500 | None = None  # null = a text-only note
+    start: int | None = Field(default=None, ge=0)
+    end: int | None = Field(default=None, ge=0)
+    section: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+    note: Notes | None = None
+    is_highlight: bool = False
+    in_game_briefing: bool = False
+    in_player_briefing: bool = False
+    player_ids: list[int] = Field(default=[], max_length=30)
+
+    @model_validator(mode="after")
+    def _consistent(self):
+        for flag in ("is_highlight", "in_game_briefing"):
+            if getattr(self, flag) and self.game_id is None:
+                raise ValueError(f"{flag} needs a game_id")
+        if self.start is not None and self.end is not None and self.end <= self.start:
+            raise ValueError(f"end ({self.end}) must be after start ({self.start})")
+        return self
+
+
+class ClipRead(BaseModel):
+    """What a clip shows to whoever may see it; the destination flags stay with the editors (ClipOut)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    game_id: int | None
+    source_url: str | None
+    start: int | None
+    end: int | None
+    section: str | None
+    note: str | None
+    player_ids: list[int]
+
+
+class ClipOut(ClipRead):
+    team_id: int
+    is_highlight: bool
+    in_game_briefing: bool
+    in_player_briefing: bool
+
+
 def _to_columns(data: dict) -> dict:
     # HttpUrl doesn't map to a String column; store as plain str.
-    for key in ("url", "file_url", "image_url"):
+    for key in ("url", "file_url", "image_url", "source_url"):
         if data.get(key) is not None:
             data[key] = str(data[key])
     return data
@@ -387,4 +446,14 @@ _add_crud_routes(
     "Play not found",
     reorderable=True,
     read_dependencies=[Depends(require_team_member)],
+)
+_add_crud_routes(
+    "clips",
+    VideoClip,
+    ClipIn,
+    ClipIn,
+    ClipOut,
+    "Clip not found",
+    owner=TEAM_BRIEFING,
+    read_dependencies=[Depends(require_team_briefing_editor)],
 )

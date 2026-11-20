@@ -27,6 +27,7 @@ issue, before starting.
 - `Game`: one `Team`'s schedule entry against an `Opponent`. Phase 2 adds scrape-bookkeeping
   columns (`source_event_id`, `is_scraped`, `needs_review`, `is_manually_overridden`) — Phase 1
   work should not add these early.
+- `VideoClip`: a cut of any video (`source_url` + start/end, or a text note) owned by a team, optionally a game. It is the single source of truth for game highlights (H, public), game briefing (B, team members) and player briefing (P, tagged players + admins + coach). Written per clip by team writers and the team's coach in the studio (#682).
 - `TeamLink` / `TeamVideo` / `TeamImage` / `TeamPost`: four separate small tables, deliberately not
   one polymorphic content table — the four types share no behavior beyond "belongs to a team."
 - `StandingRow` (Phase 1 issue #4): designed so Phase 2's scraper upserts into the *same* table
