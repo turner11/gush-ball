@@ -56,6 +56,8 @@ export function studioAction(event) {
   if (event.code === 'BracketLeft') return { name: event.shiftKey ? 'nudgeEnd' : 'nudgeStart', delta: -1 }
   if (event.code === 'BracketRight') return { name: event.shiftKey ? 'nudgeEnd' : 'nudgeStart', delta: 1 }
   if (/^\d$/.test(event.key)) return { name: 'digit', digit: event.key }
+  // a focused button or link already acts on Space/Enter
+  if ((event.code === 'Space' || event.code === 'Enter') && event.target?.closest?.('button, a, summary')) return null
   const name = KEYS[event.code]
   return name ? { name } : null
 }

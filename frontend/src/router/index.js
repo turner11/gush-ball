@@ -28,6 +28,7 @@ const router = createRouter({
     { path: '/about', name: 'about', component: () => import('../views/AboutView.vue'), meta: { title: 'אודות' } }, // owns its head (DefaultLayout skips it)
     { path: '/:slug/schedule', name: 'schedule', component: () => import('../views/ScheduleView.vue'), meta: { title: 'לוח משחקים', description: (team) => `לוח המשחקים והתוצאות של ${team}.` } },
     { path: '/:slug/games/:id', name: 'game', component: () => import('../views/GameView.vue'), meta: { title: 'משחק', description: (team) => `משחק של ${team}: תאריך, מקום ותוצאה.` } },
+    { path: '/:slug/games/:id/studio', name: 'game-studio', component: () => import('../views/GameStudioView.vue'), meta: { title: 'סטודיו וידאו', description: (team) => `סטודיו וידאו של ${team}.`, requiresUser: true, noindex: true } },
     { path: '/:slug/standings', name: 'standings', component: () => import('../views/StandingsView.vue'), meta: { title: 'טבלה', description: (team) => `טבלת הליגה והמיקום של ${team}.` } },
     { path: '/:slug/roster', name: 'roster', component: () => import('../views/RosterView.vue'), meta: { title: 'שחקנים', description: (team) => `סגל השחקנים של ${team}.` } },
     { path: '/players/:id', name: 'player', component: () => import('../views/PlayerView.vue'), meta: { title: 'שחקן', description: () => 'פרופיל שחקן.' } },

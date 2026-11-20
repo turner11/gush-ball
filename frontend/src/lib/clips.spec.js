@@ -65,4 +65,9 @@ describe('studioAction', () => {
     expect(key({ code: 'KeyM', key: 'm', ctrlKey: true })).toBeNull()
     expect(key({ code: 'KeyZ', key: 'z' })).toBeNull()
   })
+  it('leaves Space and Enter to a focused button', () => {
+    const button = document.createElement('button')
+    expect(key({ code: 'Space', key: ' ' }, button)).toBeNull()
+    expect(key({ code: 'KeyM', key: 'm' }, button)).toEqual({ name: 'moment' })
+  })
 })
