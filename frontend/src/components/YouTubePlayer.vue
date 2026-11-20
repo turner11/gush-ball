@@ -44,6 +44,7 @@ defineExpose({
   play: () => player?.playVideo?.(),
   pause: () => player?.pauseVideo?.(),
   playing,
+  ended: () => player?.getPlayerState?.() === 0,
   toggle: () => (playing() ? player.pauseVideo() : player?.playVideo?.()),
   // the page learns the new rate from `ratechange`: YouTube may adjust it, and its own menu changes it too
   stepRate: (step) => player?.setPlaybackRate?.(stepRate(player.getAvailablePlaybackRates?.() ?? [1], player.getPlaybackRate?.() ?? 1, step)),

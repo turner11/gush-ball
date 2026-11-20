@@ -133,7 +133,6 @@ function onPlayerError() {
   playerFailed.value = true
 }
 function retryPlayer() {
-  stopPreview()
   playerFailed.value = false
   playerKey.value++
 }
@@ -171,15 +170,16 @@ function stopPreview() {
   previewing.value = false
 }
 function checkPreview(end) {
+  if (previewArmed && player.value?.ended()) return stopPreview() // the video ended before the clip's end
   if (!player.value?.playing()) return // paused, or a new video still loading: its time is not the clip's
   const t = player.value.currentTime()
   if (t < end) {
     previewArmed = true
     return
   }
-  // Not armed and just past the end: a stale time, not the end. Far past it: the user jumped with the player's own bar.
-  if (!previewArmed && t < end + 2) return
+  if (!previewArmed) return // a stale time from before the seek, not the end
   stopPreview()
+  // Far past the end: the user jumped with the player's own bar, so do not pause their video.
   // ponytail: the 2 s margin covers 250 ms polling up to x2; a throttled background tab can overshoot it and not pause.
   if (t >= end + 2) return
   player.value.pause()

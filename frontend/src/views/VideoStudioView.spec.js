@@ -383,9 +383,36 @@ describe('VideoStudioView', () => {
       clips.push(stored(SRC))
       wrapper = await mountStudio()
       await press('KeyR', 'ר')
+      await tick(1, 5)
       await tick(1, 60)
       expect(btn().attributes('aria-pressed')).toBe('false')
       expect(players[0].pauseVideo).not.toHaveBeenCalled()
+    })
+
+    it('R at time=end+5 does not end the preview, then arms and pauses at end', async () => {
+      respond()
+      clips.push(stored(SRC))
+      wrapper = await mountStudio()
+      Object.assign(players[0], { state: 1, time: 14 }) // video kept playing past the clip's end; time not yet refreshed
+      await press('KeyR', 'ר')
+      await tick(1, 14)
+      expect(btn().attributes('aria-pressed')).toBe('true')
+      expect(players[0].pauseVideo).not.toHaveBeenCalled()
+      await tick(1, 3)
+      await tick(1, 9)
+      expect(players[0].pauseVideo).toHaveBeenCalled()
+      expect(btn().attributes('aria-pressed')).toBe('false')
+    })
+
+    it('the video ending before the clip end stops the preview', async () => {
+      respond()
+      clips.push(stored(SRC, 500))
+      wrapper = await mountStudio()
+      await press('KeyR', 'ר')
+      await tick(1, 5)
+      await tick(0, 120)
+      expect(btn().attributes('aria-pressed')).toBe('false')
+      expect(vi.getTimerCount()).toBe(0)
     })
 
     it('a stale player time just past the end right after R does not pause', async () => {
