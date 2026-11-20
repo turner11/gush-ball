@@ -22,7 +22,7 @@ from app.deps import (
     get_team_or_404,
 )
 from app.models import Game, GameScorer, GameStatus, League, Player, get_or_create_opponent
-from app.routers.players import Description, VideoItem, VideoItems
+from app.routers.players import Description, VideoItem, VideoItems, YouTubeUrl
 from app.routers.teams import TitledImage
 
 log = logging.getLogger(__name__)
@@ -125,6 +125,9 @@ class ScorerHistoryOut(ScorerOut):
     scheduled_at: datetime
 
 
+GameVideoUrls = Annotated[list[YouTubeUrl], Field(max_length=10)]  # same cap as VideoItem.urls
+
+
 class GameMedia(BaseModel):
     images: list[TitledImage] = Field(default=[], max_length=20)
 
@@ -133,6 +136,7 @@ class GameDetailRead(GameRead):
     scorers: list[ScorerOut] = []
     briefing: list[VideoItem] | None = None  # None = caller is not a team member; never on list payloads
     can_edit_briefing: bool = False  # team writers and the team's coaches (#670)
+    video_urls: list[str] | None = None  # None = caller can't edit briefings (#681); never on list payloads
 
 
 def _scorer_out(s: GameScorer) -> ScorerOut:
@@ -250,11 +254,13 @@ def get_game(team_id: int, game_id: int, db: DbSession, user: OptionalUser) -> G
     show = can_write_team(db, user, team_id)
     if not game.is_public and not show:  # unapproved scraped game, hidden like in list_games
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+    can_brief = can_edit_team_briefing(db, user, game.team)
     return GameDetailRead(
         **_public_game(game, show).model_dump(),
         scorers=_scorers(game),
         briefing=game.briefing if can_view_team_private(db, user, team_id) else None,
-        can_edit_briefing=can_edit_team_briefing(db, user, game.team),
+        can_edit_briefing=can_brief,
+        video_urls=game.video_urls if can_brief else None,
     )
 
 
@@ -450,6 +456,22 @@ def replace_game_briefing(
     game.briefing = [item.model_dump(mode="json") for item in payload]  # json mode: HttpUrl -> str
     db.commit()
     return game.briefing
+
+
+@router.put("/{game_id}/video-urls", response_model=list[str])
+def replace_game_video_urls(
+    team_id: int,
+    game_id: int,
+    payload: GameVideoUrls,
+    db: DbSession,
+    _editor_id: RequireTeamBriefingEditor,
+) -> list[str]:
+    """Replaces the game's whole full-game footage list (#681): team writers or a coach. A separate endpoint,
+    never flags an override."""
+    game = get_game_or_404(db, team_id, game_id)
+    game.video_urls = [str(u) for u in payload]
+    db.commit()
+    return game.video_urls
 
 
 @router.put("/{game_id}/highlights", response_model=list[VideoItem])
