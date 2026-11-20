@@ -104,6 +104,7 @@ const pasted = ref('')
 const pasteError = ref('')
 
 function showVideo(url, start = 0) {
+  stopPreview()
   activeUrl.value = url
   player.value?.load(url, start)
 }
@@ -124,6 +125,7 @@ function onRateChange(r) {
 }
 function seekBy(delta) {
   if (!activeUrl.value) return
+  stopPreview()
   player.value?.seek(Math.max(0, (player.value.currentTime() ?? 0) + delta))
 }
 function retryPlayer() {
@@ -150,6 +152,49 @@ function selectClip(clip) {
   select(clip)
   if (youtubeId(clip.source_url)) showVideo(clip.source_url, clip.start ?? 0)
 }
+
+// R: play the selected clip from its start and pause at its end. Any edit, seek or video switch cancels it
+// (without pausing: the user took over); Space and speed changes do not.
+const previewing = ref(false)
+let previewTimer = null
+const canPreview = computed(() => !!youtubeId(selected.value?.source_url) && selected.value.start !== null && selected.value.end !== null)
+function stopPreview() {
+  clearInterval(previewTimer)
+  previewTimer = null
+  previewing.value = false
+}
+function checkPreview(end) {
+  if (!player.value?.playing()) return // paused, or a new video still loading: its time is not the clip's
+  const t = player.value.currentTime()
+  if (t < end) return
+  stopPreview()
+  // ponytail: the 2 s margin covers 250 ms polling up to x2; a throttled background tab can overshoot it and not pause.
+  // Track the previous tick if that matters. Past it, the user jumped with the player's own bar: leave them playing.
+  if (t >= end + 2) return
+  player.value.pause()
+  status.value = 'סוף הקטע'
+}
+function previewClip() {
+  if (previewing.value) {
+    player.value?.pause()
+    stopPreview()
+    return
+  }
+  if (!canPreview.value || !activeUrl.value) return
+  const clip = selected.value
+  if (youtubeId(clip.source_url) !== youtubeId(activeUrl.value)) {
+    showVideo(clip.source_url, clip.start)
+  } else {
+    stopPreview()
+    player.value?.seek(clip.start)
+    player.value?.play()
+  }
+  previewing.value = true
+  status.value = `תצוגה מקדימה ${range(clip)}`
+  previewTimer = setInterval(() => checkPreview(clip.end), 250)
+}
+watch(() => `${selected.value?.uid}|${selected.value?.start}|${selected.value?.end}`, stopPreview)
+onBeforeUnmount(stopPreview)
 
 function addMoment() {
   if (!activeUrl.value) return
@@ -211,6 +256,7 @@ const HANDLERS = {
   moment: addMoment,
   markStart: () => markBound('start'),
   markEnd: () => markBound('end'),
+  preview: previewClip,
   toggleHighlight: () => toggleDestination('is_highlight'),
   toggleBriefing: () => toggleDestination('in_game_briefing'),
   togglePlayer: () => toggleDestination('in_player_briefing'),
@@ -321,6 +367,7 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
             <button type="button" class="btn-primary" aria-keyshortcuts="M" @click="addMoment">סימון רגע <kbd class="kbd">M</kbd></button>
             <button type="button" class="btn-secondary" aria-keyshortcuts="I" @click="markBound('start')">התחלה כאן <kbd class="kbd">I</kbd></button>
             <button type="button" class="btn-secondary" aria-keyshortcuts="O" @click="markBound('end')">סוף כאן <kbd class="kbd">O</kbd></button>
+            <button v-if="canPreview" type="button" class="btn-secondary" aria-keyshortcuts="R" :aria-pressed="previewing" :class="previewing && 'ring-2 ring-team'" @click="previewClip">תצוגה מקדימה <kbd class="kbd">R</kbd></button>
             <button type="button" class="btn-ghost hidden lg:inline-flex" :aria-pressed="prefs.theater" @click="prefs.theater = !prefs.theater">וידאו גדול</button>
             <span class="badge-muted self-center">מהירות <span dir="ltr" class="tabular-nums">×{{ rate }}</span></span>
           </div>

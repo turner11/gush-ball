@@ -36,10 +36,15 @@ function load(url, start = 0) {
   emit('ratechange', 1) // YouTube resets the speed on a new video
 }
 
+const playing = () => player?.getPlayerState?.() === 1
+
 defineExpose({
   currentTime: () => player?.getCurrentTime?.() ?? 0,
   seek: (seconds) => player?.seekTo?.(seconds, true),
-  toggle: () => (player?.getPlayerState?.() === 1 ? player.pauseVideo() : player?.playVideo?.()),
+  play: () => player?.playVideo?.(),
+  pause: () => player?.pauseVideo?.(),
+  playing,
+  toggle: () => (playing() ? player.pauseVideo() : player?.playVideo?.()),
   // the page learns the new rate from `ratechange`: YouTube may adjust it, and its own menu changes it too
   stepRate: (step) => player?.setPlaybackRate?.(stepRate(player.getAvailablePlaybackRates?.() ?? [1], player.getPlaybackRate?.() ?? 1, step)),
   load,

@@ -49,6 +49,7 @@ const KEYS = {
   KeyM: 'moment',
   KeyI: 'markStart',
   KeyO: 'markEnd',
+  KeyR: 'preview',
   KeyH: 'toggleHighlight',
   KeyB: 'toggleBriefing',
   KeyP: 'togglePlayer',

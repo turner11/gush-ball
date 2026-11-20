@@ -76,19 +76,19 @@ describe('VideoStudioView', () => {
         constructor(_el, opts) {
           this.opts = opts
           this.seekTo = vi.fn()
+          this.playVideo = vi.fn()
+          this.pauseVideo = vi.fn()
+          this.loadVideoById = vi.fn(() => { this.rate = 1 }) // YouTube resets the speed on a new video, without an event
           this.setPlaybackRate = vi.fn((r) => {
             this.rate = r
             this.opts.events.onPlaybackRateChange?.({ data: r })
           })
           players.push(this)
         }
-        getCurrentTime() { return 100 }
-        getPlayerState() { return 2 }
+        getCurrentTime() { return this.time ?? 100 }
+        getPlayerState() { return this.state ?? 2 }
         getAvailablePlaybackRates() { return [0.5, 1, 1.5, 2] }
         getPlaybackRate() { return this.rate ?? 1 }
-        playVideo() {}
-        pauseVideo() {}
-        loadVideoById() { this.rate = 1 } // YouTube resets the speed on a new video, without an event
         destroy() {}
       },
     }
@@ -313,6 +313,89 @@ describe('VideoStudioView', () => {
       await press('KeyM', 'm')
       expect(calls('POST')[0][1].body).toMatchObject({ start: 92, end: 103 })
       spies.forEach((s) => s.mockRestore())
+    })
+  })
+
+  describe('preview (#688)', () => {
+    const SRC2 = 'https://www.youtube.com/watch?v=zzzzzzzzzzz'
+    const stored = (source_url, end = 9) => ({ id: 1, game_id: 5, source_url, start: 1, end, section: null, note: null, is_highlight: false, in_game_briefing: false, in_player_briefing: false, player_ids: [] })
+    const btn = () => wrapper.find('[aria-keyshortcuts="R"]')
+    const tick = async (state, time) => {
+      Object.assign(players[0], { state, time })
+      vi.advanceTimersByTime(250)
+      await flushPromises()
+    }
+    beforeEach(() => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }))
+    afterEach(() => vi.useRealTimers())
+
+    it('R previews the selected clip: seeks to its start, plays, and pauses at its end', async () => {
+      respond()
+      clips.push(stored(SRC))
+      wrapper = await mountStudio()
+      await press('KeyR', 'ר')
+      expect(players[0].seekTo).toHaveBeenLastCalledWith(1, true)
+      expect(players[0].playVideo).toHaveBeenCalled()
+      expect(btn().attributes('aria-pressed')).toBe('true')
+      await tick(1, 5)
+      expect(players[0].pauseVideo).not.toHaveBeenCalled()
+      await tick(1, 9)
+      expect(players[0].pauseVideo).toHaveBeenCalled()
+      expect(btn().attributes('aria-pressed')).toBe('false')
+      expect(wrapper.text()).toContain('סוף הקטע')
+    })
+
+    it('R again stops the preview and pauses', async () => {
+      respond()
+      clips.push(stored(SRC))
+      wrapper = await mountStudio()
+      await press('KeyR', 'ר')
+      players[0].state = 1
+      await press('KeyR', 'ר')
+      expect(players[0].pauseVideo).toHaveBeenCalled()
+      expect(btn().attributes('aria-pressed')).toBe('false')
+    })
+
+    it('a clip of another video is loaded at its start for the preview', async () => {
+      respond()
+      clips.push(stored(SRC2))
+      wrapper = await mountStudio()
+      await press('KeyR', 'ר')
+      expect(players[0].loadVideoById).toHaveBeenLastCalledWith({ videoId: 'zzzzzzzzzzz', startSeconds: 1 })
+      expect(btn().attributes('aria-pressed')).toBe('true')
+    })
+
+    it('nudging the range or seeking cancels the preview without pausing', async () => {
+      respond()
+      clips.push(stored(SRC))
+      wrapper = await mountStudio()
+      await press('KeyR', 'ר')
+      await press('BracketRight', ']')
+      expect(btn().attributes('aria-pressed')).toBe('false')
+      await tick(1, 50)
+      expect(players[0].pauseVideo).not.toHaveBeenCalled()
+      await press('KeyR', 'ר')
+      await press('ArrowRight')
+      expect(btn().attributes('aria-pressed')).toBe('false')
+    })
+
+    it("jumping past the end with the player's own bar ends the preview without pausing", async () => {
+      respond()
+      clips.push(stored(SRC))
+      wrapper = await mountStudio()
+      await press('KeyR', 'ר')
+      await tick(1, 60)
+      expect(btn().attributes('aria-pressed')).toBe('false')
+      expect(players[0].pauseVideo).not.toHaveBeenCalled()
+    })
+
+    it('a text note or a clip without an end has no preview', async () => {
+      respond()
+      clips.push(stored(null), { ...stored(SRC), id: 2, end: null })
+      wrapper = await mountStudio()
+      expect(btn().exists()).toBe(false)
+      await press('KeyR', 'ר')
+      expect(players[0].seekTo).not.toHaveBeenCalled()
+      expect(players[0].playVideo).not.toHaveBeenCalled()
     })
   })
 })
