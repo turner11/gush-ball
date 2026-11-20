@@ -21,7 +21,7 @@ onMounted(async () => {
       host: 'https://www.youtube-nocookie.com',
       videoId: youtubeId(props.url),
       playerVars: { rel: 0, playsinline: 1, disablekb: 1 },
-      events: { onError: () => emit('error'), onPlaybackRateChange: (e) => emit('ratechange', e.data) },
+      events: { onReady: () => emit('ratechange', 1), onError: () => emit('error'), onPlaybackRateChange: (e) => emit('ratechange', e.data) },
     })
   } catch {
     emit('error')
@@ -31,7 +31,9 @@ onBeforeUnmount(() => player?.destroy?.())
 
 function load(url, start = 0) {
   const videoId = youtubeId(url)
-  if (videoId && player) player.loadVideoById({ videoId, startSeconds: start })
+  if (!videoId || !player) return
+  player.loadVideoById({ videoId, startSeconds: start })
+  emit('ratechange', 1) // YouTube resets the speed on a new video
 }
 
 defineExpose({

@@ -88,7 +88,7 @@ describe('VideoStudioView', () => {
         getPlaybackRate() { return this.rate ?? 1 }
         playVideo() {}
         pauseVideo() {}
-        loadVideoById() {}
+        loadVideoById() { this.rate = 1 } // YouTube resets the speed on a new video, without an event
         destroy() {}
       },
     }
@@ -127,6 +127,16 @@ describe('VideoStudioView', () => {
     expect(wrapper.text()).toContain('×1.5')
     await press('Minus', '-')
     expect(players[0].setPlaybackRate).toHaveBeenLastCalledWith(1)
+    expect(wrapper.text()).toContain('×1')
+    expect(wrapper.text()).not.toContain('×1.5')
+  })
+
+  it('the speed badge goes back to ×1 when another video is loaded', async () => {
+    respond({ ...GAME, video_urls: [SRC, 'https://www.youtube.com/watch?v=zzzzzzzzzzz'] })
+    wrapper = await mountStudio()
+    await press('Equal', '=')
+    expect(wrapper.text()).toContain('×1.5')
+    await wrapper.findAll('button').find((b) => b.text() === 'סרטון 2').trigger('click')
     expect(wrapper.text()).toContain('×1')
     expect(wrapper.text()).not.toContain('×1.5')
   })

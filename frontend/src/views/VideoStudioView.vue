@@ -126,7 +126,6 @@ function seekBy(delta) {
   player.value?.seek(Math.max(0, (player.value.currentTime() ?? 0) + delta))
 }
 function retryPlayer() {
-  rate.value = 1 // a remounted player starts at 1
   playerFailed.value = false
   playerKey.value++
 }
