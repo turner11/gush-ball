@@ -24,6 +24,13 @@ describe('VideoCard', () => {
     expect(root.find('h3').text()).toBe('הכותרת')
   })
 
+  it('hides the heading but keeps the iframe title when showTitle is false', () => {
+    const w = mount(VideoCard, { props: { video: { title: 'דוגמאות 2', url: 'https://youtu.be/xyz' }, showTitle: false } })
+    expect(w.find('h3').exists()).toBe(false)
+    expect(w.get('iframe').attributes('title')).toBe('דוגמאות 2')
+    expect(w.get('a').attributes('aria-label')).toContain('דוגמאות 2')
+  })
+
   it('shows the description when present', () => {
     const withText = mount(VideoCard, { props: { video: { title: 't', url: 'https://youtu.be/x', text: 'תיאור' } } })
     expect(withText.text()).toContain('תיאור')

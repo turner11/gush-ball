@@ -4,7 +4,8 @@ import { formatTimestamp, videoSegment, youtubeEmbedUrl, youtubeWatchUrl } from 
 import AppIcon from './AppIcon.vue'
 
 // level: the heading level, so a card nests under whatever heading its page has
-const props = defineProps({ video: { type: Object, required: true }, level: { type: Number, default: 3 } })
+// showTitle: false when a parent heading already names the card (iframe title and link label stay)
+const props = defineProps({ video: { type: Object, required: true }, level: { type: Number, default: 3 }, showTitle: { type: Boolean, default: true } })
 
 const segment = computed(() => videoSegment(props.video.url))
 </script>
@@ -21,7 +22,7 @@ const segment = computed(() => videoSegment(props.video.url))
     ></iframe>
     <a v-else :href="video.url" target="_blank" rel="noopener" class="card flex items-center justify-between gap-2 hover:underline">{{ video.title }}<AppIcon name="external" /></a>
     <div v-if="youtubeEmbedUrl(video.url)" class="flex items-baseline justify-between gap-2">
-      <component :is="'h' + level" class="min-w-0 break-words font-bold">{{ video.title }}</component>
+      <component :is="'h' + level" v-if="showTitle" class="min-w-0 break-words font-bold">{{ video.title }}</component>
       <a
         :href="youtubeWatchUrl(video.url)"
         target="_blank"

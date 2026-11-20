@@ -51,7 +51,7 @@ onUnmounted(() => {
             :data-video-key="`${i}-${j}`"
             :class="activeVideo === `${i}-${j}` && 'sm:order-first sm:col-span-full'"
           >
-            <VideoCard :video="{ url, title: `דוגמה ${j + 1}` }" :level="4" />
+            <VideoCard :video="{ url, title: `${item.title} ${j + 1}` }" :show-title="false" />
           </li>
         </ul>
       </template>

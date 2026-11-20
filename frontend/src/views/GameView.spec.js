@@ -405,7 +405,9 @@ describe('GameView', () => {
       const cells = wrapper.findAll('[data-video-key]')
       expect(cells).toHaveLength(2)
       expect(wrapper.findAll('iframe')).toHaveLength(2)
-      expect(wrapper.text()).toContain('דוגמה 2')
+      expect(wrapper.text()).not.toContain('דוגמה')
+      expect(wrapper.findAll('[data-video-key] h4')).toHaveLength(0)
+      expect(cells[1].get('iframe').attributes('title')).toBe('דוגמאות 2')
 
       cells[1].get('iframe').element.focus()
       window.dispatchEvent(new Event('blur'))
