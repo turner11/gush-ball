@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.game import Game
     from app.models.player import Player
     from app.models.practice import Practice
+    from app.models.video_clip import VideoClip
 
 
 class Team(Base):
@@ -78,5 +79,6 @@ class Team(Base):
         cascade="all, delete-orphan",
         order_by="(TeamPlay.sort_order.asc().nulls_last(), TeamPlay.id)",
     )
+    clips: Mapped[list["VideoClip"]] = relationship(cascade="all, delete-orphan", order_by="VideoClip.id")
     games: Mapped[list["Game"]] = relationship(back_populates="team", cascade="all, delete-orphan")
     practices: Mapped[list["Practice"]] = relationship(back_populates="team", cascade="all, delete-orphan")

@@ -32,7 +32,7 @@ class AuditLog(Base):
     changes: Mapped[dict] = mapped_column(JSON)  # {field: [before, after]}
 
 
-# Allowlist: AdminUser (passwords, emails), Club, Opponent, LineupSnapshot and GameScorer (replace-all would log every row per save) are deliberately absent.
+# Allowlist: AdminUser (passwords, emails), Club, Opponent, LineupSnapshot and GameScorer (replace-all would log every row per save) and VideoClip (studio autosave with ±1s nudges would log a row per keypress, #682) are deliberately absent.
 _AUDITED: dict[type, str] = {
     Game: "game",
     Practice: "practice",

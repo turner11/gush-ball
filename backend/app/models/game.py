@@ -21,6 +21,7 @@ from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 from app.db import Base
 from app.models.game_scorer import GameScorer
 from app.models.lineup_snapshot import LineupSnapshot
+from app.models.video_clip import VideoClip, timeline
 
 if TYPE_CHECKING:
     from app.models.opponent import Opponent
@@ -84,17 +85,22 @@ class Game(Base):
     # Admin content, not scrape fields: editing them never flags an override.
     # ponytail: whole-list JSON like Club.about_images (#451); tables only if items need ids or tagging.
     images: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
-    # Team-private video briefing (#658): [{title, text, urls}], admin content, not a scrape field.
-    briefing: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
-    # Public game highlights (#665): same [{title, text, urls}] shape as briefing; admin content, not a scrape field.
-    highlights: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     # Full-game footage (#681): YouTube URLs the studio (#682) cuts from; team writers + coach only, never public.
     video_urls: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
     # ORM cascade too: delete_game uses db.delete and SQLite tests don't enforce FKs.
     lineup_snapshots: Mapped[list["LineupSnapshot"]] = relationship(cascade="all, delete-orphan")
+    clips: Mapped[list["VideoClip"]] = relationship(back_populates="game", cascade="all, delete-orphan")
     scorers: Mapped[list["GameScorer"]] = relationship(
         cascade="all, delete-orphan", order_by="(GameScorer.points.desc(), GameScorer.id)"
     )
+
+    @property
+    def highlights(self) -> list[VideoClip]:
+        return timeline([c for c in self.clips if c.is_highlight], self.video_urls)
+
+    @property
+    def briefing(self) -> list[VideoClip]:
+        return timeline([c for c in self.clips if c.in_game_briefing], self.video_urls)
 
     @hybrid_property
     def is_public(self) -> bool:
