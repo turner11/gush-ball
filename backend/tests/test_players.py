@@ -879,3 +879,23 @@ def test_coach_of_another_team_and_plain_teammate_get_no_briefing(
         assert client.post("/auth/login", json={"username": name, "password": "password123"}).status_code == 200
         assert client.get(f"/players/{mate.id}").json()["briefing"] is None
         client.post("/auth/logout")
+
+
+def test_player_highlights_public_tagged_h_clips_from_public_games(client: TestClient, db_session: Session, own_team: Team) -> None:
+    from datetime import datetime as dt
+
+    from tests.test_games import _make_game
+
+    player = _player(db_session, own_team)
+    old, new, hidden = (_make_game(db_session, own_team) for _ in range(3))
+    old.scheduled_at, new.scheduled_at = dt(2026, 1, 1, 18), dt(2026, 3, 1, 18)
+    hidden.needs_review = True
+    db_session.commit()
+    h = {"is_highlight": True, "in_player_briefing": False}
+    _p_clip(db_session, own_team, [player.id], game=old, section="old", **h)
+    _p_clip(db_session, own_team, [player.id], game=new, section="new", **h)
+    _p_clip(db_session, own_team, [player.id + 100], game=new, section="not tagged", **h)
+    _p_clip(db_session, own_team, [player.id], game=new, section="P only")
+    _p_clip(db_session, own_team, [player.id], game=hidden, section="hidden game", **h)
+    got = client.get(f"/players/{player.id}").json()["highlights"]
+    assert [c["section"] for c in got] == ["new", "old"]

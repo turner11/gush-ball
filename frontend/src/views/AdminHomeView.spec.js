@@ -90,6 +90,19 @@ describe('AdminHomeView', () => {
     expect(html.indexOf('membership-requests-stub')).toBeLessThan(html.indexOf('sync-failures-stub'))
   })
 
+  it('a team admin home links to that team studio', async () => {
+    mockFetch({ 'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }), 'GET /api/teams': () => jsonRes(TEAMS) })
+    router.addRoute({ path: '/:slug/admin', name: 'team-admin', component: { template: '<div/>' } })
+    router.addRoute({ path: '/:slug/studio', name: 'team-studio', component: { template: '<div/>' } })
+    router.push('/team_a/admin')
+    await router.isReady()
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const wrapper = mount(AdminHomeView, { global: { plugins: [router], stubs: { MembershipRequests: true, SyncFailures: true } } })
+    await flushPromises()
+
+    expect(wrapper.find('a[href="/team_a/studio"]').exists()).toBe(true)
+  })
+
   it('links to the account page', async () => {
     mockFetch({ 'GET /api/sync/status': () => jsonRes({ running: false, errors: [] }), 'GET /api/teams': () => jsonRes(TEAMS) })
     const { default: AdminHomeView } = await import('./AdminHomeView.vue')
@@ -339,5 +352,18 @@ describe('AdminHomeView', () => {
 
     auth.user.value = { username: 't', team_id: 1, team_ids: [1], clubs: [] }
     expect(clubsCard(mountFull(AdminHomeView)).exists()).toBe(false)
+  })
+
+  it('full admin on a team admin page lays 8 cards out in 4 columns', async () => {
+    mockSyncApis()
+    router.addRoute({ path: '/:slug/admin', name: 'team-admin', component: { template: '<div/>' } })
+    router.addRoute({ path: '/:slug/studio', name: 'team-studio', component: { template: '<div/>' } })
+    router.push('/team_a/admin')
+    await router.isReady()
+    ;(await import('../composables/useAuth')).useAuth().user.value = { username: 'a' }
+    const { default: AdminHomeView } = await import('./AdminHomeView.vue')
+    const nav = mountFull(AdminHomeView).find('nav')
+    expect(nav.findAll('a')).toHaveLength(8)
+    expect(nav.classes()).toContain('lg:grid-cols-4')
   })
 })

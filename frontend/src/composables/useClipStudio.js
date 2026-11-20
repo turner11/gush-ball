@@ -8,7 +8,7 @@ const BLANK = { source_url: null, start: null, end: null, section: null, note: n
 const ERRORS = { 422: 'ערך לא תקין', 403: 'אין הרשאה' }
 const errorText = (e) => ERRORS[e.status] ?? 'השמירה נכשלה'
 
-// The video studio's clips (#682): every clip of the team (for section suggestions), this game's ones listed.
+// The video studio's clips (#682): every clip of the team (for section suggestions), this game's ones listed (gameId null: the game-less ones, P only).
 // Each clip saves on its own: one request at a time per clip, the latest state re-sent when it returns.
 export function useClipStudio(teamId, gameId) {
   const all = ref([])
@@ -59,7 +59,7 @@ export function useClipStudio(teamId, gameId) {
   }
 
   function add(fields) {
-    const clip = wrap({ game_id: gameId.value, ...fields })
+    const clip = wrap({ game_id: gameId.value, in_player_briefing: gameId.value === null, ...fields })
     all.value.push(clip)
     selectedUid.value = clip.uid
     save(clip)

@@ -20,7 +20,11 @@ import { useTeams } from '../composables/useTeams'
 
 // The slug (when present) scopes the players/games links to one team.
 const route = useRoute()
-const base = computed(() => (route.params.slug ? '/' + route.params.slug : ''))
+const slug = computed(() => route.params.slug)
+const base = computed(() => (slug.value ? '/' + slug.value : ''))
+// ponytail: a literal per count so Tailwind sees it
+// one entry per card count (4 base + studio + clubs + users + audit); 7 and 8 wrap as 4 columns
+const navCols = computed(() => ({ 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6', 7: 'lg:grid-cols-4', 8: 'lg:grid-cols-4' })[4 + (slug.value ? 1 : 0) + (managesClubs.value ? 1 : 0) + 2 * fullAdmin.value])
 
 const { user } = useAuth()
 const pickTeams = computed(() => !user.value?.team_id) // full and club admins both choose teams
@@ -76,7 +80,7 @@ onMounted(async () => {
       <h1 class="page-title">אזור ניהול</h1>
       <RouterLink to="/account" class="section-link">החשבון שלי</RouterLink>
     </div>
-    <nav class="grid grid-cols-2 gap-3 max-lg:[&>:last-child:nth-child(odd)]:col-span-2" :class="!fullAdmin && managesClubs ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
+    <nav class="grid grid-cols-2 gap-3 max-lg:[&>:last-child:nth-child(odd)]:col-span-2" :class="navCols">
       <RouterLink :to="base + '/admin/players'" class="card space-y-2 transition hover:border-team">
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="users" /></span>
         <span class="block font-extrabold">ניהול שחקנים</span>
@@ -96,6 +100,11 @@ onMounted(async () => {
         <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="grid" /></span>
         <span class="block font-extrabold">ניהול קבוצות</span>
         <span class="block text-sm text-muted">קבוצות, מיתוג ותוכן</span>
+      </RouterLink>
+      <RouterLink v-if="slug" :to="{ name: 'team-studio', params: { slug } }" class="card space-y-2 transition hover:border-team">
+        <span class="flex size-10 items-center justify-center rounded-xl bg-sunken"><AppIcon name="play" /></span>
+        <span class="block font-extrabold">סטודיו וידאו</span>
+        <span class="block text-sm text-muted">חיתוך קטעים לתדריך שחקנים</span>
       </RouterLink>
       <RouterLink
         v-if="managesClubs"

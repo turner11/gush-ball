@@ -36,7 +36,7 @@ from app.deps import (
     has_covering_grant,
 )
 from app.models import AdminUser, Player, PlayerImage, PlayerVideo, Team, VideoClip
-from app.models.video_clip import player_briefing
+from app.models.video_clip import player_briefing, player_highlights
 from app.routers.content import ClipRead
 
 router = APIRouter(tags=["players"])
@@ -147,6 +147,7 @@ class PlayerOut(BaseModel):
 
 
 class PlayerDetailOut(PlayerOut):
+    highlights: list[ClipRead] = []  # public: H clips tagging the player, from public games (#683)
     briefing: list[ClipRead] | None = None  # None = caller may not see it; never on list payloads (#670)
 
 
@@ -325,7 +326,8 @@ def get_player(player_id: int, db: DbSession, user: OptionalUser) -> PlayerDetai
     if player.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
     public = _public_player(player, can_write_team(db, user, player.team_id))
-    return PlayerDetailOut(**public.model_dump(), briefing=_player_briefing(player) if can_access_player_briefing(db, user, player) else None)
+    highlights = player_highlights(player.team.clips, player, {g.id: g for g in player.team.games if g.is_public})
+    return PlayerDetailOut(**public.model_dump(), highlights=highlights, briefing=_player_briefing(player) if can_access_player_briefing(db, user, player) else None)
 
 
 @router.post(

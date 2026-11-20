@@ -1,15 +1,16 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, useTemplateRef, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import LoadError from '../components/LoadError.vue'
 import StudioClipEditor from '../components/StudioClipEditor.vue'
+import StudioShortcuts from '../components/StudioShortcuts.vue'
 import YouTubePlayer from '../components/YouTubePlayer.vue'
 import { previewMode } from '../composables/useAuth'
 import { useClipStudio } from '../composables/useClipStudio'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
-import { momentRange, nudge, studioAction } from '../lib/clips'
+import { momentRange, needsGame, nudge, studioAction, studioPrefs } from '../lib/clips'
 import { formatTimestamp, withVideoSegment, youtubeId } from '../lib/youtube'
 
 const route = useRoute()
@@ -21,13 +22,36 @@ const loading = ref(true)
 const notFound = ref(false)
 const loadError = ref(false)
 
+// The studio of one game (/:slug/games/:id/studio) or of the team's game-less clips (/:slug/studio, P only).
+const gameId = computed(() => (route.params.id ? Number(route.params.id) : null))
+const canEdit = ref(false)
 const gameRoute = computed(() => ({ name: 'game', params: { slug: route.params.slug, id: route.params.id } }))
 const scheduleRoute = computed(() => ({ name: 'schedule', params: { slug: route.params.slug } }))
-const allowed = computed(() => !!game.value?.can_edit_briefing && !previewMode.value)
+const teamRoute = computed(() => ({ name: 'team-home', params: { slug: route.params.slug } }))
+const teamStudioRoute = computed(() => ({ name: 'team-studio', params: { slug: route.params.slug } }))
+const allowed = computed(() => canEdit.value && !previewMode.value)
+
+// Shortcuts panel and moment window, kept in this browser (#683).
+const PREFS_KEY = 'gush-ball:studio'
+function loadPrefs() {
+  try {
+    return studioPrefs(JSON.parse(localStorage.getItem(PREFS_KEY)))
+  } catch {
+    return studioPrefs({})
+  }
+}
+const prefs = reactive(loadPrefs())
+watch(prefs, () => {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
+  } catch {
+    // storage blocked: the prefs last for this visit
+  }
+})
 
 const { clips, selected, sections, lastDeleted, load: loadClips, add, change, remove, undo, select } = useClipStudio(
   computed(() => selectedTeamId.value),
-  computed(() => Number(route.params.id)),
+  gameId,
 )
 
 async function load() {
@@ -43,25 +67,32 @@ async function load() {
   try {
     const [loadedTeam, loadedGame, players] = await Promise.all([
       apiFetch(`/teams/${id}`),
-      apiFetch(`/teams/${id}/games/${route.params.id}`),
+      gameId.value ? apiFetch(`/teams/${id}/games/${gameId.value}`) : null,
       apiFetch(`/teams/${id}/players`),
     ])
-    if (loadedGame.can_edit_briefing) await loadClips() // the clips list is for editors only
+    let editable = loadedGame ? !!loadedGame.can_edit_briefing : true // a team's studio: the clips list itself says
+    try {
+      if (editable) await loadClips() // the clips list is for editors only
+    } catch (e) {
+      if (e.status !== 403 || loadedGame) throw e
+      editable = false
+    }
     if (id !== selectedTeamId.value) return // a newer team was selected meanwhile
     team.value = loadedTeam
     game.value = loadedGame
+    canEdit.value = editable
     roster.value = players.filter((p) => !p.is_coach)
-    activeUrl.value = loadedGame.video_urls?.[0] ?? ''
+    activeUrl.value = loadedGame?.video_urls?.[0] ?? (youtubeId(selected.value?.source_url) ? selected.value.source_url : '')
   } catch (e) {
     if (id !== selectedTeamId.value) return
-    game.value = null
+    team.value = game.value = null
     if (e.status === 404) notFound.value = true
     else loadError.value = true
   } finally {
     if (id === selectedTeamId.value) loading.value = false
   }
 }
-watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: true })
+watch([selectedTeamId, teamsLoaded, gameId], load, { immediate: true })
 
 // --- the video ---
 const player = useTemplateRef('player')
@@ -99,7 +130,7 @@ const clearJersey = () => (jerseyBuffer.value = jerseyError.value = '')
 
 const sourceLabel = (clip) => {
   if (!clip.source_url) return 'הערה'
-  const i = game.value.video_urls?.indexOf(clip.source_url) ?? -1
+  const i = game.value?.video_urls?.indexOf(clip.source_url) ?? -1
   return i >= 0 ? `סרטון ${i + 1}` : 'קישור'
 }
 const range = (clip) => `${ts(clip.start)}–${ts(clip.end)}`
@@ -112,7 +143,8 @@ function selectClip(clip) {
 
 function addMoment() {
   if (!activeUrl.value) return
-  const moment = momentRange(player.value?.currentTime() ?? 0)
+  const { before, after } = studioPrefs(prefs) // a half-typed input never yields NaN
+  const moment = momentRange(player.value?.currentTime() ?? 0, before, after)
   add({ source_url: withVideoSegment(activeUrl.value, null, null), ...moment })
   status.value = `נוסף קטע ${range(moment)}`
 }
@@ -139,7 +171,8 @@ function nudgeSelected(which, delta) {
 }
 
 function toggleDestination(field) {
-  if (selected.value) change(selected.value, { [field]: !selected.value[field] })
+  if (!selected.value || (needsGame(field) && selected.value.game_id === null)) return
+  change(selected.value, { [field]: !selected.value[field] })
 }
 
 function confirmJersey() {
@@ -169,6 +202,7 @@ const HANDLERS = {
   toggleHighlight: () => toggleDestination('is_highlight'),
   toggleBriefing: () => toggleDestination('in_game_briefing'),
   togglePlayer: () => toggleDestination('in_player_briefing'),
+  shortcuts: () => (prefs.shortcutsOpen = !prefs.shortcutsOpen),
   focusSection: () => editor.value?.focusSection(),
   delete: deleteSelected,
   confirm: confirmJersey,
@@ -199,37 +233,50 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
 </script>
 
 <template>
-  <h1 v-if="loading || !game" class="sr-only">סטודיו וידאו</h1>
+  <h1 v-if="loading || !team" class="sr-only">סטודיו וידאו</h1>
   <div v-if="loading" class="mx-auto max-w-6xl space-y-4" aria-busy="true">
     <div class="skeleton aspect-video w-full"></div>
     <div class="skeleton h-40"></div>
   </div>
 
   <div v-else-if="notFound" class="mx-auto max-w-3xl space-y-3">
-    <p class="empty-state">המשחק לא נמצא.</p>
-    <RouterLink :to="scheduleRoute" class="section-link">ללוח המשחקים</RouterLink>
+    <p class="empty-state">{{ gameId ? 'המשחק לא נמצא.' : 'הקבוצה לא נמצאה.' }}</p>
+    <RouterLink :to="gameId ? scheduleRoute : { name: 'teams' }" class="section-link">{{ gameId ? 'ללוח המשחקים' : 'לכל הקבוצות' }}</RouterLink>
   </div>
 
   <LoadError v-else-if="loadError" class="mx-auto max-w-3xl" message="שגיאה בטעינת הסטודיו" @retry="load" />
 
-  <div v-else-if="game && !allowed" class="mx-auto max-w-3xl space-y-3">
+  <div v-else-if="team && !allowed" class="mx-auto max-w-3xl space-y-3">
     <p class="empty-state">הסטודיו פתוח למנהלי הקבוצה ולמאמן</p>
-    <RouterLink :to="gameRoute" class="section-link">לעמוד המשחק</RouterLink>
+    <RouterLink :to="game ? gameRoute : teamRoute" class="section-link">{{ game ? 'לעמוד המשחק' : 'לעמוד הקבוצה' }}</RouterLink>
   </div>
 
-  <div v-else-if="game" class="mx-auto max-w-6xl">
+  <div v-else-if="team" class="mx-auto max-w-6xl">
     <header class="page-header">
       <div>
         <p class="eyebrow">{{ team.name }}</p>
-        <h1 class="page-title">סטודיו · נגד {{ game.opponent.name }}</h1>
+        <h1 class="page-title">{{ game ? `סטודיו · נגד ${game.opponent.name}` : 'סטודיו וידאו' }}</h1>
       </div>
-      <RouterLink :to="gameRoute" class="section-link">לעמוד המשחק</RouterLink>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="btn-ghost"
+          aria-controls="studio-shortcuts"
+          aria-keyshortcuts="Shift+?"
+          :aria-expanded="prefs.shortcutsOpen"
+          @click="prefs.shortcutsOpen = !prefs.shortcutsOpen"
+        >
+          קיצורי מקלדת <kbd class="kbd">?</kbd>
+        </button>
+        <RouterLink v-if="game" :to="teamStudioRoute" class="section-link">סטודיו קבוצתי</RouterLink>
+        <RouterLink :to="game ? gameRoute : teamRoute" class="section-link">{{ game ? 'לעמוד המשחק' : 'לעמוד הקבוצה' }}</RouterLink>
+      </div>
     </header>
 
     <div class="space-y-6 lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-6 lg:space-y-0">
       <div class="min-w-0 space-y-4">
         <div class="flex flex-wrap items-start gap-3">
-          <div v-if="game.video_urls?.length" class="segmented flex-wrap" role="group" aria-label="סרטון משחק">
+          <div v-if="game?.video_urls?.length" class="segmented flex-wrap" role="group" aria-label="סרטון משחק">
             <button
               v-for="(url, i) in game.video_urls"
               :key="url"
@@ -263,13 +310,13 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
             <button type="button" class="btn-secondary" aria-keyshortcuts="I" @click="markBound('start')">התחלה כאן <kbd class="kbd">I</kbd></button>
             <button type="button" class="btn-secondary" aria-keyshortcuts="O" @click="markBound('end')">סוף כאן <kbd class="kbd">O</kbd></button>
           </div>
-          <p class="text-sm text-muted max-sm:hidden">הקיצורים פועלים כשהפוקוס מחוץ לנגן: לחצו על הדף ליד הנגן אם הם נעצרו.</p>
         </template>
-        <p v-else class="empty-state">הוסיפו צילומי משחק בעמוד המשחק או הדביקו קישור YouTube</p>
+        <p v-else class="empty-state">{{ game ? 'הוסיפו צילומי משחק בעמוד המשחק או הדביקו קישור YouTube' : 'הדביקו קישור YouTube: סקאוטינג, עונה קודמת או כל סרטון' }}</p>
         <p class="text-sm text-muted" aria-live="polite" data-test="status">{{ status }}</p>
       </div>
 
       <div class="min-w-0 space-y-4">
+        <StudioShortcuts v-if="prefs.shortcutsOpen" v-model:before="prefs.before" v-model:after="prefs.after" :with-game="!!game" />
         <section class="card" aria-label="הקטע הנבחר">
           <StudioClipEditor
             v-if="selected"

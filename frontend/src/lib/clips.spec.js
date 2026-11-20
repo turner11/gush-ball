@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { clipUrl, groupBySection, momentRange, nudge, studioAction } from './clips'
+import { clipUrl, groupBySection, momentRange, nudge, studioAction, studioPrefs } from './clips'
 
 const YT = 'https://www.youtube.com/watch?v=abcdefghijk'
 
@@ -38,6 +38,23 @@ describe('momentRange', () => {
     expect(momentRange(100.9)).toEqual({ start: 92, end: 103 })
     expect(momentRange(3)).toEqual({ start: 0, end: 6 })
   })
+  it('takes a custom window', () => {
+    expect(momentRange(100, 5, 2)).toEqual({ start: 95, end: 102 })
+    expect(momentRange(3, 5, 2)).toEqual({ start: 0, end: 5 })
+  })
+})
+
+describe('studioPrefs', () => {
+  it('keeps valid values', () => {
+    expect(studioPrefs({ shortcutsOpen: true, before: 5, after: 2 })).toEqual({ shortcutsOpen: true, before: 5, after: 2 })
+    expect(studioPrefs({ before: 0 }).before).toBe(0)
+  })
+  it('falls back per field on missing, non-integer or out-of-range values', () => {
+    expect(studioPrefs(undefined)).toEqual({ shortcutsOpen: false, before: 8, after: 3 })
+    expect(studioPrefs({ before: 1.5, after: 0 })).toMatchObject({ before: 8, after: 3 })
+    expect(studioPrefs({ before: -1, after: 61 })).toMatchObject({ before: 8, after: 3 })
+    expect(studioPrefs({ before: '5', after: null })).toMatchObject({ before: 8, after: 3 })
+  })
 })
 
 describe('nudge', () => {
@@ -59,6 +76,10 @@ describe('studioAction', () => {
     expect(key({ code: 'Space', key: ' ' })).toEqual({ name: 'toggle' })
     expect(key({ code: 'KeyH', key: 'h' })).toEqual({ name: 'toggleHighlight' })
     expect(key({ code: 'Delete', key: 'Delete' })).toEqual({ name: 'delete' })
+  })
+  it('maps ? to the shortcuts panel, but not typed in a field', () => {
+    expect(key({ code: 'Slash', key: '?', shiftKey: true })).toEqual({ name: 'shortcuts' })
+    expect(key({ code: 'Slash', key: '?', shiftKey: true }, document.createElement('input'))).toBeNull()
   })
   it('nudges start with brackets and end with shift', () => {
     expect(key({ code: 'BracketLeft', key: '[' })).toEqual({ name: 'nudgeStart', delta: -1 })
