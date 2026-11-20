@@ -386,7 +386,7 @@ describe('GameView', () => {
   })
 
   describe('video studio link (#682)', () => {
-    const studioLink = (wrapper) => wrapper.findAll('a').find((a) => a.text() === 'סטודיו וידאו')
+    const studioLink = (wrapper) => wrapper.findAll('a').find((a) => a.text() === 'סטודיו')
 
     it('shows editors a link to the studio, nobody else', async () => {
       mockFetch(ok({ ...GAME, can_edit_briefing: true }))

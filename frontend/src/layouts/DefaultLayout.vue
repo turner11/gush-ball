@@ -292,7 +292,7 @@ onMounted(async () => {
       <h1 class="sr-only">{{ selectedTeam.name }}</h1>
     </section>
 
-    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-10 sm:px-6 sm:pt-10">
+    <main id="main" :class="route.meta.wide ? 'max-w-none' : 'max-w-6xl'" class="mx-auto w-full flex-1 px-4 pt-6 pb-10 sm:px-6 sm:pt-10">
       <ErrorBoundary>
         <RouterView />
       </ErrorBoundary>

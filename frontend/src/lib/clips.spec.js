@@ -46,11 +46,12 @@ describe('momentRange', () => {
 
 describe('studioPrefs', () => {
   it('keeps valid values', () => {
-    expect(studioPrefs({ shortcutsOpen: true, before: 5, after: 2 })).toEqual({ shortcutsOpen: true, before: 5, after: 2 })
+    expect(studioPrefs({ shortcutsOpen: true, before: 5, after: 2 })).toEqual({ shortcutsOpen: true, theater: false, before: 5, after: 2 })
+    expect(studioPrefs({ theater: true }).theater).toBe(true)
     expect(studioPrefs({ before: 0 }).before).toBe(0)
   })
   it('falls back per field on missing, non-integer or out-of-range values', () => {
-    expect(studioPrefs(undefined)).toEqual({ shortcutsOpen: false, before: 8, after: 3 })
+    expect(studioPrefs(undefined)).toEqual({ shortcutsOpen: false, theater: false, before: 8, after: 3 })
     expect(studioPrefs({ before: 1.5, after: 0 })).toMatchObject({ before: 8, after: 3 })
     expect(studioPrefs({ before: -1, after: 61 })).toMatchObject({ before: 8, after: 3 })
     expect(studioPrefs({ before: '5', after: null })).toMatchObject({ before: 8, after: 3 })
@@ -92,6 +93,17 @@ describe('studioAction', () => {
     expect(key({ code: 'KeyM', key: 'm' }, document.createElement('input'))).toBeNull()
     expect(key({ code: 'KeyM', key: 'm', ctrlKey: true })).toBeNull()
     expect(key({ code: 'KeyZ', key: 'z' })).toBeNull()
+    expect(key({ code: 'ArrowLeft', key: 'ArrowLeft' }, document.createElement('input'))).toBeNull()
+  })
+  it('maps arrows to 10s and comma/period to 3s seeks', () => {
+    expect(key({ code: 'ArrowLeft', key: 'ArrowLeft' })).toEqual({ name: 'seek', delta: -10 })
+    expect(key({ code: 'ArrowRight', key: 'ArrowRight' })).toEqual({ name: 'seek', delta: 10 })
+    expect(key({ code: 'Comma', key: 'ת' })).toEqual({ name: 'seek', delta: -3 })
+    expect(key({ code: 'Period', key: '>', shiftKey: true })).toEqual({ name: 'seek', delta: 3 })
+  })
+  it('maps minus/equal to slower/faster', () => {
+    expect(key({ code: 'Minus', key: '-' })).toEqual({ name: 'rate', step: -1 })
+    expect(key({ code: 'Equal', key: '+', shiftKey: true })).toEqual({ name: 'rate', step: 1 })
   })
   it('leaves Space and Enter to a focused button', () => {
     const button = document.createElement('button')

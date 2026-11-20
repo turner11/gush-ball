@@ -179,7 +179,7 @@ watch([selectedTeamId, teamsLoaded, () => route.params.id], load, { immediate: t
         <h1 class="page-title">נגד {{ game.opponent.name }}</h1>
       </div>
       <div class="flex flex-wrap items-center gap-3">
-        <RouterLink v-if="canEditBriefing" :to="studioRoute" class="btn-primary">סטודיו וידאו</RouterLink>
+        <RouterLink v-if="canEditBriefing" :to="studioRoute" class="btn-primary">סטודיו</RouterLink>
         <RouterLink :to="scheduleRoute" class="section-link">ללוח המשחקים</RouterLink>
       </div>
     </header>

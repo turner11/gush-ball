@@ -8,6 +8,9 @@ const after = defineModel('after', { required: true })
 
 const KEYS = [
   { keys: 'Space', label: 'ניגון / השהיה' },
+  { keys: '← / →', label: '10 שניות אחורה / קדימה' },
+  { keys: '< / >', label: '3 שניות אחורה / קדימה' },
+  { keys: '- / +', label: 'האטה / האצה של הניגון' },
   { keys: 'M', label: 'סימון רגע' },
   { keys: 'I / O', label: 'התחלה / סוף בזמן הנוכחי' },
   { keys: '[ ]', label: 'כוונון התחלה בשנייה' },
