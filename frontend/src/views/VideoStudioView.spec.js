@@ -478,7 +478,8 @@ describe('VideoStudioView', () => {
       await tick(1, 5)
       await tick(0, 120)
       expect(btn().attributes('aria-pressed')).toBe('false')
-      expect(vi.getTimerCount()).toBe(1) // only the player's clock: the preview owns no timer of its own
+      wrapper.unmount()
+      expect(vi.getTimerCount()).toBe(0) // the player's clock is cleared on unmount; the preview owns no timer of its own
     })
 
     it('a stale player time just past the end right after R does not pause', async () => {

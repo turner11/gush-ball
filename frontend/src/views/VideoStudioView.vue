@@ -102,7 +102,7 @@ const playerKey = ref(0) // bumped to remount the player after it failed
 const playerFailed = ref(false)
 // Split view fits the largest 16:9 box into the player area; theater keeps the viewport-height cap.
 const playerFit = computed(() =>
-  prefs.theater ? 'lg:max-w-[calc((100dvh-9rem)*16/9)]' : 'lg:w-[min(100cqw,100cqh*16/9)]',
+  prefs.theater ? 'lg:max-w-[calc((100dvh-11.75rem)*16/9)]' : 'lg:w-[min(100cqw,100cqh*16/9)]',
 )
 const pasted = ref('')
 const pasteError = ref('')
@@ -215,7 +215,6 @@ function previewClip() {
   previewEnd = clip.end
 }
 watch(() => `${selected.value?.uid}|${selected.value?.start}|${selected.value?.end}`, stopPreview)
-onBeforeUnmount(stopPreview)
 
 function addMoment() {
   if (!activeUrl.value) return
@@ -385,12 +384,12 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
             </div>
             <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto" :class="playerFit" @error="onPlayerError" @ratechange="onRateChange" @timeupdate="onTimeUpdate" />
           </div>
-          <div v-if="!playerFailed" class="flex min-h-7 flex-wrap items-center gap-2 text-sm lg:h-7 lg:flex-nowrap lg:overflow-hidden" data-test="moment">
+          <div v-if="!playerFailed" class="flex h-7 items-center gap-2 overflow-hidden text-sm" data-test="moment">
             <span class="sr-only">קטע נוכחי:</span>
-            <span v-if="here.length > 1" class="font-bold">הרגע כלול ב-{{ here.length }} קטעים</span>
+            <span v-if="here.length > 1" class="truncate font-bold">הרגע כלול ב-{{ here.length }} קטעים</span>
             <template v-else-if="here.length === 1">
-              <span class="font-bold tabular-nums" dir="ltr">{{ range(here[0]) }}</span>
-              <span v-for="d in DESTINATIONS.filter((d) => here[0][d.field])" :key="d.field" class="badge-muted">{{ d.key }}</span>
+              <span class="shrink-0 font-bold tabular-nums" dir="ltr">{{ range(here[0]) }}</span>
+              <span v-for="d in DESTINATIONS.filter((d) => here[0][d.field])" :key="d.field" class="badge-muted shrink-0">{{ d.key }}</span>
               <span v-if="here[0].section" class="min-w-0 truncate" :title="here[0].section">{{ here[0].section }}</span>
               <span v-else-if="here[0].note" class="min-w-0 truncate text-muted" :title="here[0].note">{{ here[0].note }}</span>
               <span v-if="tagged(here[0]).length" class="min-w-0 truncate text-muted">
@@ -442,9 +441,9 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
                 :aria-current="selected?.uid === clip.uid ? 'true' : undefined"
                 @click="selectClip(clip)"
               >
-                <span class="font-bold tabular-nums" dir="ltr">{{ range(clip) }}</span>
+                <span class="shrink-0 font-bold tabular-nums" dir="ltr">{{ range(clip) }}</span>
                 <span class="text-sm text-muted">{{ sourceLabel(clip) }}</span>
-                <span v-for="d in DESTINATIONS.filter((d) => clip[d.field])" :key="d.field" class="badge-muted">{{ d.key }}</span>
+                <span v-for="d in DESTINATIONS.filter((d) => clip[d.field])" :key="d.field" class="badge-muted shrink-0">{{ d.key }}</span>
                 <span v-if="clip.status === 'error'" class="badge-loss">לא נשמר</span>
                 <span v-if="clip.section" class="min-w-0 truncate text-sm">{{ clip.section }}</span>
                 <span v-else-if="clip.note" class="min-w-0 truncate text-sm text-muted" :title="clip.note">{{ clip.note }}</span>
