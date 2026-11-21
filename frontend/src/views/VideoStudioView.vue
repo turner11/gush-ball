@@ -54,8 +54,20 @@ const { clips, selected, sections, lastDeleted, load: loadClips, add, change, re
   gameId,
 )
 
+// Clip-list filter: a clip shows when it has any of the chosen destination flags.
+const destinationFilter = ref([])
+const filterOptions = computed(() => DESTINATIONS.filter((d) => gameId.value !== null || !needsGame(d.field)))
+const shownClips = computed(() =>
+  destinationFilter.value.length ? clips.value.filter((c) => destinationFilter.value.some((f) => c[f])) : clips.value,
+)
+const toggleFilter = (field) => {
+  const i = destinationFilter.value.indexOf(field)
+  if (i < 0) destinationFilter.value.push(field)
+  else destinationFilter.value.splice(i, 1)
+}
 async function load() {
   if (!teamsLoaded.value) return
+  destinationFilter.value = []
   notFound.value = loadError.value = false
   if (!selectedTeamId.value) {
     notFound.value = true
@@ -289,7 +301,10 @@ const HANDLERS = {
   focusSection: () => editor.value?.focusSection(),
   delete: deleteSelected,
   confirm: confirmJersey,
-  cancel: clearJersey,
+  cancel: () => {
+    clearJersey()
+    document.activeElement?.blur()
+  },
   nudgeStart: (a) => nudgeSelected('start', a.delta),
   nudgeEnd: (a) => nudgeSelected('end', a.delta),
   digit: (a) => {
@@ -435,10 +450,26 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
         </section>
 
         <section class="space-y-2" aria-labelledby="studio-clips-title">
-          <h2 id="studio-clips-title" class="section-title">קטעים <span class="badge-muted">{{ clips.length }}</span></h2>
+          <h2 id="studio-clips-title" class="section-title">קטעים <span class="badge-muted"><template v-if="destinationFilter.length"><span dir="ltr" class="tabular-nums">{{ shownClips.length }}/{{ clips.length }}</span></template><template v-else>{{ clips.length }}</template></span></h2>
+          <div v-if="clips.length" class="segmented flex-wrap" role="group" aria-label="סינון לפי יעד" data-test="clip-filter">
+            <button
+              v-for="d in filterOptions"
+              :key="d.field"
+              type="button"
+              class="segmented-item"
+              :aria-pressed="destinationFilter.includes(d.field)"
+              :aria-label="d.label"
+              :title="d.label"
+              @click="toggleFilter(d.field)"
+            >{{ d.key }}</button>
+          </div>
           <p v-if="!clips.length" class="empty-state">לחצו M כדי לסמן רגע</p>
+          <div v-else-if="!shownClips.length" class="empty-state space-y-2">
+            <p>אין קטעים ביעדים שנבחרו</p>
+            <button type="button" class="btn-ghost" @click="destinationFilter = []">הצגת הכל</button>
+          </div>
           <ol v-else class="space-y-2">
-            <li v-for="clip in clips" :key="clip.uid">
+            <li v-for="clip in shownClips" :key="clip.uid">
               <button
                 type="button"
                 class="card flex w-full flex-wrap items-center gap-2 text-start"

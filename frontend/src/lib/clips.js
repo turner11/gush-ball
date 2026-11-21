@@ -75,13 +75,13 @@ const KEYS = {
   KeyS: 'focusSection',
   Delete: 'delete',
   Enter: 'confirm',
-  Escape: 'cancel',
 }
 
 // What a key press means in the studio, or null. Keyed by `event.code` so it works on a Hebrew layout.
-// Ignored while typing in a field and with ctrl/meta/alt held (browser shortcuts).
+// Ignored while typing in a field (except Esc, which leaves it) and with ctrl/meta/alt held (browser shortcuts).
 export function studioAction(event) {
   if (event.ctrlKey || event.metaKey || event.altKey) return null
+  if (event.code === 'Escape') return { name: 'cancel' }
   if (event.target?.closest?.('input, textarea, select, [contenteditable]')) return null
   if (event.code === 'BracketLeft') return { name: event.shiftKey ? 'nudgeEnd' : 'nudgeStart', delta: -1 }
   if (event.code === 'BracketRight') return { name: event.shiftKey ? 'nudgeEnd' : 'nudgeStart', delta: 1 }
