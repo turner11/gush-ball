@@ -1,11 +1,72 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import VideoCard from './VideoCard.vue'
 
 const card = (url, title = 'כותרת') => mount(VideoCard, { props: { video: { title, url } } })
 
+let players
+beforeEach(() => {
+  players = []
+  window.YT = {
+    Player: class {
+      constructor(el, opts) {
+        this.el = el
+        this.opts = opts
+        this.pauseVideo = vi.fn()
+        this.cueVideoById = vi.fn()
+        this.destroy = vi.fn()
+        players.push(this)
+      }
+    },
+  }
+})
+afterEach(() => {
+  delete window.YT
+})
+
+// YT.PlayerState: 0 ended, 1 playing
+const fire = (player, data) => player.opts.events.onStateChange({ data, target: player })
+
 describe('VideoCard', () => {
+  it('replays its segment when played again after it ends', async () => {
+    const w = card('https://youtu.be/xyz?t=90&end=130')
+    await flushPromises()
+    fire(players[0], 0)
+    expect(players[0].cueVideoById).toHaveBeenCalledWith({ videoId: 'xyz', startSeconds: 90, endSeconds: 130 })
+    w.unmount()
+  })
+
+  it("leaves a whole video to YouTube's own replay", async () => {
+    const w = card('https://youtu.be/xyz')
+    await flushPromises()
+    fire(players[0], 0)
+    expect(players[0].cueVideoById).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('destroys its player on unmount', async () => {
+    const w = card('https://youtu.be/xyz')
+    await flushPromises()
+    w.unmount()
+    expect(players[0].destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('playing one video pauses the one already playing', async () => {
+    const a = card('https://youtu.be/a')
+    const b = card('https://youtu.be/b')
+    await flushPromises()
+    fire(players[0], 1)
+    fire(players[1], 1)
+    expect(players[0].pauseVideo).toHaveBeenCalledTimes(1)
+    expect(players[1].pauseVideo).not.toHaveBeenCalled()
+    fire(players[1], 1)
+    expect(players[0].pauseVideo).toHaveBeenCalledTimes(1)
+    a.unmount()
+    b.unmount()
+  })
+
+
   it('embeds YouTube urls via youtube-nocookie', () => {
     const cases = [
       ['https://www.youtube.com/watch?v=abc123', 'abc123'],
@@ -13,7 +74,7 @@ describe('VideoCard', () => {
       ['https://www.youtube.com/shorts/s1', 's1'],
     ]
     for (const [url, id] of cases) {
-      expect(card(url).find('iframe').attributes('src')).toBe(`https://www.youtube-nocookie.com/embed/${id}`)
+      expect(card(url).find('iframe').attributes('src')).toBe(`https://www.youtube-nocookie.com/embed/${id}?enablejsapi=1`)
     }
   })
 

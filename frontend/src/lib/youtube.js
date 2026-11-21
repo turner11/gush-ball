@@ -22,10 +22,10 @@ export function youtubeEmbedUrl(url) {
   const id = youtubeId(url)
   if (!id) return null
   const { start, end } = videoSegment(url)
-  const query = new URLSearchParams()
+  const query = new URLSearchParams({ enablejsapi: 1 }) // lets VideoCard attach YT.Player
   if (start !== null) query.set('start', start)
   if (end !== null) query.set('end', end)
-  return `https://www.youtube-nocookie.com/embed/${id}${query.size ? `?${query}` : ''}`
+  return `https://www.youtube-nocookie.com/embed/${id}?${query}`
 }
 
 // The youtube.com watch URL at the clip start (youtube.com has no end param), or null for any other URL.
