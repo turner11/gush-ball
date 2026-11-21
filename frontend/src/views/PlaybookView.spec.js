@@ -141,7 +141,7 @@ describe('PlaybookView', () => {
 
   it('a YouTube link play embeds inline and expands without sandbox (#577)', async () => {
     const play = { id: 7, title: 'סרטון', notes: null, file_url: null, url: 'https://youtu.be/xyz' }
-    const src = 'https://www.youtube-nocookie.com/embed/xyz'
+    const src = 'https://www.youtube-nocookie.com/embed/xyz?enablejsapi=1'
     mockFetch({ 'GET /api/teams/1/plays': () => jsonRes([play]) })
     const wrapper = await mountView()
 
