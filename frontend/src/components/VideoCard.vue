@@ -1,6 +1,11 @@
+<script>
+// The embedded player now playing, shared by every card on the page so starting one pauses the other.
+let playingPlayer = null
+</script>
+
 <script setup>
-import { computed } from 'vue'
-import { formatTimestamp, videoSegment, youtubeEmbedUrl, youtubeWatchUrl } from '../lib/youtube'
+import { computed, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
+import { formatTimestamp, loadYouTubeApi, videoSegment, youtubeEmbedUrl, youtubeId, youtubeWatchUrl } from '../lib/youtube'
 import AppIcon from './AppIcon.vue'
 
 // level: the heading level, so a card nests under whatever heading its page has
@@ -8,11 +13,44 @@ import AppIcon from './AppIcon.vue'
 const props = defineProps({ video: { type: Object, required: true }, level: { type: Number, default: 3 }, showTitle: { type: Boolean, default: true } })
 
 const segment = computed(() => videoSegment(props.video.url))
+const frame = useTemplateRef('frame')
+let player = null
+
+// Player states: 0 = ended, 1 = playing.
+function onStateChange({ data, target }) {
+  if (data === 1) {
+    if (playingPlayer && playingPlayer !== target) playingPlayer.pauseVideo?.()
+    playingPlayer = target
+  } else if (data === 0 && (segment.value.start !== null || segment.value.end !== null)) {
+    // YouTube's replay would restart the whole video; re-cue so the next play is the same clip.
+    const cue = { videoId: youtubeId(props.video.url), startSeconds: segment.value.start ?? 0 }
+    if (segment.value.end !== null) cue.endSeconds = segment.value.end
+    target.cueVideoById(cue)
+  }
+}
+
+// Progressive enhancement: if the API fails to load, the plain iframe still plays.
+onMounted(async () => {
+  if (!frame.value) return
+  try {
+    await loadYouTubeApi()
+  } catch {
+    return
+  }
+  if (!frame.value) return
+  player = new window.YT.Player(frame.value, { events: { onStateChange } })
+})
+
+// No player.destroy(): on an adopted iframe it removes the element Vue also removes.
+onBeforeUnmount(() => {
+  if (playingPlayer === player) playingPlayer = null
+})
 </script>
 
 <template>
   <article class="space-y-2">
     <iframe
+      ref="frame"
       v-if="youtubeEmbedUrl(video.url)"
       :src="youtubeEmbedUrl(video.url)"
       :title="video.title"
