@@ -19,6 +19,20 @@ export function groupBySection(clips) {
   return [...groups.values()]
 }
 
+// The destination flags of a clip, in display order (editor buttons, list badges, the moment row).
+export const DESTINATIONS = [
+  { field: 'is_highlight', label: 'היילייטס (H)', key: 'H' },
+  { field: 'in_game_briefing', label: 'תדריך משחק (B)', key: 'B' },
+  { field: 'in_player_briefing', label: 'תדריך שחקן (P)', key: 'P' },
+]
+
+// The clips of video `url` that cover `seconds` (bounds inclusive, so a preview paused at the end still shows its clip).
+export function clipsAt(clips, url, seconds) {
+  const id = youtubeId(url)
+  if (!id) return []
+  return clips.filter((c) => youtubeId(c.source_url) === id && c.start !== null && c.end !== null && c.start <= seconds && seconds <= c.end)
+}
+
 // "Mark a moment" at `now` seconds: a clip from `before` seconds before to `after` seconds after.
 export function momentRange(now, before = 8, after = 3) {
   const whole = Math.floor(now)

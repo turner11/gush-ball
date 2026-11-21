@@ -10,7 +10,7 @@ import { previewMode } from '../composables/useAuth'
 import { useClipStudio } from '../composables/useClipStudio'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
-import { momentRange, needsGame, nudge, studioAction, studioPrefs } from '../lib/clips'
+import { clipsAt, DESTINATIONS, momentRange, needsGame, nudge, studioAction, studioPrefs } from '../lib/clips'
 import { formatTimestamp, withVideoSegment, youtubeId } from '../lib/youtube'
 
 const route = useRoute()
@@ -161,22 +161,28 @@ function selectClip(clip) {
   if (youtubeId(clip.source_url)) showVideo(clip.source_url, clip.start ?? 0)
 }
 
+// The player's clock (the page's one poll): the preview and the moment row both read it.
+const now = ref(0)
+const here = computed(() => clipsAt(clips.value, activeUrl.value, now.value))
+function onTimeUpdate(t) {
+  now.value = t
+  if (previewing.value) checkPreview(t)
+}
+
 // R: play the selected clip from its start and pause at its end. Any edit, seek or video switch cancels it
 // (without pausing: the user took over); Space and speed changes do not.
 const previewing = ref(false)
-let previewTimer = null
+let previewEnd = 0
 let previewArmed = false // a tick has seen t < end: before that the player's time may be stale from before the seek
 const canPreview = computed(() => !!youtubeId(selected.value?.source_url) && selected.value.start !== null && selected.value.end !== null)
 function stopPreview() {
-  clearInterval(previewTimer)
-  previewTimer = null
   previewArmed = false
   previewing.value = false
 }
-function checkPreview(end) {
+function checkPreview(t) {
+  const end = previewEnd
   if (previewArmed && player.value?.ended()) return stopPreview() // the video ended before the clip's end
   if (!player.value?.playing()) return // paused, or a new video still loading: its time is not the clip's
-  const t = player.value.currentTime()
   if (t < end) {
     previewArmed = true
     return
@@ -206,7 +212,7 @@ function previewClip() {
   }
   previewing.value = true
   status.value = `תצוגה מקדימה ${range(clip)}`
-  previewTimer = setInterval(() => checkPreview(clip.end), 250)
+  previewEnd = clip.end
 }
 watch(() => `${selected.value?.uid}|${selected.value?.start}|${selected.value?.end}`, stopPreview)
 onBeforeUnmount(stopPreview)
@@ -377,7 +383,21 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
               <p class="error-text" role="alert">הנגן לא נטען</p>
               <button type="button" class="btn-secondary" @click="retryPlayer">נסו שוב</button>
             </div>
-            <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto" :class="playerFit" @error="onPlayerError" @ratechange="onRateChange" />
+            <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto" :class="playerFit" @error="onPlayerError" @ratechange="onRateChange" @timeupdate="onTimeUpdate" />
+          </div>
+          <div v-if="!playerFailed" class="flex min-h-7 flex-wrap items-center gap-2 text-sm lg:h-7 lg:flex-nowrap lg:overflow-hidden" data-test="moment">
+            <span class="sr-only">קטע נוכחי:</span>
+            <span v-if="here.length > 1" class="font-bold">הרגע כלול ב-{{ here.length }} קטעים</span>
+            <template v-else-if="here.length === 1">
+              <span class="font-bold tabular-nums" dir="ltr">{{ range(here[0]) }}</span>
+              <span v-for="d in DESTINATIONS.filter((d) => here[0][d.field])" :key="d.field" class="badge-muted">{{ d.key }}</span>
+              <span v-if="here[0].section" class="min-w-0 truncate" :title="here[0].section">{{ here[0].section }}</span>
+              <span v-else-if="here[0].note" class="min-w-0 truncate text-muted" :title="here[0].note">{{ here[0].note }}</span>
+              <span v-if="tagged(here[0]).length" class="min-w-0 truncate text-muted">
+                <template v-for="(p, i) in tagged(here[0])" :key="p.id">{{ i ? ' · ' : '' }}<span dir="ltr">#{{ p.jersey_number }}</span> {{ p.name }}</template>
+              </span>
+            </template>
+            <span v-else class="text-muted">מחוץ לקטעים</span>
           </div>
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-secondary" aria-keyshortcuts="Space" @click="player?.toggle()">ניגון / השהיה <kbd class="kbd">Space</kbd></button>
@@ -424,9 +444,7 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
               >
                 <span class="font-bold tabular-nums" dir="ltr">{{ range(clip) }}</span>
                 <span class="text-sm text-muted">{{ sourceLabel(clip) }}</span>
-                <span v-if="clip.is_highlight" class="badge-muted">H</span>
-                <span v-if="clip.in_game_briefing" class="badge-muted">B</span>
-                <span v-if="clip.in_player_briefing" class="badge-muted">P</span>
+                <span v-for="d in DESTINATIONS.filter((d) => clip[d.field])" :key="d.field" class="badge-muted">{{ d.key }}</span>
                 <span v-if="clip.status === 'error'" class="badge-loss">לא נשמר</span>
                 <span v-if="clip.section" class="min-w-0 truncate text-sm">{{ clip.section }}</span>
                 <span v-else-if="clip.note" class="min-w-0 truncate text-sm text-muted" :title="clip.note">{{ clip.note }}</span>
