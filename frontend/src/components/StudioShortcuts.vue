@@ -17,7 +17,7 @@ const KEYS = [
   { keys: '[ ]', label: 'כוונון התחלה בשנייה' },
   { keys: 'Shift+[ ]', label: 'כוונון סוף בשנייה' },
   { keys: '0-9 ו-Enter', label: 'תיוג שחקן לפי מספר חולצה' },
-  { keys: 'Esc', label: 'ניקוי מספר' },
+  { keys: 'Esc', label: 'ניקוי מספר ויציאה מהשדה' },
   { keys: 'H', label: 'היילייטס', needsGame: true },
   { keys: 'B', label: 'תדריך משחק', needsGame: true },
   { keys: 'P', label: 'תדריך שחקן' },

@@ -226,6 +226,62 @@ describe('VideoStudioView', () => {
     expect(calls('POST')).toHaveLength(1)
   })
 
+  it('Esc in the section field leaves it, then M works again', async () => {
+    respond()
+    wrapper = await mountStudio()
+    await press('KeyM', 'm')
+    const input = wrapper.get('#studio-section')
+    input.element.focus()
+    await press('Escape', 'Escape', input.element)
+    expect(document.activeElement).toBe(document.body)
+    await press('KeyM', 'm')
+    expect(calls('POST')).toHaveLength(2)
+  })
+
+  it('Esc blurs a focused clip row button', async () => {
+    respond()
+    clips.push(stored(1, SRC))
+    wrapper = await mountStudio()
+    const row = wrapper.get('ol button').element
+    row.focus()
+    await press('Escape', 'Escape', row)
+    expect(document.activeElement).not.toBe(row)
+  })
+
+  describe('clip filter (#699)', () => {
+    const chip = (key) => wrapper.get('[data-test="clip-filter"]').findAll('button').find((b) => b.text() === key)
+    it('filters by destination, OR across the chosen ones', async () => {
+      respond()
+      clips.push(
+        stored(1, SRC),
+        { ...stored(2, SRC), in_player_briefing: true },
+        { ...stored(3, SRC), is_highlight: true },
+        { ...stored(4, SRC), is_highlight: true, is_player_highlight: true, player_ids: [11] },
+      )
+      wrapper = await mountStudio()
+      await chip('H').trigger('click')
+      expect(wrapper.findAll('ol button')).toHaveLength(2)
+      expect(chip('H').attributes('aria-pressed')).toBe('true')
+      expect(wrapper.get('#studio-clips-title').text()).toContain('2/4')
+      await chip('P').trigger('click')
+      expect(wrapper.findAll('ol button')).toHaveLength(3)
+      await chip('H').trigger('click')
+      expect(wrapper.findAll('ol button')).toHaveLength(1)
+    })
+
+    it('a filter with no matches says so and "הצגת הכל" clears it', async () => {
+      respond()
+      clips.push(stored(1, SRC), stored(2, SRC))
+      wrapper = await mountStudio()
+      await chip('B').trigger('click')
+      expect(wrapper.text()).toContain('אין קטעים ביעדים שנבחרו')
+      expect(wrapper.find('ol').exists()).toBe(false)
+      const clear = wrapper.findAll('button').find((b) => b.text() === 'הצגת הכל')
+      await clear.trigger('click')
+      expect(wrapper.findAll('ol button')).toHaveLength(2)
+    })
+  })
+
   it('digits then Enter tag the jersey, an unknown number says so', async () => {
     respond()
     wrapper = await mountStudio()
@@ -299,6 +355,7 @@ describe('VideoStudioView', () => {
       expect(wrapper.find('[aria-keyshortcuts="A"]').exists()).toBe(true)
       expect(wrapper.find('[aria-keyshortcuts="H"]').exists()).toBe(false)
       expect(wrapper.find('[aria-keyshortcuts="B"]').exists()).toBe(false)
+      expect(wrapper.get('[data-test="clip-filter"]').findAll('button').map((b) => b.text())).toEqual(['P', 'A'])
       await press('KeyH', 'h')
       expect(calls('PATCH')).toHaveLength(0)
     })

@@ -84,6 +84,12 @@ describe('studioAction', () => {
     expect(key({ code: 'Slash', key: '?', shiftKey: true })).toEqual({ name: 'shortcuts' })
     expect(key({ code: 'Slash', key: '?', shiftKey: true }, document.createElement('input'))).toBeNull()
   })
+  it('Esc cancels even typed in a field, but not with ctrl', () => {
+    const esc = { code: 'Escape', key: 'Escape' }
+    expect(key(esc, document.createElement('input'))).toEqual({ name: 'cancel' })
+    expect(key(esc, document.createElement('textarea'))).toEqual({ name: 'cancel' })
+    expect(key({ ...esc, ctrlKey: true }, document.createElement('input'))).toBeNull()
+  })
   it('nudges start with brackets and end with shift', () => {
     expect(key({ code: 'BracketLeft', key: '[' })).toEqual({ name: 'nudgeStart', delta: -1 })
     expect(key({ code: 'BracketRight', key: '}', shiftKey: true })).toEqual({ name: 'nudgeEnd', delta: 1 })
