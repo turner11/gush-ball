@@ -24,11 +24,11 @@ describe('formatTimestamp', () => {
 
 describe('youtubeEmbedUrl segment', () => {
   it('adds start and end', () => {
-    expect(youtubeEmbedUrl('https://youtu.be/xyz?t=90&end=120')).toBe('https://www.youtube-nocookie.com/embed/xyz?start=90&end=120')
-    expect(youtubeEmbedUrl('https://www.youtube.com/watch?v=abc&t=1m30s')).toBe('https://www.youtube-nocookie.com/embed/abc?start=90')
+    expect(youtubeEmbedUrl('https://youtu.be/xyz?t=90&end=120')).toBe('https://www.youtube-nocookie.com/embed/xyz?enablejsapi=1&start=90&end=120')
+    expect(youtubeEmbedUrl('https://www.youtube.com/watch?v=abc&t=1m30s')).toBe('https://www.youtube-nocookie.com/embed/abc?enablejsapi=1&start=90')
   })
   it('is unchanged without a segment', () => {
-    expect(youtubeEmbedUrl('https://youtu.be/xyz')).toBe('https://www.youtube-nocookie.com/embed/xyz')
+    expect(youtubeEmbedUrl('https://youtu.be/xyz')).toBe('https://www.youtube-nocookie.com/embed/xyz?enablejsapi=1')
   })
 })
 
