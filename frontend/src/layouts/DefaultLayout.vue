@@ -115,7 +115,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div :style="teamStyle" class="flex min-h-dvh flex-col bg-surface text-ink">
+  <div :style="teamStyle" class="flex min-h-dvh flex-col bg-surface text-ink" :class="route.meta.fill && 'lg:h-dvh'">
     <a href="#main" class="btn-primary sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50">דלג לתוכן</a>
     <p v-if="favError" role="alert" class="card error-text fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 mx-auto max-w-sm text-center lg:bottom-6">{{ favError }}</p>
     <div class="sticky top-0 z-40">
@@ -292,14 +292,19 @@ onMounted(async () => {
       <h1 class="sr-only">{{ selectedTeam.name }}</h1>
     </section>
 
-    <main id="main" :class="route.meta.wide ? 'max-w-none' : 'max-w-6xl'" class="mx-auto w-full flex-1 px-4 pt-6 pb-10 sm:px-6 sm:pt-10">
+    <main
+      id="main"
+      :class="[route.meta.wide ? 'max-w-none' : 'max-w-6xl', route.meta.fill && 'lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto lg:py-4']"
+      class="mx-auto w-full flex-1 px-4 pt-6 pb-10 sm:px-6 sm:pt-10"
+    >
       <ErrorBoundary>
         <RouterView />
       </ErrorBoundary>
     </main>
 
     <!-- carries the TabBar clearance, so the last content and this link both sit above the fixed bar -->
-    <footer class="mx-auto w-full max-w-6xl border-t border-line px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-6 flex flex-wrap gap-x-6">
+    <!-- meta.fill routes own the viewport height at lg, so the footer is dropped there (its links stay on every other page) -->
+    <footer :class="route.meta.fill && 'lg:hidden'" class="mx-auto w-full max-w-6xl border-t border-line px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-6 flex flex-wrap gap-x-6">
       <RouterLink :to="{ name: 'about' }" class="section-link">אודות</RouterLink>
       <RouterLink :to="{ name: 'accessibility' }" class="section-link">הצהרת נגישות</RouterLink>
     </footer>

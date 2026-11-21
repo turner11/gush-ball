@@ -65,6 +65,7 @@ describe('DefaultLayout', () => {
         { path: '/players/:id', name: 'player', component: { template: '<div/>' } },
         { path: '/teams', name: 'teams', component: { template: '<div/>' } },
         { path: '/admin', name: 'admin-home', component: { template: '<div/>' } },
+        { path: '/:slug/fill', name: 'fill', component: { template: '<div/>' }, meta: { fill: true } },
         { path: '/about', name: 'about', component: { template: '<div/>' }, meta: { title: 'אודות' } },
         { path: '/accessibility', name: 'accessibility', component: { template: '<div/>' }, meta: { title: 'הצהרת נגישות' } },
         { path: '/join', name: 'join', component: { template: '<div/>' } },
@@ -119,6 +120,21 @@ describe('DefaultLayout', () => {
       const w = await mountAs({ is_admin: true, team_ids: [1] })
       expect(w.find('.badge-count').exists()).toBe(false)
     })
+  })
+
+  it('a meta.fill route drops the lg padding and footer and fills the viewport; others keep them', async () => {
+    mockFetch({ 'GET /api/teams': () => jsonRes(TEAMS) })
+    const { default: DefaultLayout } = await import('./DefaultLayout.vue')
+    const w = mount(DefaultLayout, { global: { plugins: [router] } })
+    await router.push('/team_a/schedule')
+    await flushPromises()
+    expect(w.find('footer').classes()).not.toContain('lg:hidden')
+    expect(w.find('main').classes()).not.toContain('lg:overflow-y-auto')
+    await router.push('/team_a/fill')
+    await flushPromises()
+    expect(w.find('footer').classes()).toContain('lg:hidden')
+    expect(w.find('main').classes()).toContain('lg:overflow-y-auto')
+    expect(w.element.classList).toContain('lg:h-dvh')
   })
 
   it('sets meta description from route meta with the selected team name', async () => {

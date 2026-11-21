@@ -324,12 +324,34 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
     <RouterLink :to="game ? gameRoute : teamRoute" class="section-link">{{ game ? 'לעמוד המשחק' : 'לעמוד הקבוצה' }}</RouterLink>
   </div>
 
-  <!-- ponytail: 14.75rem = DefaultLayout chrome at lg (header 4.25 + main padding 5 + footer ~5.3 + slack); update if header/footer height changes -->
-  <div v-else-if="team" :class="!prefs.theater && 'lg:flex lg:h-[calc(100dvh-14.75rem)] lg:flex-col'">
-    <header class="page-header">
+  <!-- DefaultLayout (meta.fill) makes <main> a viewport-high flex column at lg: split view takes the leftover height -->
+  <div v-else-if="team" :class="!prefs.theater && 'lg:flex lg:min-h-0 lg:flex-1 lg:flex-col'">
+    <header class="page-header" :class="!prefs.theater && 'lg:mb-3'">
       <div>
         <p class="eyebrow">{{ team.name }}</p>
         <h1 class="page-title">{{ game ? `סטודיו · נגד ${game.opponent.name}` : 'סטודיו וידאו' }}</h1>
+      </div>
+      <div class="flex min-w-0 flex-wrap items-start gap-3 lg:max-w-xl lg:grow">
+        <div v-if="game?.video_urls?.length" class="segmented flex-wrap" role="group" aria-label="סרטון משחק">
+          <button
+            v-for="(url, i) in game.video_urls"
+            :key="url"
+            type="button"
+            class="segmented-item"
+            :aria-pressed="activeUrl === url"
+            @click="showVideo(url)"
+          >
+            סרטון {{ i + 1 }}
+          </button>
+        </div>
+        <form class="flex min-w-0 grow flex-wrap items-start gap-2" @submit.prevent="pickPasted">
+          <div class="min-w-48 grow">
+            <label for="studio-url" class="sr-only">קישור YouTube</label>
+            <input id="studio-url" v-model="pasted" class="field-input mt-0" type="url" dir="ltr" placeholder="https://www.youtube.com/watch?v=…" />
+            <p v-if="pasteError" class="error-text mt-1" role="alert">{{ pasteError }}</p>
+          </div>
+          <button type="submit" class="btn-secondary">טעינה</button>
+        </form>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button
@@ -349,36 +371,13 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
 
     <div class="space-y-6" :class="!prefs.theater && 'lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[minmax(0,1fr)] lg:gap-6 lg:space-y-0'">
       <div class="min-w-0 space-y-4" :class="!prefs.theater && 'lg:flex lg:min-h-0 lg:flex-col'">
-        <div class="flex flex-wrap items-start gap-3">
-          <div v-if="game?.video_urls?.length" class="segmented flex-wrap" role="group" aria-label="סרטון משחק">
-            <button
-              v-for="(url, i) in game.video_urls"
-              :key="url"
-              type="button"
-              class="segmented-item"
-              :aria-pressed="activeUrl === url"
-              @click="showVideo(url)"
-            >
-              סרטון {{ i + 1 }}
-            </button>
-          </div>
-          <form class="flex min-w-0 grow flex-wrap items-start gap-2" @submit.prevent="pickPasted">
-            <div class="min-w-48 grow">
-              <label for="studio-url" class="sr-only">קישור YouTube</label>
-              <input id="studio-url" v-model="pasted" class="field-input mt-0" type="url" dir="ltr" placeholder="https://www.youtube.com/watch?v=…" />
-              <p v-if="pasteError" class="error-text mt-1" role="alert">{{ pasteError }}</p>
-            </div>
-            <button type="submit" class="btn-secondary">טעינה</button>
-          </form>
-        </div>
-
         <template v-if="activeUrl">
           <div :class="!prefs.theater && 'lg:min-h-0 lg:flex-1 lg:[container-type:size]'">
-          <div v-if="playerFailed" class="mx-auto aspect-video w-full space-y-3 rounded-2xl border border-line bg-sunken p-6" :class="playerFit">
-            <p class="error-text" role="alert">הנגן לא נטען</p>
-            <button type="button" class="btn-secondary" @click="retryPlayer">נסו שוב</button>
-          </div>
-          <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto" :class="playerFit" @error="onPlayerError" @ratechange="onRateChange" />
+            <div v-if="playerFailed" class="mx-auto aspect-video w-full space-y-3 rounded-2xl border border-line bg-sunken p-6" :class="playerFit">
+              <p class="error-text" role="alert">הנגן לא נטען</p>
+              <button type="button" class="btn-secondary" @click="retryPlayer">נסו שוב</button>
+            </div>
+            <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto" :class="playerFit" @error="onPlayerError" @ratechange="onRateChange" />
           </div>
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-secondary" aria-keyshortcuts="Space" @click="player?.toggle()">ניגון / השהיה <kbd class="kbd">Space</kbd></button>

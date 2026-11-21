@@ -169,6 +169,12 @@ describe('VideoStudioView', () => {
     expect(pane().className).not.toContain('lg:overflow-y-auto')
   })
 
+  it('the URL picker sits in the page header, above the grid', async () => {
+    respond()
+    wrapper = await mountStudio()
+    expect(wrapper.find('header.page-header #studio-url').exists()).toBe(true)
+  })
+
   it('M marks a moment 8s before to 3s after the current time', async () => {
     respond()
     wrapper = await mountStudio()
