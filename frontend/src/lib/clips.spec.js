@@ -77,6 +77,7 @@ describe('studioAction', () => {
     expect(key({ code: 'Space', key: ' ' })).toEqual({ name: 'toggle' })
     expect(key({ code: 'KeyH', key: 'h' })).toEqual({ name: 'toggleHighlight' })
     expect(key({ code: 'Delete', key: 'Delete' })).toEqual({ name: 'delete' })
+    expect(key({ code: 'KeyR', key: 'ר' })).toEqual({ name: 'preview' })
   })
   it('maps ? to the shortcuts panel, but not typed in a field', () => {
     expect(key({ code: 'Slash', key: '?', shiftKey: true })).toEqual({ name: 'shortcuts' })

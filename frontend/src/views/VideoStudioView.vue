@@ -104,6 +104,7 @@ const pasted = ref('')
 const pasteError = ref('')
 
 function showVideo(url, start = 0) {
+  stopPreview()
   activeUrl.value = url
   player.value?.load(url, start)
 }
@@ -124,7 +125,12 @@ function onRateChange(r) {
 }
 function seekBy(delta) {
   if (!activeUrl.value) return
+  stopPreview()
   player.value?.seek(Math.max(0, (player.value.currentTime() ?? 0) + delta))
+}
+function onPlayerError() {
+  stopPreview()
+  playerFailed.value = true
 }
 function retryPlayer() {
   playerFailed.value = false
@@ -150,6 +156,56 @@ function selectClip(clip) {
   select(clip)
   if (youtubeId(clip.source_url)) showVideo(clip.source_url, clip.start ?? 0)
 }
+
+// R: play the selected clip from its start and pause at its end. Any edit, seek or video switch cancels it
+// (without pausing: the user took over); Space and speed changes do not.
+const previewing = ref(false)
+let previewTimer = null
+let previewArmed = false // a tick has seen t < end: before that the player's time may be stale from before the seek
+const canPreview = computed(() => !!youtubeId(selected.value?.source_url) && selected.value.start !== null && selected.value.end !== null)
+function stopPreview() {
+  clearInterval(previewTimer)
+  previewTimer = null
+  previewArmed = false
+  previewing.value = false
+}
+function checkPreview(end) {
+  if (previewArmed && player.value?.ended()) return stopPreview() // the video ended before the clip's end
+  if (!player.value?.playing()) return // paused, or a new video still loading: its time is not the clip's
+  const t = player.value.currentTime()
+  if (t < end) {
+    previewArmed = true
+    return
+  }
+  if (!previewArmed) return // a stale time from before the seek, not the end
+  stopPreview()
+  // Far past the end: the user jumped with the player's own bar, so do not pause their video.
+  // ponytail: the 2 s margin covers 250 ms polling up to x2; a throttled background tab can overshoot it and not pause.
+  if (t >= end + 2) return
+  player.value.pause()
+  status.value = 'סוף הקטע'
+}
+function previewClip() {
+  if (previewing.value) {
+    player.value?.pause()
+    stopPreview()
+    return
+  }
+  if (!canPreview.value || !activeUrl.value) return
+  const clip = selected.value
+  if (youtubeId(clip.source_url) !== youtubeId(activeUrl.value)) {
+    showVideo(clip.source_url, clip.start)
+  } else {
+    stopPreview()
+    player.value?.seek(clip.start)
+    player.value?.play()
+  }
+  previewing.value = true
+  status.value = `תצוגה מקדימה ${range(clip)}`
+  previewTimer = setInterval(() => checkPreview(clip.end), 250)
+}
+watch(() => `${selected.value?.uid}|${selected.value?.start}|${selected.value?.end}`, stopPreview)
+onBeforeUnmount(stopPreview)
 
 function addMoment() {
   if (!activeUrl.value) return
@@ -211,6 +267,7 @@ const HANDLERS = {
   moment: addMoment,
   markStart: () => markBound('start'),
   markEnd: () => markBound('end'),
+  preview: previewClip,
   toggleHighlight: () => toggleDestination('is_highlight'),
   toggleBriefing: () => toggleDestination('in_game_briefing'),
   togglePlayer: () => toggleDestination('in_player_briefing'),
@@ -315,12 +372,13 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
             <p class="error-text" role="alert">הנגן לא נטען</p>
             <button type="button" class="btn-secondary" @click="retryPlayer">נסו שוב</button>
           </div>
-          <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto lg:max-w-[calc((100dvh-9rem)*16/9)]" @error="playerFailed = true" @ratechange="onRateChange" />
+          <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto lg:max-w-[calc((100dvh-9rem)*16/9)]" @error="onPlayerError" @ratechange="onRateChange" />
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-secondary" aria-keyshortcuts="Space" @click="player?.toggle()">ניגון / השהיה <kbd class="kbd">Space</kbd></button>
             <button type="button" class="btn-primary" aria-keyshortcuts="M" @click="addMoment">סימון רגע <kbd class="kbd">M</kbd></button>
             <button type="button" class="btn-secondary" aria-keyshortcuts="I" @click="markBound('start')">התחלה כאן <kbd class="kbd">I</kbd></button>
             <button type="button" class="btn-secondary" aria-keyshortcuts="O" @click="markBound('end')">סוף כאן <kbd class="kbd">O</kbd></button>
+            <button v-if="canPreview" type="button" class="btn-secondary" aria-keyshortcuts="R" :aria-pressed="previewing" :class="previewing && 'ring-2 ring-team'" @click="previewClip">תצוגה מקדימה <kbd class="kbd">R</kbd></button>
             <button type="button" class="btn-ghost hidden lg:inline-flex" :aria-pressed="prefs.theater" @click="prefs.theater = !prefs.theater">וידאו גדול</button>
             <span class="badge-muted self-center">מהירות <span dir="ltr" class="tabular-nums">×{{ rate }}</span></span>
           </div>
