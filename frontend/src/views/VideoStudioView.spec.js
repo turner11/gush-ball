@@ -188,6 +188,18 @@ describe('VideoStudioView', () => {
   const SRC2 = 'https://www.youtube.com/watch?v=zzzzzzzzzzz'
   const stored = (id, source_url) => ({ id, game_id: 5, source_url, start: 1, end: 9, section: null, note: null, is_highlight: false, in_game_briefing: false, in_player_briefing: false, player_ids: [] })
 
+  it('a clip list row shows the section, or else the note muted', async () => {
+    respond()
+    clips.push({ ...stored(1, SRC), section: 'הגנה', note: 'לא מוצג' }, { ...stored(2, SRC), note: 'שימו לב לחסימה' })
+    wrapper = await mountStudio()
+    const rows = wrapper.findAll('ol button')
+    expect(rows[1].text()).toContain('הגנה')
+    expect(rows[1].text()).not.toContain('לא מוצג')
+    const note = rows[0].find('span.text-muted.truncate')
+    expect(note.text()).toBe('שימו לב לחסימה')
+    expect(note.attributes('title')).toBe('שימו לב לחסימה')
+  })
+
   it('selects the newest clip after load, so the keys act on it', async () => {
     respond()
     clips.push(stored(1, SRC), stored(2, SRC))

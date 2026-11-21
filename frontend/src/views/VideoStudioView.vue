@@ -429,6 +429,7 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
                 <span v-if="clip.in_player_briefing" class="badge-muted">P</span>
                 <span v-if="clip.status === 'error'" class="badge-loss">לא נשמר</span>
                 <span v-if="clip.section" class="min-w-0 truncate text-sm">{{ clip.section }}</span>
+                <span v-else-if="clip.note" class="min-w-0 truncate text-sm text-muted" :title="clip.note">{{ clip.note }}</span>
                 <span v-if="tagged(clip).length" class="text-sm text-muted" dir="ltr">{{ tagged(clip).map((p) => `#${p.jersey_number}`).join(' ') }}</span>
               </button>
             </li>
