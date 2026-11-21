@@ -21,6 +21,7 @@ const KEYS = [
   { keys: 'H', label: 'היילייטס', needsGame: true },
   { keys: 'B', label: 'תדריך משחק', needsGame: true },
   { keys: 'P', label: 'תדריך שחקן' },
+  { keys: 'A', label: 'היילייט אישי (דורש שחקן מתויג)' },
   { keys: 'S', label: 'פרק' },
   { keys: 'Delete', label: 'מחיקת הקטע' },
   { keys: '?', label: 'הצגה / הסתרה של הקיצורים' },

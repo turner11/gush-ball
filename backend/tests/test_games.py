@@ -913,10 +913,11 @@ def test_get_game_highlights_are_public(client: TestClient, db_session: Session,
     game = _make_game(db_session, own_team)
     _clip(db_session, own_team, game, source_url=f"{YT}aaaaaaaaaaa", is_highlight=True, in_player_briefing=True)
     _clip(db_session, own_team, game, source_url=f"{YT}bbbbbbbbbbb", in_game_briefing=True)
+    _clip(db_session, own_team, game, source_url=f"{YT}ccccccccccc", is_player_highlight=True, player_ids=[1])
     detail = client.get(f"/teams/{own_team.id}/games/{game.id}").json()
     assert [c["source_url"] for c in detail["highlights"]] == [f"{YT}aaaaaaaaaaa"]
     assert detail["briefing"] is None
-    assert not {"is_highlight", "in_game_briefing", "in_player_briefing"} & set(detail["highlights"][0])
+    assert not {"is_highlight", "in_game_briefing", "in_player_briefing", "is_player_highlight"} & set(detail["highlights"][0])
     listing = client.get(f"/teams/{own_team.id}/games").json()
     assert [[c["source_url"] for c in g["highlights"]] for g in listing] == [[f"{YT}aaaaaaaaaaa"]]
     assert all("briefing" not in g for g in listing)

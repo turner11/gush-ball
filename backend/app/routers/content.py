@@ -292,6 +292,7 @@ class ClipIn(BaseModel):
     section: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
     note: Notes | None = None
     is_highlight: bool = False
+    is_player_highlight: bool = False
     in_game_briefing: bool = False
     in_player_briefing: bool = False
     player_ids: list[int] = Field(default=[], max_length=30)
@@ -301,6 +302,8 @@ class ClipIn(BaseModel):
         for flag in ("is_highlight", "in_game_briefing"):
             if getattr(self, flag) and self.game_id is None:
                 raise ValueError(f"{flag} needs a game_id")
+        if self.is_player_highlight and not self.player_ids:
+            raise ValueError("is_player_highlight needs player_ids")
         if self.start is not None and self.end is not None and self.end <= self.start:
             raise ValueError(f"end ({self.end}) must be after start ({self.start})")
         return self
@@ -324,6 +327,7 @@ class ClipRead(BaseModel):
 class ClipOut(ClipRead):
     team_id: int
     is_highlight: bool
+    is_player_highlight: bool
     in_game_briefing: bool
     in_player_briefing: bool
 

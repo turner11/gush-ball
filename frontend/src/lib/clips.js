@@ -24,6 +24,7 @@ export const DESTINATIONS = [
   { field: 'is_highlight', label: 'היילייטס (H)', key: 'H' },
   { field: 'in_game_briefing', label: 'תדריך משחק (B)', key: 'B' },
   { field: 'in_player_briefing', label: 'תדריך שחקן (P)', key: 'P' },
+  { field: 'is_player_highlight', label: 'היילייט אישי (A)', key: 'A' },
 ]
 
 // The clips of video `url` that cover `seconds` (bounds inclusive, so a preview paused at the end still shows its clip).
@@ -41,6 +42,9 @@ export function momentRange(now, before = 8, after = 3) {
 
 // H and B belong to a game; a game-less clip can only be P (mirrors ClipIn._consistent).
 export const needsGame = (field) => field === 'is_highlight' || field === 'in_game_briefing'
+
+// A personal highlight needs a tagged player (mirrors ClipIn._consistent).
+export const needsPlayer = (field) => field === 'is_player_highlight'
 
 // The studio's stored preferences (panel, larger video, moment window), each field sanitised. `after >= 1` keeps end > start, so M never sends a 422.
 export function studioPrefs(raw) {
@@ -67,6 +71,7 @@ const KEYS = {
   KeyH: 'toggleHighlight',
   KeyB: 'toggleBriefing',
   KeyP: 'togglePlayer',
+  KeyA: 'togglePersonal',
   KeyS: 'focusSection',
   Delete: 'delete',
   Enter: 'confirm',

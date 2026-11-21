@@ -23,6 +23,7 @@ def test_editor_creates_lists_updates_and_deletes_clip(admin_client: TestClient,
     assert created.status_code == 201
     clip = created.json()
     assert (clip["is_highlight"], clip["in_game_briefing"], clip["player_ids"], clip["team_id"]) == (True, False, [player.id], team.id)
+    assert clip["is_player_highlight"] is False
     assert admin_client.get(base).json() == [clip]
 
     patched = admin_client.patch(f"{base}/{clip['id']}", json=_body(game.id, start=12, end=30, section="Q2", is_highlight=True))
@@ -69,12 +70,15 @@ def test_clip_validation_422(admin_client: TestClient, db_session: Session) -> N
         _body(foreign_game.id),
         _body(game.id, player_ids=[foreign_player.id]),
         _body(game.id, source_url="javascript:alert(1)"),
+        _body(game.id, is_player_highlight=True),
     ]
     assert [admin_client.post(base, json=b).status_code for b in bad] == [422] * len(bad)
     # a game-less clip is fine as a player briefing, and a text-only note needs no url
     assert admin_client.post(base, json=_body(None, in_player_briefing=True)).status_code == 201
+    personal = _body(None, is_player_highlight=True, player_ids=[_player(db_session, team).id])
+    assert admin_client.post(base, json=personal).status_code == 201
     assert admin_client.post(base, json={"game_id": game.id, "note": "hi", "is_highlight": True}).status_code == 201
-    assert len(db_session.scalars(select(VideoClip.id)).all()) == 2
+    assert len(db_session.scalars(select(VideoClip.id)).all()) == 3
 
 
 def test_clip_of_another_team_is_not_found(admin_client: TestClient, db_session: Session) -> None:

@@ -45,6 +45,14 @@ describe('useClipStudio', () => {
     expect(calls('POST')).toHaveLength(2)
   })
 
+  it('untagging the last player clears the personal highlight', async () => {
+    apiFetch.mockResolvedValue({ id: 1 })
+    const s = studio()
+    const clip = s.add({ source_url: 'https://youtu.be/aaaaaaaaaaa', player_ids: [1], is_player_highlight: true })
+    await s.change(clip, { player_ids: [] })
+    expect(apiFetch.mock.calls.at(-1)[1].body.is_player_highlight).toBe(false)
+  })
+
   it('delete then undo re-creates the clip with a POST', async () => {
     apiFetch.mockResolvedValue({ id: 1 })
     const s = studio()

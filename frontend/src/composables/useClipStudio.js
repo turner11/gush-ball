@@ -2,8 +2,8 @@ import { computed, reactive, ref } from 'vue'
 
 import { apiFetch } from '../lib/api'
 
-const FIELDS = ['game_id', 'source_url', 'start', 'end', 'section', 'note', 'is_highlight', 'in_game_briefing', 'in_player_briefing', 'player_ids']
-const BLANK = { source_url: null, start: null, end: null, section: null, note: null, is_highlight: false, in_game_briefing: false, in_player_briefing: false, player_ids: [] }
+const FIELDS = ['game_id', 'source_url', 'start', 'end', 'section', 'note', 'is_highlight', 'in_game_briefing', 'in_player_briefing', 'is_player_highlight', 'player_ids']
+const BLANK = { source_url: null, start: null, end: null, section: null, note: null, is_highlight: false, in_game_briefing: false, in_player_briefing: false, is_player_highlight: false, player_ids: [] }
 
 const ERRORS = { 422: 'ערך לא תקין', 403: 'אין הרשאה' }
 const errorText = (e) => ERRORS[e.status] ?? 'השמירה נכשלה'
@@ -68,6 +68,7 @@ export function useClipStudio(teamId, gameId) {
 
   function change(clip, patch) {
     Object.assign(clip, patch)
+    if (!clip.player_ids.length) clip.is_player_highlight = false // mirrors ClipIn._consistent: the API rejects it untagged
     return save(clip)
   }
 

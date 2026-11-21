@@ -1,7 +1,7 @@
 <script setup>
 import { useTemplateRef } from 'vue'
 
-import { DESTINATIONS, needsGame, nudge } from '../lib/clips'
+import { DESTINATIONS, needsGame, needsPlayer, nudge } from '../lib/clips'
 import { formatTimestamp } from '../lib/youtube'
 
 // The selected clip's controls (#682). Pure: it emits what the user changed, the studio saves it.
@@ -68,12 +68,15 @@ const text = (field, value) => emit('change', { [field]: value.trim() || null })
         class="segmented-item"
         :aria-pressed="clip[d.field]"
         :aria-keyshortcuts="d.key"
+        :disabled="needsPlayer(d.field) && !clip.player_ids.length"
+        :aria-describedby="needsPlayer(d.field) && !clip.player_ids.length && !clip.in_player_briefing ? 'studio-needs-player' : undefined"
         @click="emit('change', { [d.field]: !clip[d.field] })"
       >
         {{ d.label }}
       </button>
     </div>
     <p v-if="clip.in_player_briefing && !clip.player_ids.length" class="text-sm text-muted">תייגו שחקן כדי שהקטע יגיע לתדריך שלו</p>
+    <p v-if="!clip.player_ids.length && !clip.in_player_briefing" id="studio-needs-player" class="text-sm text-muted">תייגו שחקן כדי לסמן היילייט אישי</p>
 
     <div class="space-y-2">
       <div class="flex flex-wrap items-center gap-2">

@@ -10,7 +10,7 @@ import { previewMode } from '../composables/useAuth'
 import { useClipStudio } from '../composables/useClipStudio'
 import { useSelectedTeam } from '../composables/useSelectedTeam'
 import { apiFetch } from '../lib/api'
-import { clipsAt, DESTINATIONS, momentRange, needsGame, nudge, studioAction, studioPrefs } from '../lib/clips'
+import { clipsAt, DESTINATIONS, momentRange, needsGame, needsPlayer, nudge, studioAction, studioPrefs } from '../lib/clips'
 import { formatTimestamp, withVideoSegment, youtubeId } from '../lib/youtube'
 
 const route = useRoute()
@@ -247,6 +247,10 @@ function nudgeSelected(which, delta) {
 
 function toggleDestination(field) {
   if (!selected.value || (needsGame(field) && selected.value.game_id === null)) return
+  if (needsPlayer(field) && !selected.value.player_ids.length) {
+    status.value = 'תייגו שחקן לפני סימון היילייט אישי'
+    return
+  }
   change(selected.value, { [field]: !selected.value[field] })
 }
 
@@ -280,6 +284,7 @@ const HANDLERS = {
   toggleHighlight: () => toggleDestination('is_highlight'),
   toggleBriefing: () => toggleDestination('in_game_briefing'),
   togglePlayer: () => toggleDestination('in_player_briefing'),
+  togglePersonal: () => toggleDestination('is_player_highlight'),
   shortcuts: () => (prefs.shortcutsOpen = !prefs.shortcutsOpen),
   focusSection: () => editor.value?.focusSection(),
   delete: deleteSelected,
