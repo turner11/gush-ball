@@ -1,7 +1,7 @@
 <script setup>
 import { useTemplateRef } from 'vue'
 
-import { needsGame, nudge } from '../lib/clips'
+import { DESTINATIONS, needsGame, nudge } from '../lib/clips'
 import { formatTimestamp } from '../lib/youtube'
 
 // The selected clip's controls (#682). Pure: it emits what the user changed, the studio saves it.
@@ -17,11 +17,6 @@ const emit = defineEmits(['change', 'delete'])
 const section = useTemplateRef('section')
 defineExpose({ focusSection: () => section.value?.focus() })
 
-const DESTINATIONS = [
-  { field: 'is_highlight', label: 'היילייטס (H)', key: 'H' },
-  { field: 'in_game_briefing', label: 'תדריך משחק (B)', key: 'B' },
-  { field: 'in_player_briefing', label: 'תדריך שחקן (P)', key: 'P' },
-]
 const NUDGES = [
   { which: 'start', delta: -1, label: 'התחלה פחות שנייה', text: '−1', keys: '[' },
   { which: 'start', delta: 1, label: 'התחלה ועוד שנייה', text: '+1', keys: ']' },

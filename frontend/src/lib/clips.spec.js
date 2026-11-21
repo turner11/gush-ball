@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { clipUrl, groupBySection, momentRange, nudge, studioAction, studioPrefs } from './clips'
+import { clipsAt, clipUrl, groupBySection, momentRange, nudge, studioAction, studioPrefs } from './clips'
 
 const YT = 'https://www.youtube.com/watch?v=abcdefghijk'
 
@@ -110,5 +110,20 @@ describe('studioAction', () => {
     const button = document.createElement('button')
     expect(key({ code: 'Space', key: ' ' }, button)).toBeNull()
     expect(key({ code: 'KeyM', key: 'm' }, button)).toEqual({ name: 'moment' })
+  })
+})
+
+describe('clipsAt', () => {
+  const clip = { source_url: YT, start: 1, end: 9 }
+  it('returns the clips of that video whose range covers the time, bounds inclusive', () => {
+    for (const t of [1, 5, 9]) expect(clipsAt([clip], YT, t)).toEqual([clip])
+    for (const t of [0, 10]) expect(clipsAt([clip], YT, t)).toEqual([])
+  })
+  it('skips other videos, text notes, half-set clips and an empty url', () => {
+    const other = { ...clip, source_url: 'https://www.youtube.com/watch?v=zzzzzzzzzzz' }
+    const note = { ...clip, source_url: null }
+    const open = { ...clip, end: null }
+    expect(clipsAt([other, note, open], YT, 5)).toEqual([])
+    expect(clipsAt([clip, note], '', 5)).toEqual([])
   })
 })

@@ -343,6 +343,45 @@ describe('VideoStudioView', () => {
     })
   })
 
+  describe('current moment (#695)', () => {
+    const stored = (over = {}) => ({ id: 1, game_id: 5, source_url: SRC, start: 1, end: 9, section: 'הגנה', note: null, is_highlight: true, in_game_briefing: false, in_player_briefing: false, player_ids: [11], ...over })
+    const moment = () => wrapper.find('[data-test="moment"]')
+    const tick = async (time) => {
+      Object.assign(players[0], { state: 1, time })
+      vi.advanceTimersByTime(250)
+      await flushPromises()
+    }
+    beforeEach(() => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }))
+    afterEach(() => vi.useRealTimers())
+
+    it('shows the range, flags, section and tagged players of the clip at the current time', async () => {
+      respond()
+      clips.push(stored())
+      wrapper = await mountStudio()
+      await tick(5)
+      const text = moment().text()
+      for (const part of ['0:01–0:09', 'H', 'הגנה', '#12', 'אלף']) expect(text).toContain(part)
+      expect(moment().findAll('.badge-muted').map((b) => b.text())).toEqual(['H'])
+    })
+
+    it('says outside clips when the time is in none', async () => {
+      respond()
+      clips.push(stored())
+      wrapper = await mountStudio()
+      await tick(20)
+      expect(moment().text()).toContain('מחוץ לקטעים')
+    })
+
+    it('says how many clips when the time is in several', async () => {
+      respond()
+      clips.push(stored(), stored({ id: 2, start: 4, end: 12 }))
+      wrapper = await mountStudio()
+      await tick(5)
+      expect(moment().text()).toContain('הרגע כלול ב-2 קטעים')
+      expect(moment().text()).not.toContain('0:01')
+    })
+  })
+
   describe('preview (#688)', () => {
     const SRC2 = 'https://www.youtube.com/watch?v=zzzzzzzzzzz'
     const stored = (source_url, end = 9) => ({ id: 1, game_id: 5, source_url, start: 1, end, section: null, note: null, is_highlight: false, in_game_briefing: false, in_player_briefing: false, player_ids: [] })
@@ -439,7 +478,8 @@ describe('VideoStudioView', () => {
       await tick(1, 5)
       await tick(0, 120)
       expect(btn().attributes('aria-pressed')).toBe('false')
-      expect(vi.getTimerCount()).toBe(0)
+      wrapper.unmount()
+      expect(vi.getTimerCount()).toBe(0) // the player's clock is cleared on unmount; the preview owns no timer of its own
     })
 
     it('a stale player time just past the end right after R does not pause', async () => {
