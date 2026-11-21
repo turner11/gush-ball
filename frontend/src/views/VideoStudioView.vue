@@ -312,14 +312,14 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
     <div class="skeleton h-40"></div>
   </div>
 
-  <div v-else-if="notFound" class="mx-auto max-w-3xl space-y-3">
+  <div v-else-if="notFound" class="mx-auto w-full max-w-3xl space-y-3">
     <p class="empty-state">{{ gameId ? 'המשחק לא נמצא.' : 'הקבוצה לא נמצאה.' }}</p>
     <RouterLink :to="gameId ? scheduleRoute : { name: 'teams' }" class="section-link">{{ gameId ? 'ללוח המשחקים' : 'לכל הקבוצות' }}</RouterLink>
   </div>
 
-  <LoadError v-else-if="loadError" class="mx-auto max-w-3xl" message="שגיאה בטעינת הסטודיו" @retry="load" />
+  <LoadError v-else-if="loadError" class="mx-auto w-full max-w-3xl" message="שגיאה בטעינת הסטודיו" @retry="load" />
 
-  <div v-else-if="team && !allowed" class="mx-auto max-w-3xl space-y-3">
+  <div v-else-if="team && !allowed" class="mx-auto w-full max-w-3xl space-y-3">
     <p class="empty-state">הסטודיו פתוח למנהלי הקבוצה ולמאמן</p>
     <RouterLink :to="game ? gameRoute : teamRoute" class="section-link">{{ game ? 'לעמוד המשחק' : 'לעמוד הקבוצה' }}</RouterLink>
   </div>
