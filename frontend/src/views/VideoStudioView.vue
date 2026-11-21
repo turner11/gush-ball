@@ -100,6 +100,10 @@ const editor = useTemplateRef('editor')
 const activeUrl = ref('')
 const playerKey = ref(0) // bumped to remount the player after it failed
 const playerFailed = ref(false)
+// Split view fits the largest 16:9 box into the player area; theater keeps the viewport-height cap.
+const playerFit = computed(() =>
+  prefs.theater ? 'lg:max-w-[calc((100dvh-9rem)*16/9)]' : 'lg:w-[min(100cqw,100cqh*16/9)]',
+)
 const pasted = ref('')
 const pasteError = ref('')
 
@@ -308,23 +312,46 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
     <div class="skeleton h-40"></div>
   </div>
 
-  <div v-else-if="notFound" class="mx-auto max-w-3xl space-y-3">
+  <div v-else-if="notFound" class="mx-auto w-full max-w-3xl space-y-3">
     <p class="empty-state">{{ gameId ? 'המשחק לא נמצא.' : 'הקבוצה לא נמצאה.' }}</p>
     <RouterLink :to="gameId ? scheduleRoute : { name: 'teams' }" class="section-link">{{ gameId ? 'ללוח המשחקים' : 'לכל הקבוצות' }}</RouterLink>
   </div>
 
-  <LoadError v-else-if="loadError" class="mx-auto max-w-3xl" message="שגיאה בטעינת הסטודיו" @retry="load" />
+  <LoadError v-else-if="loadError" class="mx-auto w-full max-w-3xl" message="שגיאה בטעינת הסטודיו" @retry="load" />
 
-  <div v-else-if="team && !allowed" class="mx-auto max-w-3xl space-y-3">
+  <div v-else-if="team && !allowed" class="mx-auto w-full max-w-3xl space-y-3">
     <p class="empty-state">הסטודיו פתוח למנהלי הקבוצה ולמאמן</p>
     <RouterLink :to="game ? gameRoute : teamRoute" class="section-link">{{ game ? 'לעמוד המשחק' : 'לעמוד הקבוצה' }}</RouterLink>
   </div>
 
-  <div v-else-if="team">
-    <header class="page-header">
+  <!-- DefaultLayout (meta.fill) makes <main> a viewport-high flex column at lg: split view takes the leftover height -->
+  <div v-else-if="team" :class="!prefs.theater && 'lg:flex lg:min-h-0 lg:flex-1 lg:flex-col'">
+    <header class="page-header" :class="!prefs.theater && 'lg:mb-3'">
       <div>
         <p class="eyebrow">{{ team.name }}</p>
         <h1 class="page-title">{{ game ? `סטודיו · נגד ${game.opponent.name}` : 'סטודיו וידאו' }}</h1>
+      </div>
+      <div class="flex min-w-0 flex-wrap items-start gap-3 lg:max-w-xl lg:grow">
+        <div v-if="game?.video_urls?.length" class="segmented flex-wrap" role="group" aria-label="סרטון משחק">
+          <button
+            v-for="(url, i) in game.video_urls"
+            :key="url"
+            type="button"
+            class="segmented-item"
+            :aria-pressed="activeUrl === url"
+            @click="showVideo(url)"
+          >
+            סרטון {{ i + 1 }}
+          </button>
+        </div>
+        <form class="flex min-w-0 grow flex-wrap items-start gap-2" @submit.prevent="pickPasted">
+          <div class="min-w-48 grow">
+            <label for="studio-url" class="sr-only">קישור YouTube</label>
+            <input id="studio-url" v-model="pasted" class="field-input mt-0" type="url" dir="ltr" placeholder="https://www.youtube.com/watch?v=…" />
+            <p v-if="pasteError" class="error-text mt-1" role="alert">{{ pasteError }}</p>
+          </div>
+          <button type="submit" class="btn-secondary">טעינה</button>
+        </form>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button
@@ -342,37 +369,16 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
       </div>
     </header>
 
-    <div class="space-y-6" :class="!prefs.theater && 'lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-6 lg:space-y-0'">
-      <div class="min-w-0 space-y-4">
-        <div class="flex flex-wrap items-start gap-3">
-          <div v-if="game?.video_urls?.length" class="segmented flex-wrap" role="group" aria-label="סרטון משחק">
-            <button
-              v-for="(url, i) in game.video_urls"
-              :key="url"
-              type="button"
-              class="segmented-item"
-              :aria-pressed="activeUrl === url"
-              @click="showVideo(url)"
-            >
-              סרטון {{ i + 1 }}
-            </button>
-          </div>
-          <form class="flex min-w-0 grow flex-wrap items-start gap-2" @submit.prevent="pickPasted">
-            <div class="min-w-48 grow">
-              <label for="studio-url" class="sr-only">קישור YouTube</label>
-              <input id="studio-url" v-model="pasted" class="field-input mt-0" type="url" dir="ltr" placeholder="https://www.youtube.com/watch?v=…" />
-              <p v-if="pasteError" class="error-text mt-1" role="alert">{{ pasteError }}</p>
-            </div>
-            <button type="submit" class="btn-secondary">טעינה</button>
-          </form>
-        </div>
-
+    <div class="space-y-6" :class="!prefs.theater && 'lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[minmax(0,1fr)] lg:gap-6 lg:space-y-0'">
+      <div class="min-w-0 space-y-4" :class="!prefs.theater && 'lg:flex lg:min-h-0 lg:flex-col'">
         <template v-if="activeUrl">
-          <div v-if="playerFailed" class="mx-auto aspect-video w-full space-y-3 lg:max-w-[calc((100dvh-9rem)*16/9)] rounded-2xl border border-line bg-sunken p-6">
-            <p class="error-text" role="alert">הנגן לא נטען</p>
-            <button type="button" class="btn-secondary" @click="retryPlayer">נסו שוב</button>
+          <div :class="!prefs.theater && 'lg:min-h-0 lg:flex-1 lg:[container-type:size]'">
+            <div v-if="playerFailed" class="mx-auto aspect-video w-full space-y-3 rounded-2xl border border-line bg-sunken p-6" :class="playerFit">
+              <p class="error-text" role="alert">הנגן לא נטען</p>
+              <button type="button" class="btn-secondary" @click="retryPlayer">נסו שוב</button>
+            </div>
+            <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto" :class="playerFit" @error="onPlayerError" @ratechange="onRateChange" />
           </div>
-          <YouTubePlayer v-else ref="player" :key="playerKey" :url="activeUrl" class="mx-auto lg:max-w-[calc((100dvh-9rem)*16/9)]" @error="onPlayerError" @ratechange="onRateChange" />
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-secondary" aria-keyshortcuts="Space" @click="player?.toggle()">ניגון / השהיה <kbd class="kbd">Space</kbd></button>
             <button type="button" class="btn-primary" aria-keyshortcuts="M" @click="addMoment">סימון רגע <kbd class="kbd">M</kbd></button>
@@ -384,10 +390,10 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
           </div>
         </template>
         <p v-else class="empty-state">{{ game ? 'הוסיפו צילומי משחק בעמוד המשחק או הדביקו קישור YouTube' : 'הדביקו קישור YouTube: סקאוטינג, עונה קודמת או כל סרטון' }}</p>
-        <p class="text-sm text-muted" aria-live="polite" data-test="status">{{ status }}</p>
+        <p class="min-h-5 text-sm text-muted" aria-live="polite" data-test="status">{{ status }}</p>
       </div>
 
-      <div class="min-w-0 space-y-4" :class="prefs.theater && 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0'">
+      <div class="min-w-0 space-y-4" :class="prefs.theater ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0' : 'lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:p-1'">
         <StudioShortcuts v-if="prefs.shortcutsOpen" v-model:before="prefs.before" v-model:after="prefs.after" :with-game="!!game" />
         <section class="card" aria-label="הקטע הנבחר">
           <StudioClipEditor

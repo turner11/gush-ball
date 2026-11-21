@@ -160,6 +160,21 @@ describe('VideoStudioView', () => {
     expect(toggle().attributes('aria-pressed')).toBe('true')
   })
 
+  it('the side pane scrolls on its own in split view, not in theater', async () => {
+    respond()
+    wrapper = await mountStudio()
+    const pane = () => wrapper.find('[aria-labelledby="studio-clips-title"]').element.parentElement
+    expect(pane().className).toContain('lg:overflow-y-auto')
+    await wrapper.findAll('button').find((b) => b.text() === 'וידאו גדול').trigger('click')
+    expect(pane().className).not.toContain('lg:overflow-y-auto')
+  })
+
+  it('the URL picker sits in the page header, above the grid', async () => {
+    respond()
+    wrapper = await mountStudio()
+    expect(wrapper.find('header.page-header #studio-url').exists()).toBe(true)
+  })
+
   it('M marks a moment 8s before to 3s after the current time', async () => {
     respond()
     wrapper = await mountStudio()
