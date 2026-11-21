@@ -15,6 +15,7 @@ beforeEach(() => {
         this.opts = opts
         this.pauseVideo = vi.fn()
         this.cueVideoById = vi.fn()
+        this.destroy = vi.fn()
         players.push(this)
       }
     },
@@ -42,6 +43,13 @@ describe('VideoCard', () => {
     fire(players[0], 0)
     expect(players[0].cueVideoById).not.toHaveBeenCalled()
     w.unmount()
+  })
+
+  it('destroys its player on unmount', async () => {
+    const w = card('https://youtu.be/xyz')
+    await flushPromises()
+    w.unmount()
+    expect(players[0].destroy).toHaveBeenCalledTimes(1)
   })
 
   it('playing one video pauses the one already playing', async () => {

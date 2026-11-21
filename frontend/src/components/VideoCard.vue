@@ -41,9 +41,9 @@ onMounted(async () => {
   player = new window.YT.Player(frame.value, { events: { onStateChange } })
 })
 
-// No player.destroy(): on an adopted iframe it removes the element Vue also removes.
 onBeforeUnmount(() => {
   if (playingPlayer === player) playingPlayer = null
+  player?.destroy?.()
 })
 </script>
 
