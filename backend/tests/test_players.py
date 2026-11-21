@@ -899,3 +899,25 @@ def test_player_highlights_public_tagged_h_clips_from_public_games(client: TestC
     _p_clip(db_session, own_team, [player.id], game=hidden, section="hidden game", **h)
     got = client.get(f"/players/{player.id}").json()["highlights"]
     assert [c["section"] for c in got] == ["new", "old"]
+
+
+def test_player_highlights_include_personal_clips(client: TestClient, db_session: Session, own_team: Team) -> None:
+    from datetime import datetime as dt
+
+    from tests.test_games import _make_game
+
+    player = _player(db_session, own_team)
+    game, hidden = (_make_game(db_session, own_team) for _ in range(2))
+    game.scheduled_at = dt(2026, 1, 1, 18)
+    hidden.needs_review = True
+    db_session.commit()
+    mine = {"is_player_highlight": True, "in_player_briefing": False}
+    _p_clip(db_session, own_team, [player.id], game=game, section="personal", **mine)
+    _p_clip(db_session, own_team, [player.id], game=game, section="both", is_highlight=True, **mine)
+    _p_clip(db_session, own_team, [player.id], game=None, section="no game", **mine)
+    _p_clip(db_session, own_team, [player.id], game=hidden, section="hidden game", **mine)
+    _p_clip(db_session, own_team, [player.id + 100], game=game, section="not tagged", **mine)
+    _p_clip(db_session, own_team, [player.id], game=None, section="P only")
+    got = client.get(f"/players/{player.id}").json()["highlights"]
+    assert sorted(c["section"] for c in got[:2]) == ["both", "personal"]
+    assert [c["section"] for c in got[2:]] == ["no game"]

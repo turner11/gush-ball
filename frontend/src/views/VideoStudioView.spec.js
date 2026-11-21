@@ -242,6 +242,22 @@ describe('VideoStudioView', () => {
     expect(wrapper.text()).not.toContain('אין שחקן עם מספר 9')
   })
 
+  it('A needs a tagged player: says so, then toggles the personal highlight', async () => {
+    respond()
+    wrapper = await mountStudio()
+    await press('KeyM', 'm')
+    await press('KeyA', 'a')
+    expect(calls('PATCH')).toHaveLength(0)
+    expect(wrapper.get('[data-test="status"]').text()).toContain('תייגו שחקן')
+    expect(wrapper.get('[aria-keyshortcuts="A"]').attributes('disabled')).toBeDefined()
+    await press('Digit1', '1')
+    await press('Digit2', '2')
+    await press('Enter')
+    await press('KeyA', 'a')
+    expect(calls('PATCH').at(-1)[1].body).toMatchObject({ is_player_highlight: true, player_ids: [11] })
+    expect(wrapper.get('[aria-keyshortcuts="A"]').attributes('aria-pressed')).toBe('true')
+  })
+
   it('H toggles the highlight and saves the whole clip', async () => {
     respond()
     wrapper = await mountStudio()
@@ -273,13 +289,14 @@ describe('VideoStudioView', () => {
       await flushPromises()
     }
 
-    it('lists only the game-less clips and offers only the P destination', async () => {
+    it('lists only the game-less clips and offers P and personal', async () => {
       respond()
       clips.push(stored(1, SRC), gameless(2))
       wrapper = await mountStudio('/team_a/studio')
       expect(wrapper.findAll('ol button')).toHaveLength(1)
       expect(wrapper.get('h1').text()).toBe('סטודיו וידאו')
       expect(wrapper.find('[aria-keyshortcuts="P"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-keyshortcuts="A"]').exists()).toBe(true)
       expect(wrapper.find('[aria-keyshortcuts="H"]').exists()).toBe(false)
       expect(wrapper.find('[aria-keyshortcuts="B"]').exists()).toBe(false)
       await press('KeyH', 'h')

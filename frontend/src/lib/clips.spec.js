@@ -76,6 +76,7 @@ describe('studioAction', () => {
     expect(key({ code: 'KeyM', key: 'צ' })).toEqual({ name: 'moment' })
     expect(key({ code: 'Space', key: ' ' })).toEqual({ name: 'toggle' })
     expect(key({ code: 'KeyH', key: 'h' })).toEqual({ name: 'toggleHighlight' })
+    expect(key({ code: 'KeyA', key: 'ש' })).toEqual({ name: 'togglePersonal' })
     expect(key({ code: 'Delete', key: 'Delete' })).toEqual({ name: 'delete' })
     expect(key({ code: 'KeyR', key: 'ר' })).toEqual({ name: 'preview' })
   })
