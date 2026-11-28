@@ -10,6 +10,7 @@ description: >-
   It also makes a wide, text-free banner (2400x1000) for a post's image in the home-page featured-posts carousel
   (FeaturedPosts): use it for "banner", "cover image for the post", "image for the home page hero / carousel".
   Inputs: main image, optional extra images (logo, teammates), optional text, optional 1-2 theme colors.
+  For the house-style roster card (a player's main image on the roster and player pages), use player-card instead.
 argument-hint: "<photo> [extra images...] [text] [color1,color2] [banner]"
 allowed-tools: Bash, PowerShell, Read, Write, Glob
 ---
